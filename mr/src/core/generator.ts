@@ -85,6 +85,9 @@ export interface GenParams {
   parkNorm?: boolean;
   /** 11.11: hisoblangan (saqlanmaydi): meʼyorlar toʻplami (norms/sets) — 'intl' da masofalar ADG 3F-1, parkovka talabi yoʻq; yoʻq / 'UZ' — ShNQ (oʻzgarishsiz) */
   norms?: NormSet;
+  /** 12.11 (egasi: «yoqmasa — yoqqan variant chiqquncha yangilab generatsiya»): variant raqami (0 — asosiy). Har raqam — boshqa
+   *  joylashuv: boʻlinish qaysi burchakdan boshlanadi va seksiya uzunligi (±20 %, modulga yaxlitlab); meʼyoriy tekshiruvlar oʻzgarmaydi */
+  variant?: number;
 }
 /** Talab hisobi uchun loyiha sozlamalari */
 export interface GenOpts { use?: string; /** 02.11: logistika turi (ZoneLabel.sub) va yaqin temir yoʻl (mahalliy metr) — core/logigen */ logi?: string; rails?: XY[][]; aptNet?: number; netToGross?: number; /** 04.11: 29-jadval — Toshkent shahri/viloyati (sukut) yoki boshqa viloyat */ tashkent?: boolean; /** toʻsiqlar (mahalliy metr): saqlanadigan mavjud, qoʻlda chizilgan va boshqa guruh binolari, h — balandlik (m) */ avoid?: Obstacle3[] }
@@ -984,7 +987,44 @@ function okRect(r: XY[], w: number): boolean {
   return true;
 }
 /** Asosiy kirish: tipologiya, maqsadli UMN, stilobat va parkovka */
-export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
+/** 12.11: variant raqamidan takrorlanuvchi oʻzgarish — kvartal halqasi boshqa uchidan, seksiya uzunligi ±20 % (aniq oʻlcham rejimida — oʻzgarmaydi) */
+export function varyGen(block: XY[], g: GenParams): { block: XY[]; g: GenParams } {
+  const v = Math.max(0, Math.round(g.variant ?? 0)); if (!v || block.length < 3) return { block, g };
+  let st = (v * 0x9e3779b9) >>> 0; const rnd = () => { st = (st + 0x6d2b79f5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const n = block.length, k = (Math.floor(rnd() * n) + v) % n;
+  const rot = <T>(r: T[] | undefined, kk: number): T[] | undefined => r && r.length ? [...r.slice(kk % r.length), ...r.slice(0, kk % r.length)] : r;
+  const sl0 = g.secLen * (0.8 + 0.4 * rnd()), secLen = g.exact ? g.secLen : Math.max(18, Math.min(g.maxLen ?? Infinity, Math.round(sl0 / 3.3) * 3.3));
+  const m = g.setbackRing?.length ?? 0, u = g.ugRing?.length ?? 0;
+  return { block: rot(block, k)!, g: { ...g, secLen, ...(m ? { setbackRing: rot(g.setbackRing, Math.round(k * m / n)) } : {}), ...(u ? { ugRing: rot(g.ugRing, Math.round(k * u / n)) } : {}) } };
+}
+
+/**
+ * 12.11: variant sxemasi (faqat qavatni pasaytiradi yoki seksiyani olib tashlaydi — oraliq va insolyatsiya cheklovlari buzilmaydi):
+ * v % 4 = 1 — janubga pasayish (hovliga quyosh), 2 — perimetrning janubiy tomoni ochiq (U-shakl; ≥ 6 seksiya), 3 — ritm (har ikkinchi
+ * seksiya 3 qavat past). UMN maqsadi berilganda qavatlar oʻzgarmaydi (faqat joylashuv). AMALIYOT
+ */
+function varyScheme(r: GenResult, g: GenParams, t: Typology, far: number): void {
+  const v = Math.max(0, Math.round(g.variant ?? 0)), sch = v % 4; if (!v || !sch) return;
+  const live = r.sections.filter(s => ['oddiy', 'burchak', 'qator', 'minora'].includes(s.kind));
+  if (live.length < 2) return;
+  const cy = (s: GenSection) => s.ring.reduce((a, p) => a + p[1], 0) / s.ring.length;
+  const ys = live.map(cy), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (sch === 2 && t === 'perimetr' && live.length >= 6 && y1 - y0 > 2 * g.depth) {
+    const drop = new Set(live.filter(s => cy(s) < y0 + 0.6 * g.depth && s.kind !== 'burchak'));
+    if (drop.size && live.length - drop.size >= 4) { r.sections = r.sections.filter(s => !drop.has(s)); r.notes.push(`Variant ${v}: janubiy tomon ochiq (${drop.size} ta seksiya olinmadi) — hovliga quyosh`); return; }
+  }
+  if (far > 0) return;
+  const lo = Math.max(1, g.minF);
+  if (sch === 1 || sch === 2) {
+    // shimol–janub farqi kichik boʻlsa (masalan, bitta qatordagi seksiyalar) — dominanta variantga qarab bir uchida, qolgani pasayadi
+    const cx = (q: GenSection) => q.ring.reduce((a, p) => a + p[0], 0) / q.ring.length, xs = live.map(cx), flip = (v >> 2) % 2 === 1;
+    const ns = y1 - y0 > g.depth, pr = (q: GenSection) => ns ? cy(q) : flip ? -cx(q) : cx(q), p0 = ns ? y0 : flip ? -Math.max(...xs) : Math.min(...xs), p1 = ns ? y1 : flip ? -Math.min(...xs) : Math.max(...xs);
+    for (const s of live) { const k = p1 - p0 > 1 ? (pr(s) - p0) / (p1 - p0) : 1; s.floors = Math.max(lo, Math.min(s.floors, Math.round(lo + (s.floors - lo) * (0.45 + 0.55 * k)))); } r.notes.push(ns ? `Variant ${v}: qavatlar janubga pasayadi` : `Variant ${v}: dominanta bir uchida, qavatlar pasayib boradi`); }
+  else if (sch === 3) { live.sort((a, b) => cy(a) - cy(b) || a.ring[0][0] - b.ring[0][0]).forEach((s, i) => { if (i % 2) s.floors = Math.max(lo, s.floors - 3); }); r.notes.push(`Variant ${v}: balandlik ritmi (har ikkinchi seksiya 3 qavat past)`); }
+}
+
+export function generate(block0: XY[], g0: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
+  const { block, g } = varyGen(block0, g0);
   farLo = Infinity; farHi = 0;
   XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const site = aOf(clean(block));
@@ -1034,6 +1074,7 @@ export function generate(block: XY[], g: GenParams, floorH = FLOOR_H, opts: GenO
   }
   if (g.typology === 'avto') r.notes.unshift(`Avto: UMN ${String(far || 2).replace('.', ',')} → «${TYPO_NAME[t]}»`);
   // stilobat: chekinish ichidagi butun maydon, seksiyalar uning ustida
+  varyScheme(r, g, t, far);
   const st = Math.max(0, Math.round(g.stylobate ?? 0)), outer = (g.setbackRing ?? inset(clean(block), g.setback));
   const podiumOk = st > 0 && outer && ['perimetr', 'qatorlar', 'minora', 'blok_minora', 'ofis_plita'].includes(t);
   if (podiumOk) {
