@@ -5,7 +5,7 @@ Kirish: narx_stats.py bilan bir xil xom fayl («kategoriya|id;usd;m2;xona;lat;ln
 Chiqish:
   - CSV tarixi (har sana, kategoriya, oʻlcham uchun qatorlar; shu sana boʻlsa — almashtiriladi);
   - GeoJSON — eng soʻnggi holat (xarita uchun): har katak — koʻpburchak, xossalari:
-      kat (kvartira | hovli | hammasi), olcham_m, n (yaroqli eʼlonlar; 5 dan kam boʻlsa — faqat "<5"),
+      kat (kvartira | hovli | hammasi | ijara_kvartira | ijara_hovli | <kat>_yangi | <kat>_ikkilamchi), olcham_m, n (yaroqli eʼlonlar; 5 dan kam boʻlsa — faqat "<5"),
       median, p25, p75 ($/m²; kam boʻlsa — yoʻq).
 Maxfiylik: repo ochiq — 5 tadan kam eʼlonli katakda narx yozilmaydi (alohida eʼlon tiklanmasin),
 katak markazi yoziladi, eʼlon koordinatasi emas. Narxsiz katakchalar faqat shahar konturi (eʼlonlar qobigʻi) ichida beriladi —
@@ -109,16 +109,20 @@ def main():
         ok, *_ = clean(c['rows'], cat)
         ok = [r for r in ok if BBOX[0] <= r['lat'] <= BBOX[1] and BBOX[2] <= r['lng'] <= BBOX[3]]   # xato koordinatalar toʻrni choʻzmasin
         cats[cat] = [(xy(r['lat'], r['lng']), r['v']) for r in ok]
-        # shahar boʻyicha: umumiy + yangi / ikkilamchi
-        for scat, sub in [(cat, ok)] + ([] if False else
-                                        [(f'{cat}_yangi', [r for r in ok if r['nb'] == 'true']),
-                                         (f'{cat}_ikkilamchi', [r for r in ok if r['nb'] == 'false'])]):
+        # yangi / ikkilamchi (isNewBuilding maʼlum boʻlsa) — xaritada ham, shahar boʻyicha ham
+        seg = [(cat, ok)]
+        if any(r['nb'] in ('true', 'false') for r in ok):
+            for nom, val in (('yangi', 'true'), ('ikkilamchi', 'false')):
+                sub = [r for r in ok if r['nb'] == val]
+                if sub:
+                    seg.append((f'{cat}_{nom}', sub))
+                    cats[f'{cat}_{nom}'] = [(xy(r['lat'], r['lng']), r['v']) for r in sub]
+        dp = 1 if cat.startswith('ijara') else None
+        for scat, sub in seg:
             vals = [r['v'] for r in sub]
-            if vals and (scat == cat or any(r['nb'] in ('true', 'false') for r in ok)):
-                dp = 1 if cat.startswith('ijara') else None
-                shahar[scat] = [len(vals), round(st.median(vals), dp), round(q(vals, .25), dp), round(q(vals, .75), dp)]
-    # «hammasi» — faqat sotuv (ijara $/m²/oy — boshqa birlik)
-    cats['hammasi'] = [v for k in list(cats) if not k.startswith('ijara') for v in cats[k]]
+            shahar[scat] = [len(vals), round(st.median(vals), dp), round(q(vals, .25), dp), round(q(vals, .75), dp)]
+    # «hammasi» — faqat sotuv, segmentlarsiz (ijara $/m²/oy — boshqa birlik)
+    cats['hammasi'] = [v for k in ('kvartira', 'hovli') for v in cats.get(k, [])]
     allpts = [p for p, _ in cats['hammasi']] or [p for k in cats for p, _ in cats[k]]
     H = hull(allpts)
     rows, feats = [], []
