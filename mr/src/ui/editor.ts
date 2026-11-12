@@ -2924,7 +2924,13 @@ export class Editor {
           seisNote),
         h('div', { class: 'row' },
           h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
-          allBtn(), clearBtn(this.selBlock)),
+          // 12.11 (egasi: «yoqmasa — yoqqan variant chiqquncha yangilab generatsiya qiladigan tugma»): har bosilganda keyingi variant
+          // (boʻlinish boshqa burchakdan, seksiya uzunligi, balandlik sxemasi — core/generator varyGen/varyScheme); cheklanmagan
+          h('button', { class: 'btn btn-lg icon-btn', id: 'genNext', disabled: this.selBlock == null, title: tr('Boshqa variant'), 'aria-label': tr('Boshqa variant'), 'data-v': String(g.variant ?? 0),
+            onclick: () => { const i = this.selBlock; if (i == null) return; void useHeavy('gen').then(ok => { if (!ok) return; this.gen = { ...this.gen, variant: (this.gen.variant ?? 0) + 1 }; this.generateBlock(i); toast(tf('Variant ${n}', { n: this.gen.variant ?? 0 })); }); } },
+            svgIcon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'))),
+        // 12.11: «Hammasi» va tozalash — ikkinchi qatorda (birinchi qatorga «Boshqa variant» sigʻsin)
+        h('div', { class: 'row', id: 'genRow2' }, (() => { const b = allBtn(); b.classList.add('grow'); return b; })(), clearBtn(this.selBlock)),
         isLow ? this.lowRowBox(fr, g.maxF) : '',
         (() => { more.append(isoEl, ...(isLow ? [] : [
           ...(g.typology === 'avto' ? [] : farRow),
