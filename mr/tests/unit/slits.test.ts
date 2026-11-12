@@ -28,8 +28,7 @@ describe('closeSlits (G1)', () => {
   });
   for (const nm of ['olmazor', 'yunusobod']) it(`${nm}: tirqishlar yopiladi`, () => {
     const r = load(nm), f = closeSlits(r);
-    // @ts-ignore
-    fs.appendFileSync('/tmp/g1/slits.log', `${nm} n=${f.n} area=${Math.round(f.area)} pts ${r.length}→${f.ring.length} A ${Math.round(Math.abs(signedArea(r)))}→${Math.round(Math.abs(signedArea(f.ring)))}\n`);
-    expect(f.n).toBeGreaterThan(0);
+    expect(f.n).toBeGreaterThanOrEqual(5);                                        // Olmazor 5, Yunusobod 6 ta tirqish
+    expect(Math.abs(signedArea(f.ring))).toBeGreaterThan(Math.abs(signedArea(r)));   // faqat qoʻshiladi
   });
 });
