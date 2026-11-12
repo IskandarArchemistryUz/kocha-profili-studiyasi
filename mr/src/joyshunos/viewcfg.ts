@@ -18,7 +18,7 @@ export const VIEW: Record<string, ViewDef> = {
   shovqin: { styles: [['zona', 'Zonalar'], ['kontur', 'Konturlar'], ['65', '≥ 65 dB']], pals: [['ISO 1996', ['#e9f0e4', '#d6e7b8', '#f3dd8a', '#f0a85c', '#d9603f', '#8e2c4f']], ['Pushti', ['#fde0ef', '#f9bcd8', '#f4a6c9', '#e0609c', '#c2416b', '#7a0f3c']]], k: true },
   shamol: { styles: [['oqim', 'Oqim chiziqlari'], ['roza', 'Faqat shamol guli']], pals: [['Yashil', ['#bfe3cf', '#5fb38a', '#2f8a66', '#145c40']], ['Moviy', ['#cfe3f5', '#7fb3e0', '#3a7fc2', '#16467e']], ['Toʻq sariq', ['#fde2bf', '#f6ad5f', '#e0782a', '#9c4512']]], k: true },
   xizmat: { styles: [['ikonka', 'Ikonkalar'], ['nuqta', 'Nuqtalar'], ['qamrov', 'Qamrov radiusi']] },
-  raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik']], k: true },
+  raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik'], ['ikonka', 'Ikonkalar']], k: true },
   narx: { axes: [['Bitim', [['sotuv', 'Sotuv'], ['ijara', 'Ijara']]], ['Turi', [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']]],
     ['Bozor', [['hammasi', 'Hammasi'], ['yangi', 'Yangi bino'], ['ikkilamchi', 'Ikkilamchi uy']]]], k: true },
   quyosh: { styles: [['quyosh', 'Quyosh soatlari'], ['soya', 'Soya soatlari']], k: true },

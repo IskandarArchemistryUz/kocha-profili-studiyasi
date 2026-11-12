@@ -987,6 +987,8 @@ function addOverlays(): void {
   for (const k of SVC_KINDS) if (!m.hasImage(`svc-${k}`)) m.addImage(`svc-${k}`, svcIcon(k), { pixelRatio: 2 });
   m.addLayer({ id: 'joy-poi-i', type: 'symbol', source: 'joy-poi', layout: { visibility: 'none', 'icon-image': ['concat', 'svc-', ['get', 'k']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1], 'icon-allow-overlap': true }, paint: { 'icon-opacity': ['case', ['get', 'in'], 1, 0.45] } } as never);
   m.addLayer({ id: 'joy-comp', type: 'circle', source: 'joy-comp', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 4, 17, 8], 'circle-color': '#7a5a3c', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2, 'circle-opacity': ['case', ['get', 'in'], 1, 0.4] } } as never);
+  for (const ct of CATS) if (!m.hasImage(`comp-${ct.id}`)) m.addImage(`comp-${ct.id}`, compIcon(ct.id), { pixelRatio: 2 });
+  m.addLayer({ id: 'joy-comp-i', type: 'symbol', source: 'joy-comp', layout: { visibility: 'none', 'icon-image': `comp-${S.cat}`, 'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1], 'icon-allow-overlap': true }, paint: { 'icon-opacity': ['case', ['get', 'in'], 1, 0.45] } } as never);
   m.addLayer({ id: 'joy-c-h', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 18, 'circle-color': ACC, 'circle-opacity': 0.16 } });
   m.addLayer({ id: 'joy-c', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 8, 'circle-color': ACC, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
   streetLayers(m);
@@ -994,7 +996,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '', narxKey = '', skKey = '';
-const HUD_LAYERS = ['joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1195,6 +1197,19 @@ function svcIcon(k: Svc): ImageData {
   g.save(); g.translate(24, 24); g.scale(2.4, 2.4); g.lineWidth = 1.3; g.lineCap = g.lineJoin = 'round'; g.stroke(new Path2D(SVC_GLYPH[k] ?? 'M-2 0h4')); g.restore();
   return g.getImageData(0, 0, 48, 48);
 }
+/** Raqobatchilar ikonkalari (13.11, kanvas 14c): har biznes toifasi — oʻz piktogrammasi, raqobat rangida */
+const COMP_GLYPH: Record<string, string> = {
+  cafe: 'M-3.5 -1h6v2.5a3 3 0 0 1-6 0zM2.5 0h1a1.3 1.3 0 0 1 0 2.6h-1.2M-1.5 -4v1.5M0.5 -4v1.5', rest: 'M-3 -4v3a1.3 1.3 0 0 0 2.6 0v-3M-1.7 -1v5M2.5 4v-8a2 3 0 0 0-1.4 3v2h1.4',
+  food: 'M-4 -1.5h8l-1.2 5.5h-5.6zM-2.5 -1.5l1.5-2.5M2.5 -1.5l-1.5-2.5', pharm: 'M-1.3 -4h2.6v2.7h2.7v2.6h-2.7v2.7h-2.6v-2.7h-2.7v-2.6h2.7z',
+  beauty: 'M-2.5 -3.5l5 7M2.5 -3.5l-5 7M-2.5 3.5a1 1 0 1 0 0.01 0M2.5 3.5a1 1 0 1 0 0.01 0', cloth: 'M-1.5 -4l-3 2 1.2 2 1-0.6v4.6h4.6v-4.6l1 0.6 1.2-2-3-2a1.5 1.5 0 0 1-3 0z',
+  fit: 'M-4 0h8M-3 -2v4M3 -2v4M-4.5 -1v2M4.5 -1v2', bank: 'M-4 4h8M-3.5 -1.5h7l-3.5-2.5zM-2.5 -1v4M0 -1v4M2.5 -1v4',
+};
+function compIcon(id: string): ImageData {
+  const c = document.createElement('canvas'); c.width = c.height = 48; const g = c.getContext('2d')!;
+  g.fillStyle = '#7a5a3c'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.arc(24, 24, 20, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.save(); g.translate(24, 24); g.scale(2.4, 2.4); g.lineWidth = 1.3; g.lineCap = g.lineJoin = 'round'; g.stroke(new Path2D(COMP_GLYPH[id] ?? 'M-2 0h4')); g.restore();
+  return g.getImageData(0, 0, 48, 48);
+}
 /** Fokus: faol boʻlmagan qatlamlar xira (bir nechta qatlam yoqilganda) */
 function focusMap(m: MLMap): void {
   const a = actId(), k = (id: LayerId) => (S.on.length > 1 && a && a !== id ? FOCUS_DIM : 1);
@@ -1222,6 +1237,7 @@ function focusMap(m: MLMap): void {
     vis('joy-comp-hm', hm); set('joy-comp-hm', 'heatmap-opacity', q('raqobat', 0.35, 0.9)); if (hm) { set('joy-comp', 'circle-opacity', 0.25 * c); set('joy-comp', 'circle-stroke-opacity', 0.4 * c); }
     vis('joy-cov-f', cv); vis('joy-cov-l', cv); set('joy-cov-f', 'fill-opacity', 0.1 * x);
     set('joy-flow', 'line-blur', V('oqim').st === 'nur' ? 2 + 4 * V('oqim').k : 0); }
+  { const ci = isOn('raqobat') && V('raqobat').st === 'ikonka'; if (m.getLayer('joy-comp-i')) { m.setLayoutProperty('joy-comp-i', 'visibility', ci ? 'visible' : 'none'); m.setLayoutProperty('joy-comp-i', 'icon-image', `comp-${S.cat}`); m.setPaintProperty('joy-comp-i', 'icon-opacity', ['case', ['get', 'in'], c, 0.45 * c]); } if (ci) { set('joy-comp', 'circle-opacity', 0); set('joy-comp', 'circle-stroke-opacity', 0); } }
   { const ic = isOn('xizmat') && V('xizmat').st === 'ikonka'; if (m.getLayer('joy-poi-i')) { m.setLayoutProperty('joy-poi-i', 'visibility', ic ? 'visible' : 'none'); m.setPaintProperty('joy-poi-i', 'icon-opacity', ['case', ['get', 'in'], x, 0.45 * x]); } if (ic) { set('joy-poi', 'circle-opacity', 0); set('joy-poi', 'circle-stroke-opacity', 0); } }
   roseK = k('shamol') * (isOn('shamol') && V('shamol').st === 'oqim' ? 0.45 : 1);
 }

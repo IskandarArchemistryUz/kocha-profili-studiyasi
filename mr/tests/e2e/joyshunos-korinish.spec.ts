@@ -117,6 +117,21 @@ test('xizmatlar ikonka rejimi', async ({ page }) => {
   if (process.env.SHOT) { await page.locator('.jv-st button', { hasText: 'Ikonkalar' }).click(); await page.waitForTimeout(800); await page.screenshot({ path: process.env.SHOT }); }
   expect(errs).toEqual([]);
 });
+test('raqobatchilar ikonka rejimi (13.11, kanvas 14c)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=raqobat] .big')).not.toHaveText('—', { timeout: 30_000 });
+  await joyClick(page, 'raqobat', '.lt');
+  await expect.poll(() => vis(page, 'joy-comp-i')).toBe('none');
+  await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Ikonkalar' }).click();
+  await expect.poll(() => vis(page, 'joy-comp-i')).toBe('visible');
+  expect(await page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-comp-i', 'icon-image'))).toMatch(/^comp-/);
+  expect(await page.evaluate(() => (window as any).joyMap.getPaintProperty('joy-comp', 'circle-opacity'))).toBe(0);
+  await page.locator('.jv-st button', { hasText: 'Nuqtalar' }).click();
+  await expect.poll(() => vis(page, 'joy-comp-i')).toBe('none');
+  expect(errs).toEqual([]);
+});
 test('piyoda: persona boʻyicha yetish', async ({ page }) => {
   test.setTimeout(120_000);
   const errs: string[] = []; await open(page, errs);
