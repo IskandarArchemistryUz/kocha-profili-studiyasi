@@ -133,6 +133,24 @@ test('piyoda: persona boʻyicha yetish', async ({ page }) => {
   expect(errs).toEqual([]);
 });
 
+test('piyoda: «Hammasi» — har persona 10 daqiqada (12.11, kanvas 11)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await joyClick(page, 'piyoda', '.switch');
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 30_000 });
+  await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Hammasi' }).click();
+  const big = page.locator('[data-card=piyoda] .big');
+  await expect(big).toHaveText(/→.*ga · 10 daqiqa/, { timeout: 30_000 });
+  const [a, b] = /([\d,]+) → ([\d,]+)/.exec((await big.textContent())!)!.slice(1).map(x => parseFloat(x.replace(',', '.')));
+  expect(a).toBeLessThanOrEqual(b);
+  await expect(page.locator('[data-card=piyoda] .joy-norm li')).toHaveCount(5 + 5);   // 5 persona + 5 meʼyor qatori
+  await expect(page.locator('[data-card=piyoda]')).toContainText('Qariya, aravacha');
+  await expect.poll(() => page.evaluate(() => { const m = (window as any).joyMap, d = m.getSource('joy-walk')._data; const fs = (typeof d === 'string' ? [] : d?.features ?? d?.geojson?.features ?? []) as { properties: { c: string } }[]; return fs.length > 0 && fs.every(f => ['#b65f5a', '#d08a4e', '#8a6bb0', '#3f8f8a', '#3d5a8a'].includes(f.properties.c)); }), { timeout: 20_000 }).toBe(true);   // har chiziq — persona rangida
+  expect(errs).toEqual([]);
+});
+
 /** Xarita uslubi (prototip «Joyshunos qatlam uslublari»): yangi palitralar, ranglarni qoʻlda, uchastka uslubi */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`xarita uslubi: ranglar va uchastka · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(150_000);

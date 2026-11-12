@@ -45,7 +45,7 @@ import { layerIcon, GROUP_COL } from './layerIcons';
 import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
 import { windFlow, clipLine } from './windflow';
-import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type LayerView } from './viewcfg';
+import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
@@ -130,7 +130,10 @@ function computeNet(): void {
     try {
       const pb = D.poi.v!;
       if (job === 'reach') {
-        const f = PERSONA[V('piyoda').st]?.v / 5 || 1; m.reach = reach(m.net, [5, 10, 15].map(x => x * f)); m.reach.mins = [5, 10, 15]; m.pers = V('piyoda').st;
+        const st = V('piyoda').st, f = PERSONA[st]?.v / 5 || 1;
+        if (st === 'hammasi') { m.reach = reach(m.net, PERSONA_ALL.map(p => 10 * p.v / 5)); m.reach.mins = PERSONA_ALL.map(() => 10); }   // har band — bitta persona guruhi, 10 daqiqa
+        else { m.reach = reach(m.net, [5, 10, 15].map(x => x * f)); m.reach.mins = [5, 10, 15]; }
+        m.pers = st;
         const near: Partial<Record<Svc, number>> = {};
         for (const k of ['bekat', 'metro', 'maktab', 'mtm', 'dorixona', 'savdo'] as Svc[]) { let best = Infinity; for (const p of normPois(pb.pois, S.added ?? [])) if (p.kind === k) best = Math.min(best, distAt(m.net, m.reach.D, m.fr.toLocal(p.at))); if (Number.isFinite(best)) near[k] = best; }   // E2: hisobga kiritilgan qoʻshilganlar ham
         m.near = near;
@@ -548,11 +551,12 @@ function renderRightH(): void {
   const busy: Ld<unknown> = D.poi.st !== 'ok' ? D.poi : { st: 'load' };
   if (isOn('piyoda')) {
     const r = NM?.reach, nr = NM?.near ?? {}, ha = (m2: number) => fmt(m2 / 10000, 1);
-    cards.push(card(L('piyoda'), tr('OSM tarmoq'), r ? tf('${h} ga · 15 daqiqa', { h: ha(r.area[2]) }) : '—',
-      r ? [tf('5 daqiqa: ${a} ga · 10 daqiqa: ${b} ga · 15 daqiqa: ${c} ga (yoʻllardan 40 m)', { a: ha(r.area[0]), b: ha(r.area[1]), c: ha(r.area[2]) }), h('br'),
+    const all = NM?.pers === 'hammasi';
+    cards.push(card(L('piyoda'), tr('OSM tarmoq'), r ? (all ? tf('${a} → ${b} ga · 10 daqiqa', { a: ha(r.area[0]), b: ha(r.area[r.area.length - 1]) }) : tf('${h} ga · 15 daqiqa', { h: ha(r.area[2]) })) : '—',
+      r ? [all ? h('ul', { class: 'joy-norm' }, ...PERSONA_ALL.map((p, i) => h('li', {}, h('span', {}, h('i', { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${p.col}` }), tr(p.name)), h('b', {}, tf('${a} ga', { a: ha(r.area[i]) })), h('em', {}, `${fmt(p.v, 1)} km/soat`)))) : tf('5 daqiqa: ${a} ga · 10 daqiqa: ${b} ga · 15 daqiqa: ${c} ga (yoʻllardan 40 m)', { a: ha(r.area[0]), b: ha(r.area[1]), c: ha(r.area[2]) }), h('br'),
         r.directness != null ? tf('Tarmoq toʻgʻriligi: ${d} (1 — toʻgʻri chiziq; 0,7 dan past — aylanma yoʻllar)', { d: fmt(r.directness, 2) }) : '',
         h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[V('piyoda').st]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
-        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), V('piyoda').st !== 'yosh' ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[V('piyoda').st].note) })}` : '')] : [],
+        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), V('piyoda').st !== 'yosh' && PERSONA[V('piyoda').st] ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[V('piyoda').st].note) })}` : all ? ` ${tr('Har persona — 10 daqiqa, tezliklar taxminiy; aravacha uchun zinapoya va bordyur hali hisobga olinmagan.')}` : '')] : [],
       null, r ? undefined : busy));
   }
   if (isOn('skaner')) {
@@ -962,7 +966,7 @@ function addOverlays(): void {
   if (!m.hasImage('joy-arrow')) { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d')!; g.strokeStyle = g.fillStyle = '#fff'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.moveTo(16, 28); g.lineTo(16, 8); g.stroke(); g.beginPath(); g.moveTo(16, 3); g.lineTo(23, 12); g.lineTo(9, 12); g.closePath(); g.fill(); m.addImage('joy-arrow', g.getImageData(0, 0, 32, 32), { pixelRatio: 2, sdf: true }); }
   m.addLayer({ id: 'joy-wind-a', type: 'symbol', source: 'joy-wind', filter: ['get', 'h'], layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 260, 'icon-image': 'joy-arrow', 'icon-rotate': 90, 'icon-size': 0.7, 'icon-allow-overlap': true, 'icon-rotation-alignment': 'map' }, paint: { 'icon-color': ['get', 'c'] } } as never);
   m.addLayer({ id: 'joy-arr', type: 'symbol', source: 'joy-arr', layout: { visibility: 'none', 'icon-image': 'joy-arrow', 'icon-rotate': ['get', 'r'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-size': ['get', 's'] }, paint: { 'icon-color': isDark() ? '#f4dcb4' : '#7a3a1c' } } as never);
-  m.addLayer({ id: 'joy-walk', type: 'line', source: 'joy-walk', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'b'], 0, '#3f3a9e', 1, '#7b74d6', '#b9b4ef'], 'line-width': ['match', ['get', 'b'], 0, 3.5, 1, 2.6, 2] } } as never);
+  m.addLayer({ id: 'joy-walk', type: 'line', source: 'joy-walk', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['get', 'w'] } } as never);
   m.addLayer({ id: 'joy-flow', type: 'line', source: 'joy-flow', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['interpolate', ['linear'], ['get', 'f'], 0.1, '#c9d4f5', 0.5, '#6f82e0', 1, '#1f2f9e'], 'line-width': ['interpolate', ['linear'], ['get', 'f'], 0.1, 1, 1, 7], 'line-opacity': 0.9 } } as never);
   if (!m.hasImage('joy-hatch')) m.addImage('joy-hatch', hatchImg());
   m.addLayer({ id: 'joy-site-g', type: 'line', source: 'joy-site', layout: { visibility: 'none' }, paint: { 'line-color': '#ff5a36', 'line-width': 12, 'line-blur': 9, 'line-opacity': 0.7 } });
@@ -1042,7 +1046,11 @@ function paintH(): void {
   // tarmoq modellari
   const nm = NM, toGeo = (i: number) => nm!.fr.toGeo(nm!.net.xy[i]);
   const wf: unknown[] = [], ff: unknown[] = [];
-  if (nm && isOn('piyoda') && nm.reach) { const by: [number, number][][][] = [[], [], []]; nm.net.segs.forEach(([a, b], s) => { const k = nm.reach!.seg[s]; if (k >= 0) by[k].push([toGeo(a) as [number, number], toGeo(b) as [number, number]]); }); by.forEach((ls, k) => { if (ls.length) wf.push({ type: 'Feature', properties: { b: k }, geometry: { type: 'MultiLineString', coordinates: ls } }); }); }
+  if (nm && isOn('piyoda') && nm.reach) {
+    const all = nm.pers === 'hammasi', nb = all ? PERSONA_ALL.length : 3, by: [number, number][][][] = Array.from({ length: nb }, () => []);
+    nm.net.segs.forEach(([a, b], s) => { const k = nm.reach!.seg[s]; if (k >= 0 && k < nb) by[k].push([toGeo(a) as [number, number], toGeo(b) as [number, number]]); });
+    by.forEach((ls, k) => { if (ls.length) wf.push({ type: 'Feature', properties: all ? { b: k, c: PERSONA_ALL[k].col, w: 3 } : { b: k, c: ['#3f3a9e', '#7b74d6', '#b9b4ef'][k], w: [3.5, 2.6, 2][k] }, geometry: { type: 'MultiLineString', coordinates: ls } }); });
+  }
   if (nm && isOn('oqim') && nm.flow) nm.net.segs.forEach(([a, b], s) => { const f = nm.flow![s]; if (f >= 0.1) ff.push({ type: 'Feature', properties: { f }, geometry: { type: 'LineString', coordinates: [toGeo(a), toGeo(b)] } }); });
   (m.getSource('joy-walk') as GeoJSONSource).setData(fc(wf.reverse()) as never);
   (m.getSource('joy-flow') as GeoJSONSource).setData(fc(ff.sort((x, y) => ((x as { properties: { f: number } }).properties.f - (y as { properties: { f: number } }).properties.f))) as never);
@@ -1073,7 +1081,9 @@ function paintH(): void {
   const lg: Node[] = [];
   if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n))));
   if (sm?.hours && isOn('quyosh')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
-  if (nm?.reach && isOn('piyoda')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
+  if (nm?.reach && isOn('piyoda')) lg.push(nm.pers === 'hammasi'
+    ? h('div', { class: 'lg' }, h('b', {}, tr('10 daqiqada kim qayergacha yetadi')), ...PERSONA_ALL.map(p => h('span', {}, h('i', { style: `background:${p.col}` }), tr(p.name))))
+    : h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
   if (isOn('narx') && D.narx.v) { const k = katOf(V('narx').st), b = narxBreaks(D.narx.v, k), pal = NARX_PAL.slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x, narxDp(k));
@@ -1325,7 +1335,8 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
     }
     case 'piyoda': {
       if (!nm?.reach) return {};
-      const by: XY[][][] = [[], [], []]; nm.net.segs.forEach(([a, b], s2) => { const k = nm.reach!.seg[s2]; if (k >= 0) by[k].push([nm.net.xy[a] as XY, nm.net.xy[b] as XY]); });
+      const all = nm.pers === 'hammasi', nb = all ? PERSONA_ALL.length : 3, by: XY[][][] = Array.from({ length: nb }, () => []); nm.net.segs.forEach(([a, b], s2) => { const k = nm.reach!.seg[s2]; if (k >= 0 && k < nb) by[k].push([nm.net.xy[a] as XY, nm.net.xy[b] as XY]); });
+      if (all) return { lines: PERSONA_ALL.map((p, k) => ({ pts: [], multi: by[k], w: 0.9, col: p.col, op: 1 })).reverse() };
       return { lines: ([[2, '#c9c4f3', 0.55], [1, '#8a82e0', 0.8], [0, '#3f3a9e', 1.15]] as const).map(([k, col, w]) => ({ pts: [], multi: by[k], w, col, op: 1 })) };
     }
     case 'oqim': {
