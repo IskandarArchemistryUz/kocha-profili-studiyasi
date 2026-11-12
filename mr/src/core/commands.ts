@@ -36,6 +36,7 @@ export type Command =
   | { type: 'setRoadEdit'; id: number; parts: LngLat[][] | null }
   | { type: 'setCuts'; cuts: StreetCut[] }
   | { type: 'applyProfile'; profile: Profile; streets: string[] }
+  | { type: 'setTreeInv'; trees: NonNullable<Project['treeInv']> }
   | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   | { type: 'removeStreet'; id: string }
   /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
@@ -91,6 +92,7 @@ export function label(c: Command): string {
     case 'updateStreets': return 'Koʻchalar oʻzgardi';
     case 'setCuts': return 'Kesim chizigʻi';
     case 'applyProfile': return 'Koʻcha profili (Koʻchasoz)';
+    case 'setTreeInv': return 'Daraxtlar inventarizatsiyasi';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
     case 'setZones': return 'Zona';
@@ -218,6 +220,7 @@ function apply0(doc: Project, c: Command, now: Date): Project {
       const list = (doc.profiles ?? []).filter(p => p.id !== c.profile.id); list.push(c.profile); d.profiles = list;
       const ids = new Set(c.streets); d.streets = doc.streets.map(s => (ids.has(s.id) ? { ...s, profile: c.profile.id } : s)); return d;
     }
+    case 'setTreeInv': { if (c.trees.length) d.treeInv = c.trees.map(t => ({ ...t, at: [t.at[0], t.at[1]] })); else delete d.treeInv; return d; }
     case 'updateStreets': {   // bir nechta koʻcha — bitta oʻzgarish (sahna bir marta qayta quriladi)
       const m = new Map(c.patches.map(q => [q.id, q.patch]));
       d.streets = doc.streets.map(s => { const q = m.get(s.id); if (!q) return s; const n = { ...s, ...q }; if (n.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin'); return n; }); return d;
