@@ -41,7 +41,8 @@ export function tileXY(p: LngLat, z: number): [number, number] {
 }
 
 export interface Px { w: number; h: number; data: Uint8ClampedArray }
-export interface LstGrid { n: number; step: number; R: number; v: Float32Array; year: number; used: number }
+/** src: 'landsat' — oldindan hisoblangan Landsat to'ri (100 m), aks holda MODIS (GIBS, 1 km); used — kompozitlar (MODIS) yoki bulutsiz kunlar (Landsat) soni */
+export interface LstGrid { n: number; step: number; R: number; v: Float32Array; year: number; used: number; src?: 'landsat' | 'modis'; px?: number }
 /** Markaz atrofida R metrli kvadrat toʻr (qadam step) — yozgi kompozitlar oʻrtachasi, °C (maʼlumot yoʻq — NaN) */
 export async function loadLst(c: LngLat, R: number, step: number, cm: CMap, getTile: (date: string, z: number, x: number, y: number) => Promise<Px | null>, now = new Date()): Promise<LstGrid> {
   const { year, dates } = lstDates(now), n = Math.round(2 * R / step) + 1;
@@ -89,3 +90,55 @@ export function lstColor(t: number): string { let c = LST_BINS[0][1]; for (const
 export const LST_DEV_BINS: [number, string, string][] = [[-99, '#2c6fb0', '< −3'], [-3, '#79b0d6', '−3…−1,5'], [-1.5, '#cfe3ee', '−1,5…−0,5'], [-0.5, '#f4f1e6', '±0,5'], [0.5, '#f7c9a0', '0,5…1,5'], [1.5, '#ee8a5a', '1,5…3'], [3, '#c43b2e', '> 3']];
 export function devColor(d: number): string { let c = LST_DEV_BINS[0][1]; for (const [v, col] of LST_DEV_BINS) if (d >= v) c = col; return c; }
 export function lstMean(g: LstGrid): number { let s = 0, n = 0; const c = (g.n - 1) / 2; for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { const v = g.v[j * g.n + i]; if (Number.isNaN(v) || Math.hypot(i - c, j - c) * g.step > g.R) continue; s += v; n++; } return n ? s / n : NaN; }
+
+/* ---------- Landsat 8/9 (oldindan hisoblangan, lst-data branchi) ----------
+ * Quvur: landsat_yoz_harorat.py (USGS Landsat C2 L2 ST_B10, Microsoft Planetary Computer) — iyun–avgust medianasi, haqiqiy piksel 100 m.
+ * Fayl: uint16 LE = (°C + 50) · 100, 0 — maʼlumot yoʻq; 0-qator shimol; qadam `qadam` gradus. Qamrovdan tashqarida MODIS ishlatiladi. */
+export const LST_DATA = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/lst-data/data/lst';
+export const LST_REGIONS = ['toshkent'];
+/** Doira ichidagi kataklarning shuncha ulushida maʼlumot boʻlmasa — MODIS ga qaytiladi */
+export const LST_MIN_COVER = 0.8;
+export interface LstIndex { hudud: string; bbox: [number, number, number, number]; nx: number; ny: number; qadam: number; piksel_m?: number; yillar: Record<string, { fayl: string; N: number; sahna?: number; qamrov?: number }> }
+
+export function lstIndexHas(ix: LstIndex, c: LngLat): boolean {
+  const [w, s, e, n] = ix.bbox; return c[0] >= w && c[0] <= e && c[1] >= s && c[1] <= n;
+}
+/** Eng oxirgi yil (yoki berilgan yil, agar bor boʻlsa) */
+export function lstLatestYear(ix: LstIndex, want?: number): number | null {
+  const ys = Object.keys(ix.yillar).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!ys.length) return null;
+  return want != null && ys.includes(want) ? want : ys[ys.length - 1];
+}
+/** Landsat to'ridan markaz atrofida R metrli kvadrat to'r (qadam step), °C; doira ichidagi qamrov ulushi bilan */
+export function landsatGrid(ix: LstIndex, year: number, q: Uint16Array, c: LngLat, R: number, step: number): { g: LstGrid; cover: number } {
+  const n = Math.round(2 * R / step) + 1, v = new Float32Array(n * n).fill(NaN);
+  const kx = 111_320 * Math.cos(c[1] * Math.PI / 180), ky = 111_132, [w, , , nB] = ix.bbox, mid = (n - 1) / 2;
+  let inC = 0, ok = 0;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const lon = c[0] + (-R + i * step) / kx, lat = c[1] + (-R + j * step) / ky;
+    const col = Math.floor((lon - w) / ix.qadam), row = Math.floor((nB - lat) / ix.qadam);
+    const inside = Math.hypot(i - mid, j - mid) * step <= R; if (inside) inC++;
+    if (col < 0 || row < 0 || col >= ix.nx || row >= ix.ny) continue;
+    const u = q[row * ix.nx + col]; if (!u) continue;
+    v[j * n + i] = u / 100 - 50; if (inside) ok++;
+  }
+  const meta = ix.yillar[String(year)];
+  return { g: { n, step, R, v, year, used: meta?.N ?? 0, src: 'landsat', px: ix.piksel_m ?? 100 }, cover: inC ? ok / inC : 0 };
+}
+const ixCache = new Map<string, Promise<LstIndex | null>>(), binCache = new Map<string, Promise<Uint16Array>>();
+/** Uchastka Landsat qamrovida boʻlsa — Landsat to'ri, aks holda null (MODIS ga qaytiladi). Tarmoq xatosi ham null. */
+export async function loadLstLandsat(c: LngLat, R: number, step: number, f: typeof fetch = fetch, regions = LST_REGIONS, base = LST_DATA): Promise<LstGrid | null> {
+  for (const h of regions) {
+    const ku = `${base}/${h}_index.json`;
+    if (!ixCache.has(ku)) ixCache.set(ku, f(ku).then(r => (r.ok ? r.json() as Promise<LstIndex> : null)).catch(() => null));
+    const ix = await ixCache.get(ku)!; if (!ix || !lstIndexHas(ix, c)) { if (!ix) ixCache.delete(ku); continue; }
+    const y = lstLatestYear(ix); if (y == null) continue;
+    const bu = `${base}/${ix.yillar[String(y)].fayl}`;
+    if (!binCache.has(bu)) binCache.set(bu, f(bu).then(async r => { if (!r.ok) throw new Error(`Landsat ${r.status}`); return new Uint16Array(await r.arrayBuffer()); }));
+    let q: Uint16Array; try { q = await binCache.get(bu)!; } catch { binCache.delete(bu); return null; }
+    if (q.length !== ix.nx * ix.ny) return null;
+    const { g, cover } = landsatGrid(ix, y, q, c, R, step);
+    return cover >= LST_MIN_COVER ? g : null;
+  }
+  return null;
+}
