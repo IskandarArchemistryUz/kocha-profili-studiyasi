@@ -80,7 +80,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { siteSt?: SiteSt; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha'; /** E2: foydalanuvchi qoʻshgan obyektlar (bogʻcha, maktab…) — OSM da yoʻqlari */ added?: AddedObj[] }
+interface State { siteSt?: SiteSt; /** issiqlik: tanlangan yil (Landsat arxivi 2013–…; yoʻq — oxirgisi) */ ly?: number; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha'; /** E2: foydalanuvchi qoʻshgan obyektlar (bogʻcha, maktab…) — OSM da yoʻqlari */ added?: AddedObj[] }
 /** uchastka uslubi xaritada */
 type SiteSt = 'kontur' | 'yashil' | 'shtrix' | 'yorug';
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
@@ -597,6 +597,9 @@ function renderRightH(): void {
       g && st ? [ls ? tf('Yer yuzasi harorati (LST), ${y} yil iyun–avgust medianasi, kunduzi ≈ 10:40 — ${k} ta bulutsiz kun (Landsat 8/9).', { y: g.year, k: g.used })
         : tf('Yer yuzasi harorati (LST), ${y} yil iyul–avgust, kunduzi ≈ 10:30 — ${k} ta 8 kunlik kompozit oʻrtachasi.', { y: g.year, k: g.used }), h('br'),
         Number.isNaN(st.delta) ? '' : tf('Atrofdagi 6 km oʻrtachasidan farq: ${d} °C', { d: sg(st.delta) }), h('br'),
+        ls && (g.years?.length ?? 0) > 1 ? h('label', { class: 'joy-year' }, h('span', { class: 't-small' }, tr('Yil')),
+          h('select', { 'aria-label': tr('Yil'), onchange: (e: Event) => { const y = Number((e.target as HTMLSelectElement).value); S.ly = y === g.years![g.years!.length - 1] ? undefined : y; save(); D.lst = { st: 'idle' }; heatKey = ''; ensure(); } },
+            ...[...g.years!].reverse().map(y => h('option', { value: String(y), selected: y === g.year }, String(y))))) : '',
         h('span', { class: 'src' }, ls ? tr('USGS Landsat 8/9 Collection 2, ST_B10 (piksel 100 m). Havo harorati emas — sirt harorati; 100 m piksel — mahalla va kvartal darajasi, alohida bino emas.')
           : tr('NASA GIBS · MODIS Terra MOD11A2 (1 km). Havo harorati emas — sirt harorati; 1 km piksel — mahalla darajasi, alohida bino emas.'))] : [],
       null, D.lst));
@@ -735,7 +738,7 @@ async function getTile(date: string, z: number, x: number, y: number): Promise<P
 }
 async function lstJob(c: LngLat): Promise<LstGrid> {
   // Landsat (100 m, oldindan hisoblangan) — qamrov boʻlsa; aks holda MODIS (1 km)
-  const gl = await loadLstLandsat(c, 6000, 100, fetch.bind(globalThis)).catch(() => null);
+  const gl = await loadLstLandsat(c, 6000, 100, fetch.bind(globalThis), undefined, undefined, S.ly).catch(() => null);
   if (gl) return gl;
   cmap ??= fetch(LST_CMAP).then(r => { if (!r.ok) throw new Error(`GIBS ${r.status}`); return r.text(); }).then(parseCmap).catch(e => { cmap = null; throw e; });
   const g: LstGrid = { ...(await loadLst(c, 6000, 250, await cmap, getTile)), src: 'modis', px: 1000 };
