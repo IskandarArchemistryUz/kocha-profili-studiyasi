@@ -9,6 +9,7 @@ import { tr, tf as tfm } from '../i18n';
 import { range } from './controls';
 const CH_L = '<path d="M15 6l-6 6 6 6"/>', CH_R = '<path d="M9 6l6 6-6 6"/>';
 import { MOD_W, type SecPlan } from '../core/apartments';
+import { devMode } from './dev';
 import { floorPlanSvg, floorGroups, floorTypeOf, buildingFloorsSvg, allPlansSvg, FLOOR_NAME, ROOM_LABEL, APT_FILL, type PlanOpts } from '../core/floorplan';
 import { gridChecks } from '../core/axes';
 import { editMerge, editSplit, editSplitAt, editShift, editRooms, editKind, editRoomToApt, editInner, floorVariant, wallPreview, planChecks, planVariants, planMix, type RulePlan, type EditResult, type RoomKind, type PlanVariant } from '../core/sectionplan';
@@ -52,6 +53,7 @@ const LOOK: { furn: boolean; mono: boolean; gen: boolean } = (() => { try { cons
 const saveLook = () => { try { localStorage.setItem('mr-plan-look', JSON.stringify(LOOK)); } catch { /* */ } };
 
 export function openAlbum(o: AlbumOpts): void {
+  const DEV = devMode();   // 12.11: meʼyor belgilari va 40-band jadvali — faqat ichki tekshiruv rejimida
   document.getElementById('album')?.remove();
   let selWall = -1, selDoor = -1, wallKey: ((dir: number) => void) | null = null, wallTab: (() => void) | null = null, doorKey: ((k: string) => void) | null = null;
   let bid = o.bid, sel: number[] = [], selRoom = -1, mode: 'tanlash' | 'devor' = 'tanlash', msg = '', msgBad = false, closeArmed = false;
@@ -146,7 +148,7 @@ export function openAlbum(o: AlbumOpts): void {
     }
     // reja
     const tint = FI ? { fill: FI.apts.map(a => ST_FILL[a.status]), stroke: FI.apts.map((a, i) => (i === hiApt ? '#0a84ff' : ST_COL[a.status])), sub: FI.apts.map(a => (a.status === 'na' ? '—' : `${a.ok}/${a.need} ${a.status === 'ok' ? '✓' : '✗'}`)) } : undefined;
-    const res = floorPlanSvg(pl, { scale: 100, dims: view === 'olcham', title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), furn: LOOK.furn && !LOOK.gen, mono: LOOK.mono && !FI, general: LOOK.gen && !FI, plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1, ...(FI ? { tint, num: true } : {}) });
+    const res = floorPlanSvg(pl, { scale: 100, normMarks: DEV, dims: view === 'olcham', title: `${o.name(pl, si)} · ${floor}-qavat`, floor, ...o.opt(pl), furn: LOOK.furn && !LOOK.gen, mono: LOOK.mono && !FI, general: LOOK.gen && !FI, plan: P, sel: editable ? sel : [], selRoom: editable ? selRoom : -1, ...(FI ? { tint, num: true } : {}) });
     host.innerHTML = res.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"');
     host.dataset.mode = editable ? mode : 'view';
     const svg = host.querySelector('svg') as SVGSVGElement;
@@ -194,8 +196,8 @@ export function openAlbum(o: AlbumOpts): void {
       h('div', { class: 'glabel' }, h('span', {}, tr('Shu qavatda'))),
       h('div', { class: 'row2 alb-counts' }, ...[1, 2, 3, 4].map(n => h('div', { class: 'group flat', style: 'padding:9px 12px' }, h('div', { class: 'kpi' }, h('b', {}, h('i', { style: `background:${APT_FILL[n]}` }), String(k[n - 1])), h('span', {}, `${n} ${tr('xonali')}`))))),
       // 04.11: meʼyorga mos kelmagan kvartiralar soni (rejada qizil «!»; kvartirani tanlang — roʻyxat)
-      (() => { const mods = pl.layout.mods, n = V.apts.filter(a => aptInterior(a, mods)?.norm?.length).length; return n ? h('div', { class: 'note warn', id: 'albNormCnt' }, tfm('${n} ta kvartira rejasi meʼyorga toʻliq mos emas — rejada «!», kvartirani tanlang', { n })) : ''; })(),
-      pass40Table(V, pl.layout.mods, editable),
+      !DEV ? '' : (() => { const mods = pl.layout.mods, n = V.apts.filter(a => aptInterior(a, mods)?.norm?.length).length; return n ? h('div', { class: 'note warn', id: 'albNormCnt' }, tfm('${n} ta kvartira rejasi meʼyorga toʻliq mos emas — rejada «!», kvartirani tanlang', { n })) : ''; })(),
+      DEV ? pass40Table(V, pl.layout.mods, editable) : '',
       V.rooms.length ? h('div', { class: 'opts' }, h('b', {}, `${tr('Xonalar')}:`), ' ' + V.rooms.map(q => tr(ROOM_LABEL[q.kind])).filter((x, i, a) => a.indexOf(x) === i).join(' · ')) : '',
       h('div', { class: 'glabel' }, h('span', {}, tr('Tahrir'))),
       !editable ? h('div', { class: 'note' }, `${floor}-qavat rejasi tipik qavatdan kelib chiqadi (${FLOOR_NAME[ft]}). Tahrir uchun ${tf}-qavatni oching.`, h('button', { class: 'btn btn-sm', style: 'margin-top:6px;display:flex', onclick: () => { floor = tf; render(); } }, `${tf}-${tr('qavatga')}`))
@@ -207,7 +209,7 @@ export function openAlbum(o: AlbumOpts): void {
           h('div', { class: 'row2' }, btn('albMerge', 'Birlashtirish', () => apply(editMerge(P, sel[0], sel[1], pl.layout.mods, o.size)), !two), btn('albSplit', 'Ikkiga boʻlish', () => apply(editSplit(P, sel[0], pl.layout.mods, o.size)), !one)),
           h('div', { class: 'row2' }, btn('albToB', 'Devor → B', () => apply(editShift(P, sel[0], sel[1], MOD_W, pl.layout.mods, o.size)), !two, 'A bir modulga kattalashadi'), btn('albToA', 'Devor → A', () => apply(editShift(P, sel[1], sel[0], MOD_W, pl.layout.mods, o.size)), !two, 'B bir modulga kattalashadi')),
           h('div', { class: 'row4' }, ...[1, 2, 3, 4].map(n => btn(`albR${n}`, `${n}x`, () => apply(editRooms(P, sel[0], n, pl.layout.mods)), !one))), h('div', { class: 'row2' }, btn('albTex', 'Texnik', () => apply(editKind(P, sel[0], 'texnik', pl.layout.mods, o.size)), !one), btn('albApt', 'Kvartiraga', () => apply(editRoomToApt(P, selRoom, pl.layout.mods, o.size)), selRoom < 0))),
-      msg ? h('div', { class: msgBad ? 'note warn' : 'note', id: 'albMsg' }, msg) : h('div', { class: bad.length ? 'note bad' : 'note ok', id: 'albMsg' }, bad.length ? `${tr('Qoida buzilgan')}: ${bad.map(c => c.title.toLowerCase()).join('; ')}` : tr('Qoidalar bajarilgan: har kvartiraga koridordan eshik, deraza, yorugʻlik.')),
+      msg ? h('div', { class: msgBad ? 'note warn' : 'note', id: 'albMsg' }, msg) : bad.length && !DEV ? '' : h('div', { class: bad.length ? 'note bad' : 'note ok', id: 'albMsg' }, bad.length ? `${tr('Qoida buzilgan')}: ${bad.map(c => c.title.toLowerCase()).join('; ')}` : tr('Qoidalar bajarilgan: har kvartiraga koridordan eshik, deraza, yorugʻlik.')),
       h('div', { class: 'glabel' }, h('span', {}, tr('Bino jami'))),
       h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Kvartiralar')), h('span', { class: 'v' }, fmt(allApts))), h('div', { class: 'li' }, h('span', { class: 'k' }, tr('1–2 xonali ulushi')), h('span', { class: 'v' }, `${allApts ? Math.round(small / allApts * 100) : 0} %`)), h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Seksiyalar')), h('span', { class: 'v' }, String(P.sections.length)))),
       ...axesBox(pl),
@@ -389,8 +391,8 @@ export function openAlbum(o: AlbumOpts): void {
     return h('div', { class: 'col', id: 'albInner', style: 'gap:6px' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Ichki reja')), dK ? h('span', { class: 'num' }, `${tr('umumiy xona')} ${dK > 0 ? '+' : ''}${fmt(dK, 1)} m`) : ''),
       // 04.11: shu kvartira rejasining meʼyor buzilishlari (ShNQ 2.08.01-24, SanQvaN 0102-25; ANDOZA — meʼyorda yoʻq, aqlga sigʻadigan chegara)
-      I0?.norm?.length ? h('div', { class: 'note warn', id: 'albInNorm' }, h('b', {}, tr('Meʼyorga mos emas')), ...I0.norm.map(t => h('div', { class: 't-small' }, tr(t)))) : '',
-      I0 ? pass40Box(I0) : '',
+      DEV && I0?.norm?.length ? h('div', { class: 'note warn', id: 'albInNorm' }, h('b', {}, tr('Meʼyorga mos emas')), ...I0.norm.map(t => h('div', { class: 't-small' }, tr(t)))) : '',
+      DEV && I0 ? pass40Box(I0) : '',
       h('div', { class: 'row2' }, btn('albInFlip', 'Tomonni almashtirish', () => apply(editInner(P, i, { flip: !iv.flip, mv: undefined, dr: undefined, rk: undefined }), true), !canFlip, canFlip ? 'Umumiy xona — boshqa tomonga' : 'Kirish eshigi joyi faqat shu tomonga imkon beradi'), btn('albInSlide', iv.slide ? 'Oddiy eshiklar' : 'Surma eshiklar', () => apply(editInner(P, i, { slide: !iv.slide }), true))),
       h('div', { class: 't-small', id: 'albWallHint', title: tr('Devorni sichqoncha bilan suring — 0,1 m qadam, modul chegarasiga tortiladi; tanlangan devor: strelkalar ±0,1 m, Tab — keyingisi, Esc — chiqish.') }, tr('Devor va eshiklar: sudrang; oʻlchamni bosib aniq qiymat yozing; xonani bosing — turi; eshik tanlansa Space — ochilish tomoni.')),
       iv.mv?.length || iv.dr?.length || iv.rk?.length ? btn('albWallReset', 'Devorlarni asliga qaytarish', () => apply(editInner(P, i, { mv: undefined, dr: undefined, rk: undefined }), true)) : '',

@@ -7,6 +7,8 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kvartira yoʻlaklari eni · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 860 });
+  // 12.11 (egasi): bu maʼlumot faqat ichki tekshiruv rejimida
+  await page.addInitScript(() => { try { localStorage.setItem('mr-dev', '1'); } catch { /* */ } });
   await page.goto('./'); await page.click('#newP');
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
