@@ -6,7 +6,9 @@ import { h } from '../ui/dom';
 import { tr } from '../i18n';
 
 export interface LayerView { st?: string; k?: number; p?: number }
-export interface ViewDef { /** uslublar guruhi sarlavhasi (yoʻq — «Uslub») */ stLabel?: string; styles?: [string, string][]; pals?: [string, string[]][]; k?: boolean }
+export interface ViewDef { /** uslublar guruhi sarlavhasi (yoʻq — «Uslub») */ stLabel?: string; styles?: [string, string][]; pals?: [string, string[]][]; k?: boolean;
+  /** Bir necha mustaqil tanlov (12.11, «Uy narxlari»): st = har oʻqdagi qiymatlar «|» bilan, masalan «ijara|kvartira|yangi» */
+  axes?: [string, [string, string][]][] }
 
 /** Rang shkalalari: past → yuqori */
 export const VIEW: Record<string, ViewDef> = {
@@ -17,13 +19,15 @@ export const VIEW: Record<string, ViewDef> = {
   shamol: { styles: [['oqim', 'Oqim chiziqlari'], ['roza', 'Faqat shamol guli']], pals: [['Yashil', ['#bfe3cf', '#5fb38a', '#2f8a66', '#145c40']], ['Moviy', ['#cfe3f5', '#7fb3e0', '#3a7fc2', '#16467e']], ['Toʻq sariq', ['#fde2bf', '#f6ad5f', '#e0782a', '#9c4512']]], k: true },
   xizmat: { styles: [['ikonka', 'Ikonkalar'], ['nuqta', 'Nuqtalar'], ['qamrov', 'Qamrov radiusi']] },
   raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik']], k: true },
-  narx: { stLabel: 'Turi', styles: [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']], k: true },
+  narx: { axes: [['Bitim', [['sotuv', 'Sotuv'], ['ijara', 'Ijara']]], ['Turi', [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']]],
+    ['Bozor', [['hammasi', 'Hammasi'], ['yangi', 'Yangi bino'], ['ikkilamchi', 'Ikkilamchi uy']]]], k: true },
   quyosh: { k: true },
   piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh']], k: true },
   oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur']], k: true },
 };
 export const view = (V: Record<string, LayerView> | undefined, id: string): Required<LayerView> => {
   const d = VIEW[id], v = V?.[id] ?? {};
+  if (d?.axes) { const p = (v.st ?? '').split('|'); return { st: d.axes.map(([, o], i) => (o.some(x => x[0] === p[i]) ? p[i] : o[0][0])).join('|'), k: v.k ?? 0.6, p: 0 }; }
   return { st: v.st && d?.styles?.some(s => s[0] === v.st) ? v.st : d?.styles?.[0][0] ?? '', k: v.k ?? 0.6, p: v.p != null && d?.pals?.[v.p] ? v.p : 0 };
 };
 
@@ -48,6 +52,9 @@ export function viewPanel(id: string, v: Required<LayerView>, open: boolean, cb:
   const body = h('div', { class: 'jv-body' });
   if (d.stLabel) body.append(h('span', { class: 't-small' }, tr(d.stLabel)));
   if (d.styles) body.append(h('div', { class: `seg sm jv-st${d.styles.length > 3 ? ' wrap' : ''}`, role: 'group', 'aria-label': tr(d.stLabel ?? 'Uslub') }, ...d.styles.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': v.st === k, onclick: () => cb.set({ st: k }) }, tr(n)))));
+  if (d.axes) { const p = v.st.split('|');
+    d.axes.forEach(([lb, o], i) => body.append(h('span', { class: 't-small' }, tr(lb)),
+      h('div', { class: `seg sm jv-st${o.length > 3 ? ' wrap' : ''}`, role: 'group', 'aria-label': tr(lb), 'data-axis': String(i) }, ...o.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': p[i] === k, onclick: () => cb.set({ st: p.map((x, j) => (j === i ? k : x)).join('|') }) }, tr(n)))))); }
   if (d.k) body.append(h('div', { class: 'jv-row' }, h('span', { class: 't-small' }, tr('Intensivlik')), slider(v.k, tr('Intensivlik'), k => cb.set({ k }, true), () => cb.set({}))));
   if (d.pals) body.append(h('div', { class: 'jv-pals', role: 'group', 'aria-label': tr('Rang shkalasi') }, ...d.pals.map(([n, cs], i) => h('button', { type: 'button', class: 'jv-pal', title: tr(n), 'aria-label': tr(n), 'aria-pressed': v.p === i, onclick: () => cb.set({ p: i }) }, ...cs.map(c => h('i', { style: `background:${c}` }))))));
   return h('div', { class: 'jv open' }, btn, body);

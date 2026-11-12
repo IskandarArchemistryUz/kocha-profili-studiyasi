@@ -2,19 +2,32 @@
  * Uy narxlari (Joyshunos, «Biznes»): uybor.uz eʼlonlari → olti burchakli katakchalar («soti») boʻyicha median $/m².
  * Maʼlumot narx-monitoring tarmogʻida (tools/narx_hex.py) jamlanadi: xom eʼlonlar yoʻq, 5 tadan kam eʼlonli katakda narx yoʻq.
  * Rang: qimmat — toʻq, arzon — och, maʼlumot yetarli emas — oq. Bu SOʻRALGAN narx, bitim narxi emas.
+ * Kategoriyalar (12.11): sotuv — kvartira, hovli, hammasi; ijara — ijara_kvartira, ijara_hovli ($/m² oyiga);
+ * isNewBuilding maʼlum boʻlsa — <kat>_yangi / <kat>_ikkilamchi. Koʻrinish uslubi «bitim|tur|bozor» → katOf().
  * Toʻr narx_hex.py bilan aynan bir xil (oʻzgartirmang): boshi 41.10 / 69.05, pointy-top axial (q, r).
  */
 import type { LngLat } from '../core/doc';
 
 export const NARX_URL = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/narx-monitoring/data/narx/toshkent_hex.json';
-export type NarxKat = 'kvartira' | 'hovli' | 'hammasi';
+/** kvartira | hovli | hammasi | ijara_kvartira | ijara_hovli | <kat>_yangi | <kat>_ikkilamchi */
+export type NarxKat = string;
 /** [q, r, n, median, p25, p75] — narxli; [q, r, 0] — eʼlon yoʻq; [q, r, -1] — 5 tadan kam */
 export type Cell = number[];
-export interface NarxData { v: number; sana: string; min: number; kat: Record<NarxKat, Record<string, Cell[]>>; shahar?: Partial<Record<NarxKat, number[]>> }
+export interface NarxData { v: number; sana: string; min: number; kat: Record<NarxKat, Record<string, Cell[]> | undefined>; shahar?: Record<NarxKat, number[] | undefined> }
 
 const LAT0 = 41.10, LNG0 = 69.05, MLAT = 111320, MLNG = 111320 * Math.cos(41.3 * Math.PI / 180);
 /** Katak oʻlchami: hovli eʼlonlari kam — kattaroq katak */
-export const sizeOf = (k: NarxKat): number => (k === 'hovli' ? 1500 : 1000);
+export const sizeOf = (k: NarxKat): number => (k.includes('hovli') ? 1500 : 1000);
+/** Ijara — $/m² oyiga (kasr bilan), sotuv — $/m² */
+export const isIjara = (k: NarxKat): boolean => k.startsWith('ijara_');
+export const narxDp = (k: NarxKat): number => (isIjara(k) ? 1 : 0);
+/** Koʻrinish uslubi «bitim|tur|bozor» (masalan «ijara|kvartira|yangi») → maʼlumot kaliti («ijara_kvartira_yangi») */
+export function katOf(st: string): NarxKat {
+  const [b = 'sotuv', t = 'kvartira', m = 'hammasi'] = st.split('|');
+  return `${b === 'ijara' ? 'ijara_' : ''}${t}${m === 'hammasi' ? '' : `_${m}`}`;
+}
+/** Bu kategoriya uchun faylda maʼlumot bormi (masalan sotuvdagi hovlida yangi / ikkilamchi belgisi yoʻq) */
+export const hasKat = (d: NarxData, k: NarxKat): boolean => !!d.kat[k]?.[String(sizeOf(k))]?.some(c => c[2] > 0);
 /** Och → toʻq (iliq jigarrang): 7 sinf */
 export const NARX_PAL = ['#fbf3e4', '#f1dcb2', '#e2bb81', '#cc9156', '#a96833', '#7a431d', '#47250e'];
 
@@ -45,8 +58,8 @@ const priced = (d: NarxData, k: NarxKat) => cells(d, k).filter(c => c[2] > 0);
 /** 7 sinf chegaralari — narxli kataklar medianalarining kvantillari (6 ta chegara) */
 export function breaks(d: NarxData, k: NarxKat): number[] {
   const v = priced(d, k).map(c => c[3]).sort((a, b) => a - b); if (v.length < 2) return [];
-  const out: number[] = [];
-  for (let i = 1; i < 7; i++) { const x = v[Math.min(v.length - 1, Math.floor(i * v.length / 7))]; out.push(Math.round(x / 50) * 50); }
+  const out: number[] = [], step = isIjara(k) ? 0.5 : 50;
+  for (let i = 1; i < 7; i++) { const x = v[Math.min(v.length - 1, Math.floor(i * v.length / 7))]; out.push(Math.round(x / step) * step); }
   return [...new Set(out)];
 }
 export const colorOf = (m: number, b: number[]): string => NARX_PAL[Math.min(NARX_PAL.length - 1, b.filter(x => m >= x).length + (NARX_PAL.length - 1 - b.length))];

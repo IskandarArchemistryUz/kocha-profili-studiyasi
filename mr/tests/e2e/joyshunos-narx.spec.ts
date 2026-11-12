@@ -80,3 +80,43 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`uy narxlar
   await page.screenshot({ path: `test-results/joy-narx-${w}${dark ? '-tungi' : ''}.png` });
   expect(errs).toEqual([]);
 });
+
+/** 12.11: «Koʻrinish» — bitim (sotuv / ijara), turi, bozor (yangi bino / ikkilamchi). Ijara — $/m² oyiga; faylda yoʻq kategoriya — «Maʼlumot yoʻq» */
+test('uy narxlari — ijara va yangi / ikkilamchi tanlovi', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [];
+  const d = JSON.parse(readFileSync(NARX, 'utf8')) as { kat: Record<string, Record<string, number[][]>>; shahar: Record<string, number[]> };
+  const scale = (cs: number[][], f: number) => cs.map(c => (c[2] > 0 ? [c[0], c[1], c[2], ...c.slice(3).map(x => Math.round(x * f * 10) / 10)] : c));
+  d.kat.ijara_kvartira = Object.fromEntries(Object.entries(d.kat.kvartira).map(([w, cs]) => [w, scale(cs, 1 / 160)]));
+  d.kat.kvartira_yangi = Object.fromEntries(Object.entries(d.kat.kvartira).map(([w, cs]) => [w, scale(cs, 1.1)]));
+  d.shahar.ijara_kvartira = [1900, 11.7, 9.9, 14.3];
+  await page.route(/raw\.githubusercontent\.com\/.*toshkent_hex\.json/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify(d) }));
+  await open(page, errs);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await joyClick(page, 'narx', '.switch');
+  const card = page.locator('[data-card=narx]');
+  await expect(card.locator('.sub')).toContainText('5 tadan kam', { timeout: 20_000 });
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('joy-state') || '{}'); s.c = [69.29507, 41.32561]; localStorage.setItem('joy-state', JSON.stringify(s)); });
+  await page.reload();
+  await expect(card.locator('.big')).toHaveText(/2.?832 \$\/m²$/, { timeout: 20_000 });
+  if ((await page.locator('.jv-btn').getAttribute('aria-expanded')) !== 'true') await page.locator('.jv-btn').click();
+  const ax = (i: number, t: string) => page.locator(`.jv-st[data-axis="${i}"] button`, { hasText: t });
+  await expect(ax(0, 'Sotuv')).toHaveAttribute('aria-pressed', 'true');
+  // ijara: oyiga, kasr bilan
+  await ax(0, 'Ijara').click();
+  await expect(card.locator('.big')).toHaveText(/17,7 \$\/m²·oy/, { timeout: 10_000 });
+  await expect(card.locator('.sub')).toContainText('$/m²·oy');
+  await expect(card.locator('.sub')).toContainText('11,7');
+  await expect(page.locator('.joy-legend')).toContainText('Ijara, $/m²·oy');
+  // ijara + yangi bino — bu faylda yoʻq
+  await ax(2, 'Yangi bino').click();
+  await expect(card.locator('.big')).toHaveText('—');
+  await expect(card.locator('.sub')).toContainText('Maʼlumot yoʻq');
+  // sotuv + yangi bino
+  await ax(0, 'Sotuv').click();
+  await expect(card.locator('.big')).toHaveText(/3.?115 \$\/m²$/, { timeout: 10_000 });
+  // tanlov saqlanadi
+  await page.reload();
+  await expect(card.locator('.big')).toHaveText(/3.?115 \$\/m²$/, { timeout: 20_000 });
+  expect(errs).toEqual([]);
+});

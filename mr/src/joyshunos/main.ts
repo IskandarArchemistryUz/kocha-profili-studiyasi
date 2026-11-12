@@ -28,7 +28,7 @@ import { frame as geoFrame } from '../core/geo';
 import { distAt, type Net } from '../core/services';
 import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
-import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, type NarxData, type NarxKat } from './narx';
+import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
 import { loadLst, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, type LstGrid, type Px } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
@@ -475,13 +475,16 @@ function renderRightH(): void {
     cards.push(el);
   }
   if (isOn('narx')) {
-    const d = D.narx.v, k = V('narx').st as NarxKat, a = d ? narxAt(d, k, S.c) : null, city = d?.shahar?.[k];
-    cards.push(card(L('narx'), 'uybor.uz', a?.median != null ? `${fmt(a.median)} $/m²` : '—',
-      d && a ? [
-        a.median != null ? tf('Katakda ${n} ta eʼlon; oʻrtadagi yarmi ${a}–${b} $/m².', { n: a.n, a: fmt(a.p25!), b: fmt(a.p75!) }) : a.inCity ? tr('Bu katakda eʼlon kam (5 tadan kam) — narx koʻrsatilmaydi.') : tr('Maʼlumot hozircha faqat Toshkent shahri uchun.'), h('br'),
+    const d = D.narx.v, k = katOf(V('narx').st), has = !!d && hasKat(d, k), a = d && has ? narxAt(d, k, S.c) : null, city = d?.shahar?.[k], dp = narxDp(k);
+    // ijara — $/m² oyiga: tarjima qilingan matnlardagi «$/m²» birligini almashtiramiz (yangi kalit qoʻshmasdan)
+    const U = isIjara(k) ? tr('$/m²·oy') : '$/m²', u = (x: string) => (isIjara(k) ? x.replace(/\$\/[mм]²/g, U) : x), nf = (v: number) => fmt(v, dp);
+    cards.push(card(L('narx'), 'uybor.uz', a?.median != null ? `${nf(a.median)} ${U}` : '—',
+      d && !has ? [tr('Maʼlumot yoʻq'), h('br'), h('span', { class: 'src' }, u(tf('uybor.uz eʼlonlari, ${s}. Soʻralgan narx, bitim narxi emas: auksion, takror va chetki qiymatlar chiqarilgan. Katak — ${w} m; 5 tadan kam eʼlonli katakda narx koʻrsatilmaydi.', { s: d.sana, w: fmt(narxSize(k)) })))]
+      : d && a ? [
+        a.median != null ? u(tf('Katakda ${n} ta eʼlon; oʻrtadagi yarmi ${a}–${b} $/m².', { n: a.n, a: nf(a.p25!), b: nf(a.p75!) })) : a.inCity ? tr('Bu katakda eʼlon kam (5 tadan kam) — narx koʻrsatilmaydi.') : tr('Maʼlumot hozircha faqat Toshkent shahri uchun.'), h('br'),
         a.rank != null ? h('span', {}, tf('Shahar kataklarining ${p} %idan qimmat.', { p: a.rank }), h('br')) : '',
-        city ? h('span', {}, tf('Toshkent medianasi: ${m} $/m² (${n} ta eʼlon).', { m: fmt(city[1]), n: city[0] }), h('br')) : '',
-        h('span', { class: 'src' }, tf('uybor.uz eʼlonlari, ${s}. Soʻralgan narx, bitim narxi emas: auksion, takror va chetki qiymatlar chiqarilgan. Katak — ${w} m; 5 tadan kam eʼlonli katakda narx koʻrsatilmaydi.', { s: d.sana, w: fmt(narxSize(k)) }))] : [],
+        city ? h('span', {}, u(tf('Toshkent medianasi: ${m} $/m² (${n} ta eʼlon).', { m: nf(city[1]), n: city[0] })), h('br')) : '',
+        h('span', { class: 'src' }, u(tf('uybor.uz eʼlonlari, ${s}. Soʻralgan narx, bitim narxi emas: auksion, takror va chetki qiymatlar chiqarilgan. Katak — ${w} m; 5 tadan kam eʼlonli katakda narx koʻrsatilmaydi.', { s: d.sana, w: fmt(narxSize(k)) })))] : [],
       null, D.narx));
   }
   const busy: Ld<unknown> = D.poi.st !== 'ok' ? D.poi : { st: 'load' };
@@ -902,7 +905,7 @@ function paintH(): void {
     m.setLayoutProperty('joy-slope', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-slope', 'visibility', 'none');
   { const d = D.narx.v, on = isOn('narx') && !!d;
-    if (on) { const k = V('narx').st as NarxKat, key = `${d!.sana}|${k}`; if (key !== narxKey) { narxKey = key; (m.getSource('joy-narx') as GeoJSONSource).setData(narxFC(d!, k) as never); } }
+    if (on) { const k = katOf(V('narx').st), key = `${d!.sana}|${k}`; if (key !== narxKey) { narxKey = key; (m.getSource('joy-narx') as GeoJSONSource).setData(narxFC(d!, k) as never); } }
     for (const id of ['joy-narx-f', 'joy-narx-l']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
   const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];
   (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
@@ -950,8 +953,8 @@ function paintH(): void {
   if (nm?.reach && isOn('piyoda')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
-  if (isOn('narx') && D.narx.v) { const k = V('narx').st as NarxKat, b = narxBreaks(D.narx.v, k), pal = NARX_PAL.slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x);
-    lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
+  if (isOn('narx') && D.narx.v) { const k = katOf(V('narx').st), b = narxBreaks(D.narx.v, k), pal = NARX_PAL.slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x, narxDp(k));
+    lg.push(h('div', { class: 'lg' }, h('b', {}, isIjara(k) ? tr('Ijara, $/m²·oy') : tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
       h('span', {}, h('i', { style: 'background:#ffffff;box-shadow:inset 0 0 0 1px #b9b5ad' }), tr('maʼlumot yetarli emas')))); }
   if (isOn('nishab') && t) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (p.length) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
@@ -1213,7 +1216,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
     case 'narx': {
       const d = D.narx.v; if (!d) return {};
       const H = half * 1.5, N = 1024, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d')!;
-      for (const pl of narxPolys(d, V('narx').st as NarxKat, p => toL(p) as [number, number], H)) {
+      for (const pl of narxPolys(d, katOf(V('narx').st), p => toL(p) as [number, number], H)) {
         g.beginPath(); pl.pts.forEach(([x, y], i) => { const px = (x + H) / (2 * H) * N, py = (H - y) / (2 * H) * N; if (i) g.lineTo(px, py); else g.moveTo(px, py); });
         g.closePath(); g.fillStyle = pl.col; g.fill(); g.strokeStyle = pl.empty ? '#b9b5ad' : '#ffffff'; g.lineWidth = 1.5; g.stroke();
       }
