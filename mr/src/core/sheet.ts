@@ -23,7 +23,7 @@ import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clippi
 import { gstyleById, useColorOf, styledTree, parcelGrey, inkOn } from './gstyle';
 import type { AxoEdit } from './axoedit';
 
-export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi';
+export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi' | 'ijtimoiy';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -37,6 +37,8 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'qavat', name: 'Qavatlar soni', note: 'binolar qavatlar soni boʻyicha rangda' },
   { id: 'vaziyat', name: 'Vaziyat sxemasi', note: 'hudud shaharda: atrof, yoʻllar, uchastka' },
   { id: 'xizmat', name: 'Xizmat radiusi', note: 'piyoda yetib borish: tarmoq boʻylab masofa, obyektlar, uylar' },
+  // 12.11 (eski navbat, 2-band; egasi 06.11: «yengil footprint, land-use rang, akso doira-namunalar»)
+  { id: 'ijtimoiy', name: 'Ijtimoiy infratuzilma', note: 'maktab, bogʻcha, poliklinika: binolar, xizmat radiusi, aksonometrik namunalar' },
   { id: 'cheklov', name: 'Cheklovlar rejasi', note: 'qurib boʻlmaydigan joy, SMZ, ELU va yer balansi' },
   { id: 'yashil', name: 'Yashil balans', note: 'yashil hududlar, hovli maysasi, maydonchalar; 30 % meʼyori' },
   { id: 'transport', name: 'Transport sxemasi', note: 'koʻchalar toifasi, velo yoʻlak, bekatlar va 400 m radius, avtoturargohlar' },
@@ -254,6 +256,8 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const L: string[] = [], legend: LegendItem[] = [];
   const g = (id: string, body: string, attrs = '') => { if (body) L.push(ai ? `<g id="${id}" i:layer="yes" inkscape:groupmode="layer" inkscape:label="${id}"><g clip-path="url(#vp)"${attrs}>${body}</g></g>` : `<g id="${id}" inkscape:groupmode="layer" inkscape:label="${id}"${attrs}>${body}</g>`); };
   const VZ = K === 'vaziyat', LS = K === 'landshaft' || K === 'yashil', PR = K === 'parsel';
+  /** 12.11: ijtimoiy infratuzilma varagʻida urgʻulanadigan funksiyalar (uses.ts, «Ijtimoiy» guruhi) */
+  const SOC = new Set(USES.filter(u => u.group === 'Ijtimoiy').map(u => u.id as string));
   /** parsellar rejasi (06.11): atrof xira */
   const fade = PR ? ' opacity="0.45"' : '';
   const C = {
@@ -487,9 +491,10 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lB = Ly('bld');
   if (nb.length && lB.on && !PR) {
     const order = [...nb].sort((a, b) => ((a.b.z0 ?? 0) + a.b.floors) - ((b.b.z0 ?? 0) + b.b.floors));
-    const fill = (b: Project['buildings'][number]) => K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
+    const fill = (b: Project['buildings'][number]) => K === 'ijtimoiy' ? (SOC.has(b.use) ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.08)) : mix(ucol(b.use), 0.62)) : K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
     const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : INK;
-    g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="${lw((K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3)) * LW)}" stroke-linejoin="round"` : ''}/>`).join(''));
+    const bw = (b: Project['buildings'][number]) => K === 'ijtimoiy' ? (SOC.has(b.use) ? 0.35 : 0.12) : K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3);
+    g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${K === 'ijtimoiy' && !SOC.has(b.use) ? '#8e8a82' : stroke}" stroke-width="${lw(bw(b) * LW)}" stroke-linejoin="round"` : ''}/>`).join(''));
     if (K === 'bosh') legend.push({ type: 'fill', fill: '#ffffff', stroke: INK, label: tr('Loyihalanayotgan binolar') });
     if (K === 'figura') legend.push({ type: 'fill', fill: '#1d1d1b', label: tr('Binolar (mavjud va loyiha)') });
     if (S.labels && K !== 'figura' && !VZ) {
@@ -520,6 +525,62 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     legend.push({ type: 'stop', fill: '#2a6fb0', label: SV.src.length ? `${tr(SV.name)} (${tr('radius')} ${SV.rTxt})` : `${tr(SV.name)} — ${tr('obyekt topilmadi: atrofni yuklang yoki qoʻlda belgilang')}` });
     legend.push({ type: 'fill', fill: '#cfe8c4', stroke: '#1d1d1b', label: `${tr('Turar joy — radius ichida')} (${Math.round(SV.share * 100)} %)` });
     legend.push({ type: 'fill', fill: '#f3c9c4', stroke: '#1d1d1b', label: tr('Turar joy — radiusdan tashqarida') });
+  }
+
+  // 4b'. ijtimoiy infratuzilma (12.11; egasi 06.11: «yengil footprint, land-use rang, akso doira-namunalar»): ijtimoiy binolar toʻliq
+  // rangda va raqamli, boshqalari och; maktab / MTM / poliklinika atrofida meʼyoriy xizmat radiusi (ShNQ 2.07.01-23 — 9-qadamdagi bilan bir xil),
+  // atrofdagi mavjud obyektlar (OSM / qoʻlda) — kichik belgi; pastda har ijtimoiy bino aksonometrik doira-namunada (loyiha geometriyasidan)
+  if (K === 'ijtimoiy') {
+    const SVC_OF: Record<string, string> = { maktab: 'maktab', mtm: 'mtm', poliklinika: 'poliklinika' };
+    const soc = nb.filter(x => SOC.has(x.b.use) && x.r.length >= 3);
+    const used = USES.filter(u => SOC.has(u.id) && soc.some(x => x.b.use === u.id));
+    const fullC = (u: string) => GS ? hex(ucol(u)) : darker(ucol(u), 0.08), edgeC = (u: string) => darker(ucol(u), 0.45);
+    // meʼyoriy radius (har ijtimoiy bino atrofida; bir xil turdagi radiuslar bitta qatlamda)
+    const rad: string[] = [];
+    for (const x of soc) { const sv = ctx?.svc?.find(q => q.id === SVC_OF[x.b.use]); if (!sv) continue; const c = centroid(x.r); rad.push(`<circle cx="${X(c)}" cy="${Y(c)}" r="${n2(sv.r * k)}" fill="none" stroke="${edgeC(x.b.use)}" stroke-width="${lw(0.3)}" stroke-dasharray="2 1"/>`); }
+    g('Xizmat_radiuslari', rad.join(''));
+    // atrofdagi mavjud obyektlar (loyihadagi binoga 25 m dan yaqin boʻlmaganlari)
+    const ext: string[] = []; const extUsed = new Set<string>();
+    for (const [u, sid] of Object.entries(SVC_OF)) { const sv = ctx?.svc?.find(q => q.id === sid); if (!sv) continue;
+      for (const p of sv.src) { if (Math.abs(p[0] - cx) > R || Math.abs(p[1] - cy) > R) continue; if (soc.some(x => x.b.use === u && Math.hypot(centroid(x.r)[0] - p[0], centroid(x.r)[1] - p[1]) < 25)) continue;
+        extUsed.add(u); ext.push(`<circle cx="${X(p)}" cy="${Y(p)}" r="1.3" fill="#ffffff" stroke="${edgeC(u)}" stroke-width="${lw(0.4)}"/><circle cx="${X(p)}" cy="${Y(p)}" r="0.55" fill="${edgeC(u)}"/>`); } }
+    g('Mavjud_ijtimoiy_obyektlar', ext.join(''));
+    // raqamlar
+    const num = soc.map((x, i) => { const c = centroid(x.r); return `<circle cx="${X(c)}" cy="${Y(c)}" r="2.1" fill="#1d1d1b"/><text x="${X(c)}" y="${n2(+Y(c) + 0.9)}" font-size="${T(2.5)}" font-weight="700" text-anchor="middle" fill="#ffffff">${i + 1}</text>`; });
+    // aksonometrik doira-namunalar: pastki chetda, har biri — bino (asl reja yoʻnalishida, izometriya), raqam, nom, qavat va maydon
+    const nS = Math.min(soc.length, Math.max(1, Math.floor((vw - 130) / 34)), 6);
+    if (nS > 0) {
+      const Rc = Math.min(15, (vw - 130) / nS / 2 - 3), cyC = vy + vh - 16 - Rc, out: string[] = [];   // oʻng pastda (chapda — masshtab chizgʻichi)
+      soc.slice(0, nS).forEach((x, i) => {
+        const cxC = vx + vw - 8 - Rc - (nS - 1 - i) * (2 * Rc + 6), b = x.b, H = ((b.z0 ?? 0) + b.floors) * fh, H0 = (b.z0 ?? 0) * fh, c0 = centroid(x.r);
+        const loc = x.r.map(p => { const v = toV(p), o = toV(c0); return [(v[0] - o[0]) / k, -(v[1] - o[1]) / k] as XY; });   // varaqdagi yoʻnalishda, metr
+        const iso = (p: XY, z: number): XY => [(p[0] - p[1]) * 0.866, -((p[0] + p[1]) * 0.5 + z)];
+        const all = [...loc.map(p => iso(p, H0)), ...loc.map(p => iso(p, H))], ix = all.map(q => q[0]), iy = all.map(q => q[1]);
+        const sp = Math.max(Math.max(...ix) - Math.min(...ix), Math.max(...iy) - Math.min(...iy), 1), f = (Rc * 1.5) / sp, mx0 = (Math.max(...ix) + Math.min(...ix)) / 2, my0 = (Math.max(...iy) + Math.min(...iy)) / 2;
+        const Q = (q: XY) => `${n2(cxC + (q[0] - mx0) * f)},${n2(cyC + (q[1] - my0) * f)}`;
+        const ccw = loc.reduce((t, p, j) => t + p[0] * loc[(j + 1) % loc.length][1] - loc[(j + 1) % loc.length][0] * p[1], 0) > 0;
+        // devorlar: kuzatuvchiga qaragan (pastki-old) qirralar, orqadan oldinga
+        const walls = loc.map((p, j) => { const q = loc[(j + 1) % loc.length], nx = ccw ? q[1] - p[1] : p[1] - q[1], ny = ccw ? p[0] - q[0] : q[0] - p[0]; return { p, q, d: p[0] + p[1] + q[0] + q[1], vis: nx + ny < 0, lt: nx < ny }; })
+          .filter(w => w.vis).sort((a2, b2) => b2.d - a2.d);
+        out.push(`<circle cx="${n2(cxC)}" cy="${n2(cyC)}" r="${n2(Rc)}" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.3"/>`);
+        out.push(`<path d="M${loc.map(p => Q(iso(p, H0))).join('L')}Z" fill="#e7e5e0" stroke="none"/>`);
+        for (const w of walls) out.push(`<path d="M${Q(iso(w.p, H0))}L${Q(iso(w.q, H0))}L${Q(iso(w.q, H))}L${Q(iso(w.p, H))}Z" fill="${darker(ucol(b.use), w.lt ? 0.22 : 0.36)}" stroke="#1d1d1b" stroke-width="0.15" stroke-linejoin="round"/>`);
+        out.push(`<path d="M${loc.map(p => Q(iso(p, H))).join('L')}Z" fill="${mix(ucol(b.use), 0.25)}" stroke="#1d1d1b" stroke-width="0.2" stroke-linejoin="round"/>`);
+        out.push(`<circle cx="${n2(cxC - Rc * 0.72)}" cy="${n2(cyC - Rc * 0.72)}" r="2.3" fill="#1d1d1b"/><text x="${n2(cxC - Rc * 0.72)}" y="${n2(cyC - Rc * 0.72 + 0.9)}" font-size="${T(2.5)}" font-weight="700" text-anchor="middle" fill="#ffffff">${i + 1}</text>`);
+        const gfa = Math.round(Math.abs(area(x.r)) * b.floors / 10) * 10;
+        out.push(`<text x="${n2(cxC)}" y="${n2(cyC + Rc + 3.6)}" font-size="${T(2.5)}" font-weight="700" text-anchor="middle" fill="#1d1d1b">${esc(tr(useDef(b.use).name))}</text>`);
+        out.push(`<text x="${n2(cxC)}" y="${n2(cyC + Rc + 6.8)}" font-size="${T(2.5)}" text-anchor="middle" fill="#55524b">${esc(`${b.floors} ${tr('qavat')} · ${gfa.toLocaleString('ru-RU')} m²`)}</text>`);
+      });
+      if (soc.length > nS) out.push(`<text x="${n2(vx + vw - 8 - nS * (2 * Rc + 6) - 2)}" y="${n2(cyC)}" text-anchor="end" font-size="${T(2.5)}" fill="#55524b">${esc(`+${soc.length - nS}`)}</text>`);
+      g('Ijtimoiy_raqamlar', num.join(''));
+      L.push(`<g id="Aksonometrik_namunalar" inkscape:groupmode="layer" inkscape:label="Aksonometrik namunalar">${out.join('')}</g>`);
+    }
+    for (const u of used) legend.push({ type: 'fill', fill: fullC(u.id), stroke: INK, label: tr(u.name) });
+    if (!soc.length) legend.push({ type: 'text', label: tr('Loyihada ijtimoiy bino yoʻq — «Hajmlar» qadamida funksiyani belgilang') });
+    legend.push({ type: 'fill', fill: mix(0xd9d6cf, 0.3), stroke: '#8e8a82', label: tr('Boshqa loyiha binolari') });
+    for (const [u, sid] of Object.entries(SVC_OF)) { const sv = ctx?.svc?.find(q => q.id === sid); if (sv && soc.some(x => x.b.use === u)) legend.push({ type: 'dash', stroke: edgeC(u), label: `${tr(useDef(u).name)} — ${tr('xizmat radiusi')} ${sv.rTxt}` }); }
+    for (const u of extUsed) legend.push({ type: 'stop', fill: edgeC(u), label: `${tr(useDef(u).name)} — ${tr('mavjud (atrof)')}` });
+    if (!ctx?.svc?.length && soc.some(x => SVC_OF[x.b.use])) legend.push({ type: 'text', label: tr('Xizmat radiuslari — 9-qadamni oching (piyoda tarmogʻi hisobi)') });
   }
 
   // 4c. cheklovlar rejasi (02.11): qurib boʻlmaydigan joy (shtrix), cheklov obyektlari SMZ (SanQvaN 0103-25; qabriston — VM 101, 50-band), ishlab chiqarish SMZ (ShNQ 2.07.01-23, 146), ELU oʻqi
