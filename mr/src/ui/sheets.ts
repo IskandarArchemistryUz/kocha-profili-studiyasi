@@ -7,6 +7,7 @@
 import type { Project, SheetDoc } from '../core/doc';
 import { cutSheet } from '../core/streetcutsvg';
 import { stageSheet } from '../core/stagesheet';
+import { parseTrees } from '../core/trees';
 import { bLevels, hasAntresol, ANTRESOL_SHARE } from '../core/levels';
 import { area as areaOf, frame as frameOf } from '../core/geo';
 import { uid } from '../core/doc';
@@ -41,6 +42,8 @@ export interface SheetsHost {
   wind?: () => SheetCtx['wind'];
   /** 06.11: yer sathi xaritalari (yuza qizishi, HAND, TWI) — Qatlamlar paneli bilan bir xil hisob */
   gmap?: (k: 'issiq' | 'hand' | 'twi') => SheetCtx['gmap'];
+  /** 12.11: daraxtlar inventarizatsiyasini hujjatga yozish (yangi hujjatni qaytaradi) */
+  treeInv?: (trees: NonNullable<Project['treeInv']>) => Project;
   /** varaqlar va uslublarni hujjatga yozish */
   save: (sheets: SheetDoc[], styles: NonNullable<Project['sheetStyles']>) => void;
   /** reja va hajmlar DXF (mavjud eksport) */
@@ -103,6 +106,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'parkovka', scale: 0 }),   // 12.11: avtoturargohlar sxemasi (eski navbat, 3-band)
     mk({ kind: 'parkstrat', scale: 0 }),   // 12.11: parkovka strategiyasi (3-band davomi)
     mk({ kind: 'yongin', scale: 0 }),   // 12.11: yongʻin marshrutlari (5-band)   // 02.11: tahlil 4 — transport sxemasi
+    mk({ kind: 'daraxt', scale: 0 }),   // 12.11: daraxtlar xaritasi (eski navbat, 7-band)
     mk({ kind: 'relyef', scale: 0 }),   // 04.11: tahlil — relyef
     mk({ kind: 'navbat', scale: 0 }),   // 04.11: tahlil — qurilish navbati
     mk({ kind: 'shamol', scale: 0 }),   // 04.11: tahlil — shamol guli va oqim
@@ -142,7 +146,7 @@ export function downloadIllustrator(doc: Project, ctx: SheetCtx | null, o: Sheet
 }
 
 export function openGraphics(host: SheetsHost): void {
-  const doc = host.doc;
+  let doc = host.doc;
   let sheets: SheetDoc[] = syncStageSheet(doc, syncCutSheets(doc, doc.sheets?.length ? upgradeSheets(doc, doc.sheets.map(s => ({ id: s.id, opts: s.opts }))) : defaultSheets(doc)));
   try { localStorage.setItem(`mr-sheets-v${SET_V}:${doc.id}`, '1'); } catch { /* */ }
   let styles = [...(doc.sheetStyles ?? [])];
@@ -514,6 +518,12 @@ export function openGraphics(host: SheetsHost): void {
           ...SHEET_KINDS.map(k => tile({ 'data-kind': k.id, 'aria-pressed': o.kind === k.id && !open?.startsWith('style:'), title: tr(k.note), onclick: () => set({ kind: k.id, ...(k.id === 'vaziyat' && !o.scale ? { scale: 10000 } : {}) }) }, tr(k.name), tr(k.note))),
           ...styles.map(st => tile({ 'data-style-id': st.id, title: tr('Mening uslubim'), onclick: () => set({ ...norm(st.opts as Record<string, unknown>), title: o.title, stamp: o.stamp, center: o.center, rot: o.rot }) }, st.name, tr('Mening uslubim')))),
           // 02.11: «Xizmat radiusi» — xizmat turi (9-qadam tahlili)
+          ...(o.kind === 'daraxt' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Daraxtlar inventarizatsiyasi')), h('span', {}, (doc.treeInv?.length ?? 0) ? `${doc.treeInv!.length}` : tr('yoʻq'))),
+            h('div', { class: 'row', style: 'gap:6px' },
+              h('button', { class: 'btn btn-sm', id: 'trInvBtn', disabled: !host.treeInv, onclick: () => (document.getElementById('trInvFile') as HTMLInputElement | null)?.click() }, tr('Fayl yuklash')),
+              ...(doc.treeInv?.length ? [h('button', { class: 'btn btn-sm btn-ghost', id: 'trInvDel', onclick: () => { if (host.treeInv) { doc = host.treeInv([]); memo.clear(); render(); } } }, tr('Tozalash'))] : []),
+              h('input', { type: 'file', id: 'trInvFile', accept: '.csv,.txt,.geojson,.json,.dxf', hidden: true, onchange: (e: Event) => { const f = (e.target as HTMLInputElement).files?.[0]; if (!f || !host.treeInv) return; void f.text().then(t => { try { const r = parseTrees(f.name, t); if (!r.trees.length) { toast(tr('Fayldan daraxt topilmadi: ustunlar lon/lat yoki x/y (UTM 42N) boʻlishi kerak')); return; } doc = host.treeInv!(r.trees); memo.clear(); render(); toast(tf('${n} ta daraxt yuklandi', { n: r.trees.length }) + (r.skipped ? ` · ${tf('${n} ta qator oʻtkazildi', { n: r.skipped })}` : '')); } catch { toast(tr('Faylni oʻqib boʻlmadi')); } }); } })),
+            h('span', { class: 't-small' }, tr('CSV (lon, lat yoki x, y — UTM 42N; tur, diametr, holat), GeoJSON nuqtalar yoki DXF (POINT, CIRCLE, blok). DWG ni DXF ga saqlab yuklang. OSM daraxtlari bilan birlashtiriladi.'))] : []),
           ...(o.kind === 'xizmat' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Xizmat turi'))), h('div', { class: 'tiles c2', id: 'shSvc', role: 'group', 'aria-label': tr('Xizmat turi') }, ...SERVICES.map(sv => tile({ 'data-svc': sv.id, 'aria-pressed': (o.svc ?? 'mtm') === sv.id, title: tr(sv.note), onclick: () => set({ svc: sv.id }) }, tr(sv.name), `${sv.r} m`)))] : []),
         ] : []),
         // c74: grafika shabloni (ranglar, chiziq, atrof, daraxtlar) — varaq sozlamasi; «Barcha varaqlarga» — butun albomga

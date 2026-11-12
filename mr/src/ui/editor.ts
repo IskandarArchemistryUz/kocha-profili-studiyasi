@@ -4968,6 +4968,7 @@ export class Editor {
       axoLegend: look => this.axoLegend(look),
       axoPicks: () => this.axoPicksLast, axoLayers: () => this.scene.axoLayers(),
       save: (sheets, styles) => this.run(() => this.store.dispatch({ type: 'setSheets', sheets, styles }, 'sheets')),
+      treeInv: trees => { this.run(() => this.store.dispatch({ type: 'setTreeInv', trees })); return this.store.doc; },
       toChizmadon: (svg, name, scale, north) => { const m = mapOnly(svg, scale); if (!m) return; this.openCh({ name, kind: 'sheet', svg: m.svg, vb: m.vb, w: m.w, h: m.h, scale: m.scale, north }); },
       dxf: () => { const keep = new Set(doc.keep); download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'); } });
   }
