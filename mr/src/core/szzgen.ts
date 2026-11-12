@@ -64,6 +64,12 @@ export function clipToSzz(sections: GenSection[], deny: MultiPolygon, notes: str
   return out;
 }
 
+/** 12.11 (G1): daha maydoni va undan SMZ ichida boʻlmagan (turar joyga yaroqli) qismi, m² */
+export function usableOf(ring: XY[], deny: MultiPolygon): { total: number; usable: number } {
+  const total = ringA(close(ring)); if (!deny.length) return { total, usable: total };
+  return { total, usable: mpArea(tryMP(() => polygonClipping.difference([close(ring)], deny), [])) };
+}
+
 export interface SzzGreen { id: string; label: string; cls: string; need: number; area: number; green: number; share: number; rings: XY[][]; /** AMALIYOT zonasi (qabriston) */ amal?: boolean }
 const needOf = (cls?: string) => cls === 'I' ? 0.4 : cls === 'II' || cls === 'III' ? 0.5 : 0.6;
 /** ishlab chiqarish SMZ masofasidan sinf (SanQvaN 0103-25, 7-band: 1 — 1000, 2 — 500, 3 — 300, 4 — 100, 5 — 50 m) */

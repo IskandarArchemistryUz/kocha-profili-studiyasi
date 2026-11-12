@@ -103,3 +103,8 @@ export function parseMonitoring(csv: string): { date: string; flat?: number; hou
 }
 
 export const MONITORING_URL = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/narx-monitoring/data/narx/toshkent_uybor.csv';
+
+/** 12.11 (G1, 2-band): «Manba» matni hujjatda oʻzbekcha saqlanadi (sana bilan) — koʻrsatishda maʼlum boʻlaklari tarjima qilinadi */
+export function priceSourceText(s: string, tr: (x: string) => string): string {
+  return ['shahar median (soʻralgan narx)', 'noturar — qoʻlda', 'Toshkent', 'qoʻlda'].reduce((t, k) => t.split(k).join(tr(k)), s);
+}

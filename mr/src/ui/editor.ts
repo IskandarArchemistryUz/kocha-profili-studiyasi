@@ -37,7 +37,7 @@ import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../co
 import type { MultiPolygon } from 'polygon-clipping';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { accessStreet, innerStreets } from '../core/rowaccess';
-import { denyZone, clipToSzz, szzBelt } from '../core/szzgen';
+import { denyZone, clipToSzz, szzBelt, usableOf } from '../core/szzgen';
 import { LOGI, logiType, prodSzz } from '../core/logistics';
 import { PROD } from '../core/prodcheck';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -65,6 +65,7 @@ import { mlParking, need413, pct5, ML, OPEN_413, trimT30, ringDist, type T30Obs 
 import { autoEntries, entryReport, hasEntryRules, isUg } from '../core/parkenv';
 import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
+import { genRing } from '../core/slits';
 import { saveMrReturn, consumeMrBack } from './mrback';
 import { USES, useDef, resShare } from '../core/uses';
 import { gridAngle, merge, splitPath, splitByZones, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
@@ -90,7 +91,7 @@ import { builtInMtm, derive } from '../core/derive';
 import { blockShape, checkBlock, isPodium, jointOpt } from '../core/seysmik';
 import { toDxf } from '../core/dxf';
 import { toIfc } from '../core/ifc';
-import { compensation, parseMonitoring, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
+import { compensation, parseMonitoring, priceSourceText, MONITORING_URL, type CompParams, type CompResult, type DemoBuilding } from '../core/compensation';
 import { tepRows, buildingRows, BUILDING_HEAD } from '../core/tep';
 import { toXlsx, type Sheet } from '../core/xlsx';
 import { reportHtml } from './report';
@@ -2489,8 +2490,10 @@ export class Editor {
     const g0: GenParams = usePreset(b.use, base1) ?? (ud.floors && !(LOW_T.includes(base1.typology) && base1.maxF <= 3) ? { ...base1, minF: ud.floors[0], maxF: ud.floors[1], nonRes: 0 } : base1);
     // seysmik boʻlma (QMQ 2.01.03-19, 3.1-jadval): seksiya uzunligi chegaradan oshmaydi
     const sysK = this.store.doc.settings.construct ?? 'monolit', lim = lenLimit(sysK, this.store.doc.settings.seismic), g: GenParams = lim != null ? { ...g0, secLen: Math.min(g0.secLen, lim), maxLen: lim, maxProj: SYS[sysK].proj } : g0;
+    // 12.11 (G1): chegaradagi tor berk tirqishlar (ichki servis yoʻllari) generatsiya uchun yopiladi — core/slits
+    const slit = genRing(b.rings[0]), R0 = slit.ring;
     const S = this.store.doc.settings, fr = frame(this.store.doc.origin), avoidG = this.genObstacles(b.parcelId ?? lab.id, b.rings[0]);
-    const run = (gx0: GenParams, edgeH?: (number | null)[]) => { const gx = this.siteCondGen(gx0), a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(b.rings[0], { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc), norms: this.genNorms() }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
+    const run = (gx0: GenParams, edgeH?: (number | null)[]) => { const gx = this.siteCondGen(gx0), a = this.autoSb(i, gx, edgeH), ug = this.ugRing(i, gx); return { asb: a, r: generate(R0, { ...(a ? { ...gx, setback: a.dMin, ...(a.ring ? { setbackRing: a.ring } : {}) } : gx), ...(ug ? { ugRing: ug } : {}), ...(S.groundH ? { groundH: S.groundH } : {}), seismic: S.seismic, ...(S.recon ? { recon: true } : {}), lowFire: lowFireNeed(this.store.doc), norms: this.genNorms() }, S.floorHeight, { use: b.use, aptNet: S.aptNet, netToGross: S.netToGross, tashkent: isTashkent(S.district), avoid: avoidG, ...(b.use === 'logistika' ? { logi: this.store.doc.zones.find(q => q.id === b.labelId)?.sub, rails: (this.store.doc.limits ?? []).filter(l => l.kind === 'temiryol' && l.rings?.[0]).map(l => l.rings![0].map(fr.toLocal)) } : {}) }) }; };
     let { asb, r } = run(g);
     // 05.11 (egasi): 2-oʻtish — chekinish har qirrada shu qirraga qaragan seksiyalarning haqiqiy balandligidan (79-band 1-izoh: loyihalashtirilgan
     // binoning balandligi); janub qirrasi pastroq → chekinish kichik → hovli kengroq. Yaqinlashguncha (farq ≤ 0,3 m) koʻpi bilan 3 oʻtish
@@ -2498,7 +2501,7 @@ export class Editor {
       const a0 = asb; if (!a0 || a0.andoza) break;
       const secs = r.sections.filter(x => x.kind !== 'arka').map(x => ({ ring: x.ring, H: bLevels(S, { floors: x.floors, nonRes: x.nonRes, z0: x.z0 }).top }));
       if (!secs.length) break;
-      const eh = edgeHeights(b.rings[0], secs, a0.dMax + 1.5), a2 = this.autoSb(i, g, eh);   // chekinish chizigʻida turgan seksiyalar
+      const eh = edgeHeights(R0, secs, a0.dMax + 1.5), a2 = this.autoSb(i, g, eh);   // chekinish chizigʻida turgan seksiyalar
       if (!a2 || Math.max(...a2.d.map((v, k) => Math.abs(v - a0.d[k]))) <= 0.3) { if (a2?.hs) asb = { ...a0, hs: a2.hs }; break; }
       const x = run(g, eh); if (!x.r.sections.some(q => q.kind !== 'stilobat')) break;
       ({ asb, r } = x);
@@ -2510,12 +2513,16 @@ export class Editor {
       const tried: number[] = [];
       for (const f of [12, 9, 7, 5, 3].filter(f => f < g.maxF)) { tried.push(f); const x = run({ ...g, maxF: f, minF: Math.min(g.minF, f) }); if (built(x.r)) { ({ asb, r } = x); r.notes.unshift(tf('Joy yetmadi (${a} qavatda: chekinish H × 0,25 va oraliq 2·H) — qavat ${b} gacha pasaytirildi', { a: g.maxF, b: f })); break; } }
       if (!built(r) && g.typology !== 'minora') { const x = run({ ...g, typology: 'minora', maxF: Math.min(g.maxF, 9), minF: Math.min(g.minF, 5, g.maxF), towerF: Math.min(g.towerF ?? 16, 9, g.maxF) }); if (built(x.r)) { ({ asb, r } = x); r.notes.unshift(tr('Joy yetmadi — choʻziq seksiya oʻrniga minora (nuqtali bino), ≤ 9 qavat')); } }
-      if (!built(r)) { const w = minWidth(b.rings[0]), sb = this.autoSb(i, { ...g, maxF: 3, minF: Math.min(g.minF, 3) })?.dMin ?? g.setback; r.notes.unshift(tf('Bino sigʻmadi: dahaning eng tor joyi ≈ ${w} m; 3 qavatda ham chekinish ${s} m × 2 va seksiya chuqurligi ${d} m kerak', { w: Math.round(w), s: fmt(sb, 1), d: fmt(g.depth, 1) })); }
+      if (!built(r)) { const w = minWidth(R0), sb = this.autoSb(i, { ...g, maxF: 3, minF: Math.min(g.minF, 3) })?.dMin ?? g.setback; r.notes.unshift(tf('Bino sigʻmadi: dahaning eng tor joyi ≈ ${w} m; 3 qavatda ham chekinish ${s} m × 2 va seksiya chuqurligi ${d} m kerak', { w: Math.round(w), s: fmt(sb, 1), d: fmt(g.depth, 1) })); }
     }
     // 3b (02.11): taqiqlangan funksiya SMZ ichiga qoʻyilmaydi (SanQvaN 0103-25, 12-band; ShNQ 2.07.01-23, 146; qabriston — VM 101, 50-band) — uylar olinadi, seksiyalar qisqartiriladi
     { const dzOf = new Map<string, ReturnType<typeof denyZone>>(), dz = (u: string) => { if (!dzOf.has(u)) dzOf.set(u, denyZone(this.store.doc, u as Use)); return dzOf.get(u)!; };
       const byUse = new Map<string, typeof r.sections>(); for (const x of r.sections) { const u = x.use ?? b.use; byUse.set(u, [...(byUse.get(u) ?? []), x]); }
-      r.sections = [...byUse].flatMap(([u, xs]) => clipToSzz(xs, dz(u), r.notes)); }
+      const had = built(r);
+      r.sections = [...byUse].flatMap(([u, xs]) => clipToSzz(xs, dz(u), r.notes));
+      // 12.11 (G1): hammasi SMZ da qolgan boʻlsa — haqiqiy sabab: yaroqli maydon qancha va qayerda
+      if (had && !built(r)) { const ua = usableOf(R0, dz(b.use)); r.notes.unshift(tf('Turar joy uchun yaroqli maydon ${u} ga — qolgan ${s} ga SMZ ichida (SanQvaN 0103-25, 12-band); yaroqli qismga chekinishlardan keyin seksiya sigʻmadi', { u: fmt(ua.usable / 1e4, 2), s: fmt(Math.max(0, ua.total - ua.usable) / 1e4, 2) })); } }
+    if (slit.n) r.notes.push(tf('Daha chegarasidagi ${n} ta tor tirqish (ichki servis yoʻli, eni < 10 m) generatsiya uchun yopildi — ${a} m² (TALQIN)', { n: slit.n, a: Math.round(slit.area) }));
     this.genNotes = asb ? [this.autoSbNote(asb), ...r.notes] : r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
     const grp = b.parcelId ?? lab.id, drop = staleGen(this.store.doc, grp, b.rings[0], r.sections.map(x => x.ring));
@@ -2573,7 +2580,7 @@ export class Editor {
   /** 05.11: kvartal qirralari turi (koʻcha / qoʻshni) va loyiha koʻchalari — chekinish va yer osti avtoturargoh chegarasi uchun */
   private edgeInfo(i: number, g: GenParams): { ring: XY[]; kinds: EdgeKind[]; streets: { axis: XY[]; w: number }[] } | null {
     const b = this.plan().blocks[i]; if (!b) return null;
-    const doc = this.store.doc, fr = frame(doc.origin), ring = b.rings[0];
+    const doc = this.store.doc, fr = frame(doc.origin), ring = genRing(b.rings[0]).ring;   // 12.11 (G1): tirqishlar yopilgan
     const streets = doc.streets.map(s => ({ axis: s.axis.map(fr.toLocal), w: profileWidth(profileById(s.profile)) }));
     return { ring, streets, kinds: edgeKinds(ring, streets, g.siteEdges ?? doc.siteEdges ?? 'kocha') };
   }
@@ -4271,7 +4278,7 @@ export class Editor {
       h('div', { class: 'col' },
         h('div', { class: 'seg sm', role: 'group' }, ...([['orq781', '781: olib qoʻyish'], ['orq1149', '1149: renovatsiya']] as const).map(([k, t]) => h('button', { 'aria-pressed': c.regime === k, 'data-regime': k, onclick: () => set({ regime: k }) }, t))),
         h('div', { class: 'row3' }, num('priceFlat', tr('Kvartira'), '$/m²', 10), num('priceHouse', tr('Hovli'), '$/m²', 10), num('priceNonres', tr('Noturar'), '$/m²', 10)),
-        h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', id: 'compMon', onclick: () => void this.loadMonitoring() }, tr('Monitoringdan')), h('span', { class: 't-small', id: 'compSrc' }, c.priceSource ? `${tr('Manba')}: ${tr(c.priceSource)}` : tr('Manba: kiritilmagan'))),
+        h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', id: 'compMon', onclick: () => void this.loadMonitoring() }, tr('Monitoringdan')), h('span', { class: 't-small', id: 'compSrc' }, c.priceSource ? `${tr('Manba')}: ${priceSourceText(c.priceSource, tr)}` : tr('Manba: kiritilmagan'))),
         this.monitorMsg ? h('div', { class: 'note' }, this.monitorMsg) : '',
         h('div', { class: 'row2' }, num('rentRate', tr('Ijara'), '$/m²·oy', 0.5), num('rentMonths', tr('Ijara'), tr('oy')), num('movingPerHh', tr('Koʻchish'), '$/xon.', 10), num('profitRate', tr('Foyda'), '$/m²·yil', 5)),
         h('table', { class: 'tbl', id: 'compTab' },
