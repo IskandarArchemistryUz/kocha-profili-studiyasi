@@ -47,7 +47,7 @@ import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile }
 import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
 import { FIRE_CLS, isLowHouse, lowFireNeed } from '../core/firedist';
-import { stageRows } from '../core/sheet';
+import { stageRows, normLine } from '../core/sheet';
 import { proposeStages } from '../core/phasing';
 import { lenLimit, SYS, SEIS_PLACES, seisKey, seisByKey, seisForDistrict, socialFloorLimit } from '../core/seysmik';
 import { CONSTRUCT_SYS } from '../core/doc';
@@ -4815,6 +4815,7 @@ export class Editor {
     openChizmadon({
       project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', origin: [doc.origin[0], doc.origin[1]], data: doc.chizmadon, incoming,
       save: d => this.run(() => this.store.dispatch({ type: 'setChizmadon', data: d as unknown as Record<string, unknown> }, 'chizmadon')),
+      norms: () => normLine(this.store.doc, tr),
       tik: () => this.tep().filter(r => r.v != null && r.v !== '').slice(0, 14).map(r => [r.name, r.unit, typeof r.v === 'number' ? fmt(r.v, Math.abs(r.v) < 10 ? 2 : 0) : String(r.v)]),
       siteMap: () => {
         const d2 = this.store.doc; if (!d2.site && !d2.buildings.length) return undefined;

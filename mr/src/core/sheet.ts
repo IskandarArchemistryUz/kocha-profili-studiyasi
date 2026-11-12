@@ -872,8 +872,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     const yEnd = vy + vh - 4;
     if (S.title) { lay('Sarlavha', 'Sarlavha', `<text x="${x0}" y="${n2(y + 5)}" font-size="${T(Math.min(6, w / 14))}" font-weight="700" fill="#1d1d1b">${ttl}</text><text x="${x0}" y="${n2(y + 10)}" font-size="${T(2.8)}" fill="#55524b">${esc(kindName)} · ${scaleTxt} · ${d}</text>`); y += 15; }
     // 12.11 (meʼyorlar toʻplami, 3-bosqich, 4-band): shtampda qoʻllangan toʻplam qatori va konsepsiya belgisi
-    const nset = doc.settings.normSet ?? placeOf(doc.origin[0], doc.origin[1]).norms, concept = nset === 'UZ' && doc.settings.concept === true, sc = doc.settings.siteCond;
-    const normTxt = `${tr('Meʼyorlar')}: ${nset === 'UZ' ? tr('Oʻzbekiston · ShNQ') + (concept ? ` (${tr('konsepsiya rejimi')})` : '') : `${tr('Xalqaro andoza')} (NSW ADG 3F-1)`}${sc ? ` + ${tr('uchastka shartlari')}${sc.src ? ` — ${tr('manba')}: ${sc.src}` : ''}` : ''}`;
+    const nset = doc.settings.normSet ?? placeOf(doc.origin[0], doc.origin[1]).norms, concept = normConcept(doc), normTxt = normLine(doc, tr);
     const nmx = Math.max(20, Math.floor((w - 3) / 1.32)), nLines: string[] = [];
     for (const wd of normTxt.split(' ')) { const L = nLines.length ? nLines[nLines.length - 1] : null; if (L !== null && (L + ' ' + wd).length <= nmx) nLines[nLines.length - 1] = L + ' ' + wd; else nLines.push(wd); }
     if (nLines.length > 2) { nLines.length = 2; nLines[1] = nLines[1].slice(0, nmx - 1) + '…'; }
@@ -1138,4 +1137,12 @@ export function treeRows(t: TreeSum, tr: (s: string) => string = s => s): Balanc
     { t: tr('Yangi ekiladi (koʻcha, hovli)'), v: t.newT, vt: String(t.newT), sep: true, c: '#b9dca0' },
     { t: tr('Loyihadan keyin jami'), v: after, vt: String(after), b: true, sep: true, ok: after >= ex, p: after >= ex ? `+${after - ex}` : `−${ex - after}` },
   ];
+}
+
+/** 12.11: konsepsiya rejimi yoqilganmi (faqat Oʻzbekiston toʻplamida) */
+export const normConcept = (doc: Project): boolean => (doc.settings.normSet ?? placeOf(doc.origin[0], doc.origin[1]).norms) === 'UZ' && doc.settings.concept === true;
+/** Shtampdagi meʼyorlar qatori (meʼyorlar toʻplami, 3-bosqich 4-band) — Varaqlar va Chizmadon albomida bir xil */
+export function normLine(doc: Project, tr: (s: string) => string = s => s): string {
+  const nset = doc.settings.normSet ?? placeOf(doc.origin[0], doc.origin[1]).norms, concept = normConcept(doc), sc = doc.settings.siteCond;
+  return `${tr('Meʼyorlar')}: ${nset === 'UZ' ? tr('Oʻzbekiston · ShNQ') + (concept ? ` (${tr('konsepsiya rejimi')})` : '') : `${tr('Xalqaro andoza')} (NSW ADG 3F-1)`}${sc ? ` + ${tr('uchastka shartlari')}${sc.src ? ` — ${tr('manba')}: ${sc.src}` : ''}` : ''}`;
 }

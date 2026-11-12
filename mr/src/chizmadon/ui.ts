@@ -38,6 +38,8 @@ export interface ChHost {
   /** saqlangan albom (Project.chizmadon) */
   data: Record<string, unknown> | undefined;
   save: (d: ChDoc) => void;
+  /** 12.11: shtampdagi meʼyorlar qatori (Master reja hujjatidan, Varaqlardagi bilan bir xil — core/sheet normLine) */
+  norms?: () => string;
   /** TIK jadvali: [koʻrsatkich, birlik, qiymat] */
   tik: () => string[][];
   /** loyiha bosh rejasi (Varaqlar, xarita qismi, mm) */
@@ -154,7 +156,7 @@ export function openChizmadon(host: ChHost): void {
   const YEAR = new Date().getFullYear();
   const TXT_DEF = {
     proj: () => [d.title || host.project, R ? tr(placeName(R)) : host.place].filter(Boolean).join(' · '),
-    stamp: () => `Archemistry Lab  ·  ${d.album.author || '—'}  ·  ${YEAR}`,
+    stamp: () => `Archemistry Lab  ·  ${d.album.author || '—'}  ·  ${YEAR}${host.norms ? `  ·  ${host.norms()}` : ''}`,
     shifr: () => '—',
     tik: () => tikOnce().filter(r => r[2] && r[2] !== '0' && r[2] !== '0,00').slice(0, 4).map(r => `${tr(r[0])} ${r[2]}${r[1] ? ' ' + tr(r[1]) : ''}`).join('  ·  '),
     src: () => `${tr('Manba: loyiha maʼlumoti')}, ${YEAR}`,
@@ -989,7 +991,7 @@ export function openChizmadon(host: ChHost): void {
       renderOverlay(); syncPanels(); renderPnav();
     });
   }
-  const albumDeco = (i: number) => ({ num: d.album.numbering && allPages().length > 1 ? { i: i + 1, total: allPages().length } : undefined, stamp: d.album.stamp ? { title: d.title, author: d.album.author, date: today() } : null });
+  const albumDeco = (i: number) => ({ num: d.album.numbering && allPages().length > 1 ? { i: i + 1, total: allPages().length } : undefined, stamp: d.album.stamp ? { title: d.title, author: d.album.author, date: today(), ...(host.norms ? { norms: host.norms() } : {}) } : null });
   /** «Mundarija» namunasi: albom sozlamasida yoqilgan boʻlsa — varaq nomlaridan */
   function withToc(p: ChPage): ChPage {
     if (!d.album.toc || p.tpl !== 'mr-mundarija' && p.tpl !== 'xf-mundarija') return p;

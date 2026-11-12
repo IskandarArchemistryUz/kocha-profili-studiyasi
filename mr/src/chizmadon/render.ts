@@ -319,7 +319,7 @@ export interface PageOpts {
   grid?: boolean;
   /** albom: varaq raqami va shtamp */
   num?: { i: number; total: number };
-  stamp?: { title: string; author: string; date: string } | null;
+  stamp?: { title: string; author: string; date: string; /** 12.11: meʼyorlar toʻplami qatori */ norms?: string } | null;
   /** id prefiksi (bir sahifada bir nechta varaq) */
   idp?: string;
   /** Illustrator qatlam belgilari */
@@ -337,12 +337,13 @@ export function pageSvg(page: ChPage, o: PageOpts = {}): { svg: string; w: numbe
     body += `<g id="${esc(R.idp + 'L-' + L.name.replace(/\s+/g, '_'))}" data-layer="${L.id}"${o.ai ? ` inkscape:groupmode="layer" inkscape:label="${esc(L.name)}"` : ''}>${els.map(e => elSvg(e, page, R)).join('')}</g>`;
   }
   if (o.stamp) {
-    const sw = Math.min(110, W * 0.3), sh = 14, x = W - 8 - sw, y = H - 8 - sh;
-    body += `<g id="${R.idp}Shtamp"><rect x="${n(x)}" y="${n(y)}" width="${n(sw)}" height="${sh}" fill="#ffffff" stroke="#141414" stroke-width="0.25"/><path d="M${n(x)} ${n(y + 7)}H${n(x + sw)}M${n(x + sw * 0.7)} ${n(y)}V${n(y + sh)}" stroke="#141414" stroke-width="0.18"/>`
+    const sw = Math.min(110, W * 0.3), nm = o.stamp.norms ? 5 : 0, sh = 14 + nm, x = W - 8 - sw, y = H - 8 - sh;
+    body += `<g id="${R.idp}Shtamp"><rect x="${n(x)}" y="${n(y)}" width="${n(sw)}" height="${sh}" fill="#ffffff" stroke="#141414" stroke-width="0.25"/><path d="M${n(x)} ${n(y + 7)}H${n(x + sw)}M${n(x + sw * 0.7)} ${n(y)}V${n(y + 14)}" stroke="#141414" stroke-width="0.18"/>`
       + `<text x="${n(x + 2)}" y="${n(y + 4.8)}" font-family="${ff()}" font-size="2.8" font-weight="700" fill="#141414">${esc(R.tr(o.stamp.title))}</text>`
       + `<text x="${n(x + 2)}" y="${n(y + 11.8)}" font-family="${ff()}" font-size="2.5" fill="#3c3b38">${esc(R.tr(page.name))}</text>`
       + `<text x="${n(x + sw * 0.7 + 2)}" y="${n(y + 4.8)}" font-family="${ff('IBM Plex Mono')}" font-size="2.5" fill="#3c3b38">${esc(o.stamp.author || '—')}</text>`
-      + `<text x="${n(x + sw * 0.7 + 2)}" y="${n(y + 11.8)}" font-family="${ff('IBM Plex Mono')}" font-size="2.5" fill="#3c3b38">${esc(o.stamp.date)}${o.num ? ` · ${o.num.i}/${o.num.total}` : ''}</text></g>`;
+      + `<text x="${n(x + sw * 0.7 + 2)}" y="${n(y + 11.8)}" font-family="${ff('IBM Plex Mono')}" font-size="2.5" fill="#3c3b38">${esc(o.stamp.date)}${o.num ? ` · ${o.num.i}/${o.num.total}` : ''}</text>`
+      + (o.stamp.norms ? `<path d="M${n(x)} ${n(y + 14)}H${n(x + sw)}" stroke="#141414" stroke-width="0.25"/><text data-norms="1" x="${n(x + 2)}" y="${n(y + 17.6)}" font-family="${ff()}" font-size="2.3" fill="#3c3b38">${esc(o.stamp.norms.length > Math.floor(sw / 1.15) ? o.stamp.norms.slice(0, Math.floor(sw / 1.15) - 1) + '…' : o.stamp.norms)}</text>` : '') + `</g>`;
   } else if (o.num) body += `<text x="${n(W - 8)}" y="${n(H - 6)}" font-family="${ff('IBM Plex Mono')}" font-size="3" fill="#6b6965" text-anchor="end">${String(o.num.i).padStart(2, '0')} / ${String(o.num.total).padStart(2, '0')}</text>`;
   const ns = `xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${o.ai ? ' xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"' : ''}`;
   return { svg: `<svg ${ns} width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">${body}</svg>`, w: W, h: H };
