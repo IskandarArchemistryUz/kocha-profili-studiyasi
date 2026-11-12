@@ -23,7 +23,7 @@ import polygonClipping, { type MultiPolygon, type Polygon } from 'polygon-clippi
 import { gstyleById, useColorOf, styledTree, parcelGrey, inkOn } from './gstyle';
 import type { AxoEdit } from './axoedit';
 
-export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi' | 'ijtimoiy' | 'parkovka';
+export type SheetKind = 'bosh' | 'zona' | 'parsel' | 'figura' | 'landshaft' | 'qavat' | 'vaziyat' | 'xizmat' | 'cheklov' | 'yashil' | 'insol' | 'transport' | 'shamol' | 'relyef' | 'navbat' | 'issiq' | 'hand' | 'twi' | 'ijtimoiy' | 'parkovka' | 'parkstrat';
 export type Paper = 'fit' | 'A4' | 'A3' | 'A2' | 'A1' | 'A0';
 
 /** Varaq namunalari (MR-Varaqlar «Namuna»): atamalar lugʻati boʻyicha */
@@ -44,6 +44,7 @@ export const SHEET_KINDS: { id: SheetKind; name: string; note: string }[] = [
   { id: 'transport', name: 'Transport sxemasi', note: 'koʻchalar toifasi, velo yoʻlak, bekatlar va 400 m radius, avtoturargohlar' },
   // 12.11 (eski navbat, 3-band): avtoturargohlar sxemasi — turlar, joylar, pandus, 300 m (417-band) va talab/taʼminot jadvali
   { id: 'parkovka', name: 'Avtoturargohlar sxemasi', note: 'yer osti, stilobat, ochiq va koʻp qavatli avtoturargohlar, kirishlar, 300 m radius, talab va taʼminot' },
+  { id: 'parkstrat', name: 'Parkovka strategiyasi', note: 'har uydan eng yaqin avtoturargohgacha masofa, avtoturargohlar sigʻimi, piyoda koʻchalar, turlar ulushi' },
   { id: 'insol', name: 'Insolyatsiya', note: 'uchastka yer sathi: kuniga quyosh soatlari (6-qadam xaritasi)' },
   { id: 'navbat', name: 'Qurilish navbati', note: 'binolar navbat rangida; har navbat: binolar, maydon, xonadonlar' },
   { id: 'relyef', name: 'Relyef', note: 'balandliklar (gipsometriya), gorizontallar va qiyalik — AWS Terrain Tiles' },
@@ -263,6 +264,13 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   // 12.11 (avtoturargohlar sxemasi): ShNQ 2.07.01-23, 417-band — vaqtincha avtoturargohdan obyektgacha ≤ 300 m (TALQIN: barcha avtoturargohlarga;
   // toʻgʻri chiziq, kirish/garaj chetidan bino chetigacha). Undan uzoq turar joy binolari — pushti
   const PK_R = 300, PK_G = K === 'parkovka' ? doc.garages.filter(q => !q.truck).map(q => q.ring.map(fr.toLocal)) : [];
+  // 12.11 (parkovka strategiyasi): har turar joy binosidan eng yaqin avtoturargohgacha toʻgʻri chiziq (bino chetidan garaj chetigacha) va oraliq
+  const PS_G = K === 'parkstrat' ? doc.garages.filter(q => !q.truck).map(q => ({ q, r: q.ring.map(fr.toLocal) })) : [];
+  const PS_D = new Map<string, number>(), PS_L = new Map<string, [XY, XY]>();
+  if (PS_G.length) for (const x of nb) { if (useDef(x.b.use).res <= 0) continue; let best = Infinity, seg: [XY, XY] | null = null; const c = centroid(x.r);
+    for (const { r } of PS_G) { const d = ringDist(r, x.r); if (d < best) { best = d; let bp: XY = r[0], bd = Infinity; for (let i = 0; i < r.length; i++) { const a = r[i], b2 = r[(i + 1) % r.length], dx = b2[0] - a[0], dy = b2[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((c[0] - a[0]) * dx + (c[1] - a[1]) * dy) / L2)), p: XY = [a[0] + dx * t, a[1] + dy * t], dd = Math.hypot(p[0] - c[0], p[1] - c[1]); if (dd < bd) { bd = dd; bp = p; } } seg = [c, bp]; } }
+    PS_D.set(x.b.id, best); if (seg && best > 0) PS_L.set(x.b.id, seg); }
+  const PS_BAND = (d: number): [string, string] => d <= 100 ? ['#1a9850', '≤ 100 m'] : d <= 200 ? ['#91cf60', '100–200 m'] : d <= 300 ? ['#fdae61', '200–300 m'] : ['#d73027', '> 300 m'];
   const PK_FAR = new Set(K === 'parkovka' && PK_G.length ? nb.filter(x => useDef(x.b.use).res > 0 && !PK_G.some(gr => ringDist(gr, x.r) <= PK_R)).map(x => x.b.id) : []);
   /** parsellar rejasi (06.11): atrof xira */
   const fade = PR ? ' opacity="0.45"' : '';
@@ -497,7 +505,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const lB = Ly('bld');
   if (nb.length && lB.on && !PR) {
     const order = [...nb].sort((a, b) => ((a.b.z0 ?? 0) + a.b.floors) - ((b.b.z0 ?? 0) + b.b.floors));
-    const fill = (b: Project['buildings'][number]) => K === 'parkovka' ? (PK_FAR.has(b.id) ? '#f6dcd5' : '#ecebe7') : K === 'ijtimoiy' ? (SOC.has(b.use) ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.08)) : mix(ucol(b.use), 0.62)) : K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
+    const fill = (b: Project['buildings'][number]) => K === 'parkstrat' ? (PS_D.has(b.id) ? mix(parseInt(PS_BAND(PS_D.get(b.id)!)[0].slice(1), 16), 0.55) : '#ecebe7') : K === 'parkovka' ? (PK_FAR.has(b.id) ? '#f6dcd5' : '#ecebe7') : K === 'ijtimoiy' ? (SOC.has(b.use) ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.08)) : mix(ucol(b.use), 0.62)) : K === 'navbat' ? STAGE_COL[stageOf(b) - 1] : K === 'figura' || VZ ? '#1d1d1b' : K === 'zona' ? (GS ? hex(ucol(b.use)) : darker(ucol(b.use), 0.12)) : K === 'qavat' ? floorColor((b.z0 ?? 0) + b.floors) : lB.fill === 'none' ? 'none' : lB.fill === 'use' ? lite(mix(ucol(b.use), GS ? 0 : 0.1), lB.light) : '#ffffff';
     const stroke = K === 'figura' || VZ || !lB.outline ? 'none' : INK;
     const bw = (b: Project['buildings'][number]) => K === 'ijtimoiy' ? (SOC.has(b.use) ? 0.35 : 0.12) : K === 'bosh' ? lB.mm : Math.min(lB.mm, 0.3);
     g('Yangi_binolar', order.map(({ b, r }) => `<path d="${ringD(r)}" fill="${fill(b)}"${stroke !== 'none' ? ` stroke="${K === 'ijtimoiy' && !SOC.has(b.use) ? '#8e8a82' : stroke}" stroke-width="${lw(bw(b) * LW)}" stroke-linejoin="round"` : ''}/>`).join(''));
@@ -670,6 +678,25 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     legend.push({ type: 'fill', fill: '#ecebe7', stroke: INK, label: tr('Loyiha binolari') });
   }
 
+  let psBub = '';
+  // 4f. parkovka strategiyasi (12.11, eski navbat 3-band davomi): piyoda koʻchalar (avtomobilsiz) yashil, avtomobil koʻchalari kulrang;
+  // avtoturargohlar — sigʻimiga mos doira (√joy), har turar joy binosidan eng yaqin avtoturargohgacha chiziq oraliq rangida (417-band: ≤ 300 m)
+  if (K === 'parkstrat') {
+    const GK: Record<string, [string, string]> = { yer_osti: ['#7f93a8', 'Yer osti avtoturargohi'], stilobat: ['#6b7280', 'Stilobatdagi avtoturargoh'], yer_usti: ['#a8b3bf', 'Ochiq avtoturargoh'], kop_qavatli: ['#4b5563', 'Koʻp qavatli avtoturargoh'] };
+    const car = ps.filter(x => x.prof.cat !== 'piyoda'), ped = ps.filter(x => x.prof.cat === 'piyoda');
+    if (car.length) { g('Avtomobil_kochalari', car.map(x => `<path d="${lineD(x.axis)}" fill="none" stroke="#9aa3ad" stroke-width="${lw(1.2)}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')); legend.push({ type: 'line', stroke: '#9aa3ad', label: tr('Avtomobil harakati koʻchalari') }); }
+    if (ped.length) { g('Piyoda_kochalari', ped.map(x => `<path d="${lineD(x.axis)}" fill="none" stroke="#27ae60" stroke-width="${lw(1.2)}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')); legend.push({ type: 'line', stroke: '#27ae60', label: tr('Piyoda koʻchalari (avtomobilsiz)') }); }
+    if (PS_G.length) {
+      g('Masofa_chiziqlari', [...PS_L].map(([id, [a, b]]) => `<path d="M${P(a)}L${P(b)}" stroke="${PS_BAND(PS_D.get(id)!)[0]}" stroke-width="${lw(0.35)}" stroke-dasharray="1 0.6"/><circle cx="${X(a)}" cy="${Y(a)}" r="0.7" fill="${PS_BAND(PS_D.get(id)!)[0]}"/>`).join(''));
+      g('Avtoturargoh_izlari', PS_G.map(({ q, r }) => `<path d="${ringD(r)}" fill="${GK[q.kind][0]}" fill-opacity="0.12" stroke="${GK[q.kind][0]}" stroke-width="${lw(0.2)}"${q.kind === 'yer_osti' ? ' stroke-dasharray="1.5 0.8"' : ''}/>`).join(''));
+      const mxS = Math.max(...PS_G.map(x => x.q.spaces), 1);
+      psBub = (PS_G.map(({ q, r }) => { const c = centroid(r), rr = Math.max(3, 12 * Math.sqrt(q.spaces / mxS)); return `<circle cx="${X(c)}" cy="${Y(c)}" r="${n2(rr)}" fill="${GK[q.kind][0]}" fill-opacity="0.85" stroke="#ffffff" stroke-width="0.4"/><text x="${X(c)}" y="${n2(+Y(c) + 1)}" font-size="${T(rr >= 5 ? 2.8 : 2.5)}" font-weight="700" text-anchor="middle" fill="#ffffff">${q.spaces}</text>`; }).join(''));
+      for (const kk of ['yer_osti', 'stilobat', 'yer_usti', 'kop_qavatli']) if (PS_G.some(x => x.q.kind === kk)) legend.push({ type: 'stop', fill: GK[kk][0], label: `${tr(GK[kk][1])} — ${tr('doira — joylar soni')}` });
+      const used = new Set([...PS_D.values()].map(d => PS_BAND(d)[1]));
+      for (const d of [50, 150, 250, 400]) { const [c2, l] = PS_BAND(d); if (used.has(l)) legend.push({ type: 'line', stroke: c2, label: `${tr('Turar joydan avtoturargohgacha')} ${l}` }); }
+    } else legend.push({ type: 'text', label: tr('Avtoturargoh yoʻq — 5-qadamda «Avtoturargoh» (yer osti / ochiq / koʻp qavatli) tanlang') });
+  }
+
   // 4d. transport sxemasi (02.11): koʻcha oʻqlari toifa rangida, velo yoʻlaklar, avtoturargohlar; bekatlar 400 m radiusi (382-band)
   if (K === 'transport') {
     const cats = new Set<Cat>();
@@ -736,6 +763,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     g('Yer_uchastkalari_yozuvlari', out.join(''));
   }
 
+  if (psBub) g('Avtoturargoh_sigimi', psBub);   // 12.11: yozuvlar ustida (daha yozuvi doirani yopmasin)
   // 6. uchastka chegarasi
   const lSi = Ly('site');
   if (site && lSi.on) {
@@ -808,7 +836,7 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       lay('Shartli_belgilar', 'Shartli belgilar', out.join('')); y += 9 + legend.length * rowH;
     }
     if (inner?.side) { lay('Eksplikatsiya', 'Eksplikatsiya', inner.side(x0, y + 2, w, yEnd - stampH - sitH - 2)); }
-    const side = inner ? null : K === 'navbat' ? { id: 'Navbatlar', title: 'Qurilish navbatlari', rows: stageRows(doc, tr), cols: ['m² / soni', ''] } : K === 'parkovka' ? { id: 'Avtoturargoh_balansi', title: 'Avtoturargoh: talab va taʼminot', rows: parkingRows(doc, tr), cols: ['joy', ''] } : K === 'cheklov' && bal ? { id: 'Yer_balansi', title: 'Yer balansi', rows: balanceRows(doc, tr) } : K === 'transport' ? { id: 'Transport_balansi', title: 'Koʻchalar va avtoturargohlar', rows: transportRows(doc, tr), cols: ['km / joy', ''] } : K === 'yashil' ? { id: 'Yashil_balans', title: 'Yashil balans', rows: greenRows(doc, tr) } : PR ? { id: 'Parsellar_jadvali', title: 'Parsellar', rows: parcelRows(doc, plots, tr) } : null;
+    const side = inner ? null : K === 'navbat' ? { id: 'Navbatlar', title: 'Qurilish navbatlari', rows: stageRows(doc, tr), cols: ['m² / soni', ''] } : K === 'parkovka' ? { id: 'Avtoturargoh_balansi', title: 'Avtoturargoh: talab va taʼminot', rows: parkingRows(doc, tr), cols: ['joy', ''] } : K === 'parkstrat' ? { id: 'Parkovka_strategiyasi', title: 'Parkovka strategiyasi', rows: parkStratRows(doc, PS_D, tr), cols: ['', ''] } : K === 'cheklov' && bal ? { id: 'Yer_balansi', title: 'Yer balansi', rows: balanceRows(doc, tr) } : K === 'transport' ? { id: 'Transport_balansi', title: 'Koʻchalar va avtoturargohlar', rows: transportRows(doc, tr), cols: ['km / joy', ''] } : K === 'yashil' ? { id: 'Yashil_balans', title: 'Yashil balans', rows: greenRows(doc, tr) } : PR ? { id: 'Parsellar_jadvali', title: 'Parsellar', rows: parcelRows(doc, plots, tr) } : null;
     if (side && side.rows.length) {
       // balans jadvali (02.11): yer balansi (cheklovlar varagʻi) yoki yashil balans (86, 87-band)
       const ha = (v: number) => v.toFixed(2).replace('.', ',');
@@ -970,6 +998,21 @@ export function parkingRows(doc: Project, tr: (s: string) => string = s => s): B
   for (const [kk, n] of [['yer_osti', 'Yer osti avtoturargohi'], ['stilobat', 'Stilobatdagi avtoturargoh'], ['yer_usti', 'Ochiq avtoturargoh'], ['kop_qavatli', 'Koʻp qavatli avtoturargoh']] as const) { const v = sp(kk); if (v) out.push({ t: tr(n), v, vt: String(v) }); }
   const open = d.parkingProv - gs.reduce((t, q) => t + q.spaces, 0); if (open > 0) out.push({ t: tr('«Avtoturargoh» parsellari (25 m²/joy)'), v: open, vt: String(open) });
   out.push({ t: tr('Jami mavjud, joy'), v: d.parkingProv, vt: String(d.parkingProv), b: true, ok: d.parkingProv >= d.parkingReq, p: d.parkingProv >= d.parkingReq ? tr('mos') : `−${d.parkingReq - d.parkingProv}` });
+  return out;
+}
+
+/** 12.11: parkovka strategiyasi jadvali — turlar ulushi, talab/taʼminot, turar joydan masofa (oʻrtacha, eng uzoq, oraliqlar boʻyicha binolar) */
+export function parkStratRows(doc: Project, dist: Map<string, number>, tr: (s: string) => string = s => s): BalanceRow[] {
+  const d = derive(doc), gs = doc.garages.filter(q => !q.truck), tot = gs.reduce((t, q) => t + q.spaces, 0); if (!gs.length) return [];
+  const out: BalanceRow[] = [{ t: tr('Turlar ulushi'), b: true }];
+  for (const [kk, n] of [['yer_osti', 'Yer osti avtoturargohi'], ['stilobat', 'Stilobatdagi avtoturargoh'], ['yer_usti', 'Ochiq avtoturargoh'], ['kop_qavatli', 'Koʻp qavatli avtoturargoh']] as const) { const v = gs.filter(q => q.kind === kk).reduce((t, q) => t + q.spaces, 0); if (v) out.push({ t: tr(n), v, vt: `${Math.round(v / tot * 100)} %` }); }
+  out.push({ t: tr('Taʼminot / talab, joy'), v: d.parkingProv, vt: `${d.parkingProv} / ${d.parkingReq}`, b: true, sep: true, ok: d.parkingProv >= d.parkingReq, p: d.parkingProv >= d.parkingReq ? tr('mos') : `−${d.parkingReq - d.parkingProv}` });
+  const ds = [...dist.values()]; if (ds.length) {
+    out.push({ t: tr('Turar joydan masofa'), b: true, sep: true });
+    out.push({ t: tr('oʻrtacha, m'), v: 0, vt: String(Math.round(ds.reduce((a, b) => a + b, 0) / ds.length)) });
+    out.push({ t: tr('eng uzoq, m'), v: 0, vt: String(Math.round(Math.max(...ds))), ok: Math.max(...ds) <= 300, p: Math.max(...ds) <= 300 ? tr('mos') : '> 300' });
+    for (const [lo, hi, l] of [[-1, 100, '≤ 100 m'], [100, 200, '100–200 m'], [200, 300, '200–300 m'], [300, Infinity, '> 300 m']] as const) { const n = ds.filter(x => x > lo && x <= hi).length; if (n) out.push({ t: `${l} — ${tr('binolar')}`, v: n, vt: String(n) }); }
+  }
   return out;
 }
 
