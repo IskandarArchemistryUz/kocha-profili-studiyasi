@@ -33,11 +33,11 @@ import { LABEL_MODES } from '../core/labels';
 import { ClickTool, LineTool, PolygonTool, RectTool, AxisTool, MeasureTool, SectionLineTool, StripTool, type Tool } from './tools';
 import { stripSections } from '../core/stripline';
 import { szzOf, suvZones, objZone, OBJ, OBJ_BY, OBJ_GROUPS, OQOVA_Q, SUV_NAMES, SUV_Q, SUV_QS, limitAreaHa, isActive, limitZones, bufferLocal, SZZ_DENY, type Limit, type LimitKind, type SuvType, type ObjGroup } from '../core/limits';
-import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo } from '../core/plan';
+import { computePlan, pointIn, offsetLine, safeUnion, type PlanGeo, type Block } from '../core/plan';
 import type { MultiPolygon } from 'polygon-clipping';
 import { lowriseAlong, LOW, type LowKind } from '../core/lowrise';
 import { accessStreet, innerStreets } from '../core/rowaccess';
-import { denyZone, clipToSzz, szzBelt, usableOf } from '../core/szzgen';
+import { denyZone, clipToSzz, szzBelt, usableOf, splitByDeny } from '../core/szzgen';
 import { LOGI, logiType, prodSzz } from '../core/logistics';
 import { PROD } from '../core/prodcheck';
 import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
@@ -2982,6 +2982,16 @@ export class Editor {
           stageEl); return more; })());
       if (this.selBlock != null) { const es = this.entrySection(this.selBlock); if (es) body.append(es); }
       if (this.genNotes.length || this.genFar != null) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...(this.genFar != null ? [h('div', {}, h('b', {}, `${tr('Parsel UMN')}: ${fmt(this.genFar, 2)}`))] : []), ...this.genNotes.map(n => h('div', {}, n))));
+      // 12.11 (egasi): SMZ ichidagi qism — ruxsat etilgan funksiya taklifi
+      { const sm = this.smzParts(); if (sm.length) { const ha = sm.reduce((t, x) => t + x.area, 0) / 1e4;
+        const opt = (u: Use, t: string, why: string) => h('button', { class: 'btn btn-sm grow', 'data-smzuse': u, title: why, onclick: () => { const n = this.smzAssign(u); toast(n ? tf('SMZ qismi ajratildi: ${n} ta parsel — «${f}». Endi «Hammasi» ni bosing.', { n, f: tr(useDef(u).name) }) : tr('Ajratib boʻlmadi — parsellarni 3-qadamda qoʻlda ajrating.')); this.renderPanel(); } }, tr(t));
+        body.append(h('div', { class: 'group', id: 'smzCard' },
+          h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, tf('SMZ ichida ${a} ga turar joy hududi', { a: fmt(ha, 2) })), h('span', { class: 'sub' }, tr('Bu qismga uy, maktab, bogʻcha, park qoʻyilmaydi (SanQvaN 0103-25, 12-band). Ruxsat etilgan funksiyaga ajrating:')))),
+          h('div', { class: 'row' },
+            opt('himoya', 'Koʻkalamzor', tr('SanQvaN 0103-25, 13-band: SMZ ning 40–60 % i koʻkalamzorlashtiriladi')),
+            opt('avtoturargoh', 'Avtoturargoh / garaj', tr('TALQIN: 14-band — xavflilik sinfi past obyekt; ShNQ 2.07.01-23, 362-band (temir yoʻl SMZ i) — oʻxshash. Turar uygacha masofa — 3-ilova')),
+            opt('logistika', 'Ombor', tr('TALQIN: 14-band — xavflilik sinfi past obyekt; oziq-ovqat ombori taqiq (12-band). Ombor oʻzi ham SMZ hosil qiladi (1-ilova) — qoʻshni turar joy qisqarishi mumkin'))),
+          h('span', { class: 't-small' }, tr('Garaj va ombor — TALQIN (normada nomma-nom sanalmagan): sanitariya nazorati bilan kelishiladi.')))); } }
     }
     // binolar soni va tanlangan seksiya
     const sel = doc.buildings.find(b => b.id === this.sel), gens = doc.buildings.filter(b => b.gen).length;
@@ -4133,6 +4143,39 @@ export class Editor {
   }
 
   /** Parsellar hujjatdagi koʻrinishi: tanlangan birlikning kvartali boʻyicha (yoʻq boʻlsa — butun kvartal bitta parsel) */
+  /** 12.11 (egasi, G1 gʻoyasi): turar joy dahalarining SMZ ichidagi qismi — uy qoʻyib boʻlmaydi (SanQvaN 0103-25, 12-band).
+   *  Har daha (parsel) SMZ chegarasi boʻyicha ajratiladi, ichki qism tanlangan ruxsat etilgan funksiyaga oʻtadi */
+  private smzParts(): { b: Block; area: number }[] {
+    const plan = this.plan(), dz = new Map<string, MultiPolygon>(), out: { b: Block; area: number }[] = [];
+    if (this.normSet() !== 'UZ' || !this.store.doc.limits?.length) return out;
+    for (const b of plan.blocks) {
+      if (useDef(b.use).res <= 0) continue;
+      if (!dz.has(b.use)) dz.set(b.use, denyZone(this.store.doc, b.use));
+      const u = usableOf(b.rings[0], dz.get(b.use)!), a = u.total - u.usable;
+      if (a >= 200) out.push({ b, area: a });
+    }
+    return out;
+  }
+  private smzAssign(to: Use): number {
+    const doc = this.store.doc, fr = frame(doc.origin), seen = new Set<number>(); let n = 0;
+    this.run(() => {
+      for (const { b } of this.smzParts()) {
+        if (seen.has(b.blockKey)) continue; seen.add(b.blockKey);
+        const bp = this.blockParcels(b); if (!bp) continue;
+        const next: { id: string; rings: XY[][]; use: Use }[] = []; let ch = false;
+        for (const p of bp.list) {
+          if (useDef(p.use).res <= 0) { next.push(p); continue; }
+          const sp = splitByDeny(p.rings, denyZone(doc, p.use));
+          if (!sp || !sp.inside.length) { next.push(p); continue; }
+          if (!sp.outside.length) { next.push({ ...p, use: to }); ch = true; n++; continue; }
+          next.push(...sp.inside.map(rr => ({ id: uid('pc_'), rings: rr, use: to })), ...sp.outside.map(rr => ({ id: uid('pc_'), rings: rr, use: p.use }))); ch = true; n += sp.inside.length;
+        }
+        if (ch) this.store.dispatch({ type: 'setParcels', block: bp.lab.id, label: bp.lab, parcels: next.map(p => ({ id: p.id, rings: p.rings.map(r => r.map(fr.toGeo)), use: p.use })) });
+      }
+    });
+    return n;
+  }
+
   private blockParcels(u: { labelId: string | null; blockKey: number; use: Use }): { lab: ZoneLabel; list: { id: string; rings: XY[][]; use: Use }[] } | null {
     const doc = this.store.doc, fr = frame(doc.origin), whole = computeWhole(doc, u.blockKey); if (!whole) return null;
     const lab = doc.zones.find(z => z.id === u.labelId) ?? { id: uid('z_'), at: fr.toGeo(whole.centroid), use: u.use };
