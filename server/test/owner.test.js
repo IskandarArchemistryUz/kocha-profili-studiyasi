@@ -9,7 +9,7 @@ let db, app, sent;
 beforeEach(async () => {
   if (process.env.TEST_DATABASE_URL) {
     db = fromPool(new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 5 }));
-    await db.query('DROP TABLE IF EXISTS project_spend, multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
+    await db.query('DROP TABLE IF EXISTS private_features, private_layers, project_spend, multicard_tx, kv, click_tx, payme_tx, orders, trials, exports, ledger, sessions, otp, users CASCADE');
   } else db = fromPglite(new PGlite());
   await migrate(db);
   sent = [];

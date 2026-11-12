@@ -515,3 +515,10 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-svc .r1{display:flex;align-items:center;gap:8px}.joy-svc .r1>span:first-child{flex:1;font-weight:600}
 .joy-svc .r2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:var(--ink-2,#6b6965)}
 .joy-svc .r2.mono{font-family:'IBM Plex Mono',monospace}
+
+/* Ijtimoiy skaner · shaxsiy maʼlumot (12.11, faqat egasi) */
+.joy-pv { margin-top: 6px; }
+.joy-pvp { margin-top: 10px; padding-top: 8px; border-top: .5px solid var(--hairline); display: flex; flex-direction: column; gap: 6px; }
+.joy-pvp > summary { cursor: pointer; font-size: 12px; font-weight: 600; }
+.joy-pvp[open] > summary { margin-bottom: 4px; }
+.joy-pvl { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; }

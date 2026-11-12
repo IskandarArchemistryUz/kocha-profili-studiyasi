@@ -49,6 +49,7 @@ import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, type Lay
 import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
+import { privFeatures, privLayers, privDelete, privUpload, parseUpload, attachPriv, HH, type PrivData, type PrivLayer } from './shaxsiy';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
@@ -163,6 +164,41 @@ function computeSk(): void {
     } catch (e) { console.warn('Joyshunos skaner', e); }
     skBusy = false; renderRight(); paint();
   }, 30);
+}
+/* ---------- shaxsiy maʼlumot (12.11, faqat egasi): oʻz binolar maʼlumoti skanerga avtomatik ulanadi — shaxsiy.ts ---------- */
+let PV: { key: string; st: 'load' | 'ok' | 'err'; d?: PrivData; err?: string } | null = null;
+let PVA: { key: string; a: ReturnType<typeof attachPriv> } | null = null;
+let pvLayers: PrivLayer[] | null = null, pvMsg = '', pvSrc = '';
+function loadPv(): void {
+  if (!isOwner() || !isOn('skaner')) return;
+  const key = `${S.c.join()}|${S.r}`; if (PV?.key === key) return;
+  const b = bboxAround(S.c, S.r + 100), my = PV = { key, st: 'load' };
+  privFeatures([b[1], b[0], b[3], b[2]]).then(d => { if (PV === my) { PV = { key, st: 'ok', d }; renderRight(); } }, e => { if (PV === my) { PV = { key, st: 'err', err: (e as Error).message }; renderRight(); } });
+  if (!pvLayers) privLayers().then(l => { pvLayers = l; renderRight(); }, () => { pvLayers = []; });
+}
+/** Skaner binolariga ulangan shaxsiy obyektlar (kesh) */
+function pvAttach(): ReturnType<typeof attachPriv> | null {
+  if (!SK || PV?.st !== 'ok' || !PV.d?.features.length) return null;
+  const key = `${SK.key}|${PV.key}|${PV.d.features.length}`;
+  if (PVA?.key !== key) PVA = { key, a: attachPriv(SK.rings, SK.area, PV.d) };
+  return PVA.a;
+}
+const pvSource = (l: number) => PV?.d?.layers.find(x => x.id === l)?.source ?? '';
+function pvUploadPick(): void {
+  const inp = h('input', { type: 'file', accept: '.geojson,.json,application/geo+json,application/json', hidden: true }) as HTMLInputElement;
+  inp.addEventListener('change', async () => {
+    const f = inp.files?.[0]; inp.remove(); if (!f) return;
+    const src = pvSrc.trim(); if (!src) { pvMsg = tr('Manba nomini yozing — u pasportda raqam yonida chiqadi.'); renderRight(); return; }
+    try {
+      const { features, dropped } = parseUpload(await f.text());
+      pvMsg = tr('Yuklanmoqda…'); renderRight();
+      const r = await privUpload(f.name.replace(/\.(geo)?json$/i, '').slice(0, 80), src, features, (a, n) => { pvMsg = tf('Yuklanmoqda: ${a} / ${n}', { a: fmt(a), n: fmt(n) }); const el = document.getElementById('joyPvMsg'); if (el) el.textContent = pvMsg; });
+      pvMsg = tf('Yuklandi: ${n} ta obyekt.', { n: fmt(r.added) }) + (dropped.length ? ` ${tf('Olinmagan ustunlar: ${c}', { c: dropped.slice(0, 8).join(', ') })}` : '');
+      pvLayers = null; PV = null; loadPv();
+    } catch (e) { pvMsg = `${tr('Yuklanmadi')}: ${tr((e as Error).message)}`; }
+    renderRight();
+  });
+  document.body.append(inp); inp.click();
 }
 /* ---------- quyosh va soya (binolar — kontekst toʻplamidan, aksonometriya bilan umumiy) ---------- */
 /** Sukut kun — mahalliy yoz: shimolda 22 iyun, janubiy yarimsharda 22 dekabr */
@@ -531,9 +567,11 @@ function renderRightH(): void {
           sel.s[sel.weak] < 100 ? h('b', { style: `color:${SK_COL[SK_DIMS[sel.weak].id]}` }, tf('Asosiy bosim: ${n} — ${v} ball.', { n: tr(SK_DIMS[sel.weak].name), v: sel.s[sel.weak] })) : tr('Barcha yoʻnalishlar meʼyor radiusi ichida.'))
           : h('span', {}, tf('Doira ichidagi binolar. 60 balldan past: ${n} ta. Binoni bosing — uning pasporti.', { n: fmt(low) })),
         h('ul', { class: 'joy-norm', id: 'joySk' }, ...SK_DIMS.map((d, i) => { const v = sel ? sel.s[i] : r.mean[i]; return h('li', { class: v >= 100 ? 'ok' : 'warn', 'data-dim': d.id }, h('span', {}, tr(d.name)), h('b', {}, sel ? dTxt(sel, i) : tf('${v} ball', { v })), h('em', {}, sel ? tf('${v} ball', { v }) : norm(i))); })),
+        pvRows(sel ? skSel : null),
         sel ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'joySkAll', onclick: () => { skSel = null; renderRight(); paint(); } }, tr('Butun hudud')) : '',
         h('span', { class: 'src' }, tr('Masofa — har bino markazidan piyoda tarmogʻi boʻylab eng yaqin obyektgacha. Ball: meʼyor radiusi ichida 100, uch baravar uzoqda 0 (ShNQ 2.07.01-23, 38-jadval; bekat — 382-band). Transport — bekat va metroning yaxshisi. Bu xonadon haqidagi kuzatuv emas — joy bahosi; OSM toʻliq emas.'))] : [],
       null, r ? undefined : busySk));
+    if (isOwner()) cards[cards.length - 1].append(pvPanel());
   }
   if (isOn('oqim')) {
     const F = NM?.flow, v = F && NM ? flowAt(NM.net, F) : null;
@@ -587,6 +625,36 @@ function renderRightH(): void {
   const tabs = cards.length > 1 ? h('div', { class: 'joy-tabs', role: 'tablist', 'aria-label': tr('Qatlamlar') }, ...order.map(id => h('button', { type: 'button', role: 'tab', 'data-tab': id, 'aria-selected': id === shown, style: `--lc:${L(id).color}`, onclick: () => setAct(id === 'relyef' && !isOn('relyef') ? 'nishab' : id) }, h('i'), tr(L(id).name)))) : null;
   right.replaceChildren(...(tabs ? [tabs] : []), ...cards);
   right.hidden = !cards.length;
+}
+/** Skaner kartasida: shaxsiy maʼlumot — tanlangan bino yoki hudud jami (faqat egasi) */
+function pvRows(i: number | null): Node | string {
+  const a = pvAttach(); if (!a) return '';
+  const chip = (l: number) => h('span', { class: 'chip', title: pvSource(l) }, tr('Siz yuklagan'));
+  if (i == null) {
+    let kv = 0, n = 0; const seen = new Set<unknown>(); a.forEach(x => { if (x?.f.p.xonadon) { kv += x.f.p.xonadon * x.share; if (!seen.has(x.f)) { seen.add(x.f); n++; } } });
+    if (!n) return '';
+    return h('div', { class: 'joy-pv', id: 'joyPvSum' }, h('span', {}, tf('Koʻp kvartirali uylar: ${n} ta, ${k} xonadon, aholi ≈ ${p} kishi (× ${h}).', { n: fmt(n), k: fmt(kv), p: fmt(kv * HH), h: fmt(HH, 2) })), ' ', chip(a.find(x => x?.f.p.xonadon)!.f.l));
+  }
+  const x = a[i]; if (!x) return h('div', { class: 'joy-pv t-small' }, tr('Bu bino yuklangan maʼlumotingizda topilmadi.'));
+  const p = x.f.p, kv = p.xonadon ? p.xonadon * x.share : null;
+  const row = (k: string, v: string | number | undefined | null) => (v == null || v === '' ? null : h('li', {}, h('span', {}, tr(k)), h('b', {}, String(v)), h('em', {})));
+  return h('div', { class: 'joy-pv', id: 'joyPv' }, h('div', { class: 'glabel' }, tr('Sizning maʼlumotingiz'), ' ', chip(x.f.l)),
+    h('ul', { class: 'joy-norm' }, ...[row('Qavatlar', p.qavat), row('Xonadonlar', kv != null ? (Math.abs(x.share - 1) > 0.02 ? `~${fmt(kv)} / ${fmt(p.xonadon!)}` : fmt(kv)) : null), row('Aholi (taxm.)', kv != null ? `≈ ${fmt(kv * HH)}` : null),
+      row('Qurilgan yili', p.yil ? `${p.yil} (${new Date().getFullYear() - p.yil} ${tr('yil')})` : null), row('Devor', p.devor), row('Manzil', p.manzil)].filter(Boolean) as HTMLElement[]),
+    h('span', { class: 'src' }, tf('Manba: ${s}. Faqat sizga koʻrinadi.', { s: pvSource(x.f.l) })));
+}
+/** Egasi: shaxsiy qatlamlar roʻyxati va yuklash (GeoJSON, WGS84) */
+function pvPanel(): HTMLElement {
+  const src = h('input', { class: 'input', id: 'joyPvSrc', placeholder: tr('Manba nomi, masalan: Toshkent sh. GIS, 2023'), value: pvSrc, 'aria-label': tr('Manba nomi') }) as HTMLInputElement;
+  src.addEventListener('input', () => { pvSrc = src.value; });
+  return h('details', { class: 'joy-pvp', id: 'joyPvPanel', open: !!pvMsg },
+    h('summary', {}, tr('Mening maʼlumotim'), PV?.st === 'ok' && PV.d?.features.length ? h('span', { class: 't-small' }, ` · ${tf('hududda ${n} ta', { n: fmt(PV.d.features.length) })}`) : ''),
+    h('div', { class: 't-small' }, tr('GeoJSON (WGS84): qavat, xonadon, qurilgan yil, devor, manzil. Boshqa ustunlar yuklanmaydi. Maʼlumot faqat sizga koʻrinadi.')),
+    ...(pvLayers ?? []).map(l => h('div', { class: 'row joy-pvl', 'data-layer': l.id }, h('span', {}, h('b', {}, l.name), h('span', { class: 't-small' }, ` · ${l.source} · ${fmt(l.n ?? 0)}`)),
+      h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: async () => { if (!confirm(tf('«${n}» qatlami oʻchirilsinmi?', { n: l.name }))) return; await privDelete(l.id).catch(() => {}); pvLayers = null; PV = null; loadPv(); renderRight(); } }, tr('Oʻchirish')))),
+    src,
+    h('button', { type: 'button', class: 'btn btn-sm', id: 'joyPvUp', onclick: pvUploadPick }, `+ ${tr('Fayl yuklash')}`),
+    pvMsg ? h('div', { class: 't-small', id: 'joyPvMsg' }, pvMsg) : '');
 }
 let repOpen = false;
 /** Pastki qator: joy pasporti (manzil, koordinata, radius, uchastka) va «Hisobot» menyusi */
@@ -679,6 +747,7 @@ function ensure(): void {
   });
   if ((isOn('xizmat') || isOn('piyoda') || isOn('skaner') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
   if (isOn('skaner') && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();
+  loadPv();
   computeNet();
   if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
   // uy narxlari — butun shahar uchun bitta fayl (nuqtaga bogʻliq emas, seq bilan bekor qilinmaydi)
