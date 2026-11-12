@@ -9,12 +9,16 @@ import { losPed, losVehicle, type ModeKey, type ModeStat, type Result } from './
 import { RATES, TURNS, TYPES, type AgentType, type Geometry, type Lane, type Path, type Scenario, type SideRoute, type Zone } from './types';
 
 const PED_V = 1.2, SCOOT_V = 5.5, SCOOT_RED = 0.3;
+/** Jism eni, m — ustma-ust chiqmaslik tekshiruvi uchun. */
+const BODY_W: Record<AgentType, number> = { car: 1.8, bus: 2.5, mini: 2.0, tram: 2.6, bike: 0.7, scoot: 0.6 };
+interface Body { f: { x: number; y: number }; m: { x: number; y: number }; r: { x: number; y: number }; h: number }
 
 interface Dwell { d: number; t: number }
 export interface Agent {
   id: number; type: AgentType; path: Path; len: number; v0: number; a: number; occ: number;
   s: number; v: number; arr: number; dw: Dwell | null; dwT: number; dwDone: boolean;
   waitL: boolean; yl: boolean; hk: boolean; hb: boolean; byScoot: boolean;
+  /** toʻxtash chizigʻini kesib oʻtgan vaqt (chorrahani boʻshatish navbati) */ tIn?: number;
 }
 interface Ped { x: number; dir: 1 | -1; arr: number; st: 'wait' | 'walk' | 'isl'; half: boolean; w?: number; scoot?: Scoot }
 interface Scoot { r: SideRoute; s: number; ph: 'side1' | 'wait' | 'cross' | 'side2'; arr: number; ign: boolean; obj: Ped | null; near: boolean; hits: Ped[] }
@@ -93,6 +97,26 @@ export class Sim {
     for (const z of c.path.zones) if (c.s >= z.s0 && c.s < z.sEnd) return z;
     return null;
   }
+  private boxCache = new Map<string, number>();
+  private sampleCache = new Map<string, { x: number; y: number }[]>();
+  /** Yoʻl nuqtalari har 2 m da (s = 2·indeks). */
+  private samples(P: Path): { x: number; y: number }[] {
+    let v = this.sampleCache.get(P.key);
+    if (!v) { v = []; for (let e = 0; e <= P.len; e += 2) v.push(pointAt(P.pts, P.cum, e)); this.sampleCache.set(P.key, v); }
+    return v;
+  }
+  /** Zona toʻxtash chizigʻidan keyin yoʻl tugundan chiqadigan s. */
+  boxOut(P: Path, zz: Zone): number {
+    const key = `${P.key}:${zz.stopS}`;
+    let v = this.boxCache.get(key);
+    if (v === undefined) {
+      const lim = this.geo.H + 0.7;
+      let s = zz.stopS, inside = false;
+      for (; s < P.len; s += 0.5) { const q = pointAt(P.pts, P.cum, s), o = Math.max(Math.abs(q.x), Math.abs(q.y)) <= lim; if (o) inside = true; else if (inside) break; }
+      v = s; this.boxCache.set(key, v);
+    }
+    return v;
+  }
   private laneOf(c: Agent, z: Zone): Lane { return z.pocketS !== null && c.s >= z.pocketS ? 'P' : z.lane; }
 
   queue(k: number): number {
@@ -165,6 +189,38 @@ export class Sim {
     this.scoots = sk;
     // tramvay holati (razvorot yoʻl beradi)
     const trams = sc.tram ? this.agents.filter(c => c.type === 'tram').map(c => [pointAt(c.path.pts, c.path.cum, c.s), pointAt(c.path.pts, c.path.cum, Math.max(0, c.s - c.len))]) : [];
+    // jismlar: oldi, oʻrtasi, orqasi, yoʻnalishi
+    const A = this.agents, N = A.length;
+    const G: Body[] = A.map(a => { const f = pointAt(a.path.pts, a.path.cum, a.s), r = pointAt(a.path.pts, a.path.cum, Math.max(0, a.s - a.len)); return { f, r, m: { x: (f.x + r.x) / 2, y: (f.y + r.y) / 2 }, h: f.ang }; });
+    // tugunda harakatni tugatayotganlar: qolgan yoʻli (har 2 m da nuqta)
+    const rest: ({ x: number; y: number }[] | null)[] = A.map(a => {
+      for (const zz of a.path.zones) {
+        const bo = this.boxOut(a.path, zz);
+        if (a.s >= zz.stopS && a.s < bo) return this.samples(a.path).slice(Math.max(0, Math.floor((a.s - a.len) / 2)), Math.ceil(bo / 2) + 1);
+      }
+      return null;
+    });
+    const uWait = [false, false, false, false];
+    A.forEach((a, i) => { if (a.path.m === 'U' && !info[i].z) { const uz = a.path.zones[1]; if (a.s > uz.s0 - 15 && a.s < uz.s0 && a.v < 1) uWait[uz.k] = true; } });
+    // oldidagi istalgan jism (boshqa yoʻnalishdan ham): 20 m gacha, yon chetlanish jismlar eni yigʻindisining yarmidan kam
+    const cand: ({ j: number; l: number } | null)[] = [];
+    for (let i = 0; i < N; i++) {
+      const gi = G[i], hx = Math.cos(gi.h), hy = Math.sin(gi.h);
+      let best: { j: number; l: number } | null = null;
+      for (let j = 0; j < N; j++) {
+        if (j === i) continue;
+        const gj = G[j];
+        if (Math.abs(gj.m.x - gi.f.x) > 37 || Math.abs(gj.m.y - gi.f.y) > 37) continue;
+        const thr = (BODY_W[A[i].type] + BODY_W[A[j].type]) / 2 + 0.4;
+        let lmin = Infinity;
+        for (let pp = 0; pp < 3; pp++) { const p = pp === 0 ? gj.f : pp === 1 ? gj.m : gj.r, dx = p.x - gi.f.x, dy = p.y - gi.f.y, l = dx * hx + dy * hy, lat = Math.abs(-dx * hy + dy * hx); if (l > -1.3 && l < 20 && lat < thr && l < lmin) lmin = l; }
+        if (lmin < Infinity && (!best || lmin < best.l)) best = { j, l: Math.max(lmin, 0) };
+      }
+      cand.push(best);
+    }
+    // bir-birini koʻrgan juftlikda chorrahaga avval kirgan oʻtadi (harakatni tugatayotganga yoʻl beriladi)
+    const tin = (a: Agent) => a.tIn ?? 1e12 + a.id;
+    for (let i = 0; i < N; i++) { const b = cand[i]; if (b && cand[b.j]?.j === i) { const ti = tin(A[i]), tj = tin(A[b.j]); if (ti < tj || (ti === tj && A[i].id < A[b.j].id)) cand[i] = null; } }
     // transport
     const next: Agent[] = [];
     this.agents.forEach((c, i) => {
@@ -188,11 +244,15 @@ export class Sim {
       } else {
         for (const o of this.agents) { if (o === c || o.path !== P || o.s <= c.s) continue; const g = o.s - c.s - o.len; if (g < gap) { gap = g; dv = c.v - o.v; lead = o; } }
         for (let zi = 1; zi < P.zones.length; zi++) {
-          const z2 = P.zones[zi]; if (c.s >= z2.s0 || z2.s0 - c.s > 23) continue;
+          const z2 = P.zones[zi]; if (c.s >= z2.s0 - 9 || z2.s0 - c.s > 33) continue;
+          const wait = z2.s0 - 9.5 - c.s, lo = z2.d0 - 4, hi = z2.d0 + c.len + 1;
           this.agents.forEach((o, j) => {
-            const fo = info[j]; if (!fo.z || fo.z.k !== z2.k || fo.l !== z2.lane || o === c) return;
-            if (fo.d >= z2.d0 - 10 && fo.d - o.len < z2.d0 + 2.7) setStop(z2.s0 - 0.7 - c.s);
-            else if (fo.d >= z2.d0 + 2.7) { const g2 = fo.d - z2.d0 + (z2.s0 - c.s) - o.len; if (g2 < gap) { gap = g2; dv = c.v - o.v; lead = o; } }
+            const fo = info[j]; if (!fo.z || fo.z.k !== z2.k || o === c) return;
+            const rear = fo.d - o.len;
+            if (fo.l === 'A' && fo.z.s0 === 0) { if ((fo.d >= z2.d0 - 9.3 && rear <= z2.d0 + 0.7) || (fo.d < z2.d0 - 9.3 && fo.d > z2.d0 - 20 && o.v > 3)) setStop(wait); return; }
+            if (fo.l !== z2.lane) return;
+            if ((fo.d >= lo && rear <= hi) || (fo.d < lo && fo.d > z2.d0 - 10 && o.v > 3)) setStop(wait);
+            else if (rear > hi) { const g2 = fo.d - z2.d0 + (z2.s0 - c.s) - o.len; if (g2 < gap) { gap = g2; dv = c.v - o.v; lead = o; } }
           });
         }
         if (P.uS !== undefined && P.uC && trams.length && c.s < P.uS && P.uS - c.s < 13) {
@@ -211,7 +271,36 @@ export class Sim {
         }
         if (!rtor) { const gs = zz.stopS - c.s; if (c.v * c.v / 8 < gs || c.v < 3) { if (setStop(gs)) stopBlock = true; } }
       }
-      if (zz && P.m === 'R' && c.type !== 'bike' && sc.bike === 'lane' && c.s < zz.stopS + 2 && c.s > zz.stopS - 10) {
+      // razvorot ochigʻi oldida navbat toʻxtamaydi (joy qoldiriladi)
+      if (sc.ban && zz && (f.l === 'A' || f.l === 'B') && f.d < 37.3 && zz.s0 === 0) {
+        const li0 = lead ? this.agents.indexOf(lead) : -1, ld = li0 >= 0 && info[li0].z ? info[li0].d - (lead as Agent).len : Infinity;
+        if ((lead && ld < 58.7 + c.len + 2) || (f.l === 'B' && uWait[zz.k])) setStop(37.3 - f.d);
+      }
+      const cb = cand[i];
+      if (cb) { const ob = A[cb.j], g2d = cb.l - 0.1; if (g2d < gap) { gap = Math.max(g2d, 0.05); dv = c.v - ob.v * Math.max(0, Math.cos(G[cb.j].h - G[i].h)); lead = ob; } }
+      // chorrahaga kirmaslik: chiqish band boʻlsa yoki tugunda ziddiyatli transport harakatni tugatmagan boʻlsa
+      if (zz && c.s < zz.stopS && zz.stopS - c.s < 15 && c.type !== 'tram') {
+        const so = this.boxOut(P, zz);
+        let jam = false;
+        for (let e = 0; e <= c.len + 3 && !jam; e += 2) {
+          const q = pointAt(P.pts, P.cum, so + e);
+          for (let j = 0; j < N; j++) { if (j === i || A[j].v > 1.5) continue; const gj = G[j]; if ([gj.f, gj.m, gj.r].some(p => Math.hypot(p.x - q.x, p.y - q.y) < 2)) { jam = true; break; } }
+        }
+        if (!jam) {
+          const mine = this.samples(P).slice(Math.floor(zz.stopS / 2), Math.ceil(so / 2) + 1);
+          for (let j = 0; j < N && !jam; j++) {
+            const rj = rest[j]; if (j === i || !rj || A[j].path.k === P.k) continue;
+            const thr = (BODY_W[A[i].type] + BODY_W[A[j].type]) / 2 + 0.5;
+            for (let a1 = 0; a1 < rj.length && !jam; a1++) for (let b1 = 0; b1 < mine.length; b1++) { const dx = rj[a1].x - mine[b1].x, dy = rj[a1].y - mine[b1].y; if (dx * dx + dy * dy < thr * thr) { jam = true; break; } }
+          }
+        }
+        if (!jam) for (let e = zz.stopS; e <= so && !jam; e += 2) {
+          const q = pointAt(P.pts, P.cum, e);
+          for (let j = 0; j < N; j++) { if (j === i || A[j].path.k === P.k || Math.abs(Math.cos(G[j].h - G[i].h)) > 0.85) continue; const gj = G[j]; if ([gj.f, gj.m, gj.r].some(p => Math.hypot(p.x - q.x, p.y - q.y) < 3)) { jam = true; break; } }
+        }
+        if (jam) setStop(zz.stopS - c.s);
+      }
+      if (zz && zz.m === 'R' && c.type !== 'bike' && sc.bike === 'lane' && c.s < zz.stopS + 2 && c.s > zz.stopS - 10) {
         for (let j = 0; j < this.agents.length; j++) {
           const o = this.agents[j], fo = info[j];
           if ((o.type !== 'bike' && o.type !== 'scoot') || !fo.z || fo.z.k !== zz.k) continue;
@@ -236,6 +325,7 @@ export class Sim {
       if (acc < -3.5 && c.byScoot && !c.hb) { c.hb = true; this.hard++; }
       c.v = Math.max(0, c.v + Math.max(acc, -8) * dt);
       c.s += c.v * dt;
+      if (c.tIn === undefined && zz && c.s >= zz.stopS) c.tIn = this.t;
       if (c.s >= P.len) {
         const free = c.type === 'car' ? P.free : P.len / c.v0;
         const d = Math.max(0, this.t - c.arr - free - (c.dw ? c.dw.t : 0));
@@ -275,8 +365,8 @@ function z(): ModeStat { return { n: 0, delaySum: 0 }; }
 function rotj(p: [number, number], j: number): [number, number] { let [x, y] = p; for (let i = 0; i < j; i++) [x, y] = [-y, x]; return [x, y]; }
 
 /** Bir sxemani bir nechta urugʻ bilan hisoblash (oʻrtacha va oraliq uchun). */
-export function replicate(sc: Scenario, seeds: number[], seconds: number): Result[] {
-  return seeds.map(seed => new Sim({ ...sc, seed }).run(seconds).result());
+export function replicate(sc: Scenario, seeds: number[], seconds: number, dt = 0.05): Result[] {
+  return seeds.map(seed => new Sim({ ...sc, seed }).run(seconds, dt).result());
 }
 
 export { losPed, losVehicle };
