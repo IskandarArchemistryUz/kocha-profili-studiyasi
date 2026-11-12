@@ -11,10 +11,11 @@ const cl = (r: XY[]) => [[...r, r[0]].map(p => [Math.round(p[0] * 1000) / 1000, 
 const ov = (a: XY[], b: XY[]) => polygonClipping.intersection(cl(a) as never, cl(b) as never).reduce((s, p) => s + area(p[0] as XY[]), 0);
 
 /** 13-band: minora — markaziy yadro, halqa koridor, har kvartira MOP ga eshik va derazali, ustma-ust emas */
-function tower(ring: XY[], mix = [20, 40, 30, 10]): RulePlan {
+/** light — 12.11: yoʻlak yorugʻligi (328-band) ham talab qilinadi; faqat studiya/1x miksida kvartira choʻntakka sigʻmasligi mumkin */
+function tower(ring: XY[], mix = [20, 40, 30, 10], light = true): RulePlan {
   const mods = modsOf(ring), pl = rulePlan(ring, mods, mix, 'M');
   const ch = planChecks(pl, 40, mods);
-  for (const id of ['mop', 'win', 'light', 'stairs', 'lift']) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
+  for (const id of ['mop', 'win', 'light', 'stairs', 'lift', ...(light ? ['corrlight'] : [])]) expect([id, ch.find(c => c.id === id)!.ok]).toEqual([id, true]);
   expect(pl.sections).toHaveLength(1); expect(pl.fireWalls).toHaveLength(0);
   for (const a of pl.apts) { expect(sharedAny(a.ring, pl.mop).len).toBeGreaterThanOrEqual(1.15); expect(a.mods.length).toBeGreaterThan(0); expect(a.area).toBeGreaterThanOrEqual(28); }
   for (let i = 0; i < pl.apts.length; i++) {
@@ -48,7 +49,7 @@ describe('Minora qavat rejasi (13-band)', () => {
   });
   it('28 × 24 va burilgan minora', () => { tower(rect(28, 24)); tower(rot(rect(24, 24), 0.6)); });
   it('faqat 1 xonali miks — kvartiralar koʻpayadi', () => {
-    const a = tower(rect(24, 24)).apts.length, b = tower(rect(24, 24), [100, 0, 0, 0]).apts.length;
+    const a = tower(rect(24, 24)).apts.length, b = tower(rect(24, 24), [100, 0, 0, 0], false).apts.length;
     expect(b).toBeGreaterThan(a);
   });
   it('choʻziq bino (40 × 16) minora emas — oddiy seksiya', () => {

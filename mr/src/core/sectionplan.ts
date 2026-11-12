@@ -19,7 +19,7 @@
 import polygonClipping, { type Polygon, type MultiPolygon } from 'polygon-clipping';
 import { area, obb2, signedArea, type XY } from './geo';
 import { splitAtReflex } from './roof';
-import { aptInteriorK } from './aptplan';
+import { aptInteriorK, aptInterior } from './aptplan';
 import { snapMarks, stepSet, fillSpan, type StructGrid, type GridSystem } from './axes';
 
 export interface FacadeMod { a: XY; b: XY; az: number; blind: boolean; /** 05.11: modul konstruktiv oʻqlar oraligʻida (chegaralari oʻqda) */ grid?: true }
@@ -43,6 +43,8 @@ export type RoomKind = 'texnik' | 'ombor' | 'savdo' | 'velo' | 'zal' | 'tozalash
 export interface PlanRoom { ring: XY[]; kind: RoomKind; sec: number; door: XY }
 export interface RuleSection { mop: XY[][]; stairs: XY[][]; lifts: XY[][]; apts: number[]; corridorLen: number; corner: boolean; /** 1-qavatda koʻcha tomondan kirish (skvoznoy kirish xolli) */ entry?: XY[][] }
 export interface RulePlan {
+  /** 12.11: yorugʻlik choʻntaklari soni (lightPockets — 328-band) */
+  pockets?: number;
   kind: 'ikki' | 'bir' | 'aralash';
   /** 08.11: fasadga chiqarilgan, lekin marsh uzunligi (≥ 5,7 m) sigʻmagan zina kataklari soni — «koʻrib chiqish» */
   shortStairs?: number;
@@ -872,6 +874,7 @@ function planCore(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | '
   { const kM = mix.reduce((m, v, i) => (v > 0 ? i + 1 : m), 0); if (kM > 0 && kM < 3) plan.kMax = kM; }
   if (SS) { plan.axisLines = wings.flatMap((w, wi) => wLines[wi].map(u => [P(w, u, w.v0), P(w, u, w.v1)] as [XY, XY])); plan.axisCores = wings.flatMap((w, wi) => wCores[wi].map(([c0, c1]) => [[P(w, c0, w.v0), P(w, c0, w.v1)], [P(w, c1, w.v0), P(w, c1, w.v1)]] as [[XY, XY], [XY, XY]])); }
   plan.rest.push(...diff([r], [...mop, ...stairs, ...lifts, ...apts.map(a => a.ring), ...rest, ...fireWalls, ...rooms.map(q => q.ring)], 'none').filter(q => area(q) > 1.5));
+  // 12.11: yoʻlakli seksiyalarda choʻntak hozircha qoʻyilmaydi — qoʻshni kvartiralar eshigi choʻntakka koʻchib, ichki reja (mebel testi) yomonlashadi; alohida vazifa
   finishPlan(plan, mods, size);
   return plan;
 }
@@ -1033,6 +1036,7 @@ function towerPlan(r: XY[], mods: FacadeMod[], mix: number[], size: 'S' | 'M' | 
   const plan: RulePlan = { kind: 'ikki', stairs, lifts, mop, apts, sections, fireWalls: [], rest, rooms, corridorLen: sections[0].corridorLen, corridorW: W };
   if (towerShort) plan.shortStairs = towerShort;
   plan.rest.push(...diff([r], [...mop, ...stairs, ...lifts, ...apts.map(q => q.ring), ...rest, ...tech], 'none').filter(q => area(q) > 1.5));
+  lightPockets(plan, mods, size);
   finishPlan(plan, mods, size);
   return plan;
 }
@@ -1046,6 +1050,77 @@ const secOfRing = (pl: RulePlan, ring: XY[], fallback: number) => { let bs = fal
  * Kvartiralarning hosila maydonlari: maydon, derazalar, xonalar soni (maydonga koʻra, derazalardan koʻp emas), eshik
  * (oʻz seksiyasi MOP i bilan eng uzun umumiy chegara), sanuzel, xona boʻlinmalari; seksiyalar roʻyxati. Tahrirdan keyin ham chaqiriladi.
  */
+/**
+ * 12.11 (eski navbat, 8-band 2-qismi; 06.11 egasi): «yorugʻlik choʻntagi» — yoʻlakli turdagi seksiyada (eng uzoq eshikdan zinagacha > 12 m,
+ * 173-band TALQINi) umumiy yoʻlak tabiiy yoritiladi, deraza yuzasi ≥ pol yuzasining 1/16 (ShNQ 2.08.01-24, 325, 328-bandlar).
+ * P/C torets kvartirasi koridor uchini yopganda yoʻlak fasadga chiqmaydi — shunda zina (yadro) yoniga eng yaqin kvartiradan koridordan
+ * fasadgacha tasma ajratiladi va MOP ga qoʻshiladi: kerakli deraza uzunligi + 0,2 m (≥ 1,6, ≤ 3,3 m). Kvartira ≥ 28 m², derazali,
+ * MOP ga ≥ 1,2 m tegib qolsa — qabul qilinadi. Deraza balandligi 1,5 m — ANDOZA (tekshiruvdagi bilan bir xil).
+ */
+export function lightPockets(plan: RulePlan, mods: FacadeMod[], size: 'S' | 'M' | 'L' = 'M'): number {
+  const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
+  if (!mods.length) return 0;
+  const WIN_H = 1.5, open = mods.filter(m => !m.blind);
+  const openSeg = (m: FacadeMod): XY[] => [m.a, m.b, [(m.a[0] + m.b[0]) / 2 + (m.b[1] - m.a[1]) * 0.01, (m.a[1] + m.b[1]) / 2 - (m.b[0] - m.a[0]) * 0.01]];
+  const winLen = (rs: XY[][]) => open.reduce((t, m) => { const e = sharedAny(openSeg(m), rs); return t + (e.len >= 0.9 ? e.len : 0); }, 0);
+  /** ikki koʻpburchakning umumiy (kollinear) qirrasi — eng uzun boʻlagi */
+  const seg = (a: XY[], b: XY[]): [XY, XY] | null => {
+    let best: [XY, XY] | null = null, bl = 0;
+    for (let i = 0; i < a.length; i++) { const p = a[i], q = a[(i + 1) % a.length], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy); if (L < 0.2) continue; const ux = dx / L, uy = dy / L;
+      for (let j = 0; j < b.length; j++) { const r = b[j], t = b[(j + 1) % b.length];
+        const d1 = (r[0] - p[0]) * -uy + (r[1] - p[1]) * ux, d2 = (t[0] - p[0]) * -uy + (t[1] - p[1]) * ux; if (Math.abs(d1) > 0.05 || Math.abs(d2) > 0.05) continue;
+        const s1 = (r[0] - p[0]) * ux + (r[1] - p[1]) * uy, s2 = (t[0] - p[0]) * ux + (t[1] - p[1]) * uy, lo = Math.max(0, Math.min(s1, s2)), hi = Math.min(L, Math.max(s1, s2));
+        if (hi - lo > bl) { bl = hi - lo; best = [[p[0] + ux * lo, p[1] + uy * lo], [p[0] + ux * hi, p[1] + uy * hi]]; } } }
+    return best;
+  };
+  let made = 0;
+  for (const sc of plan.sections) {
+    if (!sc.apts.length || !sc.stairs.length) continue;
+    // «yoʻlakli tur»: eng uzoq kvartira eshigidan (MOP ga tegish oʻrtasi) zinagacha > 12 m (tekshiruvdagi farOf ga yaqin, toʻgʻri chiziq)
+    const far = Math.max(0, ...sc.apts.map(i => { const m = sharedAny(plan.apts[i].ring, sc.mop).mid; return Math.min(...sc.stairs.map(q => { const c = cen(q); return Math.hypot(m[0] - c[0], m[1] - c[1]); })); }));
+    if (far <= 12.05) continue;
+    const fl = () => sc.mop.reduce((t, q) => t + area(q), 0);
+    for (let guard = 0; guard < 2; guard++) {
+      const need = fl() / 16 / WIN_H - winLen(sc.mop); if (need <= 1e-6) break;
+      const core = cen(sc.stairs[0]);
+      const segAny = (ring: XY[]): [XY, XY] | null => { let best: [XY, XY] | null = null, bl = 0; for (const q of sc.mop) { const e = seg(ring, q); if (e) { const l = Math.hypot(e[1][0] - e[0][0], e[1][1] - e[0][1]); if (l > bl) { bl = l; best = e; } } } return best; };
+      const cands = sc.apts.map(i => ({ i, e: segAny(plan.apts[i].ring) }))
+        .filter(c => c.e && Math.hypot(c.e[1][0] - c.e[0][0], c.e[1][1] - c.e[0][1]) >= 2.8 && winLen([plan.apts[c.i].ring]) >= 0.9)
+        .sort((x, y) => Math.min(Math.hypot(x.e![0][0] - core[0], x.e![0][1] - core[1]), Math.hypot(x.e![1][0] - core[0], x.e![1][1] - core[1])) - Math.min(Math.hypot(y.e![0][0] - core[0], y.e![0][1] - core[1]), Math.hypot(y.e![1][0] - core[0], y.e![1][1] - core[1])));
+      let ok = false;
+      for (const c of cands) {
+        const a = plan.apts[c.i], [e0, e1] = c.e!, L = Math.hypot(e1[0] - e0[0], e1[1] - e0[1]), d: XY = [(e1[0] - e0[0]) / L, (e1[1] - e0[1]) / L];
+        const near = Math.hypot(e0[0] - core[0], e0[1] - core[1]) <= Math.hypot(e1[0] - core[0], e1[1] - core[1]) ? e0 : e1, dir: XY = near === e0 ? d : [-d[0], -d[1]];
+        const w = Math.min(3.3, L - 1.2, Math.max(1.6, need + 0.2)); if (w < 1.6) continue;
+        let n: XY = [-d[1], d[0]]; const mid: XY = [(e0[0] + e1[0]) / 2, (e0[1] + e1[1]) / 2]; if (!pointIn([mid[0] + n[0] * 0.15, mid[1] + n[1] * 0.15], a.ring)) n = [-n[0], -n[1]];
+        const q: XY[] = [near, [near[0] + dir[0] * w, near[1] + dir[1] * w], [near[0] + dir[0] * w + n[0] * 40, near[1] + dir[1] * w + n[1] * 40], [near[0] + n[0] * 40, near[1] + n[1] * 40]];
+        const pk = inter([a.ring], [q]).sort((x, y) => area(y) - area(x))[0]; if (!pk || area(pk) < 2) continue;
+        if (winLen([pk]) < Math.min(need, w) * 0.9 - 1e-6) continue;
+        const restA = diff([a.ring], [pk], 'none').filter(z => area(z) > 0.5); if (restA.length !== 1) continue;
+        const ra = restA[0]; if (ra.length > 4 || area(ra) < 28 || winLen([ra]) < 0.9 || sharedAny(ra, [...sc.mop, pk]).len < 1.2) continue;
+        // kesilgan kvartiraning ichki rejasi chiqishi shart (mebel tekshiruvi buzilmasin)
+        // xonalar soni — finishPlan dagidek (maydon boʻyicha)
+        const arA = area(ra), byA = arA <= (target(1) + target(2)) / 2 ? 1 : arA <= (target(2) + target(3)) / 2 ? 2 : arA <= (target(3) + target(4)) / 2 ? 3 : 4;
+        { const am = winsIn(ra, mods), k0 = !a.rooms || Math.abs(target(a.rooms) - arA) > 0.2 * target(a.rooms) ? byA : a.rooms, k = Math.max(1, a.torets ? Math.min(k0, am.length - 1, plan.kMax ?? 3) : Math.min(k0, am.length)), dE = doorEdge(ra, [...sc.mop, pk], am.map(i => mods[i]).filter(Boolean), !!a.torets);
+          const tmp = { ...a, ring: ra, area: area(ra), rooms: k, mods: am, door: dE.mid, doorLen: dE.best, wet: wetZone(ra, dE.mid), walls: [] as [XY, XY][] };
+          if (aptBad(tmp, mods)) continue;
+          // zarur jihozlar sigʻadimi (unitaz, vanna/dush, oshxona qatori) — mebel tekshiruvidagidek
+          const I = aptInterior({ ...tmp, walls: roomWalls(tmp, mods) }, mods), F = I?.furn ?? [];
+          if (!F.some(f => f.k === 'wc') || !F.some(f => f.k === 'tub' || f.k === 'shower') || !F.some(f => f.k === 'counter')) continue; }
+        // qoʻshni kvartiralar eshigi choʻntakka koʻchmasin (ichki rejasi buziladi)
+        const moved = sc.apts.some(j => { if (plan.apts[j] === a) return false; const b2 = plan.apts[j]; if (sharedEdge(b2.ring, pk).len < 0.3) return false;
+          const w2 = winsIn(b2.ring, mods).map(i => mods[i]).filter(Boolean), d0 = doorEdge(b2.ring, sc.mop, w2, !!b2.torets).mid, d1 = doorEdge(b2.ring, [...sc.mop, pk], w2, !!b2.torets).mid;
+          return Math.hypot(d0[0] - d1[0], d0[1] - d1[1]) > 0.3; });
+        if (moved) continue;
+        a.ring = ra; sc.mop.push(pk); if (plan.mop !== sc.mop) plan.mop.push(pk); made++; ok = true; break;
+      }
+      if (!ok) break;
+    }
+  }
+  if (made) plan.pockets = made;
+  return made;
+}
+
 export function finishPlan(plan: RulePlan, mods: FacadeMod[], size: 'S' | 'M' | 'L' = 'M', keepRooms = false): RulePlan {
   const target = (k: number) => AREA[size][Math.max(1, Math.min(4, k))];
   for (const a of plan.apts) {

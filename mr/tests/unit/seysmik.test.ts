@@ -77,7 +77,7 @@ describe('«+», «U», «T» shakllar (30.10): markaz va tutashuvlar', () => {
     const { pl, bad } = run([[12, 0], [24, 0], [24, 12], [36, 12], [36, 24], [24, 24], [24, 36], [12, 36], [12, 24], [0, 24], [0, 12], [12, 12]]);
     // 12.11 (eski navbat, 8-band): ikkala zina qanotlar yon devorida — fasadda, tabiiy yorugʻlik bilan (325-band); qanot boshidagi
     // zina tasmasi hisobiga bitta kvartira kamayishi mumkin (8 → 7)
-    expect(pl.sections.length).toBe(1); expect(pl.apts.length).toBeGreaterThanOrEqual(7); expect(pl.stairs.length).toBe(2); expect(bad.filter(b => b !== 'corrlight')).toEqual([]);
+    expect(pl.sections.length).toBe(1); expect(pl.apts.length).toBeGreaterThanOrEqual(7); expect(pl.stairs.length).toBe(2); expect(bad).toEqual([]);
   });
   it('«U» 45 × 30 va 60 × 36 — har seksiya xolli koʻcha va hovliga chiqadi (burchakda 90°), tupik xoll yoʻq', () => {
     for (const ring of [[[0, 0], [45, 0], [45, 30], [33, 30], [33, 12], [12, 12], [12, 30], [0, 30]], [[0, 0], [60, 0], [60, 36], [45, 36], [45, 15], [15, 15], [15, 36], [0, 36]]] as XY[][]) {
