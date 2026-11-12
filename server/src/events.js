@@ -99,11 +99,28 @@ export async function eventStats(db, at) {
     FROM u LEFT JOIN act ON act.user_id = u.id GROUP BY u.wk ORDER BY u.wk DESC`);
   // eng koʻp hodisalar (30 kun): nomi, soni, nechta brauzer
   const top = await all(`SELECT svc, name, count(*) AS c, count(DISTINCT anon) AS who FROM events
-      WHERE at > $1::timestamptz - interval '30 days' AND name NOT LIKE 'pv%' GROUP BY 1, 2 ORDER BY c DESC LIMIT 40`);
+      WHERE at > $1::timestamptz - interval '30 days' AND name NOT LIKE 'pv%' AND name NOT LIKE 'err/%' GROUP BY 1, 2 ORDER BY c DESC LIMIT 40`);
   const svc = await all(`SELECT svc, count(DISTINCT anon) AS who, count(*) AS c FROM events
       WHERE at > $1::timestamptz - interval '30 days' GROUP BY 1 ORDER BY who DESC`);
   const day = await all(`SELECT to_char(date_trunc('day', at AT TIME ZONE 'Asia/Tashkent'), 'YYYY-MM-DD') AS d, count(DISTINCT anon) AS who
       FROM events WHERE at > $1::timestamptz - interval '30 days' GROUP BY 1 ORDER BY 1`);
+  // manba: har brauzerning 30 kundagi birinchi sahifa ochilishi (first-touch) — UTM manbasi, boʻlmasa kelgan sayt
+  const src = await all(`WITH f AS (
+      SELECT DISTINCT ON (anon) anon, lower(coalesce(nullif(props->>'source', ''), nullif(props->>'ref', ''), '-')) AS s
+      FROM events WHERE name = 'pv' AND at > $1::timestamptz - interval '30 days' ORDER BY anon, at),
+    lg AS (SELECT DISTINCT anon FROM events WHERE user_id IS NOT NULL AND at > $1::timestamptz - interval '30 days')
+    SELECT f.s, count(*) AS who, count(lg.anon) AS login FROM f LEFT JOIN lg ON lg.anon = f.anon GROUP BY 1 ORDER BY who DESC LIMIT 25`);
+  const camp = await all(`SELECT lower(props->>'source') AS s, lower(coalesce(props->>'campaign', '')) AS c, count(DISTINCT anon) AS who FROM events
+      WHERE name = 'pv' AND props ? 'source' AND at > $1::timestamptz - interval '30 days' GROUP BY 1, 2 ORDER BY who DESC LIMIT 25`);
+  // qurilma: ekran kengligi boʻyicha (har brauzerning oxirgi sahifa ochilishi)
+  const dev = await all(`WITH l AS (
+      SELECT DISTINCT ON (anon) anon, (props->>'w')::int AS w, (props->>'touch')::boolean AS t
+      FROM events WHERE name = 'pv' AND props ? 'w' AND at > $1::timestamptz - interval '30 days' ORDER BY anon, at DESC)
+    SELECT CASE WHEN w < 768 THEN 'phone' WHEN w < 1280 THEN 'tablet' ELSE 'desktop' END AS k, count(*) AS who,
+      count(*) FILTER (WHERE t) AS touch FROM l GROUP BY 1`);
+  // xatolar (30 kun): brauzer xatolari, WebGL yoʻqolishi, taxminiy qulash (sahifa yopilmay turib oʻchgan)
+  const errs = await all(`SELECT name, svc, coalesce(props->>'m', '') AS m, coalesce(props->>'at', '') AS src, count(*) AS c, count(DISTINCT anon) AS who, max(at) AS last
+      FROM events WHERE name LIKE 'err/%' AND at > $1::timestamptz - interval '30 days' GROUP BY 1, 2, 3, 4 ORDER BY who DESC, c DESC LIMIT 40`);
   const since = await one(`SELECT min(at) AS at FROM events`, []);
   return {
     since: since.at ? new Date(since.at).toISOString() : null,
@@ -112,6 +129,10 @@ export async function eventStats(db, at) {
     daily: day.map((r) => ({ d: r.d, who: n(r.who) })),
     services: svc.map((r) => ({ svc: r.svc, who: n(r.who), c: n(r.c) })),
     top: top.map((r) => ({ svc: r.svc, name: r.name, c: n(r.c), who: n(r.who) })),
+    sources: src.map((r) => ({ s: r.s, who: n(r.who), login: n(r.login) })),
+    campaigns: camp.map((r) => ({ s: r.s, c: r.c, who: n(r.who) })),
+    devices: ['desktop', 'tablet', 'phone'].map((k) => { const r = dev.find((x) => x.k === k); return { k, who: n(r?.who), touch: n(r?.touch) }; }),
+    errors: errs.map((r) => ({ name: r.name, svc: r.svc, m: r.m, src: r.src, c: n(r.c), who: n(r.who), last: new Date(r.last).toISOString() })),
     cohorts: cohorts.map((r) => ({ wk: new Date(r.wk).toISOString().slice(0, 10), size: n(r.size), w: [n(r.w1), n(r.w2), n(r.w3), n(r.w4)] })),
   };
 }

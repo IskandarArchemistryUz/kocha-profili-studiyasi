@@ -76,6 +76,21 @@ describe('foydalanish hodisalari', () => {
     expect(coh).toBeTruthy();
     expect(j.since).toBeTruthy();
   });
+  it('egasi: manba (birinchi ochilish), kampaniya, qurilma, xatolar', async () => {
+    const a = await login('ali@mail.uz');
+    await ev('anon00001', 'mr', [{ n: 'pv', p: { w: 1440, touch: false, source: 'Telegram', campaign: 'reels1' } }]);
+    await ev('anon00001', 'mr', [{ n: 'pv', p: { w: 1440, ref: 'google.com' } }], a);   // keyingi ochilish manbani oʻzgartirmaydi
+    await ev('anon00002', 'mr', [{ n: 'pv', p: { w: 1024, touch: true, ref: 'instagram.com' } }]);
+    await ev('anon00003', 'joy', [{ n: 'pv', p: { w: 390, touch: true } }, { n: 'err/js', p: { m: 'x is undefined', at: 'main.js:10' } }, { n: 'err/js', p: { m: 'x is undefined', at: 'main.js:10' } }]);
+    await ev('anon00004', 'mr', [{ n: 'err/crash' }]);
+    const j = (await usage(await login('boss@archemistry.uz'))).json();
+    expect(j.sources).toEqual(expect.arrayContaining([{ s: 'telegram', who: 1, login: 1 }, { s: 'instagram.com', who: 1, login: 0 }, { s: '-', who: 1, login: 0 }]));
+    expect(j.campaigns).toEqual([{ s: 'telegram', c: 'reels1', who: 1 }]);
+    expect(j.devices).toEqual([{ k: 'desktop', who: 1, touch: 0 }, { k: 'tablet', who: 1, touch: 1 }, { k: 'phone', who: 1, touch: 1 }]);
+    expect(j.errors[0]).toMatchObject({ name: 'err/js', svc: 'joy', m: 'x is undefined', src: 'main.js:10', c: 2, who: 1 });
+    expect(j.errors.find((e) => e.name === 'err/crash')).toBeTruthy();
+    expect(j.top.find((x) => x.name.startsWith('err/'))).toBeUndefined();
+  });
   it('pruneEvents: eskilari oʻchadi', async () => {
     await ev('anon00001', 'mr', [{ n: 'pv' }, { n: 'pv' }]);
     await db.query(`UPDATE events SET at = now() - interval '500 days' WHERE id = (SELECT min(id) FROM events)`);

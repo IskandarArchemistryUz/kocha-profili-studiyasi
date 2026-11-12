@@ -159,9 +159,39 @@ function usage(x: OwnerUsage): HTMLElement {
       h('div', {}, h('h3', {}, tr('Qaytish — roʻyxatdan oʻtgan haftasi boʻyicha')),
         table([tr('Hafta'), tr('Soni'), ...[1, 2, 3, 4].map((k) => tf('${n}-hafta', { n: k }))],
           x.cohorts.map((r) => [r.wk, r.size, ...r.w.map((v) => `${v} (${pct(v, r.size)})`)]), tr('Hali maʼlumot yoʻq')))),
+    sourcesDevices(x),
     h('h3', {}, tr('Eng koʻp harakatlar — 30 kun')),
     h('div', { class: 'own-scroll own-scroll-sm', id: 'ownTop' }, table([tr('Xizmat'), tr('Harakat'), tr('Soni'), tr('Brauzerlar')],
-      x.top.map((r) => [SVC[r.svc] ?? r.svc, label(r.name), r.c, r.who]), tr('Hali maʼlumot yoʻq'))));
+      x.top.map((r) => [SVC[r.svc] ?? r.svc, label(r.name), r.c, r.who]), tr('Hali maʼlumot yoʻq'))),
+    errorsSec(x));
+}
+
+/** Manba (UTM yoki kelgan sayt — birinchi ochilish), kampaniyalar, qurilma */
+function sourcesDevices(x: OwnerUsage): HTMLElement {
+  const dv = x.devices ?? [];
+  const all = dv.reduce((a, d) => a + d.who, 0);
+  const DN: Record<string, string> = { desktop: tr('Kompyuter'), tablet: tr('Planshet'), phone: tr('Telefon') };
+  const srcName = (s: string) => (s === '-' ? tr('Toʻgʻridan-toʻgʻri') : s);
+  return h('div', {},
+    h('h3', {}, tr('Qurilma — 30 kun')),
+    h('div', { class: 'own-kpis own-kpis-sm', id: 'ownDevices' }, ...dv.map((d) =>
+      kpi('dev-' + d.k, DN[d.k], `${fmt(d.who)} · ${pct(d.who, all)}`, d.k === 'desktop' ? undefined : tf('sensorli ${n}', { n: d.touch })))),
+    h('p', { class: 't-small own-hint' }, tr('Ekran kengligi: telefon < 768 px, planshet 768–1279 px, kompyuter ≥ 1280 px.')),
+    h('div', { class: 'own-two', id: 'ownSources' },
+      h('div', {}, h('h3', {}, tr('Qayerdan kelishdi — 30 kun')),
+        table([tr('Manba'), tr('Brauzerlar'), tr('Hisobga kirdi')], (x.sources ?? []).map((r) => [srcName(r.s), r.who, `${r.login} (${pct(r.login, r.who)})`]), tr('Hali maʼlumot yoʻq'))),
+      h('div', {}, h('h3', {}, tr('UTM kampaniyalar — 30 kun')),
+        table([tr('Manba'), tr('Kampaniya'), tr('Brauzerlar')], (x.campaigns ?? []).map((r) => [r.s, r.c || '—', r.who]), tr('Hali UTM belgili havola orqali kelmagan')))));
+}
+
+/** Brauzer xatolari, WebGL yoʻqolishi, taxminiy qulash */
+function errorsSec(x: OwnerUsage): HTMLElement {
+  const EN: Record<string, string> = { 'err/js': tr('JS xato'), 'err/promise': tr('Promise xatosi'), 'err/webgl-lost': tr('WebGL yoʻqoldi (xotira)'), 'err/crash': tr('Taxminiy qulash') };
+  return h('div', { id: 'ownErrors' },
+    h('h3', {}, tr('Xatolar — 30 kun')),
+    h('p', { class: 't-small own-hint' }, tr('«Taxminiy qulash» — sahifa yopilmay turib oʻchgan (koʻpincha xotira yetmaganda); keyingi ochilishda sanaladi.')),
+    h('div', { class: 'own-scroll own-scroll-sm' }, table([tr('Turi'), tr('Xizmat'), tr('Matn'), tr('Joy'), tr('Soni'), tr('Brauzerlar'), tr('Oxirgi')],
+      (x.errors ?? []).map((r) => [EN[r.name] ?? r.name, SVC[r.svc] ?? r.svc, r.m || '—', r.src || '—', r.c, r.who, when(r.last)]), tr('Xato qayd etilmagan'))));
 }
 
 /* ---------- foydalanuvchi kartochkasi ---------- */

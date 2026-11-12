@@ -91,6 +91,10 @@ export interface OwnerUsage {
   services: { svc: string; who: number; c: number }[];
   top: { svc: string; name: string; c: number; who: number }[];
   cohorts: { wk: string; size: number; w: number[] }[];
+  sources?: { s: string; who: number; login: number }[];
+  campaigns?: { s: string; c: string; who: number }[];
+  devices?: { k: 'desktop' | 'tablet' | 'phone'; who: number; touch: number }[];
+  errors?: { name: string; svc: string; m: string; src: string; c: number; who: number; last: string }[];
 }
 export const ownerUsage = (): Promise<OwnerUsage> => call<OwnerUsage>('/owner/usage');
 export const ownerUser = (id: number): Promise<OwnerUser> => call<OwnerUser>(`/owner/user/${id}`);
