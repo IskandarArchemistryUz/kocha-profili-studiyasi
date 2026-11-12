@@ -53,7 +53,7 @@ export interface PlanOpts {
   /** uslub: oq-qora (rangsiz kvartiralar, kulrang hoʻl xonalar) */ mono?: boolean;
   /** 04.11 (egasi): umumiy seksiya rejasi — kvartiralarsiz va mebelsiz (katta master reja uchun): turar qism bitta zona, yadro, koridor, zinalar */
   general?: boolean;
-  /** 04.11: kvartira rejasi meʼyor buzilishi belgisi (aptplan normViol) — sukut: ha */
+  /** 04.11: kvartira rejasi meʼyor buzilishi belgisi (aptplan normViol). 12.11 (egasi): sukut — yoʻq (faqat ichki tekshiruv rejimida) */
   normMarks?: boolean;
   /** 05.11: konstruktiv oʻqlar (SecPlan.grid) — sukut: ha (dims bilan) */
   axes?: boolean;
@@ -201,7 +201,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
     const big0 = inn?.rooms.reduce((m, q) => (!q.wet && q.area > m.area ? q : m), inn.rooms[0]);
     const c = labelPt(big0 ? big0.ring : a.ring), bA = balOf(a.ring);
     // 04.11: meʼyor buzilishi (ShNQ 2.08.01-24, SanQvaN 0102-25 — aptplan normViol) — qizil «!» belgi, title — roʻyxat
-    const nv = inner[ai]?.norm; if (nv?.length && o.normMarks !== false && !o.tint) out.push(`<g data-norm="${ai}"><title>${nv.map(t => tr(t)).join('\n').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</title><circle cx="${(Number(X(c[0])) + 7).toFixed(2)}" cy="${(Number(Y(c[1])) - 5.2).toFixed(2)}" r="1.9" fill="#d0342c"/><text x="${(Number(X(c[0])) + 7).toFixed(2)}" y="${(Number(Y(c[1])) - 4.4).toFixed(2)}" font-size="2.4" font-weight="700" text-anchor="middle" fill="#ffffff">!</text></g>`);
+    const nv = inner[ai]?.norm; if (nv?.length && o.normMarks === true && !o.tint) out.push(`<g data-norm="${ai}"><title>${nv.map(t => tr(t)).join('\n').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</title><circle cx="${(Number(X(c[0])) + 7).toFixed(2)}" cy="${(Number(Y(c[1])) - 5.2).toFixed(2)}" r="1.9" fill="#d0342c"/><text x="${(Number(X(c[0])) + 7).toFixed(2)}" y="${(Number(Y(c[1])) - 4.4).toFixed(2)}" font-size="2.4" font-weight="700" text-anchor="middle" fill="#ffffff">!</text></g>`);
     if (o.num) out.push(`<circle cx="${X(c[0])}" cy="${(Number(Y(c[1])) - 5.2).toFixed(2)}" r="2.1" fill="#fff" stroke="#141414" stroke-width="0.35"/><text x="${X(c[0])}" y="${(Number(Y(c[1])) - 4.35).toFixed(2)}" font-size="2.4" font-weight="700" text-anchor="middle" fill="#141414" pointer-events="none">${ai + 1}</text>`);
     out.push(`<text x="${X(c[0])}" y="${Y(c[1])}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#141414" pointer-events="none">${sel >= 0 ? `${'AB'[sel] ?? ''} · ` : ''}${a.rooms}x${inner[ai]?.kFit ? ` → ${inner[ai]!.kFit}x` : ''}</text><text x="${X(c[0])}" y="${(Number(Y(c[1])) + 3.2).toFixed(2)}" font-size="2.1" text-anchor="middle" fill="#3a3936" pointer-events="none">${o.tint?.sub[ai] ?? `${n1(Math.round((a.area * 0.85 + bA) * 10) / 10)} m²`}</text>`);
   });
