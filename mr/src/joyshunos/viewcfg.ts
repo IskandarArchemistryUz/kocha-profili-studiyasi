@@ -22,7 +22,7 @@ export const VIEW: Record<string, ViewDef> = {
   narx: { axes: [['Bitim', [['sotuv', 'Sotuv'], ['ijara', 'Ijara']]], ['Turi', [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']]],
     ['Bozor', [['hammasi', 'Hammasi'], ['yangi', 'Yangi bino'], ['ikkilamchi', 'Ikkilamchi uy']]]], k: true },
   quyosh: { k: true },
-  piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh']], k: true },
+  piyoda: { stLabel: 'Kim uchun', styles: [['yosh', 'Kattalar'], ['bola', 'Bola'], ['qariya', 'Qariya'], ['homilador', 'Homilador'], ['arava', 'Aravacha'], ['sayyoh', 'Sayyoh'], ['hammasi', 'Hammasi']], k: true },
   oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur']], k: true },
   skaner: { stLabel: 'Rang', styles: [['umumiy', 'Umumiy ball'], ['zaif', 'Eng zaif yoʻnalish']], k: true },
 };
@@ -105,3 +105,10 @@ export const PERSONA: Record<string, { v: number; note: string }> = {
   yosh: { v: 5.0, note: 'kattalar, ≈ 5 km/soat' }, bola: { v: 3.6, note: 'bola, ≈ 3,6 km/soat' }, qariya: { v: 3.2, note: 'qariya, ≈ 3,2 km/soat' },
   homilador: { v: 3.8, note: 'homilador, ≈ 3,8 km/soat' }, arava: { v: 3.2, note: 'nogironlik aravachasi, ≈ 3,2 km/soat; zinapoya va baland bordyur hisobga olinmagan' }, sayyoh: { v: 4.0, note: 'sayyoh, ≈ 4 km/soat' },
 };
+/** «Hammasi» (12.11, kanvas 11): har persona 10 daqiqada qayergacha yetadi — sekinidan tezigacha, alohida rang.
+ * Qariya va aravacha tezligi bir xil — bitta guruh (aravacha uchun zinapoya/bordyur hali hisobga olinmagan). */
+export const PERSONA_ALL: { ids: string[]; name: string; v: number; col: string }[] = [
+  { ids: ['qariya', 'arava'], name: 'Qariya, aravacha', v: 3.2, col: '#b65f5a' }, { ids: ['bola'], name: 'Bola', v: 3.6, col: '#d08a4e' },
+  { ids: ['homilador'], name: 'Homilador', v: 3.8, col: '#8a6bb0' }, { ids: ['sayyoh'], name: 'Sayyoh', v: 4.0, col: '#3f8f8a' }, { ids: ['yosh'], name: 'Kattalar', v: 5.0, col: '#3d5a8a' },
+];
+
