@@ -128,7 +128,7 @@ test('til va tungi rejim', async ({ page }) => {
   expect(errs).toEqual([]);
 });
 
-test('Master reja koʻchasi → «Koʻchasozda ochish» → B kesim shu profil bilan', async ({ page }) => {
+test('Master reja koʻchasi → Koʻchasoz oynasi → «Toʻliq oyna» → B kesim shu profil bilan', async ({ page }) => {
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|fonts\.g/, r => r.fulfill({ status: 404, body: '' }));
   await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
@@ -139,6 +139,8 @@ test('Master reja koʻchasi → «Koʻchasozda ochish» → B kesim shu profil b
   await expect(page.locator('#stKs')).toBeVisible();
   const name = (await page.locator('[data-sid] .k').first().textContent())!.replace(/^\d+\.\s*/, '').split(' · ')[0];
   await page.click('#stKs');
+  await expect(page.locator('#ksWin')).toBeVisible();
+  await page.click('#kswFull');
   await expect(page).toHaveURL(/kochasoz\.html#\/b$/);
   await expect(page.locator('.ws-b aside').first()).toContainText(name);
   expect(errs).toEqual([]);

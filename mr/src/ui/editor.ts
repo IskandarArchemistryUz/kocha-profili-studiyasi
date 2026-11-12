@@ -7,7 +7,7 @@ import polygonClipping from 'polygon-clipping';
 import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
 import { bLevels, levelZ, floorAt, groundH, antresolSplit, hasAntresol, ANTRESOL_SHARE, ANTRESOL_MIN_H } from '../core/levels';
-import type { LngLat, Project, Garage } from '../core/doc';
+import type { LngLat, Project, Garage, Street } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
@@ -113,7 +113,7 @@ import { coverClassifier, surfaceT, heatColor, HEAT_BINS } from '../core/heat';
 import { loadBaseMap, type TerrainGrid } from '../context/tiles';
 import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
-import { openInKochasoz } from '../kochasoz/fromMr';
+import { openKsWindow } from './kswin';
 import { PALETTES, palOf, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
@@ -3873,7 +3873,7 @@ export class Editor {
     if (this.kochaTab == null) this.kochaTab = doc.streets.length ? 'chiz' : 'tor';
     if (drawing && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
     if (this.osmPick && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
-    const nProf = PROFILES.length + PRESET_PROFILES.length;
+    const nProf = (doc.profiles?.length ?? 0) + PROFILES.length + PRESET_PROFILES.length;
     body.append(h('div', { class: 'seg', role: 'tablist', 'aria-label': tr('Boʻlimlar') }, ...([['tor', tr('Toʻr')], ['prof', `${tr('Profillar')} · ${nProf}`], ['chiz', tr('Chizish')]] as const).map(([k, t]) => h('button', { role: 'tab', 'data-ktab': k, 'aria-pressed': this.kochaTab === k, 'aria-selected': this.kochaTab === k, onclick: () => { this.kochaTab = k; this.renderPanel(); } }, t))));
     if (this.kochaTab === 'tor') { if (doc.site) this.gridPanel(body); else body.append(h('div', { class: 'note' }, tr('Avval uchastkani chizing'))); }
     if (this.kochaTab === 'prof') this.profilesTab(body, stSel?.id ?? null);
@@ -3882,8 +3882,9 @@ export class Editor {
 
   /** Profillar yorligʻi: qidiruv, guruh filtrlari, kartochkalar (nom, kenglik, meʼyor chipi, mini kesim) */
   private profilesTab(body: HTMLElement, selId: string | null): void {
-    const all: (Profile & { group?: string })[] = [...PROFILES, ...PRESET_PROFILES];
-    const groups: { id: string; name: string; list: (Profile & { group?: string })[] }[] = [{ id: 'asosiy', name: tr('Asosiy'), list: PROFILES }, ...[...new Set(PRESET_PROFILES.map(p => p.group))].map(g => ({ id: g, name: g, list: PRESET_PROFILES.filter(p => p.group === g) }))];
+    const mine = this.store.doc.profiles ?? [];
+    const all: (Profile & { group?: string })[] = [...mine, ...PROFILES, ...PRESET_PROFILES];
+    const groups: { id: string; name: string; list: (Profile & { group?: string })[] }[] = [...(mine.length ? [{ id: 'loyiha', name: tr('Loyiha (Koʻchasoz)'), list: mine }] : []), { id: 'asosiy', name: tr('Asosiy'), list: PROFILES }, ...[...new Set(PRESET_PROFILES.map(p => p.group))].map(g => ({ id: g, name: g, list: PRESET_PROFILES.filter(p => p.group === g) }))];
     const q = this.profQ.trim().toLowerCase();
     const match = (p: Profile) => !q || p.name.toLowerCase().includes(q) || p.note.toLowerCase().includes(q) || CATS[p.cat].name.toLowerCase().includes(q);
     const inp = h('input', { type: 'search', class: 'input', id: 'profQ', placeholder: tr('Profil qidirish'), value: this.profQ, 'aria-label': tr('Profil qidirish') }) as HTMLInputElement;
@@ -3994,12 +3995,26 @@ export class Editor {
         const st = doc.streets.find(x => x.id === this.selStreet), p = st && profileById(st.profile), iss = p ? checkProfile(p) : [];
         if (p) body.append(h('div', { class: iss.length ? 'note bad' : 'note ok', id: 'stNorm' }, h('b', {}, `${CATS[p.cat].name}`), ` · ShNQ 2.07.01-23, ${CATS[p.cat].clause}`, h('br'),
           ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — ${tr('meʼyor')} ${x.norm}`)) : [tr('Meʼyorga mos.')])));
-        if (p) body.append(h('button', { class: 'btn btn-block', id: 'stKs', title: tr('Koʻchasoz: kesim muharriri — Dizayn-kod zonalari, muhandislik tarmoqlari, reja, aksonometriya, albom varagʻi'), onclick: () => openInKochasoz(p, `${doc.name} · ${p.name}`) },
-          h('i', { style: 'width:8px;height:8px;border-radius:4px;background:var(--svc-ks);flex:none' }), tr('Koʻchasozda ochish (kesim)')));
+        if (p) body.append(h('button', { class: 'btn btn-block', id: 'stKs', title: tr('Koʻchasoz: kesim muharriri — Dizayn-kod zonalari, muhandislik tarmoqlari, reja, aksonometriya, albom varagʻi'), onclick: () => this.openKsWin(st!, p, doc.streets.indexOf(st!)) },
+          h('i', { style: 'width:8px;height:8px;border-radius:4px;background:var(--svc-ks);flex:none' }), tr('Koʻchasozda tahrirlash')));
       }
       this.endsPanel(body);
     } else body.append(h('div', { class: 'note' }, tr('Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.')));
     body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr('Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'))));
+  }
+
+  /** Koʻchasoz oynasi (MR ichida): tahrirlangan kesim loyiha profili boʻlib qaytadi va koʻcha(lar)ga beriladi — bitta qadam */
+  private openKsWin(st: Street, p: Profile, k: number): void {
+    const doc = this.store.doc, same = doc.streets.filter(x => x.profile === st.profile).map(x => x.id);
+    openKsWindow({ base: p, label: tf('Koʻcha ${n}', { n: k + 1 }), street: st.id, same, isUser: !!doc.profiles?.some(x => x.id === p.id), name: `${doc.name} · ${p.name}`,
+      onApply: (np, streets, scope) => {
+        const prev = this.plan();
+        this.run(() => this.store.dispatch({ type: 'applyProfile', profile: np, streets }));
+        if (streets.length) this.regenAfterStreets(prev);
+        if (scope === 'tpl') this.profile = np.id;
+        this.renderPanel();
+        toast(scope === 'tpl' ? tf('«${name}» andozalarga qoʻshildi', { name: np.name }) : tf('Koʻcha profili qoʻllandi: ${n} ta koʻcha', { n: streets.length }));
+      } });
   }
 
   private pickStreet(id: string | null): void { if (id !== this.selStreet) this.selVtx = null; this.selStreet = id; this.scene.selectStreet(id); const st = this.store.doc.streets.find(x => x.id === id); if (st) this.profile = st.profile; this.renderPanel(); }

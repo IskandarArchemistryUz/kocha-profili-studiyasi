@@ -7,6 +7,7 @@ import { type Building, type ContextSettings, type LngLat, type Project, type Ri
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
 import type { Limit } from './limits';
+import type { Profile } from './profiles';
 import { isGStyle } from './gstyle';
 
 export type Command =
@@ -33,6 +34,7 @@ export type Command =
   | { type: 'updateStreet'; id: string; patch: Partial<Omit<Street, 'id'>> }
   | { type: 'setRounds'; rounds: Round[] }
   | { type: 'setRoadEdit'; id: number; parts: LngLat[][] | null }
+  | { type: 'applyProfile'; profile: Profile; streets: string[] }
   | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
   | { type: 'removeStreet'; id: string }
   /** koʻcha toʻri generatsiyasi: avvalgi generatsiya koʻchalari almashtiriladi, qoʻlda chizilganlar qoladi */
@@ -86,6 +88,7 @@ export function label(c: Command): string {
     case 'setRounds': return 'Chorraha aylanmalari';
     case 'setRoadEdit': return 'Mavjud yoʻl tahriri';
     case 'updateStreets': return 'Koʻchalar oʻzgardi';
+    case 'applyProfile': return 'Koʻcha profili (Koʻchasoz)';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
     case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
     case 'setZones': return 'Zona';
@@ -208,6 +211,10 @@ function apply0(doc: Project, c: Command, now: Date): Project {
       d.streets = doc.streets.slice(); d.streets[i] = s; return d;
     }
     case 'setRounds': { if (c.rounds.length) d.rounds = c.rounds.map(r => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind ? { kind: r.kind } : {}) })); else delete d.rounds; return d; }
+    case 'applyProfile': {   // Koʻchasozdan: profil loyihaga yoziladi (bor boʻlsa almashtiriladi) va koʻrsatilgan koʻchalarga beriladi — bitta qadam
+      const list = (doc.profiles ?? []).filter(p => p.id !== c.profile.id); list.push(c.profile); d.profiles = list;
+      const ids = new Set(c.streets); d.streets = doc.streets.map(s => (ids.has(s.id) ? { ...s, profile: c.profile.id } : s)); return d;
+    }
     case 'updateStreets': {   // bir nechta koʻcha — bitta oʻzgarish (sahna bir marta qayta quriladi)
       const m = new Map(c.patches.map(q => [q.id, q.patch]));
       d.streets = doc.streets.map(s => { const q = m.get(s.id); if (!q) return s; const n = { ...s, ...q }; if (n.axis.length < 2) throw new CommandError('Koʻcha kamida 2 nuqtadan iborat boʻlsin'); return n; }); return d;

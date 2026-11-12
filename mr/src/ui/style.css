@@ -1035,3 +1035,38 @@ details.sp-lead[open] .sp-more{display:none}
 .reg .an-row{display:flex;align-items:center;gap:8px;padding:0 14px 10px}
 /* 12.11: Konsepsiya rejimi (3-bosqich, 3-band) */
 #conceptRow{display:flex;align-items:center;gap:12px;padding:6px 2px}
+
+/* ——— Koʻchasoz oynasi (MR ichida, kswin.ts) ——— */
+.ksw{position:fixed;inset:0;z-index:80;background:rgba(20,20,20,.28);display:grid;padding:28px 36px;animation:fadeIn .2s var(--ease)}
+.ksw-card{background:var(--surface);color:var(--ink);border-radius:22px;box-shadow:0 0 0 .5px rgba(0,0,0,.08),0 18px 48px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.ksw-hd{height:60px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px 0 20px;border-bottom:.5px solid var(--hairline)}
+.ksw-hd b{font-size:17px;font-weight:600;white-space:nowrap}
+.ksw-hd .sp{flex:1}
+.ksw-chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:color-mix(in srgb,var(--svc-ks) 14%,var(--surface));color:var(--ink);font-size:12px;font-weight:600;white-space:nowrap}
+.ksw-chip i{width:8px;height:8px;border-radius:4px;background:var(--svc-ks)}
+.ksw-sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ksw-sub .num{color:var(--ink)}
+.ksw-bd{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 300px}
+.ksw-frame{width:100%;height:100%;border:0;background:var(--bg);display:block}
+.ksw-side{border-left:.5px solid var(--hairline);padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.ksw-h{font-size:15px;font-weight:600}
+.ksw-lbl{font-size:11px;font-weight:600;color:var(--muted)}
+.ksw-chk{display:flex;flex-direction:column;background:var(--fill);border-radius:16px;overflow:hidden}
+.ksw-r{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:13px}
+.ksw-r+.ksw-r{border-top:.5px solid var(--hairline)}
+.ksw-r i{width:8px;height:8px;border-radius:4px;flex:none;background:var(--ok,#2b7449)}
+.ksw-r i.warn{background:var(--warn,#95620f)}
+.ksw-r i.bad{background:var(--bad,#b3261e)}
+.ksw-r .num{margin-left:auto;font:500 11px var(--mono);color:var(--muted);white-space:nowrap}
+.ksw-scope{display:flex;flex-direction:column;gap:6px}
+.ksw-opt{display:flex;align-items:center;min-height:36px;padding:6px 12px;border:0;border-radius:10px;background:var(--fill);color:var(--ink);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.ksw-opt[aria-checked="true"]{background:var(--ink);color:var(--surface)}
+.ksw-ft{height:68px;flex:none;display:flex;align-items:center;gap:10px;padding:0 20px;border-top:.5px solid var(--hairline)}
+.ksw-st{font-size:12px;color:var(--muted);margin-right:auto}
+.ksw-ft .btn{height:44px;padding:0 20px;border-radius:12px;font-weight:600}
+/* tor ekranda: tekshiruv va qoʻllanadigan joy — chizma ostida bir qatorda (Koʻchasozga eni qolsin) */
+@media (max-width:1240px){.ksw{padding:12px}.ksw-sub{display:none}
+.ksw-bd{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+.ksw-side{border-left:0;border-top:.5px solid var(--hairline);display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);grid-template-areas:"h l" "c s" "c t";gap:6px 16px;padding:10px 16px;overflow:visible}
+.ksw-side .ksw-h{grid-area:h;font-size:13px}.ksw-chk{grid-area:c}.ksw-side .ksw-lbl{grid-area:l}.ksw-scope{grid-area:s}.ksw-side .t-small{grid-area:t}
+.ksw-r{padding:6px 10px;font-size:12px}.ksw-opt{min-height:30px;padding:4px 10px;font-size:12px}.ksw-scope{flex-direction:row;flex-wrap:wrap}}

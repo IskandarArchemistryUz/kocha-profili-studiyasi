@@ -5,6 +5,7 @@
  */
 import { apply, type Command, label } from './commands';
 import type { Project } from './doc';
+import { setUserProfiles } from './profiles';
 
 export interface Change { doc: Project; reason: 'dispatch' | 'undo' | 'redo' | 'load'; label?: string }
 type Listener = (c: Change) => void;
@@ -16,7 +17,7 @@ export class Store {
   private past: Entry[] = [];
   private future: Entry[] = [];
   private subs = new Set<Listener>();
-  constructor(doc: Project, private limit = 200, private clock: () => number = () => Date.now()) { this.cur = doc; }
+  constructor(doc: Project, private limit = 200, private clock: () => number = () => Date.now()) { this.cur = doc; setUserProfiles(doc.profiles); }
 
   get doc(): Project { return this.cur; }
   get canUndo(): boolean { return this.past.length > 0; }
@@ -64,5 +65,5 @@ export class Store {
   load(doc: Project): void { this.cur = doc; this.past = []; this.future = []; this.emit({ doc, reason: 'load' }); }
 
   subscribe(fn: Listener): () => void { this.subs.add(fn); return () => this.subs.delete(fn); }
-  private emit(c: Change) { this.subs.forEach(f => { try { f(c); } catch (e) { console.error(e); } }); }
+  private emit(c: Change) { setUserProfiles(c.doc.profiles); this.subs.forEach(f => { try { f(c); } catch (e) { console.error(e); } }); }
 }
