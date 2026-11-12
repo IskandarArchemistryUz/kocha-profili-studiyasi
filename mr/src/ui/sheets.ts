@@ -94,6 +94,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'zona', scale: 0 }), mk({ kind: 'parsel', scale: 0 }),   // 06.11: parsellar rejasi (sukut toʻplamiga; SET_V oshirilmadi — mavjud albomlarga oʻzi qoʻshilmaydi)
     mk({ kind: 'figura', scale: 0 }), mk({ kind: 'landshaft', scale: 0 }), mk({ kind: 'qavat', scale: 0 }),
     mk({ kind: 'vaziyat', scale: 10000 }),
+    mk({ kind: 'ijtimoiy', scale: 0 }),   // 12.11: ijtimoiy infratuzilma (eski navbat, 2-band)
     mk({ kind: 'cheklov', scale: 0 }),   // 02.11: tahlil — cheklovlar rejasi va yer balansi
     mk({ kind: 'yashil', scale: 0 }), mk({ kind: 'insol', scale: 0 }),   // 02.11: tahlil — yashil balans, insolyatsiya
     mk({ kind: 'transport', scale: 0 }),   // 02.11: tahlil 4 — transport sxemasi
@@ -172,7 +173,7 @@ export function openGraphics(host: SheetsHost): void {
   const svcs = (): SheetSvc[] => (svcData ??= host.svc?.() ?? []);
   const ctxOf = (o: SheetOpts): SheetCtx | null => {
     const GM = o.kind === 'issiq' || o.kind === 'hand' || o.kind === 'twi';
-    if (o.kind !== 'xizmat' && o.kind !== 'insol' && o.kind !== 'shamol' && !GM) return host.ctx;
+    if (o.kind !== 'xizmat' && o.kind !== 'ijtimoiy' && o.kind !== 'insol' && o.kind !== 'shamol' && !GM) return host.ctx;
     const base = host.ctx ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
     if (GM) return { ...base, gmap: host.gmap?.(o.kind as 'issiq' | 'hand' | 'twi') ?? null };
     return o.kind === 'insol' ? { ...base, insol: host.insol?.() ?? null } : o.kind === 'shamol' ? { ...base, wind: host.wind?.() ?? null } : { ...base, svc: svcs() };

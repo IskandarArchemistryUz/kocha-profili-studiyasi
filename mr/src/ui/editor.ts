@@ -4717,7 +4717,7 @@ export class Editor {
   /** Tahlil varagʻi uchun atrof: atrof yuklanmagan boʻlsa ham tahlil chiziladi */
   private sheetCtxFor(kind: string): SheetCtx | null {
     const GM = kind === 'issiq' || kind === 'hand' || kind === 'twi';
-    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'insol' && kind !== 'shamol' && !GM) return c;
+    const c = this.sheetCtx(); if (kind !== 'xizmat' && kind !== 'ijtimoiy' && kind !== 'insol' && kind !== 'shamol' && !GM) return c;
     const base = c ?? { buildings: [], roads: [], rails: [], water: [], waterways: [], green: [], trees: [] };
     if (GM) return { ...base, gmap: this.gmapSheet(kind as 'issiq' | 'hand' | 'twi') };
     if (kind === 'insol') return { ...base, insol: this.insolSheet() };
