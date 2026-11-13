@@ -1469,7 +1469,7 @@ function buildShapes(){return withVirtual(()=>buildShapes0());}
 function buildShapes0(){
   const ds=DS(),o=origin(),sh=[],marks={},cwW=ds.thr.cw,gap=ds.thr.parkGap,WH='#f2f2ee';AR_HITS=[];
   /* sath (−1 tunnel, 0 yer, +1/+2 koʻprik/estakada): har shaklga joriy sath yoziladi, oxirida z va shaffoflik shunga qarab */
-  let CUR_LV=0;sh.push=function(...a){a.forEach(x=>{if(x.lv==null)x.lv=CUR_LV;});return Array.prototype.push.apply(this,a);};
+  let CUR_LV=0,CUR_SID=null;sh.push=function(...a){a.forEach(x=>{if(x.lv==null)x.lv=CUR_LV;if(x.sid==null&&CUR_SID!=null)x.sid=CUR_SID;});return Array.prototype.push.apply(this,a);};
   const poly=(ll,col,cat,z,op)=>{if(ll&&ll.length>2)sh.push({t:'poly',ll,col,cat,z,op});};
   const line=(ll,opt,code,z=6)=>{sh.push({t:'line',ll,opt,z});if(code)marks[code]=(marks[code]||0)+1;};
   const mark=c=>marks[c]=(marks[c]||0)+1;
@@ -1481,7 +1481,7 @@ function buildShapes0(){
     else if(code==='1.11'){line(LL(-.12),W1);line(LL(.12),Object.assign({dashArray:'8 10'},W1));mark('1.11');}};
   const arms={};
   ds.segs.forEach(sg=>{
-    const A1=nodeById(sg.a),B1=nodeById(sg.b);if(!A1||!B1)return;CUR_LV=isRamp(sg)?Math.max(sg.lv|0,sg.lv2|0):(sg.lv||0);
+    const A1=nodeById(sg.a),B1=nodeById(sg.b);if(!A1||!B1)return;CUR_LV=isRamp(sg)?Math.max(sg.lv|0,sg.lv2|0):(sg.lv||0);CUR_SID=sg.id;
     const lay=layOf(sg);let xy=segXY(sg,o);const c0=cumLen(xy),T0=c0[c0.length-1];
     const trim=n=>{const R0=nodeR(n);return nodeKind(n)==='round'&&lay.half<R0-1?Math.sqrt(R0*R0-lay.half*lay.half):R0;};
     const ra=trim(A1),rb=trim(B1);if(T0-ra-rb<2)return;
@@ -1497,7 +1497,7 @@ function buildShapes0(){
     else if(CUR_LV&&T>30)sh.push({t:'label',ll:toLL(pointAt(xy,c,T*.3),o),txt:(CUR_LV>0?'+':'−')+Math.abs(CUR_LV)+' sath',z:60,sm:1,lv:CUR_LV});
     /* koʻprik/estakada: soya (janubi-sharq tomonga) va parapetlar */
     if(CUR_LV>0&&!isRamp(sg)){const sx=xy.map(p=>[p[0]+1.2*CUR_LV,p[1]-1.2*CUR_LV]),bd=[...offsetLine(sx,lay.outer+.3),...offsetLine(sx,-lay.outer-.3).reverse()].map(q=>toLL(q,o));
-      sh.push({t:'poly',ll:bd,col:'#1c2628',cat:'other',z:-0.5,op:.3,lv:CUR_LV});
+      sh.push({t:'poly',ll:bd,col:'#1c2628',cat:'other',z:-0.5,op:.3,lv:CUR_LV,flat2d:1});
       [lay.outer+.15,-lay.outer-.15].forEach(d=>sh.push({t:'line',ll:offsetLine(xy,d).map(q=>toLL(q,o)),opt:{color:'#7b756b',weight:3},z:9,lv:CUR_LV}));}
     // oʻrtadagi piyoda oʻtish joylari (segment boʻyi)
     const xws=(sg.xw||[]).map((x,i)=>({...x,i,s:x.f*T0-ra})).filter(x=>x.s>x.w/2&&x.s<T-x.w/2);
@@ -1588,7 +1588,7 @@ function buildShapes0(){
     });
   });
   // tugunlar: chorraha va burilish shakllari (bordyur radiusi bilan)
-  ds.nodes.forEach(n=>{const k=nodeKind(n),c=toXY(n.ll,o),A2=arms[n.id]||[];CUR_LV=A2.length?Math.max(...A2.map(a=>lvAt(a.sg,n.id))):0;
+  ds.nodes.forEach(n=>{const k=nodeKind(n),c=toXY(n.ll,o),A2=arms[n.id]||[];CUR_LV=A2.length?Math.max(...A2.map(a=>lvAt(a.sg,n.id))):0;CUR_SID=null;
     if((k==='x'||k==='sig'||k==='join')&&A2.length>=2&&nodeR(n)>0){
       const L2=A2.map(a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),u=a.atA?f.t:[-f.t[0],-f.t[1]];
         const P=d=>[f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],rd0=a.lay.road.filter(x=>!isPk(x.k)),rd=rd0.length?rd0:(a.lay.road.length?a.lay.road:a.lay.st),ang=Math.atan2(f.p[1]-c[1],f.p[0]-c[0]);
@@ -1657,7 +1657,7 @@ function buildShapes0(){
         poly([...pts.map(p=>p[0]),...pts.map(p=>p[1]).reverse()].map(q=>toLL(q,o)),'#bdb39e','ped',8);});
       if(rt.sig)mark('svetofor');}
   });
-  CUR_LV=0;
+  CUR_LV=0;CUR_SID=null;
   // boʻlak ulagichlari (koʻrinish: Belgilar → «Boʻlak ulagichlari»); tarmoq JNET ga — harakat modeli shundan oladi
   JNET.clear();
   ds.nodes.forEach(n=>{const k=nodeKind(n);if(k!=='x'&&k!=='sig'&&k!=='round')return;const A2=arms[n.id]||[];if(A2.length<2)return;
@@ -2947,22 +2947,40 @@ async function open3D(){
     const tex=new TH.CanvasTexture(c2);const p0=toXY([bb.n,bb.w],g.o),p1=toXY([bb.s,bb.e],g.o);const sat=new TH.Mesh(new TH.PlaneGeometry(p1[0]-p0[0],p0[1]-p1[1]),new TH.MeshBasicMaterial({map:tex}));
     sat.rotation.x=-Math.PI/2;sat.position.set((p0[0]+p1[0])/2,-.01,-(p0[1]+p1[1])/2);sat.name='sputnik';scene.add(sat);ground.visible=false;
     ov.querySelector('#v3sat').onchange=e=>{sat.visible=e.target.checked;ground.visible=!e.target.checked;};})();
+  // sathlar: har shakl balandligi — koʻcha sathi × sathlar orasi; rampada oʻq boʻylab chiziqli (uchdan-uchga)
+  const LH=LV_H(),AX={};DS().segs.forEach(sg=>{if(!(sg.lv||isRamp(sg)))return;const xy=segXY(sg,g.o);AX[sg.id]={sg,xy,c:cumLen(xy),lay:layOf(sg)};});
+  const hOf=(it,p)=>{if(it.sid!=null&&AX[it.sid]&&isRamp(AX[it.sid].sg)){const A=AX[it.sid],T=A.c[A.c.length-1]||1;let best=1e9,s0=0;
+      for(let i=0;i<A.xy.length-1;i++){const a=A.xy[i],b=A.xy[i+1],dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy||1e-9,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2)),d=Math.hypot(a[0]+t*dx-p[0],a[1]+t*dy-p[1]);if(d<best){best=d;s0=A.c[i]+t*Math.sqrt(l2);}}
+      const f=s0/T,u=f*f*(3-2*f);return ((A.sg.lv|0)+((A.sg.lv2|0)-(A.sg.lv|0))*u)*LH;}                            // silliq (S-shakl) koʻtarilish
+    return (it.lv||0)*LH;};
   // sirtlar (tekis qatlamlar), chiziqlar lenta sifatida
-  let lvl=0;const flat=(xy,col,y,name)=>{if(xy.length<3)return;const sh2=new TH.Shape(xy.map(p=>new TH.Vector2(p[0],p[1])));const geo=new TH.ShapeGeometry(sh2);geo.rotateX(-Math.PI/2);const m=new TH.Mesh(geo,mat(col));m.position.y=y;m.receiveShadow=true;m.name=name;model.add(m);};
-    g.items.forEach(it=>{lvl++;const y=.01+it.z*.012+lvl*.00001;if(it.t==='poly')flat(it.xy,it.col,y,it.cat||'belgi');
-    else if(it.t==='line'){const wM=widthM(it.opt.weight),dash=dashM(it.opt.dashArray);ribbon(it.xy,wM,dash,it.opt.color,y+.01);}});
-  function ribbon(pts,wM,dash,col,y){const segs=[];if(dash){let on=true,rem=dash[0],cur=[pts[0]];for(let i=1;i<pts.length;i++){let a=pts[i-1];const b=pts[i];let L2=Math.hypot(b[0]-a[0],b[1]-a[1]);
+  let lvl=0;const flat=(xy,col,y,name,it)=>{if(xy.length<3)return;const sh2=new TH.Shape(xy.map(p=>new TH.Vector2(p[0],p[1])));const geo=new TH.ShapeGeometry(sh2);geo.rotateX(-Math.PI/2);
+    if(it&&(it.lv||it.sid!=null&&AX[it.sid])){const P=geo.attributes.position;for(let i=0;i<P.count;i++)P.setY(i,P.getY(i)+hOf(it,[P.getX(i),-P.getZ(i)]));P.needsUpdate=true;geo.computeVertexNormals();}
+    const m=new TH.Mesh(geo,mat(col));m.position.y=y;m.receiveShadow=true;m.castShadow=!!(it&&it.lv>0);m.name=name;model.add(m);};
+    g.items.forEach(it=>{lvl++;if(it.flat2d)return;                                            // 2D soya — 3D da haqiqiy soya bor
+    const y=.01+(it.z-(it.lv||0)*100)*.012+lvl*.00001;if(it.t==='poly')flat(it.xy,it.col,y,it.cat||'belgi',it);
+    else if(it.t==='line'){const wM=widthM(it.opt.weight),dash=dashM(it.opt.dashArray);ribbon(it.xy,wM,dash,it.opt.color,y+.01,it);}});
+  /* estakada: oraliq toʻsini (1,2 m), parapet (1,1 m) va tayanchlar (har ~30 m, balandligi > 2 m boʻlsa) */
+  const wall=(pts,top,bot,col,name)=>{const v=[],ix=[];pts.forEach((p,i)=>{v.push(p[0],top(p),-p[1],p[0],bot(p),-p[1]);if(i){const k=2*i;ix.push(k-2,k-1,k,k,k-1,k+1);}});
+    const geo=new TH.BufferGeometry();geo.setAttribute('position',new TH.Float32BufferAttribute(v,3));geo.setIndex(ix);geo.computeVertexNormals();const m=new TH.Mesh(geo,mat(col,{side:TH.DoubleSide}));m.castShadow=true;m.name=name;model.add(m);};
+  const pierG=new TH.BoxGeometry(1.4,1,1.4);
+  Object.values(AX).forEach(A=>{const it={lv:A.sg.lv||0,sid:A.sg.id},w=A.lay.outer;if(Math.max(A.sg.lv|0,A.sg.lv2|0)<=0)return;
+    const T=A.c[A.c.length-1],dens=[];for(let s=0;s<=T;s+=2)dens.push(pointAt(A.xy,A.c,s));if(dens.length<2)return;
+    [w,-w].forEach(d=>{const L2=offsetLine(dens,d),hp=p=>hOf(it,p)+.15;wall(L2,p=>hp(p)+1.1,hp,'#cfcac0','parapet');wall(L2,p=>Math.max(.05,hp(p)-.15),p=>Math.max(0,hp(p)-1.35),'#a9a49a','oraliq toʻsini');});
+    for(let s=15;s<T-5;s+=30){const p=pointAt(A.xy,A.c,s),h=hOf(it,p)-1.35;if(h<2)continue;[-.55,.55].forEach(f=>{const fr=frameAt(A.xy,A.c,s),q=[p[0]+fr.n[0]*w*f,p[1]+fr.n[1]*w*f];
+      const m=new TH.Mesh(pierG,mat('#b5b0a6'));m.scale.y=h;m.position.set(q[0],h/2,-q[1]);m.castShadow=true;m.name='tayanch';model.add(m);});}});
+  function ribbon(pts,wM,dash,col,y,it){const segs=[];if(dash){let on=true,rem=dash[0],cur=[pts[0]];for(let i=1;i<pts.length;i++){let a=pts[i-1];const b=pts[i];let L2=Math.hypot(b[0]-a[0],b[1]-a[1]);
       while(L2>1e-6){const st=Math.min(rem,L2),t=st/L2,p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];if(on)cur.push(p);L2-=st;rem-=st;a=p;if(rem<=1e-6){if(on&&cur.length>1)segs.push(cur);on=!on;rem=on?dash[0]:dash[1];cur=[p];}}
       }if(on&&cur.length>1)segs.push(cur);}else segs.push(pts);
-    segs.forEach(p=>{if(p.length<2)return;const A=offsetLine(p,wM/2),B=offsetLine(p,-wM/2).reverse();flat([...A,...B],col,y,'chiziq');});}
+    segs.forEach(p=>{if(p.length<2)return;const A=offsetLine(p,wM/2),B=offsetLine(p,-wM/2).reverse();flat([...A,...B],col,y,'chiziq',it);});}
   // daraxtlar, mashinalar, pavilonlar
   const trunkG=new TH.CylinderGeometry(.12,.18,3,6),crownG=new TH.IcosahedronGeometry(1,1),carG=new TH.BoxGeometry(4.3,1.45,1.8),carTop=new TH.BoxGeometry(2.2,.7,1.6);
   const carCols=['#e5e5e5','#2b2f36','#9aa3ab','#b8352c','#1f4e8c','#d9d2c3','#555'];let ci=0;
-  g.sh.forEach(x=>{const p=toXY(x.ll,g.o);
-    if(x.t==='tree'){const tr=new TH.Mesh(trunkG,mat('#6b4f35'));tr.position.set(p[0],1.6,-p[1]);tr.castShadow=true;tr.name='daraxt';model.add(tr);
-      const cr=new TH.Mesh(crownG,mat('#4f7d3a'));const r=Math.max(1.4,x.r);cr.scale.set(r,r*.9,r);cr.position.set(p[0],3+r*.7,-p[1]);cr.castShadow=true;cr.name='daraxt';model.add(cr);}
-    if(x.t==='car'){const grp=new TH.Group();const col=carCols[ci++%carCols.length];const b=new TH.Mesh(carG,mat(col));b.position.y=.8;const t=new TH.Mesh(carTop,mat('#2c3d4a'));t.position.set(-.2,1.8,0);b.castShadow=t.castShadow=true;grp.add(b,t);grp.position.set(p[0],0,-p[1]);grp.rotation.y=x.h;grp.name='mashina';model.add(grp);}
-    if(x.t==='box'){const b=new TH.Mesh(new TH.BoxGeometry(x.w,x.h,x.d),mat(x.col,x.h>1?{transparent:true,opacity:.75}:{}));b.position.set(p[0],x.h/2+.14,-p[1]);b.rotation.y=x.ang||0;b.castShadow=true;b.name='pavilon';model.add(b);}
+  g.sh.forEach(x=>{const p=toXY(x.ll,g.o),hz=x.lv||x.sid!=null&&AX[x.sid]?hOf(x,p):0;
+    if(x.t==='tree'){const tr=new TH.Mesh(trunkG,mat('#6b4f35'));tr.position.set(p[0],1.6+hz,-p[1]);tr.castShadow=true;tr.name='daraxt';model.add(tr);
+      const cr=new TH.Mesh(crownG,mat('#4f7d3a'));const r=Math.max(1.4,x.r);cr.scale.set(r,r*.9,r);cr.position.set(p[0],3+r*.7+hz,-p[1]);cr.castShadow=true;cr.name='daraxt';model.add(cr);}
+    if(x.t==='car'){const grp=new TH.Group();const col=carCols[ci++%carCols.length];const b=new TH.Mesh(carG,mat(col));b.position.y=.8;const t=new TH.Mesh(carTop,mat('#2c3d4a'));t.position.set(-.2,1.8,0);b.castShadow=t.castShadow=true;grp.add(b,t);grp.position.set(p[0],hz,-p[1]);grp.rotation.y=x.h;grp.name='mashina';model.add(grp);}
+    if(x.t==='box'){const b=new TH.Mesh(new TH.BoxGeometry(x.w,x.h,x.d),mat(x.col,x.h>1?{transparent:true,opacity:.75}:{}));b.position.set(p[0],x.h/2+.14+hz,-p[1]);b.rotation.y=x.ang||0;b.castShadow=true;b.name='pavilon';model.add(b);}
   });
   // belgilar: ustun + belgi (har doim kameraga qaragan)
   const loader=new TH.TextureLoader(),poleG=new TH.CylinderGeometry(.04,.04,2.6,6);
@@ -2983,7 +3001,7 @@ async function open3D(){
   const onKey=e=>{if(e.key==='Escape'&&!ov.hidden)close();};document.addEventListener('keydown',onKey);
   const onRes=()=>{const w2=host.clientWidth,h2=host.clientHeight;ren.setSize(w2,h2);cam.aspect=w2/h2;cam.updateProjectionMatrix();};window.addEventListener('resize',onRes);
   let run=true;(function loop(){if(!run)return;ctl.update();ren.render(scene,cam);requestAnimationFrame(loop);})();
-  V3={stop(){run=false;document.removeEventListener('keydown',onKey);window.removeEventListener('resize',onRes);ren.dispose();}};
+  V3={cam,ctl,stop(){run=false;document.removeEventListener('keydown',onKey);window.removeEventListener('resize',onRes);ren.dispose();}};
 }
 function exportOBJ(root){
   const TH=THREE,v=new TH.Vector3();let obj=`# Archemistry Lab · Transport infratuzilmasi — ${projName()}\n# birlik: metr; Y — yuqoriga, X — sharq, -Z — shimol\nmtllib ${fslug()}.mtl\n`,mtl='# Archemistry Lab · Transport infratuzilmasi\n',vo=1;const used={};
