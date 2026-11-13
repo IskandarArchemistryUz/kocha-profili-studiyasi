@@ -33,8 +33,8 @@ const top=el(`<div class="kt-ui kt-pn kt-top"><a class="lg" href="app/" title="A
   <nav class="kt-seg" aria-label="Koʻchasoz rejimlari"><span class="on"><b class="kt-mono">A</b>Tarmoq<span class="kt-tag">beta</span></span><a href="app/kochasoz.html#/b"><b class="kt-mono">B</b>Kesim</a><a href="app/kochasoz.html#/c"><b class="kt-mono">C</b>Chorraha<span class="kt-tag">beta</span></a></nav></div>`);
 const acts=el(`<div class="kt-ui kt-pn kt-acts"><span class="kt-q-slot"></span>
   <button class="kt-btn ic" data-a="undo" title="Orqaga (Ctrl+Z)" aria-label="Orqaga">${IC.undo}</button><button class="kt-btn ic" data-a="redo" title="Oldinga (Ctrl+Y)" aria-label="Oldinga">${IC.redo}</button>
-  <div class="kt-seg" role="group" aria-label="Fon"><button data-b="stil">Xarita</button><button data-b="img">Sunʼiy yoʻldosh</button></div>
-  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="file">Fayl</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
+  <button class="kt-btn" data-a="sat" title="Fon: sunʼiy yoʻldosh / xarita">Sunʼiy yoʻldosh</button>
+  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="chk" title="YHQ tekshiruvi">Tekshiruv<span class="kt-cnt" hidden></span></button><button class="kt-btn" data-a="file">Fayl</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
 const hint=el(`<div class="kt-ui kt-pn kt-hint" role="status"></div>`);
 const dock=el(`<div class="kt-ui kt-dock"><div class="kt-pn kt-tray" hidden></div><div class="kt-pn kt-tools" role="toolbar" aria-label="Asboblar">${TOOLS.map(([k,n,key],i)=>`${i===1?'<span class="kt-sep"></span>':''}<button class="kt-tool" data-t="${k}" title="${n} (${key})">${IC[k]}${n}<span class="k">${key}</span></button>`).join('')}</div></div>`);
 const card=el(`<div class="kt-ui kt-pn kt-card" hidden></div>`);
@@ -45,9 +45,9 @@ const tray=dock.querySelector('.kt-tray');
 
 /* --- amallar --- */
 acts.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();else if(b.dataset.a==='file')toggleFile(b);
+  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();else if(b.dataset.a==='file')toggleFile(b);else if(b.dataset.a==='chk')toggleChk(b);
   else if(b.dataset.a==='fun'){toggleDSty();try{localStorage.setItem('kt-dsty','1');}catch(e){}refresh();}
-  else if(b.dataset.b){setBase(b.dataset.b);refresh();}});
+  else if(b.dataset.a==='sat'){setBase(/^img/.test(S.base||'')?'stil':'img');refresh();}});
 dock.querySelector('.kt-tools').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const k=b.dataset.t;
   if(k==='sim'){simTool();}else pickTool(k);refresh();});
 /* qoʻllanma (?) — faqat shu sahifa uchun */
@@ -83,6 +83,23 @@ fileP.addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b||b
 fileP.addEventListener('change',e=>{const t=e.target;if(t.dataset.f==='name'){DS().name=t.value.trim();save();return;}
   if(t.dataset.f==='open'){const f=t.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);if(!j.prof&&!j.design)throw 0;loadState(j);setApp('design');toast('Loyiha ochildi.');fileP.hidden=true;}catch(err){toast('Fayl oʻqilmadi: bu Koʻchasoz loyihasi emas.');}};rd.readAsText(f);t.value='';}});
 document.addEventListener('pointerdown',e=>{if(!fileP.hidden&&!e.target.closest('.kt-file,[data-a="file"]'))fileP.hidden=true;});
+
+/* --- Tekshiruv (YHQ): muammolar roʻyxati, xaritada raqamli belgilar, «Tuzatish» --- */
+const chkP=el(`<div class="kt-ui kt-pn kt-card kt-chk" hidden></div>`);document.body.append(chkP);
+function issues(){let ck={};try{ck=checkYHQ();}catch(e){}const out=[];ckOrder(ck).forEach(q=>{const c=ck[q.id];(c[2]||[]).forEach((it,i)=>out.push({rid:q.id,i,it,t:q.t,st:c[0]}));});return {ck,out};}
+function chkHTML(){const {ck,out}=issues(),ds=DS();if(!ds.segs.length)return '<div class="kt-note">Hali koʻcha chizilmagan.</div>';
+  const nok=Object.values(ck).filter(x=>x[0]==='ok').length;
+  return (out.length?`<div class="kt-note" style="color:#b2342a;font-weight:600">${out.length} ta muammo — bosing, xaritada koʻrsatiladi</div>`:`<div class="kt-note" style="color:#2b7449;font-weight:600">${nok} ta qoida tekshirildi — muammo yoʻq</div>`)
+    +out.map((x,n)=>{const sg=segById(x.it.id);return `<div class="kt-iss" data-iss="${x.rid}:${x.i}"><span class="n">${n+1}</span><span class="w"><b>${esc(x.t)}</b><br>${sg?esc(segTitle(sg))+' · ':''}${x.it.why}</span>${x.it.fix?`<button class="kt-btn pr" data-fix="${x.rid}:${x.i}" style="height:28px;padding:0 10px">Tuzatish</button>`:''}</div>`;}).join('')
+    +`<div class="row" style="margin-top:4px"><button class="kt-btn" data-auto>Yoʻl belgilarini avtomatik qoʻyish</button></div><div class="kt-note">Qoida mazmuni YHQ ilovalari asosida umumlashtirilgan; band raqamini tasdiqlang. Faqat koʻcha kesimi va tugunlar tekshiriladi.</div>`;}
+function drawChk(){chkP.innerHTML=`<button class="x" data-c="x" aria-label="Yopish">${IC.x}</button><span class="eb">TEKSHIRUV · YHQ</span>`+chkHTML();}
+function toggleChk(btn){const ds=DS();if(!chkP.hidden){chkP.hidden=true;ds.itab='prop';ds.ckF=null;renderCheckMarks();refresh();return;}
+  fileP.hidden=true;ds.itab='check';drawChk();chkP.hidden=false;renderCheckMarks();const r=btn.getBoundingClientRect();
+  chkP.style.left=Math.max(16,Math.min(innerWidth-chkP.offsetWidth-16,r.right-chkP.offsetWidth))+'px';chkP.style.top=(r.bottom+14)+'px';}
+chkP.addEventListener('click',e=>{const ds=DS();if(e.target.closest('[data-c="x"]')){chkP.hidden=true;ds.itab='prop';ds.ckF=null;renderCheckMarks();refresh();return;}
+  const f=e.target.closest('[data-fix]');if(f){const [r1,i1]=f.dataset.fix.split(':');fixIssue(r1,+i1);drawChk();return;}
+  if(e.target.closest('[data-auto]')){autoSigns();drawChk();return;}
+  const it=e.target.closest('[data-iss]');if(it){const [r1,i1]=it.dataset.iss.split(':');pickTool('select');focusIssue(r1,+i1);chkP.querySelectorAll('.kt-iss').forEach(x=>x.classList.toggle('on',x===it));}});
 
 /* --- koʻcha moduli (Koʻcha asbobi) --- */
 function trayHTML(t){const ds=DS();
@@ -129,6 +146,7 @@ function cardHTML(sel){const ds=DS();
     return `<span class="eb">KOʻCHA</span><div class="ti">${esc(sg.name||(sg.st?'Tahrirlangan kesim':PRESETS[sg.p]?.n||'Koʻcha'))}</div>
       ${lay?`<div class="kt-mut">Eni <b class="kt-mono" style="color:#141414">${lay.W.toFixed(1).replace('.',',')} m</b> · ${lay.lanes} polosa</div>`:''}
       <div class="lbl">Modul</div><select data-k="pre">${sg.st?'<option value="" selected>Tahrirlangan</option>':''}${Object.entries(groups).map(([g,it])=>`<optgroup label="${esc(g)}">${it.map(([k,n])=>`<option value="${k}"${!sg.st&&sg.p===k?' selected':''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select>
+      ${(()=>{const L2=issues().out.filter(x=>x.it.id===sg.id);return L2.length?`<div class="lbl" style="color:#b2342a">Tekshiruv · ${L2.length} ta muammo</div>${L2.map(x=>`<div class="kt-iss"><span class="n" style="background:#b2342a">!</span><span class="w">${x.it.why}</span>${x.it.fix?`<button class="kt-btn pr" data-fix="${x.rid}:${x.i}" style="height:28px;padding:0 10px">Tuzatish</button>`:''}</div>`).join('')}`:'';})()}
       ${apprHTML(sg)}
       <div class="lbl">Qoʻshish</div><div class="row"><button class="kt-btn" data-add="xwalk">Oʻtish joyi</button><button class="kt-btn" data-add="bus">Bekat</button><button class="kt-btn" data-add="bay">Choʻntakli bekat</button></div>
       <div class="row"><button class="kt-btn" data-k="kesim" title="Koʻcha kesimini B rejimida ochish">Kesim (B)</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
@@ -174,6 +192,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.k==='kesim'){location.href='app/kochasoz.html#/b';return;}
   if(b.dataset.k==='prir'){setPri(sel.id,null);return;}
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}
+  if(b.dataset.fix){const [r1,i1]=b.dataset.fix.split(':');fixIssue(r1,+i1);return;}
   if(b.dataset.add){const a=b.dataset.add;if(a==='xwalk')pickTool('xwalk');else{ds.attType=a;pickTool('obj');}return;}
   if(b.dataset.apm){const sg=segById(sel.id),k=b.dataset.apm;if(b.dataset.v==='auto'){if(sg.appr)delete sg.appr[k];if(sg.arr)delete sg.arr[k];afterDesign();}else setAppr(sg,k,()=>{});return;}
   if(b.dataset.ap){const sg=segById(sel.id);setAppr(sg,b.dataset.ap,u=>{const k2=b.dataset.apk;u[k2]=k2==='U'?b.dataset.apv:+b.dataset.apv;});return;}
@@ -198,10 +217,11 @@ function refresh(){const ds=DS(),t=ds.tool||'select';
   dock.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   const th=trayHTML(t);tray.hidden=!th;if(th&&tray.dataset.k!==t+':'+ds.preset+':'+(ds.attType||'')){tray.innerHTML=th;tray.dataset.k=t+':'+ds.preset+':'+(ds.attType||'');}if(!th)tray.dataset.k='';
   hint.innerHTML=hintText(t);
-  const sat=/^img/.test(S.base||'');acts.querySelectorAll('[data-b]').forEach(b=>b.classList.toggle('on',(b.dataset.b==='img')===sat));
+  acts.querySelector('[data-a="sat"]').classList.toggle('on',/^img/.test(S.base||''));
   acts.querySelector('[data-a="fun"]').classList.toggle('on',S.dsty==='line');
-  const sel=t==='select'&&!D.start?ds.sel:null,h=sel&&cardHTML(sel);
-  if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type:'')+'|'+(sel.t==='seg'?(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
+  {const n=issues().out.length,c=acts.querySelector('.kt-cnt');c.hidden=!n;c.textContent=n;if(!chkP.hidden)drawChk();}
+  const sel=t==='select'&&!D.start&&chkP.hidden?ds.sel:null,h=sel&&cardHTML(sel);
+  if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type:'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
     if(card.dataset.k!==k){card.innerHTML=`<button class="x" data-k="x" aria-label="Yopish">${IC.x}</button>`+h;card.dataset.k=k;}card.hidden=false;placeCard();}
   else{card.hidden=true;card.dataset.k='';anchor=null;}
   drawSigns();}
