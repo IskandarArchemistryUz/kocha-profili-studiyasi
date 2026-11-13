@@ -45,9 +45,10 @@ const BETA = (() => {
 const EMBED = (() => { try { return new URLSearchParams(location.search).has('embed') && window.parent !== window; } catch { return false; } })();
 if (EMBED) document.body.classList.add('ks-embed');
 const READY_BOARDS = new Set<BoardId>(['b', 'c', 'varaq']);
-const READY_MODES = new Set(['B', 'C']);
+const READY_MODES = new Set(['A', 'B', 'C']);
 /** 13.11 (Iskandar): Chorraha (harakat modeli bilan) saytda — «beta» belgisi bilan */
-const BETA_MODES = new Set(['C']);
+/* 14.11 (Iskandar, «qani?»): A Tarmoq — xaritada chizish (studiya: koʻcha chizish, sathlar, harakatni sinash, funksional rejim) */
+const BETA_MODES = new Set(['A', 'C']);
 const HIDDEN_MODES = new Set(['E']);
 const READY_VIEWS = new Set([0, 1, 2]);   // B: Kesim, Reja, Aksonometriya (26.10 — 3D)
 const ready = (id: BoardId) => BETA || READY_BOARDS.has(id);
@@ -312,6 +313,7 @@ stage.addEventListener('click', e => {
     const k = MODE_KEY[tab.querySelector('b')?.textContent?.trim() ?? ''];
     if (tab.getAttribute('aria-disabled') === 'true') { toast(tr('Tez orada — bu boʻlim hali ishlab chiqilmoqda')); return; }
     if (k === 'd') { toast(tr('D · Koʻcha muhiti — maketi hali chizilmagan')); return; }
+    if (k === 'a' && !BETA) { location.href = '../studio.html'; return; }   // Tarmoq = xaritada chizish (studiya)
     if (k) go(k);
     return;
   }
