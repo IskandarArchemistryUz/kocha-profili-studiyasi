@@ -40,7 +40,7 @@ body.kt .kssim{left:16px!important;top:76px!important;max-height:calc(100% - 180
 /* --- yuqori oʻng: amallar --- */
 .kt-acts{right:16px;top:16px;display:flex;align-items:center;gap:8px;padding:8px}
 .kt-q{position:relative}
-.kt-q input{height:34px;width:230px;border:0;border-radius:999px;padding:0 14px 0 34px;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8;font:inherit;font-size:13px}
+.kt-q input{height:34px;width:180px;border:0;border-radius:999px;padding:0 14px 0 34px;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8;font:inherit;font-size:13px}
 .kt-q svg{position:absolute;left:11px;top:9px;color:#8f8b84}
 .kt-q .res{position:absolute;top:40px;left:0;right:0;padding:6px}
 .kt-q .res button{display:block;width:100%;text-align:left;padding:7px 10px;border-radius:10px;font-size:12.5px}
@@ -164,3 +164,4 @@ body.kt #v3d{background:#e9edf3!important}
 body.kt #v3d>div:first-child{position:absolute;z-index:2;left:16px;right:16px;top:16px;border:0!important;border-radius:22px;background:var(--pn)!important;padding:8px 10px 8px 16px!important;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)}
 body.kt #v3d>div:first-child b{font-size:15px;font-weight:600}
 body.kt #v3d input[type=checkbox]{accent-color:rgb(76,91,212)}
+@media (max-width:1380px) and (min-width:761px){.kt-q input{width:130px}.kt-top .lg{font-size:0;gap:0}}

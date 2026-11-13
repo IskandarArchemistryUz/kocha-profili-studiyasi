@@ -34,7 +34,7 @@ const top=el(`<div class="kt-ui kt-pn kt-top"><a class="lg" href="app/" title="A
 const acts=el(`<div class="kt-ui kt-pn kt-acts"><span class="kt-q-slot"></span>
   <button class="kt-btn ic" data-a="undo" title="Orqaga (Ctrl+Z)" aria-label="Orqaga">${IC.undo}</button><button class="kt-btn ic" data-a="redo" title="Oldinga (Ctrl+Y)" aria-label="Oldinga">${IC.redo}</button>
   <div class="kt-seg" role="group" aria-label="Fon"><button data-b="stil">Xarita</button><button data-b="img">Sunʼiy yoʻldosh</button></div>
-  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
+  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="file">Fayl</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
 const hint=el(`<div class="kt-ui kt-pn kt-hint" role="status"></div>`);
 const dock=el(`<div class="kt-ui kt-dock"><div class="kt-pn kt-tray" hidden></div><div class="kt-pn kt-tools" role="toolbar" aria-label="Asboblar">${TOOLS.map(([k,n,key],i)=>`${i===1?'<span class="kt-sep"></span>':''}<button class="kt-tool" data-t="${k}" title="${n} (${key})">${IC[k]}${n}<span class="k">${key}</span></button>`).join('')}</div></div>`);
 const card=el(`<div class="kt-ui kt-pn kt-card" hidden></div>`);
@@ -45,7 +45,7 @@ const tray=dock.querySelector('.kt-tray');
 
 /* --- amallar --- */
 acts.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();
+  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();else if(b.dataset.a==='file')toggleFile(b);
   else if(b.dataset.a==='fun'){toggleDSty();try{localStorage.setItem('kt-dsty','1');}catch(e){}refresh();}
   else if(b.dataset.b){setBase(b.dataset.b);refresh();}});
 dock.querySelector('.kt-tools').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const k=b.dataset.t;
@@ -63,6 +63,26 @@ window.openHelp=function(){const m=document.getElementById('helpModal'),b=docume
   const h=document.getElementById('helpTitle');if(h)h.textContent='Tarmoq — qoʻllanma';m.hidden=false;};
 /* eski oʻng tugma menyusi — yangi sahifada yoʻq (hamma narsa karta orqali) */
 window.openMenu=function(){};
+
+/* --- Fayl: nom, saqlash/ochish, eksport (PNG, SVG, DXF, GeoJSON, CSV), Albomga, yangi loyiha --- */
+const fileP=el(`<div class="kt-ui kt-pn kt-card kt-file" hidden></div>`);document.body.append(fileP);
+function toggleFile(btn){if(!fileP.hidden){fileP.hidden=true;return;}const ds=DS(),r=btn.getBoundingClientRect();
+  fileP.innerHTML=`<button class="x" data-f="x" aria-label="Yopish">${IC.x}</button><span class="eb">FAYL</span>
+    <div class="lbl">Loyiha nomi</div><input data-f="name" value="${esc(projName())}" style="height:36px;border:0;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #ebe8e2,0 2px 0 #e2dfd8;padding:0 12px;font:600 13px Archivo,sans-serif">
+    <div class="row"><button class="kt-btn pr" data-f="save">Saqlash (.json)</button><label class="kt-btn" style="cursor:pointer">Ochish…<input type="file" accept=".json" data-f="open" hidden></label></div>
+    <div class="lbl">Eksport</div><div class="row"><button class="kt-btn" data-f="png">PNG</button><button class="kt-btn" data-f="svg">SVG</button><button class="kt-btn" data-f="dxf">DXF</button><button class="kt-btn" data-f="dxfu">DXF (UTM)</button><button class="kt-btn" data-f="csv">Hisob (.csv)</button></div>
+    <div class="row"><button class="kt-btn" data-f="alb">Chizmadon albomiga →</button></div>
+    <div class="kt-note">DXF — qatlamlar bilan (ArchiCAD, AutoCAD, QGIS). Loyiha shu brauzerda avtomatik saqlanadi.</div>
+    <div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-f="clr">Yangi loyiha (tozalash)</button></div>`;
+  fileP.hidden=false;fileP.style.left=Math.max(16,Math.min(innerWidth-fileP.offsetWidth-16,r.right-fileP.offsetWidth))+'px';fileP.style.top=(r.bottom+14)+'px';}
+fileP.addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b||b.tagName==='INPUT')return;const f=b.dataset.f,ds=DS();
+  if(f==='x'){fileP.hidden=true;return;}
+  if(f==='save')saveProjectFile();else if(f==='png')exportPNG(4,/^img/.test(S.base||''));else if(f==='svg')exportSVG(false);
+  else if(f==='dxf')exportDXF('local');else if(f==='dxfu')exportDXF('utm');else if(f==='csv')exportCSV();else if(f==='alb')sendToMaket();
+  else if(f==='clr'){ds.nodes=[];ds.segs=[];ds.signs=[];ds.shapes=[];ds.lines=[];ds.sel=null;ds.cmp=null;afterDesign();toast('Loyiha tozalandi. Ctrl+Z — qaytarish.',()=>undo(),'Qaytarish');fileP.hidden=true;}});
+fileP.addEventListener('change',e=>{const t=e.target;if(t.dataset.f==='name'){DS().name=t.value.trim();save();return;}
+  if(t.dataset.f==='open'){const f=t.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);if(!j.prof&&!j.design)throw 0;loadState(j);setApp('design');toast('Loyiha ochildi.');fileP.hidden=true;}catch(err){toast('Fayl oʻqilmadi: bu Koʻchasoz loyihasi emas.');}};rd.readAsText(f);t.value='';}});
+document.addEventListener('pointerdown',e=>{if(!fileP.hidden&&!e.target.closest('.kt-file,[data-a="file"]'))fileP.hidden=true;});
 
 /* --- koʻcha moduli (Koʻcha asbobi) --- */
 function trayHTML(t){const ds=DS();
