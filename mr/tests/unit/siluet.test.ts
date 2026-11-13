@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { blankProject, migrate, type Project } from '../../src/core/doc';
 import { frame } from '../../src/core/geo';
 import { apply } from '../../src/core/commands';
-import { silhouette, heightAt, nextSecLabel } from '../../src/core/siluet';
+import { silhouette, heightAt, nextSecLabel, projectTrees } from '../../src/core/siluet';
 import { silSheet, silStats, SIL_STYLES } from '../../src/core/siluetsvg';
 import { sheetLayout, sheetSvg, SHEET_DEFAULT, type SheetOpts } from '../../src/core/sheet';
 import type { SheetCtx } from '../../src/core/sheet';
@@ -122,5 +122,21 @@ describe('Kesim va fasad (atrof bilan)', () => {
     expect(svg).toContain('id="Pastki_lenta"'); expect(svg).toContain('Shartli belgilar'); expect(svg).not.toContain('id="Shtamp"');
     // oddiy varaq (lentasiz) — oʻzgarmagan
     expect(sheetSvg(d, ctx(), base, new Date(), false, s => s, silSheet(d, ctx(), 's1', s => s, a.vw, a.vh)).svg).toContain('id="Shtamp"');
+  });
+  it('loyiha koʻcha daraxtlari kesimda (13.11), uchastka ichidagi OSM daraxti — yoʻq', () => {
+    const d0 = doc(), fr = frame(d0.origin), g = (x: number, y: number) => fr.toGeo([x, y]);
+    // uchastka boʻylab, kesim chizigʻiga parallel, 25 m ortda — «Turar joy koʻchasi» (yashil boʻlaklar — daraxtlar)
+    const d = { ...d0, streets: [{ id: 'k1', axis: [g(0, 25), g(200, 25)], profile: 'turar-20' } as any] } as Project;
+    const pt = projectTrees(d);
+    expect(pt.length).toBeGreaterThan(10);
+    expect(projectTrees(d)).toBe(pt);                                              // kesh
+    const c = { ...ctx(), trees: [[100, 60] as [number, number], [230, 50] as [number, number]] };   // (100, 60) — uchastka ichida
+    c.buildings = [...c.buildings, { id: 9, rings: [[[90, 60], [110, 60], [110, 80], [90, 80]]], h: 8 }];   // uchastka ichidagi mavjud bino — buziladi
+    expect(silhouette(d, c, d.sections![0])!.items.some(i => i.id === 'osm9')).toBe(false);
+    expect(silhouette(d, c, d.sections![0])!.items.some(i => i.id === 'osm7')).toBe(true);
+    const tr = silhouette(d, c, d.sections![0])!.items.filter(i => i.kind === 'daraxt');
+    expect(tr.length).toBeGreaterThan(10);
+    expect(tr.some(t => Math.abs(t.d - 60) < 1 && Math.abs((t.s0 + t.s1) / 2 - 150) < 1)).toBe(false);   // uchastka ichidagi OSM daraxti olib tashlangan
+    expect(tr.some(t => Math.abs((t.s0 + t.s1) / 2 - 280) < 1)).toBe(true);                               // tashqaridagi (230, 50) qoladi
   });
 });
