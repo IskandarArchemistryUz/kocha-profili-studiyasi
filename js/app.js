@@ -1522,7 +1522,7 @@ function buildShapes0(){
       else poly(band(st.d1,st.d2),k.col,k.cat,1);
       if(st.k==='tram'){[-.72,.72].forEach(e=>line(offsetLine(xy,st.mid+e).map(q=>toLL(q,o)),{color:'#9ea1a8',weight:1.2}));}
       if(st.k==='hatch'&&st.w>=.8){for(let s=2;s<T-2;s+=4){const f=frameAt(xy,c,s),g=frameAt(xy,c,s+1.8);line([toLL([f.p[0]+f.n[0]*st.d1,f.p[1]+f.n[1]*st.d1],o),toLL([g.p[0]+g.n[0]*st.d2,g.p[1]+g.n[1]*st.d2],o)],{color:'#fff',weight:1});}mark('1.16');}
-      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=Math.max(4,zoneA+r+1);s<T-Math.max(3,zoneB+r+1);s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);}sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
+      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=Math.max(4,zoneA+r+1);s<T-Math.max(3,zoneB+r+1);s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const n0=sh.length,cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);for(let i=n0;i<sh.length;i++)sh[i].flat2d=1;}  /* 2D toj — 3D da haqiqiy daraxt bor */sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
       if(st.k==='rain'){[st.d1-.15,st.d2+.15].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#6fb3d9',weight:1.2,dashArray:'4 3'},null,2));for(let s=2;s<T-2;s+=3.5){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],Math.min(.7,st.w/3),o,10),'#3d6b4f',null,2);}}
       if(st.k==='island'){[st.d1-.1,st.d2+.1].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,2));}
       if(st.k==='shared'){for(let s=3;s<T-3;s+=6){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],.6,o,10),'#b8a47e',null,2);}}
@@ -2963,10 +2963,28 @@ async function open3D(){
   /* estakada: oraliq toʻsini (1,2 m), parapet (1,1 m) va tayanchlar (har ~30 m, balandligi > 2 m boʻlsa) */
   const wall=(pts,top,bot,col,name)=>{const v=[],ix=[];pts.forEach((p,i)=>{v.push(p[0],top(p),-p[1],p[0],bot(p),-p[1]);if(i){const k=2*i;ix.push(k-2,k-1,k,k,k-1,k+1);}});
     const geo=new TH.BufferGeometry();geo.setAttribute('position',new TH.Float32BufferAttribute(v,3));geo.setIndex(ix);geo.computeVertexNormals();const m=new TH.Mesh(geo,mat(col,{side:TH.DoubleSide}));m.castShadow=true;m.name=name;model.add(m);};
+  /* estakada zanjirlari: 2 ta koʻtarilgan koʻcha uchrashgan tugun orqali bitta chiziq — burilishda parapet yoʻlni kesmaydi */
+  const up=Object.values(AX).filter(A=>Math.max(A.sg.lv|0,A.sg.lv2|0)>0),dens=A=>{const it={lv:A.sg.lv||0,sid:A.sg.id},T=A.c[A.c.length-1],P=[];for(let s=0;s<=T+1e-6;s+=Math.min(2,T)){const p=pointAt(A.xy,A.c,Math.min(s,T));P.push([p[0],p[1],hOf(it,p)]);}return P;};
+  const deg={};up.forEach(A=>[A.sg.a,A.sg.b].forEach(n=>deg[n]=(deg[n]||0)+1));const used=new Set();
+  const chains=[];up.forEach(A0=>{if(used.has(A0.sg.id))return;used.add(A0.sg.id);let P=dens(A0),head=A0.sg.a,tail=A0.sg.b,w=A0.lay.outer;
+    const grow=(end,atTail)=>{for(;;){if(deg[end]!==2)return end;const B=up.find(A=>!used.has(A.sg.id)&&(A.sg.a===end||A.sg.b===end));if(!B)return end;used.add(B.sg.id);w=Math.max(w,B.lay.outer);
+      let Q=dens(B);const fwd=B.sg.a===end;if(atTail){if(!fwd)Q.reverse();P=P.concat(Q.slice(1));}else{if(fwd)Q.reverse();P=Q.slice(0,-1).concat(P);}end=fwd?B.sg.b:B.sg.a;}};
+    tail=grow(tail,true);head=grow(head,false);chains.push({P,w});});
+  /* zanjirdagi keskin burilishni yoy bilan yumaloqlash (R = eni + 4 m): tashqi parapet uchi chiqib ketmaydi */
+  const fillet=(P,R)=>{const out=[P[0]];for(let i=1;i<P.length-1;i++){const a=P[i-1],b=P[i],c=P[i+1],u=[b[0]-a[0],b[1]-a[1]],v=[c[0]-b[0],c[1]-b[1]],lu=Math.hypot(...u)||1,lv=Math.hypot(...v)||1;
+      const ang=Math.acos(Math.max(-1,Math.min(1,(u[0]*v[0]+u[1]*v[1])/(lu*lv))));if(ang<.14){out.push(b);continue;}
+      let k=1,d=R*Math.tan(ang/2);let j0=i,j1=i;let dd=0;while(j0>1&&dd<d){dd+=Math.hypot(P[j0][0]-P[j0-1][0],P[j0][1]-P[j0-1][1]);j0--;}dd=0;while(j1<P.length-2&&dd<d){dd+=Math.hypot(P[j1+1][0]-P[j1][0],P[j1+1][1]-P[j1][1]);j1++;}
+      while(out.length>1&&out.length-1>=j0&&out[out.length-1]!==P[j0])out.pop();const A=P[j0],C=P[j1],B=b,n=12;
+      for(let t=1;t<n;t++){const f=t/n,q=[(1-f)*(1-f)*A[0]+2*f*(1-f)*B[0]+f*f*C[0],(1-f)*(1-f)*A[1]+2*f*(1-f)*B[1]+f*f*C[1],(1-f)*A[2]+f*C[2]];out.push(q);}i=j1-1;}
+    out.push(P[P.length-1]);return out;};
+  chains.forEach(({P,w})=>{P=fillet(P,w+4);const xy=P.map(p=>[p[0],p[1]]),H=P.map(p=>p[2]);
+    [w,-w].forEach(d=>{const L2=offsetLine(xy,d).map((q,i)=>[q[0],q[1],H[i]+.15]),T3=q=>q[2];
+      const wallH=(top,bot,col,name)=>{const v=[],ix=[];L2.forEach((q,i)=>{v.push(q[0],top(q),-q[1],q[0],bot(q),-q[1]);if(i&&Math.max(L2[i-1][2],q[2])>.6){const k=2*i;ix.push(k-2,k-1,k,k,k-1,k+1);}});   // yerga tushgan joyda (rampa oxiri) devor yoʻq — koʻchani toʻsmaydi
+        if(!ix.length)return;const geo=new TH.BufferGeometry();geo.setAttribute('position',new TH.Float32BufferAttribute(v,3));geo.setIndex(ix);geo.computeVertexNormals();const m=new TH.Mesh(geo,mat(col,{side:TH.DoubleSide}));m.castShadow=true;m.name=name;model.add(m);};
+      wallH(q=>T3(q)+1.1,T3,'#cfcac0','parapet');wallH(q=>Math.max(.05,T3(q)-.15),q=>Math.max(0,T3(q)-1.35),'#a9a49a','oraliq toʻsini');});});
+  /* tayanchlar — har koʻcha boʻyicha */
   const pierG=new TH.BoxGeometry(1.4,1,1.4);
-  Object.values(AX).forEach(A=>{const it={lv:A.sg.lv||0,sid:A.sg.id},w=A.lay.outer;if(Math.max(A.sg.lv|0,A.sg.lv2|0)<=0)return;
-    const T=A.c[A.c.length-1],dens=[];for(let s=0;s<=T;s+=2)dens.push(pointAt(A.xy,A.c,s));if(dens.length<2)return;
-    [w,-w].forEach(d=>{const L2=offsetLine(dens,d),hp=p=>hOf(it,p)+.15;wall(L2,p=>hp(p)+1.1,hp,'#cfcac0','parapet');wall(L2,p=>Math.max(.05,hp(p)-.15),p=>Math.max(0,hp(p)-1.35),'#a9a49a','oraliq toʻsini');});
+  up.forEach(A=>{const it={lv:A.sg.lv||0,sid:A.sg.id},w=A.lay.outer,T=A.c[A.c.length-1];
     for(let s=15;s<T-5;s+=30){const p=pointAt(A.xy,A.c,s),h=hOf(it,p)-1.35;if(h<2)continue;[-.55,.55].forEach(f=>{const fr=frameAt(A.xy,A.c,s),q=[p[0]+fr.n[0]*w*f,p[1]+fr.n[1]*w*f];
       const m=new TH.Mesh(pierG,mat('#b5b0a6'));m.scale.y=h;m.position.set(q[0],h/2,-q[1]);m.castShadow=true;m.name='tayanch';model.add(m);});}});
   function ribbon(pts,wM,dash,col,y,it){const segs=[];if(dash){let on=true,rem=dash[0],cur=[pts[0]];for(let i=1;i<pts.length;i++){let a=pts[i-1];const b=pts[i];let L2=Math.hypot(b[0]-a[0],b[1]-a[1]);
