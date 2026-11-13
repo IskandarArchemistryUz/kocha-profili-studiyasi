@@ -57,7 +57,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`faol qatla
   const errs: string[] = []; await open(page, errs);
   await page.setViewportSize({ width: w, height: 900 });
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  await expect(page.locator('.joy-l .lt svg.lic')).toHaveCount(14);
+  await expect(page.locator('.joy-l .lt svg.lic')).toHaveCount(15);
   await expect(page.locator('.joy-gl i')).toHaveCount(4);
   await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/, { timeout: 30_000 });
   await joyClick(page, 'piyoda', '.switch');

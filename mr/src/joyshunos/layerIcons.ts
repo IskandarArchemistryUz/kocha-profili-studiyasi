@@ -13,6 +13,7 @@ export const LAYER_ICON: Record<string, string> = {
   xizmat: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
   piyoda: '<path d="M4 16v-2.4C4 11.5 3 10.5 3 8c0-2.7 1.5-6 4.5-6C9.4 2 10 3.8 10 5.5c0 3.1-2 5.7-2 8.7V16a2 2 0 1 1-4 0z"/><path d="M20 20v-2.4c0-2.1 1-3.1 1-5.6 0-2.7-1.5-6-4.5-6C14.6 6 14 7.8 14 9.5c0 3.1 2 5.7 2 8.7V20a2 2 0 1 0 4 0z"/><path d="M16 17h4M4 13h4"/>',
   skaner: '<rect x="3" y="8" width="8" height="13" rx="1"/><path d="M6 12h2M6 16h2"/><circle cx="16.5" cy="8.5" r="4"/><path d="M19.5 11.5l2.5 2.5"/>',
+  izovist: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   oqim: '<path d="M3 7c4 0 6 4 9 4s5-4 9-4"/><path d="M3 13c4 0 6 4 9 4s5-4 9-4"/><path d="M18 5l3 2-3 2M18 11l3 2-3 2"/>',
   raqobat: '<circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/>',
   uylar: '<path d="M3 21V10l5-3 5 3v11"/><path d="M13 21V6h8v15"/><path d="M6 13h1M6 17h1M16 9h2M16 13h2M16 17h2"/>',
