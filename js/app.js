@@ -207,9 +207,11 @@ KPSMAP.onChange(b=>{const k=S.base;if(EXTRA[k]&&EXTRA[k]===b.mode)return;if(SHAR
   bs.after(KPSMAP.control({modes:false,down:true}));}
 document.getElementById('baseSel').onchange=e=>{setBase(e.target.value);gridBg();};
 /* chizma uslubi tanlovi (fon tanlovi yonida) */
-{const bs=document.getElementById('baseSel'),sel=document.createElement('select');sel.id='dStySel';sel.setAttribute('aria-label','Chizma uslubi');sel.title='Chizma uslubi';
-  sel.innerHTML='<option value="color">Chizma: rangli</option><option value="line">Chizma: chiziqli</option>';sel.value=S.dsty==='line'?'line':'color';sel.style.marginLeft='6px';
-  sel.onchange=()=>{S.dsty=sel.value;save();if(typeof afterDesign==='function')afterDesign();gridBg();};bs.after(sel);}
+{const b3=document.getElementById('map3d'),bt=document.createElement('button');bt.id='dStyBtn';bt.type='button';bt.className='b3d';
+  bt.setAttribute('data-tip','Funksional rejim: har funksiya och rangda, qora bordyur (U)');
+  const upd=()=>{const on=S.dsty==='line';bt.textContent='Funksional';bt.setAttribute('aria-pressed',on);bt.style.background=on?'var(--ink,#141414)':'';bt.style.color=on?'#fff':'';bt.style.borderRadius=on?'8px':'';};
+  window.toggleDSty=()=>{S.dsty=S.dsty==='line'?'color':'line';upd();save();if(typeof afterDesign==='function')afterDesign();gridBg();};
+  bt.onclick=toggleDSty;upd();(b3||document.getElementById('baseSel')).before(bt);}
 /* fonsiz xaritada och toʻr (5 m va 25 m) va yumshoq gradient — xarita bilan siljiydi va masshtablanadi */
 function gridBg(){const el=map.getContainer();if(S.base!=='none'){el.style.backgroundImage='';el.style.backgroundColor='';return;}
   const ppm=1/(156543.03392*Math.cos(map.getCenter().lat*Math.PI/180)/Math.pow(2,map.getZoom())),m5=5*ppm,m25=25*ppm,o0=map.latLngToContainerPoint([41.3,69.2]);
@@ -3111,6 +3113,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='?'){e.preventDefault();openHelp();return;}
   if(S.app!=='design')return;
   const k=e.key.toUpperCase(),t=TOOLS.find(x=>x[3]===k);
+  if(k==='U'&&!e.ctrlKey&&!e.metaKey&&!D.start&&!F.pts.length){e.preventDefault();toggleDSty();return;}
   if(t&&!D.start&&!F.pts.length){e.preventDefault();pickTool(t[0]);return;}
   if(k==='M'){e.preventDefault();setTool('dist');}
   if(e.key==='Escape'&&DS().sel&&!D.start&&!F.pts.length){DS().sel=null;afterDesign();}
