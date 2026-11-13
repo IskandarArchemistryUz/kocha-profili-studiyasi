@@ -44,6 +44,15 @@ const app = await buildApp({
   // hudud ma'lumoti keshi: sukut — server/cache (xizmat faqat /srv/archemistry/server ga yoza oladi), 20 GB
   data: { cache: makeCache({ dir: env.DATA_CACHE_DIR || fileURLToPath(new URL('../cache', import.meta.url)), maxBytes: Number(env.DATA_CACHE_GB || 20) * 2 ** 30 }), era5: makeEra5({ key: env.CDS_API_KEY || null }), power: env.NASA_POWER === '0' ? null : makePower() },
   mapKeys: { arcgis: env.ARCGIS_API_KEY || null },
+  // agent «Maslahatchi»: kalit boʻlmasa oʻchiq. Narx/chegara — .env (AGENT_*), sukut agent.js: AGENT_DEFAULTS
+  agent: env.ANTHROPIC_API_KEY ? {
+    apiKey: env.ANTHROPIC_API_KEY.trim(),
+    services: (env.AGENT_SERVICES || 'mr').split(',').map((s) => s.trim()).filter(Boolean),
+    models: { ...(env.AGENT_MODEL_SHORT ? { short: env.AGENT_MODEL_SHORT } : {}), ...(env.AGENT_MODEL_LONG ? { long: env.AGENT_MODEL_LONG } : {}) },
+    ...(env.AGENT_PRICES ? { prices: JSON.parse(env.AGENT_PRICES) } : {}),
+    ...(env.AGENT_FREE_DAILY_USD ? { freeDailyUsd: Number(env.AGENT_FREE_DAILY_USD) } : {}),
+    ...(env.AGENT_DAILY_USD ? { dailyUsd: Number(env.AGENT_DAILY_USD) } : {}),
+  } : null,
   owners: (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   secure: env.COOKIE_SECURE !== '0',
   logger: true,

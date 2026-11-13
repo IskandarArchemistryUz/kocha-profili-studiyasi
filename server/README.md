@@ -21,6 +21,14 @@ Oʻzbekiston hududida saqlanishi kerak).
 | `POST /export/ticket` `{items, areaHa, stateHash}` | tanga yechiladi → 15 daqiqalik imzolangan ruxsatnoma; shu holatni qayta yuklash bepul |
 | `POST /export/verify` `{ticket}` | ruxsatnomani tekshirish |
 | `POST /trial` `{kind: area\|flats\|wind}` | haftasiga 3 tasi bepul, keyin 1 / 2 / 2 tanga |
+| `GET /agent/config` | agent «Maslahatchi»: yoqilganmi, xizmatlar, ssenariylar narxi, bepul qoldiq |
+| `POST /agent/run` `{scenario, project?, areaHa?}` | yurish boshlash: haftalik bepul savol yoki tanga oldindan yechiladi → `run` |
+| `POST /agent/step` `{run, messages, lang}` | bitta model qadami (tizim yoʻriqnomasi va buyruqlar serverda qoʻshiladi) |
+
+**Agent** (`src/agent.js`, `src/agent-tools.js`): kalit `ANTHROPIC_API_KEY` faqat serverdagi `.env` da; boʻlmasa oʻchiq.
+Qisqa savol 1 tanga, xulosa 3 tanga (k yoʻq, loyiha shiftiga kiradi); haftasiga 3 ta qisqa savol bepul. Chegaralar: yurishda
+≤ 10 qadam va ≤ 200 ming kirish tokeni, 30 daqiqa; bepul savollarga kunlik $2, hammasiga kunlik $20 (`AGENT_*`).
+Birinchi qadam model xatosi bilan tugasa — tanga va bepul savol qaytariladi. Savol matni bazaga yozilmaydi — faqat token, $, tanga.
 
 Xatolar: `401` — kirilmagan, `402` — tanga yetmaydi (`need`, `balance`), `429` — juda koʻp soʻrov.
 
