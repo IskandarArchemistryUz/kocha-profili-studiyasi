@@ -143,6 +143,11 @@ import { check as checkAuth, current as currentUser, onAuth, logout } from '../a
 import { loginDialog } from '../account/login';
 import { isLinkOwner, setExportArea, setExportProject } from '../core/wm';
 import { buyDialog } from '../account/buy';
+// 13.11: agent «Maslahatchi» (faqat oʻqiydi) — agent/*, server/src/agent.js
+import { AgentPanel, agentIntro, agentSeen, markAgentSeen, type Quick } from '../agent/panel';
+import { agentConfig } from '../agent/api';
+import { mrTools, type MrHost } from '../agent/tools-mr';
+import { quote as quoteApi } from '../account/session';
 import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 /** yer sathi xaritasi legendasi (Qatlamlar paneli va varaq) */
@@ -258,7 +263,7 @@ export class Editor {
     addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 
-  dispose(): void { this.world.dispose(); this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
+  dispose(): void { document.getElementById('agTip')?.remove(); this.world.dispose(); this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
 
   /* ---------- qobiq ---------- */
   private build(): HTMLElement {
@@ -291,7 +296,7 @@ export class Editor {
         h('button', { class: 'mi', id: 'gxOpen', onclick: () => { this.closePop(); this.startFrame(); } }, h('b', {}, tr('Grafika')), h('span', {}, tr('Masshtabli varaqlar: bosh reja, zonalash, figure-ground, landshaft — SVG/PNG'))),
         h('button', { class: 'mi', id: 'chOpen', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari'))))),
       // til va tema — bitta «Sozlamalar» tugmasida
-      this.prefBtn(lang, theme), this.acctBtn());
+      this.agentBtn(), this.prefBtn(lang, theme), this.acctBtn());
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
     // 04.11 (beqaror testlar): hisob tugab panel qayta chizilishi yozuv paytida kechiktiriladi — fokus paneldan chiqqanda chiziladi
@@ -438,6 +443,55 @@ export class Editor {
     draw(); this.off.push(onAuth(draw)); this.off.push(onPrices(() => this.root.querySelectorAll<HTMLElement>('[data-ptag]').forEach(el => { el.textContent = priceTag(el.dataset.ptag as Parameters<typeof priceTag>[0]); el.hidden = !el.textContent; })));   // faqat yozuvlar — panel qayta chizilmaydi (kiritilgan qiymatlar saqlanadi)
     if (authRequired() && !isLinkOwner()) void checkAuth();
     return box;
+  }
+
+  /* ---------- 13.11: agent «Maslahatchi» ---------- */
+  private agent: AgentPanel | null = null;
+  private agentOn = false;
+  private static readonly AGENT_QUICK: Quick[] = [
+    { id: 'why', label: 'Nega FAIL?', scenario: 'mr.why_fail', prompt: 'Qaysi meʼyorlar bajarilmagan va nega? Har biri uchun band, raqamlar va tuzatish yoʻlini ayting.' },
+    { id: 'audit', label: 'Audit xulosasi', scenario: 'mr.audit', prompt: 'Loyihaning meʼyoriy audit xulosasini tuzing: barcha buzilish va koʻrib chiqish bandlari ogʻirligi boʻyicha, har birida band va raqamlar.' },
+    { id: 'brief', label: 'Brief bilan solishtirish', scenario: 'mr.brief', fill: true, prompt: 'Mening briefim: … Loyiha TEP koʻrsatkichlarini shu brief bilan solishtiring va farqlarni jadval qiling.' },
+    { id: 'tep', label: 'TEP haqida', scenario: 'mr.ask', prompt: 'Asosiy TEP koʻrsatkichlarini qisqa tushuntiring: aholi, zichlik, umumiy maydon, koʻkalamzorlashtirish.' },
+  ];
+  private agentBtn(): HTMLElement {
+    const b = h('button', { class: 'btn agbtn', id: 'agentBtn', type: 'button', hidden: true, 'aria-pressed': 'false', title: tr('Maslahatchi — loyiha boʻyicha savol bering'), onclick: () => this.agentToggle() },
+      svgIcon('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8M8 13h5"/>'), h('span', {}, tr('Maslahatchi')), agentSeen() ? '' : h('span', { class: 'ag-dot', 'aria-label': tr('yangi') }));
+    void agentConfig().then(c => {
+      if (!c?.enabled || !c.services.includes('mr') || !b.isConnected) return;
+      b.hidden = false; this.agentOn = true; this.renderKpi();
+      agentIntro(b, () => this.agentToggle(true));
+    });
+    return b;
+  }
+  private agentPanel(): AgentPanel {
+    if (!this.agent) {
+      this.agent = new AgentPanel({
+        svc: 'mr', quick: Editor.AGENT_QUICK, tools: () => mrTools(this.agentHost()),
+        project: () => this.store.doc.id, areaHa: () => this.last?.d.siteHa ?? 0,
+        onClose: () => this.root.querySelector('#agentBtn')?.setAttribute('aria-pressed', 'false'),
+      });
+      this.root.append(this.agent.el);
+    }
+    return this.agent;
+  }
+  private agentToggle(open?: boolean): void {
+    const p = this.agentPanel(), want = open ?? !p.isOpen;
+    if (want) { p.open(); markAgentSeen(); this.root.querySelector('#agentBtn .ag-dot')?.remove(); } else p.close();
+    this.root.querySelector('#agentBtn')?.setAttribute('aria-pressed', String(want));
+  }
+  /** «Nega?» (meʼyor qatori) — panel shu band bilan ochiladi */
+  private agentAsk(r: Result): void {
+    this.agentToggle(true);
+    void this.agentPanel().ask(tf('Nega «${t}» (${c}) bajarilmagan? Raqamlar va tuzatish yoʻlini ayting.', { t: tr(r.title), c: `${r.source.doc} · ${r.source.clause}` }), 'mr.why_fail');
+  }
+  private agentHost(): MrHost {
+    return {
+      doc: () => this.store.doc, derived: () => this.last?.d ?? null, rules: () => this.allRules(), tep: () => this.tep(),
+      normSet: () => String(this.normSet()), step: () => this.step.id,
+      highlight: (ids) => { const bids = ids.filter(id => this.store.doc.buildings.some(b => b.id === id)); this.scene.setIssues(this.store.doc, bids.length ? { bids } : null); return bids.length; },
+      quote: (action) => quoteApi([action], this.last?.d.siteHa ?? 0),
+    };
   }
 
   private popBtn(id: string, label: string, body: () => HTMLElement, dir: 'down' | 'up' = 'down', icon?: string): HTMLElement {
@@ -5278,6 +5332,8 @@ export class Editor {
               h('span', { class: `chip ${CLS[r.status]}`, 'data-s': r.status, title: st, 'aria-label': st }, h('i'), r.value != null ? h('span', { class: 'num' }, `${fmt(r.value, r.digits ?? 0)}${slash(r.unit) || (r.value === 0 && r.status === 'fail' && r.unit) ? ' ' + tr(r.unit!) : ''}`) : st),
               // 01.11 (egasi: «0 qiymatlar qizil — xatomi?»): talab bor, loyihada esa umuman yoʻq (maktab, MTM, avtoturargoh, bogʻ) — shuni aniq yozamiz
               r.value === 0 && r.status === 'fail' ? h('span', { class: 't-small', 'data-nol': '' }, tr('loyihada yoʻq')) : '',
+              // 13.11: agent «Maslahatchi» — buzilish/koʻrib chiqish qatorida «Nega?» (span: qator tugmasi ichida)
+              this.agentOn && (r.status === 'fail' || r.status === 'review') ? h('span', { class: 'ag-why', 'data-why': r.id, role: 'button', tabindex: 0, title: tr('Maslahatchidan soʻrash'), onclick: (e: Event) => { e.stopPropagation(); this.agentAsk(r); }, onkeydown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); this.agentAsk(r); } } }, tr('Nega?')) : '',
               lim ? h('span', { class: 't-small' }, tr(lim)) : '', dl ? h('span', { class: 't-small' }, dl) : '')),
           isOff ? h('div', { class: 'row an-row' }, sw({ id: `an-${r.id}`, label: `${tr('Tahlil sifatida yoqish')} — ${tr(r.title)}`, on: anOn, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { normOn: v ? [...on, r.id] : on.filter(x => x !== r.id) } })) }), h('span', { class: 't-small' }, tr('Tahlil sifatida yoqish'))) : '',
           r.note || (r.where && r.status !== 'pass') ? h('div', { class: 'rnote', hidden: !open }, r.note ? tr(r.note) : '',
