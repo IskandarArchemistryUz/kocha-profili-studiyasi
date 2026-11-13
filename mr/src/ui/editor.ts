@@ -1684,9 +1684,9 @@ export class Editor {
       Array.from({ length: 16 }, (_, k) => ({ value: String(k * 22.5), label: `${rumbName(k)} (${k * 22.5}°) · ${fmt(st.rose[k].reduce((a, b) => a + b, 0) * 100, 0)} %${k === pv.k ? ' — ' + tr('ustun') : ''}`, selected: Math.abs(k * 22.5 - dir) < 1 })));
     body.append(h('div', { class: 'col', id: 'windBox' },
       h('div', { class: 'glabel' }, h('span', {}, tr('Shamol')), h('span', { id: 'windStn' }, `${src !== 'epw' ? st.name : st.name.replace(/\./g, ' ')} · ${fmt(km, 0)} km`)),
-      h('div', { class: 'group flat', style: 'padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px' },
+      h('div', { class: 'group flat', style: 'padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px' },
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.mean, 1)} m/s`), h('span', {}, `${tr('oʻrtacha')} · ${tr('shtil')} ${fmt(st.calm * 100, 0)} %`)),
-        h('div', { class: 'kpi' }, h('b', {}, `${rumbName(pv.k)}`), h('span', {}, `${tr('ustun yoʻnalish')} · ${fmt(pv.share * 100, 0)} %`)),
+        h('div', { class: 'kpi', style: 'grid-column:1 / -1;order:3' }, h('b', {}, `${rumbName(pv.k)}`), h('span', {}, `${tr('ustun yoʻnalish')} · ${fmt(pv.share * 100, 0)} %`)),
         h('div', { class: 'kpi' }, h('b', {}, `${fmt(st.p95, 1)} m/s`), h('span', {}, tr('5 % vaqt oshadi')))),
       this.windRose(st),
       h('span', { class: 't-small', id: 'windSrc' }, tr(windSrcLine(src)), ` ${srcAttr(src)}.`),

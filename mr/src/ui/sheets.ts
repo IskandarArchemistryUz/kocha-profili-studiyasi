@@ -478,7 +478,7 @@ export function openGraphics(host: SheetsHost): void {
     const decos: [keyof SheetOpts['show'], string][] = [['title', 'Sarlavha'], ['scaleBar', 'Masshtab chizgʻichi'], ['north', 'Shimol'], ['legend', 'Shartli belgilar'], ['frame', 'Ramka'], ['grid', 'Koordinata toʻri'], ['stamp', 'Shtamp'], ['plotTable', 'Yer uchastkalari jadvali'], ['situation', 'Vaziyat sxemasi'], ['band', 'Pastki lenta (oʻng ustun oʻrniga)']];
     const nDeco = decos.filter(([k]) => S[k]).length;
     const nLay = SHEET_LAYERS.filter(l => layerOf(o, l.id).on).length;
-    const tile = (attrs: Record<string, unknown>, t: string, sub: string) => h('button', { class: 'tile', ...attrs }, h('b', {}, t), sub ? h('span', { class: 'sub' }, sub) : '');
+    const tile = (attrs: Record<string, unknown>, t: string, sub: string) => h('button', { class: 'tile', title: sub || null, ...attrs }, h('b', {}, t), sub ? h('span', { class: 'sub' }, sub) : '');
     const custom = h('input', { class: 'input', type: 'number', min: 50, max: 100000, step: 50, id: 'gxScaleN', placeholder: '1:—', 'aria-label': tr('Ixtiyoriy masshtab'), value: o.scale && !SCALES.includes(o.scale) ? o.scale : '' }) as HTMLInputElement;
     custom.onchange = () => { const v = Math.round(Number(custom.value)); if (v >= 50) set({ scale: v }); };
     const layerRow = (id: SheetLayerId) => {
