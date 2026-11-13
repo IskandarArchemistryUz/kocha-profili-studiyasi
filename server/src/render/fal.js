@@ -11,10 +11,19 @@ export const JWKS_URL = 'https://rest.fal.ai/.well-known/jwks.json';
  * Dvigatellar. usd — taxminiy tannarx (fal narxlari 13.11.2026; kunlik chegara shu bilan hisoblanadi).
  * Model identifikatori va kirish sxemasi — kalit qoʻyilgach fal playground da bir marta tekshiring.
  */
+/** Kirish oʻlchami (uzun tomoni ≤ 2048) — modelga aniq oʻlcham beriladi, kadr qayta kesilmasin */
+const sizeOf = (p) => (p.w > 0 && p.h > 0 ? { width: Math.round(p.w / 16) * 16, height: Math.round(p.h / 16) * 16 } : undefined);
+const KONTEXT_AR = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21']);
+
 export const ENGINES = Object.freeze({
   fast: { item: 'ren.fast', model: 'fal-ai/bytedance/seedream/v4.5/edit', usd: 0.04, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, image_size: 'auto_2K', enable_safety_checker: true }) },
   pro: { item: 'ren.pro', model: 'fal-ai/nano-banana-pro/edit', usd: 0.15, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, resolution: '2K', aspect_ratio: p.aspect ?? 'auto', output_format: 'png' }) },
   pro4k: { item: 'ren.pro4k', model: 'fal-ai/nano-banana-pro/edit', usd: 0.30, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, resolution: '4K', aspect_ratio: p.aspect ?? 'auto', output_format: 'png' }) },
+  /* Sinov modellari (13.11, lab: true) — hozircha faqat egasiga: geometriya taqqoslovi, keyin eng yaxshisi «Tez» boʻladi */
+  qwen: { item: 'ren.fast', lab: true, model: 'fal-ai/qwen-image-edit-2511', usd: 0.07, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, output_format: 'png', enable_safety_checker: true }) },
+  kontext: { item: 'ren.fast', lab: true, model: 'fal-ai/flux-pro/kontext', usd: 0.04, refs: false, input: (p) => ({ prompt: p.prompt, image_url: p.images[0], num_images: 1, output_format: 'png', safety_tolerance: '2', ...(KONTEXT_AR.has(p.aspect) ? { aspect_ratio: p.aspect } : {}) }) },
+  seedream5: { item: 'ren.fast', lab: true, model: 'fal-ai/bytedance/seedream/v5/lite/edit', usd: 0.035, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, ...(sizeOf(p) ? { image_size: sizeOf(p) } : {}), enable_safety_checker: true }) },
+  gptimg: { item: 'ren.pro', lab: true, model: 'openai/gpt-image-2/edit', usd: 0.2, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, image_size: 'auto', quality: 'medium', output_format: 'png' }) },
 });
 
 /** Kadr nisbati → fal qabul qiladigan eng yaqin qiymat */

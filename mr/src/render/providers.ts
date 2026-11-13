@@ -23,7 +23,7 @@ export const ROLES: [RefRole, string][] = [['uslub', 'Uslub'], ['material', 'Mat
 
 export interface RenState { sty: string; extra: string; fid: Fidelity; subj: Subject; n: number; engine: Engine }
 const KEY = 'ren-state';
-const ENG: Engine[] = ['fast', 'pro', 'pro4k'];
+const ENG: Engine[] = ['fast', 'pro', 'pro4k', 'qwen', 'kontext', 'seedream5', 'gptimg'];
 export function loadState(): RenState {
   const s: RenState = { sty: 'foto', extra: '', fid: 'qatiy', subj: 'reja', n: 1, engine: 'pro' };
   try {
