@@ -52,4 +52,9 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     }
     expect(bad).toBe(0);
   }, 60_000);
+  it('svetoforsiz teng chorraha: 4×200 avt/soat — talab bajariladi (oʻtkazuvchanlik ~1000 avt/soat atrofida)', () => {
+    const r = new GraphSim(net([0, 90, 180, 270], false), { demand: { a0: 200, a1: 200, a2: 200, a3: 200 }, seed: 1 }).run(1020).result(120);
+    expect(r.total.flow).toBeGreaterThan(700);
+    expect(r.total.los).not.toBe('F');
+  }, 60_000);
 });

@@ -1660,7 +1660,8 @@ function buildShapes0(){
       const exits=lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===outDir).map(x=>({x,P:pt(fE,x.mid),pts:axis(x.mid,z)}))
         .sort((p,q)=>((q.P[0]-fE.p[0])*lv[0]+(q.P[1]-fE.p[1])*lv[1])-((p.P[0]-fE.p[0])*lv[0]+(p.P[1]-fE.p[1])*lv[1]));
       const lanes=arrowPlan(a.sg,!a.atA).map(pl=>({x:pl.x,code:pl.code||'',P:pt(fS,pl.x.mid),pts:axis(pl.x.mid,z+1).reverse()}));
-      return {a,ai,hin,out,lanes,exits,name:a.sg.name||''};});
+      const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(.5+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
+      return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||''};});
     const C=laneConnections(E);C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
     JNET.set(n.id,{E,C,o,sig:k==='sig'});
     if(ds.conn)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
