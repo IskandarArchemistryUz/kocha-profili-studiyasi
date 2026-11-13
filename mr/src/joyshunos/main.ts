@@ -47,7 +47,7 @@ import { dropdown, sw as swc, seg } from '../ui/controls';
 import { readCogWindow, kadWindow, popStats, popDens, ghsCol, GHS_POP_URL, GHS_DENS, type PopWin } from './population';
 import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, KAD_ERA, KAD_SEI, KAD_DENS, KAD_CELL_HA, type KadGrid } from './kadastr';
 import { windFlow, clipLine, windSpeedGrid } from './windflow';
-import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
+import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, WALK_MIN_PAL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
@@ -105,6 +105,8 @@ const actId = (): LayerId | undefined => (S.act && isOn(S.act) ? S.act : [...S.o
 const FOCUS_DIM = 0.3;
 let viewOpen = (() => { try { return localStorage.getItem('joy-view-open') !== '0'; } catch { return true; } })();   // prototipdagidek sukut boʻyicha ochiq
 const V = (id: LayerId) => view(S.v, id);
+/** Piyoda: tanlangan persona (1-oʻq) va koʻrinish (2-oʻq: oraliq | daqiqa) */
+const pers = () => V('piyoda').st.split('|')[0], walkMode = () => V('piyoda').st.split('|')[1];
 function setView(id: LayerId, p: LayerView, live?: boolean): void {
   S.v = { ...S.v, [id]: { ...S.v?.[id], ...p } };
   heatKey = noiseKey = slopeKey = ''; isoKey = ''; gipsKey = '';
@@ -155,7 +157,7 @@ function netModels(): NetM | null {
 /** Ogʻir hisoblar navbat bilan (UI qotmasin) */
 function computeNet(): void {
   const m = netModels(); if (!m || nmBusy) return;
-  if (m.reach && m.pers !== V('piyoda').st) m.reach = undefined;
+  if (m.reach && m.pers !== pers()) m.reach = undefined;
   if (m.flow && m.flowSrc !== flowSrc()) m.flow = undefined;   // aholi/bino maʼlumoti keyin kelsa — oqim qayta
   const job = isOn('piyoda') && !m.reach ? 'reach' : isOn('oqim') && !m.flow ? 'flow' : isOn('shovqin') && !m.noise ? 'noise' : null; if (!job) return;
   nmBusy = true;
@@ -163,7 +165,7 @@ function computeNet(): void {
     try {
       const pb = D.poi.v!;
       if (job === 'reach') {
-        const st = V('piyoda').st, f = PERSONA[st]?.v / 5 || 1;
+        const st = pers(), f = PERSONA[st]?.v / 5 || 1;
         if (st === 'hammasi') {   // har band — bitta persona guruhi, 10 daqiqa; sekin guruhlar trassa/estakadadan yurmaydi (qattiq tarmoq)
           const mins = PERSONA_ALL.map(p => 10 * p.v / 5), N = reach(m.net, mins), Sr = reach(m.strict, mins), nS = PERSONA_ALL.findIndex(p => !p.ids.some(i => STRICT.has(i)));
           for (let s2 = 0; s2 < N.seg.length; s2++) { const b = Sr.seg[s2]; N.seg[s2] = b >= 0 && b < nS ? b : N.seg[s2] >= 0 ? Math.max(N.seg[s2], nS) : -1; }
@@ -818,8 +820,8 @@ function renderRightH(): void {
     cards.push(card(L('piyoda'), tr('OSM tarmoq'), r ? (all ? tf('${a} → ${b} ga · 10 daqiqa', { a: ha(r.area[0]), b: ha(r.area[r.area.length - 1]) }) : tf('${h} ga · 15 daqiqa', { h: ha(r.area[2]) })) : '—',
       r ? [all ? h('ul', { class: 'joy-norm' }, ...PERSONA_ALL.map((p, i) => h('li', {}, h('span', {}, h('i', { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${p.col}` }), tr(p.name)), h('b', {}, tf('${a} ga', { a: ha(r.area[i]) })), h('em', {}, `${fmt(p.v, 1)} km/soat`)))) : tf('5 daqiqa: ${a} ga · 10 daqiqa: ${b} ga · 15 daqiqa: ${c} ga (yoʻllardan 40 m)', { a: ha(r.area[0]), b: ha(r.area[1]), c: ha(r.area[2]) }), h('br'),
         r.directness != null ? tf('Tarmoq toʻgʻriligi: ${d} (1 — toʻgʻri chiziq; 0,7 dan past — aylanma yoʻllar)', { d: fmt(r.directness, 2) }) : '',
-        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[V('piyoda').st]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
-        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), V('piyoda').st !== 'yosh' && PERSONA[V('piyoda').st] ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[V('piyoda').st].note) })}` : all ? ` ${tr('Har persona — 10 daqiqa, tezliklar taxminiy; aravacha uchun zinapoya va bordyur hali hisobga olinmagan.')}` : '')] : [],
+        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[pers()]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
+        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), pers() !== 'yosh' && PERSONA[pers()] ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[pers()].note) })}` : all ? ` ${tr('Har persona — 10 daqiqa, tezliklar taxminiy; aravacha uchun zinapoya va bordyur hali hisobga olinmagan.')}` : '')] : [],
       null, r ? undefined : busy));
   }
   if (isOn('skaner')) {
@@ -851,6 +853,7 @@ function renderRightH(): void {
     const g = NM?.noise;
     cards.push(card(L('shovqin'), tr('model'), g ? `≈ ${fmt(noiseAt(g))} dB(A)` : '—',
       g ? [tf('Lden, markazda. Doira ichida: ≥ 65 dB — ${a} %, ≥ 53 dB (JSST tavsiyasi) — ${b} %.', { a: fmt(noiseShare(g, 65) * 100), b: fmt(noiseShare(g, 53) * 100) }), h('br'),
+        V('shovqin').st === 'nyc' ? h('ul', { class: 'joy-norm' }, ...([[70, Infinity, '> 70'], [65, 70, '65–70'], [60, 65, '60–65'], [55, 60, '55–60'], [50, 55, '50–55']] as const).map(([a, b, n]) => h('li', {}, h('span', {}, h('i', { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${noiseCol(a + 0.1)}` }), `${n} dB`), h('b', {}, `${fmt((noiseShare(g, a) - (b === Infinity ? 0 : noiseShare(g, b))) * 100)} %`), h('em', {}, tr('doiraning'))))) : '',
         h('span', { class: 'src' }, tr('Model: yoʻl toifasidan manba darajasi, chiziqli tarqalish (3 dB / ikki baravar). Binolar toʻsiqligi, tezlik va oqim hisobga olinmagan. JSST: Environmental Noise Guidelines for the European Region (2018), yoʻl transporti Lden 53 dB.'))] : [],
       null, g ? undefined : busy));
   }
@@ -1339,18 +1342,21 @@ function paintH(): void {
     (m.getSource('joy-cov') as GeoJSONSource).setData(fc(cov) as never);
   }
   // tarmoq modellari
-  const nm = NM, toGeo = (i: number) => nm!.fr.toGeo(nm!.net.xy[i]);
+  const nm = NM;
   const wf: unknown[] = [], ff: unknown[] = [];
   if (nm && isOn('piyoda') && nm.reach) {
-    const all = nm.pers === 'hammasi', nb = all ? PERSONA_ALL.length : 3, by: [number, number][][][] = Array.from({ length: nb }, () => []);
-    nm.net.segs.forEach(([a, b], s) => { const k = nm.reach!.seg[s]; if (k >= 0 && k < nb) by[k].push([toGeo(a) as [number, number], toGeo(b) as [number, number]]); });
-    by.forEach((ls, k) => { if (ls.length) wf.push({ type: 'Feature', properties: all ? { b: k, c: PERSONA_ALL[k].col, w: 3 } : { b: k, c: ['#3f3a9e', '#7b74d6', '#b9b4ef'][k], w: [3.5, 2.6, 2][k] }, geometry: { type: 'MultiLineString', coordinates: ls } }); });
+    const all = nm.pers === 'hammasi', dq = !all && walkMode() === 'daqiqa', nb = all ? PERSONA_ALL.length : dq ? 16 : 3, by: [number, number][][][] = Array.from({ length: nb }, () => []);
+    const sp = WALK * (PERSONA[nm.pers ?? 'yosh']?.v ?? 5) / 5, D = nm.reach.D;   // m/daq shu persona uchun
+    nm.net.segs.forEach(([a, b], s) => { const k = dq ? (nm.reach!.seg[s] >= 0 ? Math.min(15, Math.floor(Math.max(D[a], D[b]) / sp)) : -1) : nm.reach!.seg[s]; if (k >= 0 && k < nb) for (const part of clipLine([nm.net.xy[a] as [number, number], nm.net.xy[b] as [number, number]], S.r)) by[k].push(part.map(q => nm.fr.toGeo(q) as [number, number])); });   // 13.11: faqat doira ichida
+    if (dq) by.forEach((ls, k) => { if (ls.length) wf.push({ type: 'Feature', properties: { b: 0, c: rampColor(WALK_MIN_PAL, k / 15), w: 3.2 }, geometry: { type: 'MultiLineString', coordinates: ls } }); });
+    else by.forEach((ls, k) => { if (ls.length) wf.push({ type: 'Feature', properties: all ? { b: k, c: PERSONA_ALL[k].col, w: 3 } : { b: k, c: ['#3f3a9e', '#7b74d6', '#b9b4ef'][k], w: [3.5, 2.6, 2][k] }, geometry: { type: 'MultiLineString', coordinates: ls } }); });
   }
-  if (nm && isOn('oqim') && nm.flow) nm.net.segs.forEach(([a, b], s) => { const f = nm.flow![s]; if (f >= 0.1) ff.push({ type: 'Feature', properties: { f }, geometry: { type: 'LineString', coordinates: [toGeo(a), toGeo(b)] } }); });
+  if (nm && isOn('oqim') && nm.flow) nm.net.segs.forEach(([a, b], s) => { const f = nm.flow![s]; if (f >= 0.1) for (const part of clipLine([nm.net.xy[a] as [number, number], nm.net.xy[b] as [number, number]], S.r)) ff.push({ type: 'Feature', properties: { f }, geometry: { type: 'LineString', coordinates: part.map(q => nm.fr.toGeo(q)) } }); });
   (m.getSource('joy-walk') as GeoJSONSource).setData(fc(wf.reverse()) as never);
   (m.getSource('joy-flow') as GeoJSONSource).setData(fc(ff.sort((x, y) => ((x as { properties: { f: number } }).properties.f - (y as { properties: { f: number } }).properties.f))) as never);
   if (nm && isOn('shovqin') && nm.noise) {
-    const vn = V('shovqin'), k = `${nm.key}|n|${vn.p}|${vn.st}`; if (k !== noiseKey) { noiseKey = k; const im = gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) || (vn.st === '65' && v < 65) ? null : noiseCol(v), 190, nm.noise.R); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
+    const vn = V('shovqin'), nyc = vn.st === 'nyc', ok = !nyc || axBundle?.key === `${S.c.join()}|${S.r + 100}`; if (nyc && !ok) void needCtx();
+    const k = `${nm.key}|n|${vn.p}|${vn.st}|${ok ? axBundle?.key : '-'}|${isDark()}`; if (k !== noiseKey) { noiseKey = k; const im = nyc ? noiseNycImage(nm.noise, ok) : gridImage(nm.noise.v, nm.noise.n, nm.noise.step, nm.noise.R, v => Number.isNaN(v) || (vn.st === '65' && v < 65) ? null : noiseCol(v), 190, nm.noise.R); (m.getSource('joy-noise') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
     m.setLayoutProperty('joy-noise', 'visibility', 'visible');
   } else m.setLayoutProperty('joy-noise', 'visibility', 'none');
   // issiqlik oroli — yozgi LST (6 km doira)
@@ -1393,6 +1399,7 @@ function paintH(): void {
     : h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
   if (nm?.reach && isOn('piyoda')) lg.push(nm.pers === 'hammasi'
     ? h('div', { class: 'lg' }, h('b', {}, tr('10 daqiqada kim qayergacha yetadi')), ...PERSONA_ALL.map(p => h('span', {}, h('i', { style: `background:${p.col}` }), tr(p.name))))
+    : walkMode() === 'daqiqa' ? h('div', { class: 'lg' }, h('b', {}, tr('Markazdan yurish, daqiqa')), h('span', {}, h('i', { style: `background:linear-gradient(90deg,${WALK_MIN_PAL.join(',')});width:90px` }), '0 · 5 · 10 · ≥ 15'))
     : h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
@@ -1837,6 +1844,25 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
 }
 let noiseKey = '', heatLKey = '', heatKey = '', sunKey = '', shadowKey = '';
 /** Markazga nisbatan toʻr (n×n, qadam step, yarim kenglik R) → rasm; clip — shu radiusdan tashqari shaffof */
+/** Shovqin «NYC» uslubi (13.11, kanvas 5b): silliq shovqin sirti, binolar toʻq kulrang — shovqin ochiq joy va hovlilarda koʻrinadi; faqat doira ichida */
+function noiseNycImage(g: { n: number; step: number; v: Float32Array; R: number }, withB: boolean): { url: string; coords: [number, number][] } {
+  const clip = Math.min(S.r, g.R), px = 640, k = px / (2 * clip), cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const cx = cv.getContext('2d')!, img = cx.createImageData(px, px);
+  for (let r = 0; r < px; r++) for (let q = 0; q < px; q++) {
+    const x = -clip + (q + 0.5) / k, y = clip - (r + 0.5) / k, d = Math.hypot(x, y); if (d > clip) continue;
+    const v = bilinear(g.v, g.n, g.step, x, y); if (Number.isNaN(v) || v < 50) continue; const c = noiseCol(v), o = (r * px + q) * 4;
+    img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = Math.round(225 * Math.min(1, (clip - d) * k));
+  }
+  cx.putImageData(img, 0, 0);
+  if (withB && axBundle) {
+    const fr = geoFrame(S.c), P = (q: LngLat): [number, number] => { const [x, y] = fr.toLocal(q); return [(x + clip) * k, (clip - y) * k]; };
+    cx.save(); cx.beginPath(); cx.arc(px / 2, px / 2, clip * k, 0, 2 * Math.PI); cx.clip(); cx.fillStyle = isDark() ? '#0f1012' : '#3d3d3f';
+    for (const b of axBundle.b.osm.buildings) { cx.beginPath(); for (const rr of b.rings) rr.forEach((q, i) => { const [a, bb] = P(q); if (i) cx.lineTo(a, bb); else cx.moveTo(a, bb); }); cx.fill('evenodd'); }
+    cx.restore();
+  }
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  return { url: cv.toDataURL(), coords: [[S.c[0] - clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] - clip / ky], [S.c[0] - clip / kx, S.c[1] - clip / ky]] };
+}
 function gridImage(vals: Float32Array, n: number, step: number, R: number, col: (v: number) => string | null, alpha = 200, clip?: number): { url: string; coords: [number, number][] } {
   const cv = document.createElement('canvas'); cv.width = cv.height = n;
   const cx = cv.getContext('2d')!, img = cx.createImageData(n, n), c0 = (n - 1) / 2;

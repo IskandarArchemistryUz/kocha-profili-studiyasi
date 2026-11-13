@@ -191,6 +191,28 @@ test('piyoda: «Hammasi» — har persona 10 daqiqada (12.11, kanvas 11)', async
   expect(errs).toEqual([]);
 });
 
+/** 13.11 (kanvas 6b va 5b): piyoda «Har koʻcha daqiqasi» — uzluksiz rang; shovqin «Binolar bilan» — ulushlar roʻyxati */
+test('piyoda daqiqa va shovqin NYC uslublari (13.11)', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errs: string[] = []; await open(page, errs);
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/obyekt/, { timeout: 30_000 });
+  await joyClick(page, 'piyoda', '.lt');
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 30_000 });
+  await openView(page);
+  await page.locator('.jv-st[data-axis="1"] button', { hasText: 'Har koʻcha daqiqasi' }).click();
+  await expect(page.locator('.joy-legend')).toContainText('Markazdan yurish, daqiqa');
+  await expect.poll(() => page.evaluate(() => { const d = (window as any).joyMap.getSource('joy-walk')._data; const fs = (d?.features ?? []) as { properties: { c: string } }[]; return fs.length > 0 && fs.every(f => !['#3f3a9e', '#7b74d6', '#b9b4ef'].includes(f.properties.c)); })).toBe(true);
+  await page.locator('.jv-st[data-axis="0"] button', { hasText: 'Bola' }).click();
+  await expect(page.locator('.jv-st[data-axis="1"] button', { hasText: 'Har koʻcha daqiqasi' })).toHaveAttribute('aria-pressed', 'true');
+  await joyClick(page, 'shovqin', '.lt');
+  await expect(page.locator('[data-card=shovqin] .big')).toHaveText(/dB/, { timeout: 30_000 });
+  await openView(page);
+  await page.locator('.jv-st button', { hasText: 'Binolar bilan' }).click();
+  await expect(page.locator('[data-card=shovqin] .joy-norm li')).toHaveCount(5);
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-noise', 'visibility'))).toBe('visible');
+  expect(errs).toEqual([]);
+});
+
 /** Xarita uslubi (prototip «Joyshunos qatlam uslublari»): yangi palitralar, ranglarni qoʻlda, uchastka uslubi */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`xarita uslubi: ranglar va uchastka · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(150_000);
