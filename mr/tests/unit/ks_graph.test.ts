@@ -79,4 +79,26 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     expect(r.total.los).not.toBe('F');
     expect(g).toBeGreaterThan(0.6);
   }, 60_000);
+  it('tarmoq: ikki svetoforli chorraha koʻcha bilan ulangan — mashina biridan ikkinchisiga oʻtadi, natija tugun boʻyicha', () => {
+    const J = (jid: string, cx: number, Ls: number[]) => {
+      const R0 = 14, W = 3.5;
+      const arms: Arm[] = [0, 90, 180, 270].map((deg, i) => {
+        const a = (deg * Math.PI) / 180, u: XY = [Math.cos(a), Math.sin(a)], rin: XY = [u[1], -u[0]];
+        const P = (s: number, off: number): XY => [cx + u[0] * s + rin[0] * off, u[1] * s + rin[1] * off];
+        return { id: jid + i, j: jid, hin: [-u[0], -u[1]] as XY,
+          lanes: [W / 2, W * 1.5].map((off, k) => ({ id: `${jid}${i}i${k}`, mid: off, pts: [P(R0 + Ls[i], off), P(R0, off)], codes: k === 0 ? 'LS' : 'SR' })),
+          exits: [W / 2, W * 1.5].map((off, k) => ({ id: `${jid}${i}o${k}`, mid: off, pts: [P(R0, -off), P(R0 + Ls[i], -off)] })) };
+      });
+      return { arms, conns: autoConnect(arms, false).map((c) => ({ ...c, id: jid + c.id })), j: { id: jid, signal: { cycle: 80, phases: autoPhases(arms), offset: 0 } } };
+    };
+    const A = J('A', 0, [80, 120, 120, 120]), B = J('B', 200, [120, 120, 80, 120]);
+    const links = [0, 1].flatMap((k) => [{ from: `A0o${k}`, to: ['B2i0', 'B2i1'] }, { from: `B2o${k}`, to: ['A0i0', 'A0i1'] }]);
+    const sim = new GraphSim({ arms: [...A.arms, ...B.arms], conns: [...A.conns, ...B.conns], juncs: [A.j, B.j], links, yUp: false },
+      { demand: { A2: 500, A1: 300, A3: 300, B0: 500, B1: 300, B3: 300 }, seed: 2 }).run(1020);
+    const r = sim.result(120);
+    expect(r.arms.A0.flow).toBeGreaterThan(200);   // Bdan Aga oʻtgan
+    expect(r.arms.B2.flow).toBeGreaterThan(200);   // Adan Bga oʻtgan
+    expect(r.juncs.A.los).not.toBe('F');
+    expect(r.total.flow).toBeGreaterThan(1800);
+  }, 60_000);
 });

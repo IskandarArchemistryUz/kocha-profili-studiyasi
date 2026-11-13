@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path';
 
 /** Sinov va eski sahifalar oddiy tashrif buyuruvchidan yashirin (js/sinov.js), egasiga ochiq; hech biri oʻchirilmagan */
 const ROOT = resolve(process.cwd(), '..'), PORT = 4193;
-const OLD = ['studio', 'gis', 'shamol', 'ai', 'bino', 'posadka', 'data', 'muharrir', 'masterreja', 'loyiha'];
+/* studio — 13.11 dan hammaga ochiq (BETA) */
+const OLD = ['gis', 'shamol', 'ai', 'bino', 'posadka', 'data', 'muharrir', 'masterreja', 'loyiha'];
 let srv: Server;
 test.beforeAll(async () => {
   srv = createServer((q, s) => {
