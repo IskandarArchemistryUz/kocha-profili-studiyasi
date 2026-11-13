@@ -1,0 +1,1 @@
+export{o as toUpload}from"./api-UEc-mgFn.js";
