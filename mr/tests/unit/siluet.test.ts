@@ -139,4 +139,14 @@ describe('Kesim va fasad (atrof bilan)', () => {
     expect(tr.some(t => Math.abs(t.d - 60) < 1 && Math.abs((t.s0 + t.s1) / 2 - 150) < 1)).toBe(false);   // uchastka ichidagi OSM daraxti olib tashlangan
     expect(tr.some(t => Math.abs((t.s0 + t.s1) / 2 - 280) < 1)).toBe(true);                               // tashqaridagi (230, 50) qoladi
   });
+  it('barcha kesimlar bir varaqda (13.11): bir xil masshtab, har biri oʻz lentasida', () => {
+    const d0 = doc(), fr = frame(d0.origin), g = (x: number, y: number) => fr.toGeo([x, y]);
+    const d = apply(d0, { type: 'setSections', sections: [...d0.sections!, { id: 's2', a: g(100, -150), b: g(100, 150), label: '2', look: 1, depth: 200 }] });
+    const r = silSheet(d, ctx(), '*', s => s, 400, 230, 'siluet');
+    expect(r.name).toContain('barcha kesimlar'); expect(r.label).toMatch(/^M 1:\d+$/);
+    const svg = r.body(0, 0, 400, 230);
+    expect((svg.match(/data-sil-lane=/g) ?? []).length).toBe(2); expect(svg).toContain('KESIM 1–1'); expect(svg).toContain('KESIM 2–2');
+    // bitta kesim boʻlsa — oddiy varaq
+    expect(silSheet(d0, ctx(), '*', s => s, 400, 230).name).toBe('Kesim va fasad 1–1');
+  });
 });
