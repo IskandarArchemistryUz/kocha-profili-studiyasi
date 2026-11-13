@@ -12,7 +12,8 @@ export function numbersIn(text) {
   const t = String(text ?? '')
     .replace(DOC_CODE, (m) => ' '.repeat(m.length))
     .replace(/\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, (m) => ' '.repeat(m.length)) // sanalar
-    .replace(/\b\d{1,2}:\d{2}\b/g, (m) => ' '.repeat(m.length)); // soat
+    .replace(/\b\d{1,2}:\d{2}\b/g, (m) => ' '.repeat(m.length)) // soat
+    .replace(/#[0-9a-f]{3,8}\b/gi, (m) => ' '.repeat(m.length)); // rang kodlari (#1a3d61)
   const out = [];
   for (const m of t.matchAll(NUM)) {
     const s = m[0], i = m.index, before = t.slice(Math.max(0, i - 12), i), after = t.slice(i + s.length, i + s.length + 14);

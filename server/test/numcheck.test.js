@@ -21,6 +21,9 @@ describe('manbasiz raqam filtri', () => {
   it('manbada yoʻq son — roʻyxatda', () => {
     expect(unsourced('326 oʻrin, 777 yetmaydi', src({ need: 326 }))).toEqual(['777']);
   });
+  it('rang kodlari tekshirilmaydi', () => {
+    expect(numbersIn('fon #1a3d61, binolar #e5e0d6')).toEqual([]);
+  });
   it('foydalanuvchi savolidagi son ham manba', () => {
     const s = sourceNumbers([{ role: 'user', content: [{ type: 'text', text: '12 qavatli boʻlsa?' }] }]);
     expect(unsourced('12 qavat', s)).toEqual([]);

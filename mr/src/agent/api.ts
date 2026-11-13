@@ -11,7 +11,8 @@ export interface RunRes { run: string; free: boolean; charged: number; capped: b
 export type Block =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean };
+  | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }
+  | { type: 'image'; source: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/webp'; data: string } };
 export interface Msg { role: 'user' | 'assistant'; content: string | Block[] }
 export interface StepRes { content: Block[]; stop: string; status: 'open' | 'done' | 'limit'; stepsLeft: number; /** server filtri: manbasi topilmagan raqamlar */ unsourced?: string[] }
 

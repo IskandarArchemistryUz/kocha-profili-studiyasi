@@ -22,14 +22,16 @@ export interface PanelOpts {
   api?: AgentApi; onClose?: () => void;
   /** savol maydoni matni (sukut: «Loyiha haqida savol bering…») */
   placeholder?: string;
+  /** rasm ilova qilish (namuna xarita va h.k.) */
+  images?: boolean;
 }
 
 const TOOL_NAME: Record<string, string> = {
   project_summary: 'Loyiha xulosasi', get_tep: 'TEP koʻrsatkichlari', run_norm_check: 'Meʼyoriy tekshiruv natijalari', get_norm_clause: 'Meʼyor bandi',
-  joyshunos_layers: 'Qatlamlar xulosasi', nearby_services: 'Yaqin xizmatlar', price_hex_summary: 'Narx kataklari',
+  joyshunos_layers: 'Qatlamlar xulosasi', nearby_services: 'Yaqin xizmatlar', price_hex_summary: 'Narx kataklari', set_map_style: 'Xarita uslubi',
   list_objects: 'Obyektlar roʻyxati', get_object: 'Obyekt parametrlari', get_constraints: 'Cheklovlar', highlight: 'Xaritada belgilash', price_estimate: 'Narx',
 };
-const CLOSE = '<path d="M6 6l12 12M18 6L6 18"/>', SEND = '<path d="M5 12h14M13 6l6 6-6 6"/>', CHEV = '<path d="M9 6l6 6-6 6"/>';
+const CLIP = '<path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>', CLOSE = '<path d="M6 6l12 12M18 6L6 18"/>', SEND = '<path d="M5 12h14M13 6l6 6-6 6"/>', CHEV = '<path d="M9 6l6 6-6 6"/>';
 
 /** Javob matni: xavfsiz (innerHTML yoʻq) — xatboshi, roʻyxat, **qalin**, `kod` */
 export function renderAnswer(text: string): HTMLElement {
@@ -62,6 +64,9 @@ export class AgentPanel {
   private api: AgentApi;
   /** tez tugma maydonni toʻldirgan boʻlsa — shu ssenariy bilan yuboriladi */
   private pending: string | null = null;
+  /** ilova rasm: JPEG base64 (≤ 1024 px) */
+  private img: string | null = null;
+  private imgBox!: HTMLElement;
 
   constructor(private o: PanelOpts) {
     this.api = o.api ?? agentApi;
@@ -69,6 +74,10 @@ export class AgentPanel {
     this.input = h('textarea', { class: 'ag-in', id: 'agIn', rows: 2, maxlength: 2000, placeholder: tr(o.placeholder ?? 'Loyiha haqida savol bering…'), 'aria-label': tr('Savol') }) as HTMLTextAreaElement;
     this.input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.submit(); } });
     this.send = h('button', { class: 'btn btn-primary', id: 'agSend', type: 'button', onclick: () => this.submit() }) as HTMLButtonElement;
+    this.imgBox = h('div', { class: 'ag-img', id: 'agImg', hidden: true });
+    const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', hidden: true, id: 'agFile', onchange: (e: Event) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) void this.attach(f); (e.target as HTMLInputElement).value = ''; } }) as HTMLInputElement;
+    const clip = o.images ? h('button', { class: 'ib sm ag-x ag-clip', id: 'agAttach', type: 'button', title: tr('Rasm qoʻshish (namuna xarita) — yoki Ctrl+V'), 'aria-label': tr('Rasm qoʻshish'), onclick: () => file.click() }, svgIcon(CLIP), file) : null;
+    if (o.images) this.input.addEventListener('paste', e => { const it = [...(e.clipboardData?.items ?? [])].find(x => x.type.startsWith('image/')); const f = it?.getAsFile(); if (f) { e.preventDefault(); void this.attach(f); } });
     this.freeEl = h('span', { class: 't-small ag-free', id: 'agFree' });
     const quick = h('div', { class: 'ag-quick', role: 'group', 'aria-label': tr('Tez savollar') }, ...o.quick.map(q =>
       h('button', { class: 'ag-chip', type: 'button', 'data-q': q.id, title: q.hint ? tr(q.hint) : '', onclick: () => { if (q.fill) { this.pending = q.scenario; this.input.value = tr(q.prompt); this.input.focus(); this.paintPrices(); } else void this.ask(tr(q.prompt), q.scenario); } }, tr(q.label), h('span', { class: 'ag-price', 'data-sc': q.scenario }))));
@@ -79,7 +88,7 @@ export class AgentPanel {
           h('div', { class: 't-small' }, tr('Faqat oʻqiydi · loyihani oʻzgartirmaydi'))),
         h('button', { class: 'ib sm ag-x', id: 'agClose', type: 'button', 'aria-label': tr('Yopish'), onclick: () => this.close() }, svgIcon(CLOSE))),
       this.log,
-      h('div', { class: 'ag-foot' }, quick, h('div', { class: 'ag-box' }, this.input, h('div', { class: 'row ag-row' }, this.freeEl, this.send))));
+      h('div', { class: 'ag-foot' }, quick, h('div', { class: 'ag-box' }, this.imgBox, this.input, h('div', { class: 'row ag-row' }, clip, this.freeEl, this.send))));
     this.empty();
     void this.loadCfg();
   }
@@ -113,9 +122,28 @@ export class AgentPanel {
     this.log.replaceChildren(h('div', { class: 'ag-intro' }, tr('Loyiha raqamlari va meʼyorlar boʻyicha javob beraman. Raqamni oʻzim yozmayman — faqat Lab hisobidan olaman.')));
   }
 
+  /** rasmni ~1024 px JPEG ga kichraytirish (tarmoq va token tejash) */
+  private async attach(f: File): Promise<void> {
+    try {
+      const bmp = await createImageBitmap(f), k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      const g = c.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height); bmp.close?.();
+      let q = 0.85, d = c.toDataURL('image/jpeg', q);
+      while (d.length > 700_000 && q > 0.4) { q -= 0.15; d = c.toDataURL('image/jpeg', q); }
+      this.setImg(d.slice(d.indexOf(',') + 1));
+      this.input.focus();
+    } catch { toast(tr('Rasmni oʻqib boʻlmadi — PNG yoki JPEG yuklang.')); }
+  }
+  private setImg(b64: string | null): void {
+    this.img = b64;
+    this.imgBox.hidden = !b64;
+    this.imgBox.replaceChildren(...(b64 ? [h('img', { src: `data:image/jpeg;base64,${b64}`, alt: tr('Ilova rasm') }),
+      h('button', { class: 'ib sm ag-x', type: 'button', id: 'agImgX', 'aria-label': tr('Rasmni olib tashlash'), onclick: () => this.setImg(null) }, svgIcon(CLOSE))] : []));
+  }
+
   private submit(): void {
     if (this.busy) { this.busy.abort(); return; }
-    const q = this.input.value.trim(); if (!q) { this.input.focus(); return; }
+    const q = this.input.value.trim() || (this.img ? tr('Xaritani shu rasm uslubida bezang.') : ''); if (!q) { this.input.focus(); return; }
     const sc = this.pending ?? `${this.o.svc}.ask`; this.pending = null;
     void this.ask(q, sc);
   }
@@ -130,7 +158,8 @@ export class AgentPanel {
     if (this.tier(scenario) === 'long' && !this.freeMode() && !autoPayOn() && !await this.confirm(scenario)) return;
     this.input.value = '';
     if (this.log.querySelector('.ag-intro')) this.log.replaceChildren();
-    this.log.append(h('div', { class: 'ag-q' }, question));
+    const img = this.img; this.setImg(null);
+    this.log.append(h('div', { class: 'ag-q' }, img ? h('img', { class: 'ag-qimg', src: `data:image/jpeg;base64,${img}`, alt: '' }) : null, question));
     const steps = h('ol', { class: 'ag-steps', 'aria-label': tr('Bajarilayotgan buyruqlar') });
     const wait = h('div', { class: 't-small ag-wait' }, tr('Javob tayyorlanmoqda…'));
     this.log.append(steps, wait); this.scroll();
@@ -139,7 +168,7 @@ export class AgentPanel {
     track(`${this.o.svc}/agent/ask/${scenario.split('.')[1] ?? scenario}`);
     try {
       const r = await runAgent({
-        api: this.api, scenario, question, lang: getLang(), tools: this.o.tools(), project: this.o.project(), areaHa: this.o.areaHa(),
+        api: this.api, scenario, question, image: img, lang: getLang(), tools: this.o.tools(), project: this.o.project(), areaHa: this.o.areaHa(),
         history: this.hist, signal: ac.signal,
         ev: {
           onRun: (run) => { if (this.cfg) this.cfg.freeLeft = run.freeLeft; this.paintPrices(); if (run.charged) { toast(tf('${n} tanga yechildi. Balans: ${b}', { n: fmt(run.charged), b: fmt(run.balance) })); void check(true); } },

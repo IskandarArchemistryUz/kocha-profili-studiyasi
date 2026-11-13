@@ -27,7 +27,12 @@ export interface JoyHost {
   /** narx qatlami: null — oʻchiq; 'load' — yuklanmoqda */
   narx(): JoyNarx | null | 'load' | 'nodata';
   clause?(doc: string, clause: string): Promise<ClauseRes>;
+  /** faqat koʻrinish: xarita palitrasi va ranglari; foydalanuvchi bir bosishda qaytaradi */
+  setMapStyle?(p: MapStyleIn): { applied: MapStyleIn; previous: MapStyleIn };
 }
+export interface MapStyleIn { palette?: string; labels?: boolean; bg?: string; bld?: string; bl?: string; road?: string; park?: string; water?: string; label?: string }
+const HEX = /^#[0-9a-f]{6}$/i;
+const PALS = ['arch', 'line', 'fig', 'dark', 'pastel', 'beton', 'gisht', 'qum', 'oq', 'kok'];
 
 const now = () => new Date().toISOString();
 const r1 = (v: number | null, d = 0): number | null => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
@@ -89,6 +94,16 @@ export function joyTools(H: JoyHost): Tools {
       try { lib = H.clause ? await H.clause(String(i.doc ?? ''), String(i.clause ?? '')) : null; } catch { lib = null; }
       if (lib?.found) return { found: true, doc: lib.doc, clause: lib.clause, edition: lib.edition, source: lib.source, verbatim_text: lib.text, amendments: lib.amend ?? [], text_note: 'Quote verbatim_text exactly (you may shorten with …). Cite doc, clause and edition.' };
       return { found: false, doc: i.doc ?? null, clause: i.clause ?? null, library_coverage: lib?.coverage ?? null, message: 'This clause is not in the Lab library. Do not quote it; give only the document and clause number if the user needs it.' };
+    },
+    set_map_style: (i) => {
+      if (!H.setMapStyle) return { ok: false, message: 'Map style cannot be changed here.' };
+      const p: MapStyleIn = {}, bad: string[] = [];
+      if (typeof i.palette === 'string') { if (PALS.includes(i.palette)) p.palette = i.palette; else bad.push('palette'); }
+      if (typeof i.labels === 'boolean') p.labels = i.labels;
+      for (const k of ['bg', 'bld', 'bl', 'road', 'park', 'water', 'label'] as const) if (i[k] != null) { if (typeof i[k] === 'string' && HEX.test(i[k] as string)) p[k] = (i[k] as string).toLowerCase(); else bad.push(k); }
+      if (!Object.keys(p).length) return { ok: false, message: 'Nothing to change: give a palette or #rrggbb colours.', rejected: bad };
+      const r = H.setMapStyle(p);
+      return { ok: true, applied: r.applied, previous: r.previous, rejected: bad, note: 'Only the map view changed. The user can press «Bekor qilish» to restore the previous look.' };
     },
     price_estimate: () => ({ available: false, message: 'Joyshunos analysis is free; the advisor question price is shown on the send button.' }),
   };
