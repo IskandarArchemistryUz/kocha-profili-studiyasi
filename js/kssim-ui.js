@@ -30,14 +30,14 @@ window.openSim=async function(nodeId){
   box=document.createElement('div');box.className='kssim';
   box.style.cssText='position:absolute;left:12px;top:12px;z-index:650;width:min(430px,calc(100% - 24px));max-height:70%;overflow:auto;background:#fff;border:1px solid #d8d5ce;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:12px 14px;font:13px/1.4 Archivo,system-ui,sans-serif;color:#141414';
   const rows=J.E.filter(e=>e.lanes.length).map(e=>`<tr><td>${esc(armName(e))}</td><td><input type="number" data-q="${e.ai}" min="0" max="3000" step="50" value="500" style="width:72px"> <span class="small">avt/soat</span></td></tr>`).join('');
-  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>Harakatni sinash · ${J.sig?'svetoforli':'tartibga solinmagan'} chorraha</b><button data-x style="border:0;background:none;font-size:18px;cursor:pointer">×</button></div>
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>Harakatni sinash · ${J.sig?'svetoforli':'tartibga solinmagan'} chorraha</b><span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span><button data-x style="border:0;background:none;font-size:18px;cursor:pointer">×</button></div>
     <table style="width:100%;border-collapse:collapse"><tbody>${rows}</tbody></table>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center">
       <span class="small">Ulush, %:</span> ↰ <input type="number" data-s="L" value="20" min="0" max="100" style="width:48px"> ↑ <input type="number" data-s="S" value="65" min="0" max="100" style="width:48px"> ↱ <input type="number" data-s="R" value="15" min="0" max="100" style="width:48px">
       ${J.sig?`<span class="small">Sikl</span> <input type="number" data-c value="90" min="40" max="180" step="5" style="width:56px"> <span class="small">s</span>`:''}
     </div>
     <div style="display:flex;gap:8px;margin-bottom:8px"><button data-run class="btn">Hisoblash (15 daq.)</button><button data-play class="btn">▶ Koʻrsatish</button></div>
-    <div data-out class="small" style="color:#555">Talabni kiriting va «Hisoblash»ni bosing. Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (YHQ: chapga buriluvchi qarshidagiga, svetoforsizda oʻngdan kelayotganga).</div>`;
+    <div data-out class="small" style="color:#555">Talabni kiriting va «Hisoblash»ni bosing. Beta: natijalar taxminiy, loyiha qarori uchun tasdiqlangan model emas. Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (YHQ: chapga buriluvchi qarshidagiga, svetoforsizda oʻngdan kelayotganga).</div>`;
   host.appendChild(box);
   ['mousedown','dblclick','wheel','click','contextmenu'].forEach(ev=>box.addEventListener(ev,e=>e.stopPropagation()));
   box.querySelector('[data-x]').onclick=close;

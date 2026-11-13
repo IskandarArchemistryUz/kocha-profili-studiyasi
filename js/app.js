@@ -1972,7 +1972,7 @@ function renderDesignPanel(){
     <div class="sec-h">Chegaralar (namuna, normativ emas)</div>
     <div class="thr" style="margin-top:0"><div class="field"><label for="dLmin">Min. boʻlak eni, m</label><input id="dLmin" type="number" step="0.05" value="${ds.thr.laneMin}"></div><div class="field"><label for="dLmax">Maks. boʻlak eni, m</label><input id="dLmax" type="number" step="0.05" value="${ds.thr.laneMax}"></div>
     <div class="field"><label for="dCw">Oʻtish joyi eni, m</label><input id="dCw" type="number" step="0.5" value="${ds.thr.cw}"></div><div class="field"><label for="dPg">Toʻxtashsiz masofa, m</label><input id="dPg" type="number" step="0.5" value="${ds.thr.parkGap}"></div></div>
-    <div class="sec-h">Yoʻl belgilari</div><div class="tools"><button class="btn primary" id="dAuto">Belgilarni avtomatik qoʻyish</button><button class="btn" id="dAllS">Barcha belgilarni tanlash</button><span class="small">chorraha, halqa, oʻtish joyi, bekat, bir tomonlama</span></div><div class="tools"><label class="small"><input type="checkbox" id="dConn" ${ds.conn?'checked':''}> Boʻlak ulagichlari — chorrahada qaysi boʻlak qayerga ulanadi</label></div>`;
+    <div class="sec-h">Yoʻl belgilari</div><div class="tools"><button class="btn primary" id="dAuto">Belgilarni avtomatik qoʻyish</button><button class="btn" id="dAllS">Barcha belgilarni tanlash</button><span class="small">chorraha, halqa, oʻtish joyi, bekat, bir tomonlama</span></div><div class="tools"><label class="small"><input type="checkbox" id="dConn" ${ds.conn?'checked':''}> Boʻlak ulagichlari — chorrahada qaysi boʻlak qayerga ulanadi<span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span></label></div>`;
   }
   if(tab==='stats'){
     const st=designStats(),{marks}=buildShapes();
@@ -2581,7 +2581,7 @@ function openNodeMenu(pt,n){const ds=DS(),k=nodeKind(n),set=f=>()=>{f();ds.sel={
     {row:[['Avto',set(()=>n.type='auto'),n.type==='auto'],['Tartibga solinmagan',set(()=>n.type='x'),n.type==='x'],['Svetoforli',set(()=>n.type='sig'),n.type==='sig']]},
     {h:'Aylanma halqa'},{row:Object.entries(RTYPES).map(([rk,r])=>[r.n.replace(/ \(.+\)/,''),set(()=>{n.type='round';n.rtype=rk;n.ri=r.ri;n.rw=r.rw;n.lanes=r.lanes;}),n.type==='round'&&n.rtype===rk])},
     (k==='x'||k==='sig')?{h:'Bordyur radiusi'}:null,(k==='x'||k==='sig')?{row:[3,6,10,15,20].map(r=>[r+' m',set(()=>n.kr=r),(n.kr??6)===r])}:null,
-    (k==='x'||k==='sig')&&typeof openSim==='function'?{t:'Harakatni sinash (simulyatsiya)',f:()=>openSim(n.id)}:null,
+    (k==='x'||k==='sig')&&typeof openSim==='function'?{t:'Harakatni sinash (simulyatsiya)<span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span>',f:()=>openSim(n.id)}:null,
     '-',{t:'Tanlash va xususiyatlar',f:set(()=>{})},{t:'Tugunni oʻchirish (ulangan koʻchalar bilan)',danger:1,f:()=>{ds.sel={t:'node',id:n.id};delSel();}},
     ...tail(L.latLng(n.ll[0],n.ll[1]))]);}
 function openVertexMenu(e,sg,vi){stopE(e);const ds=DS(),cur=sg.rad&&sg.rad[vi]!=null?sg.rad[vi]:0;
