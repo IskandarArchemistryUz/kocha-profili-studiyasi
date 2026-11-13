@@ -34,6 +34,7 @@ export const ITEMS = Object.freeze({
   'joy.axo':      { coins: 5,  mr: false }, // aksonometriya SVG (qatlamli)
   'joy.png':      { coins: 2,  mr: false }, // E3 (11.11): aksonometriya PNG 4K, belgisiz
   'joy.passport.all': { coins: 15, mr: false }, // E3 (11.11): toʻliq hudud pasporti / albom — barcha varaqlar
+  'joy.video':    { coins: 5,  mr: false }, // 13.11: «Koʻrinadigan joy» marshrut videosi — 1080p, belgisiz
   // Atrof eksporti
   'ctx.4':        { coins: 2,  mr: false },
   'ctx.8':        { coins: 4,  mr: false },

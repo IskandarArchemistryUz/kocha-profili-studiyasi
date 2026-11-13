@@ -72,3 +72,30 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻrinadi
   await card.locator('#izClr').click();
   await expect(card.locator('#izDraw')).toHaveText('Marshrutni chizish');
 });
+
+test('koʻrinadigan joy: video yuklab olish (egasi — toza)', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1440, height: 860 });
+  await page.addInitScript(() => { try { localStorage.setItem('kps_owner', '1'); localStorage.setItem('joy-izv', JSON.stringify({ sec: 10, fmt: '1:1' })); } catch { /* */ } });
+  await open(page);
+  const card = page.locator('[data-card=izovist]');
+  await expect(card.locator('.big')).toHaveText(/m²$/, { timeout: 60_000 });
+  await card.getByRole('button', { name: 'Marshrut', exact: true }).click();
+  await card.locator('#izDraw').click();
+  await clickAt(page, -150, 0); await clickAt(page, 0, 0); await clickAt(page, 0, 150);
+  await page.keyboard.press('Enter');
+  await expect(card.locator('#izVidBtn')).toBeVisible({ timeout: 60_000 });
+  await card.locator('#izVidBtn').click();
+  const dlg = page.locator('#izVid');
+  await expect(dlg).toBeVisible();
+  await expect(dlg.locator('[data-g=sec] button[aria-pressed=true]')).toHaveText('10 s');
+  const dl = page.waitForEvent('download', { timeout: 60_000 });
+  await dlg.locator('#izvGo').click();
+  await expect(dlg.locator('#izvMsg')).toContainText('Video yozilmoqda');
+  const d = await dl;
+  expect(d.suggestedFilename()).toMatch(/^korinish-41\.3111-69\.2797-1x1\.(mp4|webm)$/);
+  const path = await d.path();
+  const { statSync } = await import('fs');
+  expect(statSync(path!).size).toBeGreaterThan(20_000);
+  if (process.env.GX_SHOTS) await d.saveAs(`${process.env.GX_SHOTS}/${d.suggestedFilename()}`);
+});
