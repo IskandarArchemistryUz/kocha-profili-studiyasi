@@ -1,0 +1,1 @@
+export{t as svgPdf}from"./pdf-BC2As6QP.js";
