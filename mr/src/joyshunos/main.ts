@@ -53,6 +53,7 @@ import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
 import { privFeatures, privLayers, privDelete, privUpload, parseUpload, attachPriv, HH, type PrivData, type PrivLayer } from './shaxsiy';
 import { buildIndex, isovist, polyline, walkSteps, walkAt, walkSum, type IsoIndex, type Iso, type Walk, type P2 } from './izovist';
+import { recordVideo, type VidFmt, type VidScene } from './izovideo';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
@@ -434,6 +435,7 @@ function izCard(L: LayerDef): HTMLElement {
           h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'izBack', 'aria-label': tr('Boshidan'), onclick: () => { izStop(); izSeek(0); } }, '⏮'),
           seg([0.5, 1, 2].map(v => ({ id: String(v), label: `${String(v).replace('.', ',')}×` })), String(izSpeed), v => { izSpeed = Number(v); renderRight(); }, { class: 'seg sm', 'aria-label': tr('Tezlik') }),
           h('span', { class: 'mono t-small', id: 'izPos' }, `${fmt(izD)} / ${fmt(w.L)} m`)),
+        (() => { const c = coinLabel(tr('Video'), 'joy.video'); return h('button', { type: 'button', class: 'btn btn-sm', id: 'izVidBtn', title: c.title, onclick: () => izVideoDialog() }, c.text); })(),
         izChart(w, s),
         h('ul', { class: 'joy-norm' },
           h('li', {}, h('span', {}, tr('Oʻrtacha, butun yoʻl')), h('b', {}, `${fmt(s.mean)} m²`), h('em', {}, '')),
@@ -445,6 +447,55 @@ function izCard(L: LayerDef): HTMLElement {
     }
   }
   return card(L, 'OSM', big, sub, null, st);
+}
+/* ---------- video eksport (13.11, kanvas K4): format, davomiylik, sarlavha → darvoza (bepul 720p belgili / toza 1080p — joy.video) → yozuv ---------- */
+const IZV = (() => { try { return JSON.parse(localStorage.getItem('joy-izv') || 'null') as Partial<{ fmt: VidFmt; sec: number; chart: boolean; num: boolean; trail: boolean; marks: boolean }> | null; } catch { return null; } })() ?? {};
+let izvBusy = false;
+function izVideoDialog(): void {
+  if (!izReady() || izvBusy) return;
+  izStop();
+  document.getElementById('izVid')?.remove();
+  const st = { fmt: IZV.fmt ?? '9:16' as VidFmt, sec: IZV.sec ?? 20, chart: IZV.chart ?? true, num: IZV.num ?? true, trail: IZV.trail ?? S.iz?.tr !== false, marks: IZV.marks ?? true };
+  const place = D.addr.v ?? `${S.c[1].toFixed(4)}, ${S.c[0].toFixed(4)}`;
+  const tIn = h('input', { class: 'input', type: 'text', id: 'izvT', value: tr('Yoʻlovchi nimani koʻradi'), 'aria-label': tr('Sarlavha') }) as HTMLInputElement;
+  const sIn = h('input', { class: 'input', type: 'text', id: 'izvS', value: `${place} · ${fmt(WK!.pl.L)} m`, 'aria-label': tr('Izoh') }) as HTMLInputElement;
+  const close = () => { wrap.remove(); removeEventListener('keydown', onKey, true); };
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !izvBusy) { e.stopPropagation(); close(); } };
+  const segRow = (label: string, el: HTMLElement) => h('div', { class: 'row' }, h('span', { class: 't-small' }, label), el);
+  const chk = (k: 'chart' | 'num' | 'trail' | 'marks', label: string) => h('label', { class: 'joy-izchk t-small' }, (() => { const i = h('input', { type: 'checkbox', checked: st[k] }) as HTMLInputElement; i.addEventListener('change', () => { st[k] = i.checked; }); return i; })(), ' ', label);
+  const msg = h('div', { class: 'kd-msg', role: 'status', id: 'izvMsg', hidden: true });
+  const go = h('button', { class: 'btn btn-primary', type: 'button', id: 'izvGo', onclick: () => void run() }, tr('Yuklab olish'));
+  const box = h('div', { class: 'kd-box joy-izv' },
+    h('h2', { id: 'izVidT' }, tr('Videoni yuklab olish')),
+    h('p', { class: 'kd-lead' }, tr('Marshrut boʻylab koʻrinish — xarita, raqam va grafik bilan. Bepul — 720p, belgi bilan; toza — 1080p, belgisiz.')),
+    segRow(tr('Format'), seg(([['9:16', '9:16 Reels'], ['16:9', '16:9'], ['1:1', '1:1']] as const).map(([id, l]) => ({ id, label: l })), st.fmt, v => { st.fmt = v; box.querySelectorAll('[data-g=fmt] button').forEach(b => b.setAttribute('aria-pressed', String(b.textContent?.startsWith(v)))); }, { class: 'seg sm', 'data-g': 'fmt', 'aria-label': tr('Format') })),
+    segRow(tr('Davomiylik'), seg([10, 20, 30].map(v => ({ id: String(v), label: `${v} s` })), String(st.sec), v => { st.sec = Number(v); box.querySelectorAll('[data-g=sec] button').forEach(b => b.setAttribute('aria-pressed', String(b.textContent === `${v} s`))); }, { class: 'seg sm', 'data-g': 'sec', 'aria-label': tr('Davomiylik') })),
+    h('label', { class: 't-small' }, tr('Sarlavha')), tIn,
+    h('label', { class: 't-small' }, tr('Izoh')), sIn,
+    h('div', { class: 'joy-izchks' }, chk('num', tr('Joriy raqam')), chk('chart', tr('Grafik')), chk('trail', tr('Oʻtilgan yoʻl izi')), chk('marks', tr('Eng ochiq va eng tor'))),
+    msg,
+    h('div', { class: 'row' }, h('button', { class: 'btn btn-ghost', type: 'button', id: 'izvX', onclick: () => { if (ac) ac.abort(); else close(); } }, tr('Bekor qilish')), go));
+  const wrap = h('div', { class: 'kd', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'izVidT', id: 'izVid' }, box);
+  document.body.append(wrap); addEventListener('keydown', onKey, true);
+  let ac: AbortController | null = null;
+  async function run(): Promise<void> {
+    const X = izIndex(), wk = WK, r = S.iz?.route; if (!X || !wk || !r) return;
+    try { localStorage.setItem('joy-izv', JSON.stringify({ fmt: st.fmt, sec: st.sec, chart: st.chart, num: st.num, trail: st.trail, marks: st.marks })); } catch { /* */ }
+    const name = `korinish-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}-${st.fmt.replace(':', 'x')}`;
+    const mode = await exportGate({ name: `${name}.mp4`, item: 'joy.video', sample: `${wk.key}|${st.fmt}|${st.sec}|${tIn.value}|${sIn.value}` });
+    if (!mode) return;
+    izvBusy = true; go.disabled = true; ac = new AbortController(); msg.hidden = false; msg.textContent = tr('Video yozilmoqda — vkladkani yopmang…');
+    try {
+      const sc: VidScene = { ix: X.ix, rings: X.ix.rings, pl: wk.pl, route: r.map(p => X.fr.toLocal(p) as P2), w: wk.w, opt: izOpt(), clip: S.r,
+        t: { area: tr('koʻrinadigan maydon'), dist: tr('Yoʻl'), open: tr('Eng ochiq'), tight: tr('Eng tor'), src: '© OpenStreetMap · Archemistry Lab', inside: tr('bino ichida') }, fmtN: fmt };
+      const { blob, ext } = await recordVideo(sc, { fmt: st.fmt, sec: st.sec, title: tIn.value.trim(), sub: sIn.value.trim(), chart: st.chart, num: st.num, trail: st.trail, marks: st.marks, clean: mode === 'clean' },
+        f => { msg.textContent = tf('Video yozilmoqda — ${p} % (vkladkani yopmang)', { p: Math.round(f * 100) }); }, ac.signal);
+      const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = `${name}.${ext}`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 8000);
+      msg.textContent = tf('Tayyor: ${n}', { n: `${name}.${ext}` });
+      setTimeout(close, 1200);
+    } catch (e) { msg.textContent = (e as Error).name === 'AbortError' ? tr('Bekor qilindi') : `${tr('Video yozilmadi')}: ${(e as Error).message}`; }
+    izvBusy = false; go.disabled = false; ac = null;
+  }
 }
 /* ---------- quyosh va soya (binolar — kontekst toʻplamidan, aksonometriya bilan umumiy) ---------- */
 /** Sukut kun — mahalliy yoz: shimolda 22 iyun, janubiy yarimsharda 22 dekabr */

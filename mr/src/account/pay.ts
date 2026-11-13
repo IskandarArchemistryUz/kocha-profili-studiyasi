@@ -242,7 +242,7 @@ const REASON: Record<string, string> = { export: 'Toza fayl', trial: 'Ogʻir his
 const ITEM_NAME: Record<string, string> = {
   'mr.album': 'Albom PDF', 'mr.dxf': 'DXF — reja', 'mr.dxf3d': 'DXF — 3D', 'mr.glb': 'GLB / OBJ', 'mr.tik': 'TIK — Excel', 'mr.norm': 'Meʼyoriy hisobot', 'mr.ifc': 'IFC4',
   'mr.sheet': 'Varaq', 'mr.axo': 'Aksonometriya', 'mr.floors': 'Qavat rejalari', 'mr.png': 'PNG', 'chz.album': 'Chizmadon albomi', 'ks.section': 'Koʻcha kesimi', 'ks.a3': 'Koʻchasoz A3',
-  'ks.dxf': 'Koʻchasoz DXF', 'joy.passport': 'Joy pasporti', 'joy.axo': 'Joyshunos aksonometriya', 'joy.png': 'Joyshunos PNG 4K', 'joy.passport.all': 'Toʻliq hudud pasporti', wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Generatsiya',
+  'ks.dxf': 'Koʻchasoz DXF', 'joy.passport': 'Joy pasporti', 'joy.axo': 'Joyshunos aksonometriya', 'joy.png': 'Joyshunos PNG 4K', 'joy.passport.all': 'Toʻliq hudud pasporti', 'joy.video': 'Koʻrinish videosi', wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Generatsiya',
 };
 function label(x: HistItem): [string, string] {
   const what = String(x.ref ?? '').split('@')[0], parts = what.split('+').map(s => tr(ITEM_NAME[s] ?? '')).filter(Boolean);

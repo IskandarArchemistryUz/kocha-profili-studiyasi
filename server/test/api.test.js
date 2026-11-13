@@ -51,6 +51,7 @@ describe('narx', () => {
     // E3 (11.11): Joyshunos PNG 4K — 2, toʻliq pasport — 15; mikro toʻplam 5 tanga ≈ 21 000 soʻm
     expect(priceOf(['joy.png'], 80).coins).toBe(2);
     expect(priceOf(['joy.passport.all'], 0).coins).toBe(15);
+    expect(priceOf(['joy.video'], 80).coins).toBe(5);
     expect(PACKS.find(p => p.id === 'p5')).toMatchObject({ coins: 5, uzs: 21000 });
     expect(priceOf(['ks.dxf', 'joy.passport'], 80).coins).toBe(10);
     expect([priceOf(['mr.site'], 4).coins, priceOf(['mr.site'], 30).coins, priceOf(['mr.site'], 80).coins]).toEqual([12, 32, 52]);
