@@ -44,6 +44,7 @@ import { coinLabel, onPrices } from '../account/pay';   // + yuklash darvozasi
 import { layerIcon, GROUP_COL } from './layerIcons';
 import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
+import { readCogWindow, kadWindow, popStats, popDens, ghsCol, GHS_POP_URL, GHS_DENS, type PopWin } from './population';
 import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, KAD_ERA, KAD_SEI, KAD_DENS, KAD_CELL_HA, type KadGrid } from './kadastr';
 import { windFlow, clipLine, windSpeedGrid } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
@@ -71,7 +72,7 @@ const LAYERS: LayerDef[] = [
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
   { id: 'izovist', g: 'shahar', name: 'Koʻrinadigan joy', src: 'OSM', color: '#e08600', ready: true, beta: true },
-  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr 2023', color: '#d94801', ready: true, beta: true, tash: true },
+  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr · GHS-POP', color: '#d94801', ready: true, beta: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
   { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true, tash: true },
@@ -120,6 +121,26 @@ const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: Te
   { narx: { st: 'idle' }, addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 /** Kadastr 50 m toʻri (butun shahar uchun bitta fayl, nuqtaga bogʻliq emas) */
 let KAD: Ld<KadGrid> = { st: 'idle' };
+/** Aholi oynasi (13.11): Toshkentda — kadastr 50 m, boshqa joyda — global GHS-POP (90 m); kalit — markaz|radius */
+let POP: Ld<PopWin> & { key?: string } = { st: 'idle' };
+const popKey = () => `${S.c.join()}|${Math.max(S.r, 500)}`;
+function loadPop(): void {
+  const k = popKey(); if (POP.key === k && POP.st !== 'idle') return;
+  const c = S.c, R = Math.max(S.r, 500) * 1.3;
+  if (inTash(c)) {   // shaharning oʻz batafsil maʼlumoti ustun
+    if (KAD.v) { const w = kadWindow(KAD.v, c, R); POP = w ? { st: 'ok', v: w, key: k } : { st: 'err', err: 'kadastr', key: k }; return; }
+    if (KAD.st !== 'err') { loadKad(); return; }   // kadastr kelgach qayta chaqiriladi
+  }
+  POP = { st: 'load', key: k };
+  readCogWindow(GHS_POP_URL, c, R).then(v => { if (POP.key !== k) return; POP = { st: 'ok', v, key: k }; computeNet(); renderRight(); paint(); },
+    e => { if (POP.key !== k) return; POP = { st: 'err', err: (e as Error).message || String(e), key: k }; renderRight(); });
+}
+function loadKad(): void {
+  if (KAD.st !== 'idle') return;
+  KAD = { st: 'load' };
+  loadKadastr(fetch.bind(globalThis)).then(v => { KAD = { st: 'ok', v }; POP = { st: 'idle' }; if (isOn('uylar') || isOn('oqim')) loadPop(); computeNet(); renderRight(); paint(); },
+    e => { KAD = { st: 'err', err: (e as Error).message || String(e) }; POP = { st: 'idle' }; if (isOn('uylar') || isOn('oqim')) loadPop(); renderRight(); });
+}
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
 type NetM = { pers?: string; key: string; net: Net; strict: Net; flowSrc?: string; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
@@ -169,11 +190,11 @@ function computeNet(): void {
 }
 /** Qattiq tarmoq bilan yuradigan personalar (13.11): trassa va estakadadan yurmaydi */
 const STRICT = new Set(['bola', 'qariya', 'arava', 'homilador']);
-const flowSrc = () => `${KAD.v ? 'k' : ''}${axBundle ? 'b' + axBundle.key : ''}`;
-/** Oqim boshlanadigan joy vazni: Toshkentda — kadastr aholisi (50 m katak), boshqa joyda — atrofdagi binolar qavat maydoni (OSM), boʻlmasa — teng */
+const flowSrc = () => `${POP.v ? POP.key + POP.v.src : ''}|${axBundle ? 'b' + axBundle.key : ''}`;
+/** Oqim boshlanadigan joy vazni: aholi oynasi (Toshkentda — kadastr 50 m, boshqa joyda — GHS-POP 90 m); yuklanmagan boʻlsa — atrofdagi binolar qavat maydoni (OSM), boʻlmasa — teng */
 function originW(fr: ReturnType<typeof geoFrame>): ((p: XY) => number) | undefined {
-  const g = KAD.v;
-  if (g && kadCovers(g, S.c[0], S.c[1])) return p => { const [lon, lat] = fr.toGeo(p), o = kadCell(g, lon, lat); return 0.15 + (o >= 0 ? g.aholi[o] / 60 : 0); };
+  const pw = POP.st === 'ok' && POP.key === popKey() ? POP.v : undefined;
+  if (pw) return p => { const [lon, lat] = fr.toGeo(p), d = popDens(pw, lon, lat); return 0.15 + (Number.isFinite(d) ? d / 50 : 0); };   // kishi/ga
   const bs = axBundle?.b.osm.buildings; if (!bs?.length) return undefined;
   const C = 60, cell = new Map<string, number>();
   for (const b of bs) { const r = b.rings[0]; if (!r || r.length < 3) continue; const L = r.map(q => fr.toLocal(q)); let a = 0, cx = 0, cy = 0; for (let i = 0, j = L.length - 1; i < L.length; j = i++) a += L[j][0] * L[i][1] - L[i][0] * L[j][1]; for (const q of L) { cx += q[0]; cy += q[1]; } const k = `${Math.floor(cx / L.length / C)},${Math.floor(cy / L.length / C)}`; cell.set(k, (cell.get(k) ?? 0) + Math.abs(a / 2) * Math.max(1, Math.round((b.h || 6) / 3))); }
@@ -757,7 +778,14 @@ function renderRightH(): void {
     el.querySelector('header')!.after(h('div', { class: 'joy-catw' }, pickBtn, menu));
     cards.push(el);
   }
-  if (isOn('uylar')) {
+  if (isOn('uylar') && !inTash(S.c)) {   // 13.11: Toshkentdan tashqarida — global aholi zichligi (GHS-POP)
+    const pw = POP.key === popKey() ? POP.v : undefined, k = pw ? popStats(pw, S.c, S.r) : null, st = V('uylar').st;
+    cards.push(card(L('uylar'), 'GHS-POP 2025', k ? tf('~${n} kishi', { n: fmt(Math.round(k.aholi / 100) * 100) }) : '—',
+      !k ? [] : [tf('Zichlik ${z} kishi/ga', { z: fmt(k.zich) }), h('br'),
+        st !== 'aholi' ? h('span', {}, tr('Uylar yoshi va seysmik toifa — faqat Toshkent (kadastr); bu yerda aholi zichligi koʻrsatiladi.'), h('br')) : '',
+        h('span', { class: 'src' }, tr('GHS-POP R2023A (JRC, Yevropa Komissiyasi), 2025-yil holati, 3″ ≈ 90 m katak: aholi roʻyxati qurilgan hajm boʻyicha taqsimlangan — model, haqiqiy sanoq emas. Batafsilroq shahar maʼlumoti boʻlsa, oʻsha ishlatiladi (hozir — Toshkent kadastri).'))],
+      null, POP.key === popKey() ? POP : { st: 'load' }));
+  } else if (isOn('uylar')) {
     const g = KAD.v, st = V('uylar').st, inC = !!g && kadCovers(g, S.c[0], S.c[1]), k = g && inC ? kadStats(g, S.c, S.r) : null, n0 = (v: number) => fmt(v);
     const rows: [string, string, number][] = !k ? [] : st === 'yosh' ? KAD_ERA.map(([, , c, nm], i) => [c, nm, k.era[i]]) : st === 'seysmik' ? KAD_SEI.map(([s2, c, nm]) => [c, nm, k.sei[s2]]) : [];
     cards.push(card(L('uylar'), tr('kadastr 2023'), k ? tf('~${n} kishi', { n: n0(Math.round(k.aholi / 100) * 100) }) : '—',
@@ -995,7 +1023,8 @@ function ensure(): void {
   computeNet();
   if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
   // uy narxlari — butun shahar uchun bitta fayl (nuqtaga bogʻliq emas, seq bilan bekor qilinmaydi)
-  if (isOn('uylar') && KAD.st === 'idle') { KAD = { st: 'load' }; loadKadastr(fetch.bind(globalThis)).then(v => { KAD = { st: 'ok', v }; computeNet(); renderRight(); paint(); }, e => { KAD = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
+  if (isOn('uylar') && inTash(S.c)) loadKad();
+  if (isOn('uylar') || isOn('oqim')) loadPop();
   if (isOn('narx') && D.narx.st === 'idle') { D.narx = { st: 'load' }; loadNarx().then(v => { D.narx = { st: 'ok', v }; renderRight(); paint(); }, e => { D.narx = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
   if (isOn('quyosh')) { if (axBundle?.key === `${c.join()}|${r + 100}`) computeSun(); else void needCtx(); }
   if (isOn('raqobat') && D.comp.st === 'idle') run('comp', async () => {
@@ -1328,7 +1357,8 @@ function paintH(): void {
   { const ob = isOn('uylar') ? kadOwnerFeats() : null;
     if (ob) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${PV?.key}|${PV?.d?.features.length}`; if (k !== kadbKey) { kadbKey = k; (m.getSource('joy-kadb') as GeoJSONSource).setData(ob.fc as never); } }
     if (m.getLayer('joy-kadb')) m.setLayoutProperty('joy-kadb', 'visibility', ob ? 'visible' : 'none'); }
-  if (isOn('uylar') && KAD.v) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}`; if (k !== kadKey) { kadKey = k; upd('joy-kad', kadImage(KAD.v, V('uylar').st)); } m.setLayoutProperty('joy-kad', 'visibility', 'visible'); }
+  const pwG = isOn('uylar') && !inTash(S.c) && POP.key === popKey() ? POP.v : undefined;
+  if (isOn('uylar') && (pwG || (inTash(S.c) && KAD.v))) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${pwG ? POP.key : 'kad'}`; if (k !== kadKey) { kadKey = k; upd('joy-kad', pwG ? popImage(pwG) : kadImage(KAD.v!, V('uylar').st)); } m.setLayoutProperty('joy-kad', 'visibility', 'visible'); }
   else if (m.getLayer('joy-kad')) m.setLayoutProperty('joy-kad', 'visibility', 'none');
   if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${S.r}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); const hc = (v: number) => Number.isNaN(v) ? null : heatCol(v - mu); upd('joy-heat', vh.st === 'geks' ? hexImage(lg0.v, lg0.n, lg0.step, S.r, hc, 210, S.r) : smoothImage(lg0.v, lg0.n, lg0.step, S.r, hc, 210)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
@@ -1357,7 +1387,8 @@ function paintH(): void {
     : h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
-  if (isOn('uylar') && KAD.v) { const st = V('uylar').st;
+  if (isOn('uylar') && !inTash(S.c) && POP.v) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (GHS-POP, 90 m)')), ...GHS_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === GHS_DENS.length - 1 ? `${t}+` : `${t}–${GHS_DENS[i + 1][0]}`))));
+  else if (isOn('uylar') && KAD.v) { const st = V('uylar').st;
     lg.push(st === 'yosh' ? h('div', { class: 'lg' }, h('b', {}, tr('Uylar yoshi (koʻp kvartirali, median)')), ...KAD_ERA.map(([, , c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))))
       : st === 'seysmik' ? h('div', { class: 'lg' }, h('b', {}, tr('Seysmik eʼtibor (saralash)')), ...KAD_SEI.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))))
       : kadOwnerFeats() ? h('div', { class: 'lg' }, h('b', {}, tr('Uy aholisi, kishi (bino darajasi)')), ...([[0, '#fdd0a2'], [50, '#fd8d3c'], [150, '#d94801'], [300, '#a63603'], [600, '#7f2704']] as const).map(([t, c], i, A) => h('span', {}, h('i', { style: `background:${c}` }), i === A.length - 1 ? `${t}+` : `${t}–${A[i + 1][0]}`)))
@@ -1668,7 +1699,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
         lines: [...near.values()].map(n => ({ pts: [[0, 0], n.xy] as XY[], w: 0.3, col: '#16171a', op: 0.55, dash: '1 1' })),
         labels: [...near.entries()].filter(([, n]) => n.d <= S.r * 1.1).map(([k, n]) => ({ x: n.xy[0], y: n.xy[1], t: `${tr(SVC_SHORT[k])} · ${fmt(n.d)} m`, col: SVC_COL[k] })) };
     }
-    case 'uylar': { const g = KAD.v; if (!g) return {}; return { quiet: true, rasters: [ras(kadImage(g, V('uylar').st), 0.85)] }; }
+    case 'uylar': { if (!inTash(S.c)) { const pw = POP.key === popKey() ? POP.v : undefined; return pw ? { quiet: true, rasters: [ras(popImage(pw), 0.85)] } : {}; } const g = KAD.v; if (!g) return {}; return { quiet: true, rasters: [ras(kadImage(g, V('uylar').st), 0.85)] }; }
     case 'narx': {
       const d = D.narx.v; if (!d) return {};
       const H = half * 1.5, N = 1024, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d')!;
@@ -1853,6 +1884,20 @@ function gipsImage(g: TerrainGrid, r: number, pal: string[]): { url: string; coo
   return { url: cv.toDataURL(), coords: [[W, N], [E, N], [E, So], [W, So]] };
 }
 /** Nishab (13.11): 3×3 tekislangan qiyalik + bilinear interpolatsiya — piksellar koʻrinmaydi, doira bilan aniq kesiladi */
+/** Global aholi rastri (GHS-POP): har piksel — 90 m katak zichligi (kataklar koʻrinadi), faqat doira ichida */
+function popImage(pw: PopWin, px = 384): { url: string; coords: [number, number][] } {
+  const clip = S.r, cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const cx = cv.getContext('2d')!, img = cx.createImageData(px, px), k = 2 * clip / px;
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  for (let r = 0; r < px; r++) for (let q = 0; q < px; q++) {
+    const x = -clip + (q + 0.5) * k, y = clip - (r + 0.5) * k, d = Math.hypot(x, y); if (d > clip) continue;
+    const c = ghsCol(popDens(pw, S.c[0] + x / kx, S.c[1] + y / ky)); if (!c) continue;
+    const p = (r * px + q) * 4, edge = Math.min(1, (clip - d) / k);
+    img.data[p] = parseInt(c.slice(1, 3), 16); img.data[p + 1] = parseInt(c.slice(3, 5), 16); img.data[p + 2] = parseInt(c.slice(5, 7), 16); img.data[p + 3] = Math.round(235 * edge);
+  }
+  cx.putImageData(img, 0, 0);
+  return { url: cv.toDataURL(), coords: [[S.c[0] - clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] - clip / ky], [S.c[0] - clip / kx, S.c[1] - clip / ky]] };
+}
 function slopeImage(g: TerrainGrid, r: number): { url: string; coords: [number, number][] } {
   const sl = slopeGrid(g), n = g.n, b = new Float32Array(n * n);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
