@@ -133,11 +133,12 @@ function endName(sg,k){const ll=segLL(sg),e=k==='a'?ll[0]:ll[ll.length-1],m=midL
 function apprCur(sg,k){const u=sg.appr&&sg.appr[k];if(u&&u.man)return {man:1,L:u.L|0,R:u.R|0,U:u.U||'none',Ls:+u.Ls||30,Lt:+u.Lt||15};
   const c=withVirtual(V=>endPieceOf(sg,k,V)._cfg)||{L:0,R:0,U:'none',Ls:30,Lt:15};return {man:0,L:c.L,R:c.R,U:c.U,Ls:Math.round(c.Ls),Lt:Math.round(c.Lt)};}
 function apprHTML(sg){const ends=['a','b'].filter(k=>{const n=nodeById(k==='a'?sg.a:sg.b);return n&&isInter(nodeKind(n))&&nodeKind(n)!=='round';});if(!ends.length)return '';
-  return ends.map(k=>{const c=apprCur(sg,k),ch=(key,v,t)=>`<button class="kt-pri${c[key]===v?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-ap="${k}" data-apk="${key}" data-apv="${v}">${t}</button>`;
+  return ends.map(k=>{const c=apprCur(sg,k),ch=(key,v,t)=>`<button class="kt-pri${String(c[key])===String(v)?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-ap="${k}" data-apk="${key}" data-apv="${v}">${t}</button>`;
     return `<div class="lbl">Karman · ${esc(endName(sg,k))}</div>
     <div class="kt-seg" style="align-self:flex-start"><button data-apm="${k}" data-v="auto" class="${c.man?'':'on'}">Avto</button><button data-apm="${k}" data-v="man" class="${c.man?'on':''}">Qoʻlda</button></div>
     <div class="kt-arm"><span>Chapga burilish</span>${ch('L',0,'0')}${ch('L',1,'1')}${ch('L',2,'2')}</div>
     <div class="kt-arm"><span>Oʻngga burilish</span>${ch('R',0,'0')}${ch('R',1,'1')}</div>
+    <div class="kt-arm"><span>Qayrilish</span>${ch('U','none','yoʻq')}${ch('U','lane','chapdan')}${ch('U','sep','alohida')}</div>
     <div class="kt-arm"><span>Uzunligi, m</span><input type="number" data-apn="${k}" data-apk="Ls" value="${c.Ls}" min="10" step="5" style="width:64px;height:30px;border:0;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px #ebe8e2,0 1px 0 #e2dfd8;padding:0 8px;font:500 13px 'IBM Plex Mono',monospace"><span style="flex:0 0 auto" class="kt-mut kt-mono">+ ${c.Lt} m taper</span></div>`;}).join('')
     +`<div class="kt-note">Avto — polosa soni va burilishlarga qarab. Uzunlik — namuna: navbat uzunligi boʻyicha tasdiqlang.</div>`;}
 function setAppr(sg,k,fn){const c=apprCur(sg,k);const u={man:1,L:c.L,R:c.R,U:c.U,Ls:c.Ls,Lt:c.Lt};fn(u);sg.appr=sg.appr||{};sg.appr[k]=u;if(sg.arr)delete sg.arr[k];afterDesign();}
@@ -155,7 +156,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}
   if(b.dataset.add){const a=b.dataset.add;if(a==='xwalk')pickTool('xwalk');else{ds.attType=a;pickTool('obj');}return;}
   if(b.dataset.apm){const sg=segById(sel.id),k=b.dataset.apm;if(b.dataset.v==='auto'){if(sg.appr)delete sg.appr[k];if(sg.arr)delete sg.arr[k];afterDesign();}else setAppr(sg,k,()=>{});return;}
-  if(b.dataset.ap){const sg=segById(sel.id);setAppr(sg,b.dataset.ap,u=>{u[b.dataset.apk]=+b.dataset.apv;});return;}
+  if(b.dataset.ap){const sg=segById(sel.id);setAppr(sg,b.dataset.ap,u=>{const k2=b.dataset.apk;u[k2]=k2==='U'?b.dataset.apv:+b.dataset.apv;});return;}
   if(b.dataset.ty){const n=nodeById(sel.id),v=b.dataset.ty;n.type=v;if(v==='round'){const rt=RTYPES[n.rtype||ds.rtype||'r2'];n.rtype=n.rtype||ds.rtype||'r2';n.ri=n.ri||rt.ri;n.rw=n.rw||rt.rw;n.lanes=n.lanes||rt.lanes;}afterDesign();}});
 card.addEventListener('change',e=>{const s=e.target;
   if(s.dataset.apn){const sg=segById(DS().sel.id),v=Math.max(10,+s.value||30);setAppr(sg,s.dataset.apn,u=>{u.Ls=v;});return;}
