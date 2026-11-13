@@ -16,7 +16,9 @@ import { staleGen, spacingIssues } from '../core/spacing';
 import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
-import { autosave, exportJSON, cachePut, type AutoSaver } from '../storage/db';
+import { autosave, exportJSON, cachePut, putProject, type AutoSaver } from '../storage/db';
+import { cloudSync, getLink, info as cloudInfo, download as cloudDownload, type CloudSync } from '../storage/cloud';
+import { askConflict, askNewer, saveText } from './cloudui';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
 import { resolveAxo, type AxoEdit, type AxoPick } from '../core/axoedit';
@@ -202,6 +204,8 @@ export class Editor {
   readonly store: Store;
   private scene!: Scene3D;
   private saver!: AutoSaver;
+  private cloud!: CloudSync;
+  private localSave: 'saved' | 'pending' | 'error' = 'saved';
   private compute = new Compute();
   private last: Computed | null = null;
   private step: StepDef;
@@ -246,7 +250,14 @@ export class Editor {
     this.safeSceneUpdate(doc); this.scene.frameDoc(doc);
     this.ul = new UserLayersUI({ store: this.store, scene: this.scene, run: fn => this.run(fn), refresh: () => this.refreshPop(), bundle: () => (this.store.doc.context.loaded ? this.ctxMgr.current : null), redrawContext: () => { if (this.store.doc.context.loaded) this.showContext(this.ctxMgr.current); } });
     this.ul.sync(doc);
-    this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.el.save.dataset.s = s; this.el.saveT.textContent = tr(s === 'saved' ? 'saqlandi' : s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!'); });
+    this.saver = autosave(fn => this.store.subscribe(c => fn(c.doc)), s => { this.localSave = s; this.paintSave(); });
+    // bulut (14.11): faqat «Bulutga koʻchirish» qilingan loyihalar; brauzerdagi nusxa asosiy boʻlib qoladi
+    this.cloud = cloudSync(doc.id, () => { this.paintSave(); if (this.cloud?.state === 'conflict') void this.onConflict(); }, {
+      makeCopy: async d => { await putProject({ ...d, id: uid('p_'), name: `${d.name} (${tr('shu qurilmadagi nusxa')})` }); },
+    });
+    this.off.push(this.store.subscribe(c => this.cloud.push(c.doc)));
+    this.el.save.addEventListener('click', () => { if (this.cloud.state === 'conflict') void this.onConflict(); });
+    void this.checkNewer(doc);
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
     this.bindScene(); this.bindKeys();
     this.scene.onZoomOutLimit = () => { if (!this.world.open && !document.querySelector('.gx')) void this.openWorld(); };
@@ -264,7 +275,36 @@ export class Editor {
     addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 
-  dispose(): void { clearTimeout(this.chkTimer); this.chkW?.terminate(); document.getElementById('agTip')?.remove(); this.world.dispose(); this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
+  /** Saqlash holati: brauzer + bulut (cloudui.saveText) */
+  private paintSave(): void {
+    const { s, t } = saveText(this.localSave, this.cloud?.state ?? 'local');
+    this.el.save.dataset.s = s; this.el.saveT.textContent = t;
+    this.el.save.style.cursor = this.cloud?.state === 'conflict' ? 'pointer' : '';
+  }
+  private conflictOpen = false;
+  private async onConflict(): Promise<void> {
+    if (this.conflictOpen) return; this.conflictOpen = true;
+    try {
+      const c = await askConflict(this.store.doc.name);
+      if (!c) return;
+      await this.saver.flush();
+      await this.cloud.resolve(c);
+      if (c === 'theirs') location.reload();
+      else toast(tr('Bulutga yozildi'));
+    } catch (e) { toast((e as Error).message); }
+    finally { this.conflictOpen = false; }
+  }
+  /** Ochilganda: bulutda yangiroq versiya boʻlsa — ochishni taklif qiladi */
+  private async checkNewer(doc: Project): Promise<void> {
+    try {
+      const l = await getLink(doc.id); if (!l) return;
+      const r = await cloudInfo(doc.id);
+      if (r.project.version > l.version && await askNewer(doc.name)) { await cloudDownload(doc.id); location.reload(); }
+    } catch { /* internet yoʻq — keyinroq sinxron */ }
+  }
+
+  dispose(): void { clearTimeout(this.chkTimer); this.chkW?.terminate(); document.getElementById('agTip')?.remove(); this.world.dispose(); this.saver.flush(); this.saver.dispose();
+    { const c = this.cloud; void c.flush().catch(() => {}).finally(() => c.dispose()); } this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
 
   /* ---------- qobiq ---------- */
   private build(): HTMLElement {
@@ -327,7 +367,7 @@ export class Editor {
   private async setLang(l: Lang): Promise<void> {
     await setLang(l);   // yangi til lugʻati yuklanguncha kutiladi
     this.safeSceneUpdate(this.store.doc);   // xaritadagi yozuvlar (canvas) — yangi tilda
-    this.el.saveT.textContent = tr(this.el.save.dataset.s === 'saved' ? 'saqlandi' : this.el.save.dataset.s === 'pending' ? 'saqlanmoqda…' : 'saqlanmadi!');
+    this.paintSave();
     this.closePop(); this.renderAll(); this.renderKpi(); this.renderToolPanel();
   }
 
@@ -5719,7 +5759,7 @@ export class Editor {
     const onShift = (e: KeyboardEvent) => { this.shiftDown = e.shiftKey; };
     window.addEventListener('keydown', onShift); window.addEventListener('keyup', onShift);
     this.off.push(() => window.removeEventListener('keydown', onShift), () => window.removeEventListener('keyup', onShift));
-    const onUnload = () => { this.saver.flush(); };
+    const onUnload = () => { this.saver.flush(); void this.cloud.flush().catch(() => {}); };
     window.addEventListener('pagehide', onUnload);
     this.off.push(() => window.removeEventListener('keydown', onKey), () => window.removeEventListener('pagehide', onUnload));
   }
