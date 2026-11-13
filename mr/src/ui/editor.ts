@@ -70,6 +70,7 @@ import { aptRooms } from '../core/aptrooms';
 import { insetRobust } from '../core/offset';
 import { genRing } from '../core/slits';
 import { saveMrReturn, consumeMrBack } from './mrback';
+import { svcHref } from '../core/projctx';
 import { USES, useDef, resShare } from '../core/uses';
 import { gridAngle, merge, splitPath, splitByZones, parcelVariants, type GridMode, type ParcelMethod, type ParcelVariant } from '../core/parcels';
 import { computeWhole } from '../core/plan';
@@ -328,7 +329,7 @@ export class Editor {
     const top = h('div', { class: 'top glassbar' },
       ib('back', tr('Loyihalar'), ICON.back, () => this.onExit(), 'ib sm'),
       h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab'),
-      h('span', { class: 'svcbadge' }, h('i'), tr('Master reja')),
+      this.svcBtn(),
       name, save, h('span', { class: 'spacer' }),
       seg, liteSeg,
       this.popBtn('camPop', tr('Kamera'), () => this.camPop()),
@@ -550,6 +551,19 @@ export class Editor {
       const off = (ev: MouseEvent) => { if (!ev.isTrusted) return; this.closePop(); document.removeEventListener('click', off); }; setTimeout(() => document.addEventListener('click', off), 0);
     } });
     if (icon) b.append(svgIcon(icon), h('span', {}, label)); else b.append(h('span', {}, label), svgIcon(IC.chevDown));
+    return b;
+  }
+  /** 3-PR (14.11): «Master reja ▾» — shu loyiha ichida boshqa xizmatni ochish (?p= — kontekst manzilda, holat loyihaga ajratilgan) */
+  private svcBtn(): HTMLElement {
+    const go = (href: string) => { this.closePop(); void this.saver.flush().finally(() => { location.href = svcHref(href, this.store.doc.id); }); };
+    const b = this.popBtn('svcPop', tr('Shu loyihada boshqa xizmat'), () => h('div', { class: 'col menu-col' },
+      ...([['svcJoy', './joyshunos.html', 'Joyshunos', 'Hudud tahlili: issiqlik, shamol, narx, piyoda — shu uchastka atrofida'],
+        ['svcKs', './kochasoz.html', 'Koʻchasoz', 'Koʻcha kesimi, harakat va YHQ tekshiruvi'],
+        ['svcRen', './render.html', 'Render', 'Shu loyiha kadrini AI bilan render qilish']] as const).map(([id, href, name, note]) =>
+        h('button', { class: 'mi', id, onclick: () => go(href) }, h('b', {}, tr(name)), h('span', {}, tr(note)))),
+      h('button', { class: 'mi', id: 'svcChz', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari')))));
+    b.className = 'svcbadge svcbtn';
+    b.replaceChildren(h('i'), h('span', {}, tr('Master reja')), svgIcon(IC.chevDown));
     return b;
   }
   private closePop(): void { if (!this.pop) return; this.root.querySelector(`#${this.pop.dataset.for}`)?.setAttribute('aria-expanded', 'false'); this.pop.remove(); this.pop = null; }
@@ -4922,12 +4936,12 @@ export class Editor {
           try {
             const b = await sc.exportGLB(false);
             await cachePut('joy-inbox', { name: `${safe(doc.name)}.glb`, buf: await b.arrayBuffer(), origin: doc.origin, colors: true });
-            location.href = './joyshunos.html#/axo';
+            location.href = svcHref('./joyshunos.html#/axo', doc.id);
           } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); }
         })().catch(e => toast(`Joyshunos: ${(e as Error).message}`)) }, ...icl(CUBE, tr('Joyshunosga yuborish (diagramma)'))),
         h('button', { class: 'btn btn-block', id: 'exRen', title: tr('Joriy 3D koʻrinish (kamera, uslub, quyosh) Render studiyasida asos rasm boʻladi — AI render, referenslar bilan'), onclick: () => void (async () => {
           const img = this.scene.snapshot(); const { sendToRender } = await import('../render/inbox');
-          await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img });
+          await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img }, svcHref('./render.html', doc.id));
         })().catch(e => toast(`Render: ${(e as Error).message}`)) }, ...icl('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>', tr('Render studiyasiga (joriy kadr)'))),
         h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Fayllar haqida')), h('div', {}, tr('Hisobot — yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi. Excel — TEP, binolar va reyestr varaqlari. Kvartiralar va xizmatlar natijalari — tegishli qadamda hisoblangan boʻlsa qoʻshiladi. Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi. OBJ — har qanday 3D dastur (Rhino, SketchUp, 3ds Max). IFC4 — har seksiya IfcBuilding, har qavat IfcBuildingStorey va hajm (IfcBuildingElementProxy), «Archemistry_Bino» xususiyatlari: funksiya, qavatlar, GFA, material, tom; uchastka WGS84 koordinatasi bilan.'))));
     }

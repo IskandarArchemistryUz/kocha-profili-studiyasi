@@ -4,6 +4,7 @@
  * Qobiq: ekotizim sarlavhasi (5 xizmat), til (uz/en/ru), tungi rejim. Har rejim holati brauzerda saqlanadi;
  * B va Varaq bitta koʻcha maʼlumotini (kesim, rejadagi elementlar, tarmoqlar) birga ishlatadi.
  */
+import { scoped, svcHref } from '../core/projctx';
 import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import './ks.css';
@@ -71,8 +72,8 @@ const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR'
 const SHARED: Partial<Record<BoardId, string[]>> = { b: STREET, varaq: STREET, c: ['TPL'] };
 /** faqat oʻsha oynada kerak (saqlanmaydi): tanlangan zona/tarmoq */
 const VOLATILE = new Set(['sel', 'selU', 'vw', 'skMenu', 'ukMenu', 'peMenu', 'zaMenu']);
-const LS = { get(k: string): Record<string, unknown> | null { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
-  set(k: string, v: unknown): void { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* toʻla */ } } };
+const LS = { get(k: string): Record<string, unknown> | null { try { return JSON.parse(localStorage.getItem(scoped(k)) || 'null'); } catch { return null; } },
+  set(k: string, v: unknown): void { try { localStorage.setItem(scoped(k), JSON.stringify(v)); } catch { /* toʻla */ } } };
 const pick = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
 const omit = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k, v]) => !keys.includes(k) && typeof v !== 'function'));
 
@@ -88,9 +89,9 @@ const ICON = {
 };
 const SERVICES: { id: string; name: string; href: string; color: string; cur?: boolean; beta?: boolean }[] = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
-  { id: 'ks', name: 'Koʻchasoz', href: './kochasoz.html', color: 'var(--svc-ks)', cur: true },
-  { id: 'joy', name: 'Joyshunos', href: './joyshunos.html', color: 'var(--svc-joy)' },
-  { id: 'ren', name: 'Render', href: './render.html', color: 'var(--svc-ren)', beta: true },
+  { id: 'ks', name: 'Koʻchasoz', href: svcHref('./kochasoz.html'), color: 'var(--svc-ks)', cur: true },
+  { id: 'joy', name: 'Joyshunos', href: svcHref('./joyshunos.html'), color: 'var(--svc-joy)' },
+  { id: 'ren', name: 'Render', href: svcHref('./render.html'), color: 'var(--svc-ren)', beta: true },
   { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
 ];

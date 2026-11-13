@@ -2,6 +2,7 @@
  * Master reja koʻchasi (core/profiles: Profile) → Koʻchasoz B kesimi (els, rl, toifa).
  * Boʻlaklar soni saqlanadi: «qatnov 7 m, 2 boʻlak» → ikki «Harakat 3,5 m» zonasi. Elementlar (daraxt, chiroq) — andoza.
  */
+import { scoped, svcHref, ctxProject } from '../core/projctx';
 import type { Profile, Cat, Part, PartKind } from '../core/profiles';
 
 export type KsEl = [string, number, Record<string, boolean>];
@@ -37,15 +38,20 @@ export function profileToKs(p: Profile, name?: string): KsStreet {
 }
 
 /** Koʻchasoz holatiga yozish (app/kochasoz.html B shu kalitdan oʻqiydi) */
-/** Koʻchasoz B uchun koʻcha holatini tayyorlash (ks-street) */
-export function prepKochasoz(p: Profile, name?: string): void {
+/** Koʻchasoz B uchun koʻcha holatini tayyorlash (ks-street); pid — loyiha ichida (3-PR: holat shu loyihaga ajratiladi) */
+export function prepKochasoz(p: Profile, name?: string, pid: string | null = null): void {
   try {
-    const cur = JSON.parse(localStorage.getItem('ks-street') || '{}');
+    const k = scoped('ks-street', pid);
+    const cur = JSON.parse(localStorage.getItem(k) || '{}');
     const { sel: _s, selU: _u, ...st } = profileToKs(p, name);
-    localStorage.setItem('ks-street', JSON.stringify({ ...cur, ...st }));
+    localStorage.setItem(k, JSON.stringify({ ...cur, ...st }));
   } catch { /* xotira yopiq — Koʻchasoz oʻz namunasi bilan ochiladi */ }
 }
-export function openInKochasoz(p: Profile, name?: string): void { prepKochasoz(p, name); location.href = './kochasoz.html#/b'; }
+/** Toʻliq Koʻchasoz: Master reja loyihasidan (#/p/<id>) ochilsa — shu loyiha ichida (?p=) */
+export function openInKochasoz(p: Profile, name?: string): void {
+  const pid = ctxProject() ?? (/^#\/p\/([\w-]+)/.exec(location.hash)?.[1] ?? null);
+  prepKochasoz(p, name, pid); location.href = svcHref('./kochasoz.html#/b', pid);
+}
 
 /** Koʻchasoz elementi → MR qismi. Fasad oldi va texnik polosa — trotuarga, ariq/kanal — yashil tasmaga qoʻshiladi (TALQIN: MR profilida alohida tur yoʻq) */
 const KIND: Record<string, PartKind> = { front: 'trotuar', piy: 'trotuar', mebel: 'trotuar', yash: 'yashil', ariq: 'yashil', kanal: 'yashil', velo: 'velo', park: 'parkovka', qat: 'qatnov', bus: 'avtobus', tram: 'tramvay', med: 'ajratuvchi' };

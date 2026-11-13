@@ -5,6 +5,7 @@
  */
 import { h, svgIcon } from './dom';
 import { tr } from '../i18n';
+import { ctxProject, projectHref } from '../core/projctx';
 
 export interface MrReturn { id: string; name: string; step: string; cam: unknown; at: number; /** loyiha markazi — boshqa xizmatdagi tahlil shu hududdami (chzsend.ts) */ origin?: [number, number]; /** loyihada uchastka chizilganmi — boʻlmasa markaz sukut, ishonchsiz */ hasSite?: boolean }
 const K = 'mr-return', KB = 'mr-back', TTL = 24 * 3600 * 1000;
@@ -19,9 +20,17 @@ export const mrHref = (r: MrReturn): string => `./#/p/${encodeURIComponent(r.id)
 export function consumeMrBack(id: string): MrReturn | null {
   try { const b = sessionStorage.getItem(KB); if (b !== id) return null; sessionStorage.removeItem(KB); const r = getMrReturn(); return r && r.id === id ? r : null; } catch { return null; }
 }
-/** Sarlavhadagi «← Master reja: <loyiha>» tugmasi; qaytish manzili boʻlmasa — boʻsh */
+/**
+ * Sarlavhadagi «← Master reja: <loyiha>» tugmasi.
+ * 3-PR (14.11): loyiha manzilda (?p=) boʻlsa — shundan (nomi brauzer bazasidan); boʻlmasa — eski sessionStorage qaytish manzili.
+ */
 export function mrBackBtn(): HTMLElement | '' {
-  const r = getMrReturn(); if (!r) return '';
-  return h('a', { class: 'btn btn-sm mr-back', id: 'mrBack', href: mrHref(r), title: `${tr('Master rejaga qaytish')}: ${r.name}`, onclick: () => { try { sessionStorage.setItem(KB, r.id); } catch { /* */ } } },
-    svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja')), h('span', { class: 'nm' }, r.name));
+  const p = ctxProject(), r = getMrReturn();
+  const id = p ?? r?.id; if (!id) return '';
+  const nm = h('span', { class: 'nm' }, r && r.id === id ? r.name : '');
+  const a = h('a', { class: 'btn btn-sm mr-back', id: 'mrBack', href: projectHref(id), title: tr('Master rejaga qaytish'), onclick: () => { try { sessionStorage.setItem(KB, id); } catch { /* */ } } },
+    svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja')), nm);
+  if (p && !(r && r.id === p)) void import('../storage/db').then(m => m.getProject(p)).then(d => { if (d) { nm.textContent = d.name; a.title = `${tr('Master rejaga qaytish')}: ${d.name}`; } }).catch(() => {});
+  else if (r) a.title = `${tr('Master rejaga qaytish')}: ${r.name}`;
+  return a;
 }
