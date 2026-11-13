@@ -673,7 +673,7 @@ const strip = h('section', { class: 'joy-strip glass', id: 'joyStrip', hidden: t
 /** 6B2 (28.10): joy pasporti va hisobot — pastda, oʻrtada; oʻlchov asboblari — pastda, chapda */
 const pass = h('section', { class: 'joy-card head joy-pass', id: 'joyPass', 'aria-label': tr('Joy pasporti') });
 const tools = h('div', { class: 'joy-mtools', id: 'joyTools' });
-root.replaceChildren(mapEl, axoEl, header, left, right, ask, baseSw, legend, strip, tools, pass, axL, axN, axT, modeSw);
+root.replaceChildren(mapEl, axoEl, header, left, right, ask, legend, strip, tools, pass, axL, axN, axT, modeSw);   // 14.11: xarita uslubi — doim pastki chap asboblar ustida (baseSw tools ichida)
 const isK = () => S.an === 'kocha';
 /** Tahlil turi: Hudud · Koʻcha (chap panel tepasida) */
 function anSwitch(): HTMLElement {
@@ -809,13 +809,13 @@ function renderTools(): void {
   const tb = (id: string | null, icon: string, name: string, on: () => void, pressed?: boolean, disabled?: boolean) =>
     h('button', { type: 'button', class: 'btn btn-ghost icon-btn', id, title: name, 'aria-label': name, 'aria-pressed': pressed ?? null, disabled: !!disabled, onclick: on }, ic(icon));
   const zoom = [tb('tZin', ICON.plus, tr('Kattalashtirish'), () => map?.zoomIn()), tb('tZout', ICON.minus, tr('Kichraytirish'), () => map?.zoomOut())];
-  if (isK()) { tools.replaceChildren(h('div', { class: 'tb glass' }, ...zoom)); return; }   // koʻcha rejimida — faqat masshtab
+  if (isK()) { tools.replaceChildren(baseSw, h('div', { class: 'tb glass' }, ...zoom)); return; }   // koʻcha rejimida — faqat masshtab
   tools.replaceChildren(...[
     measure ? h('div', { class: 'note', id: 'joyMeasure' }, measure) : null,
+    baseSw,
     h('div', { class: 'tb glass' },
       tb('tRuler', ICON.ruler, tr('Masofani oʻlchash: nuqtalarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('ruler'), drawing?.kind === 'ruler'),
       tb('tArea', ICON.areaM, tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('area'), drawing?.kind === 'area'),
-      tb(null, ICON.cut, `${tr('Kesim')} — ${tr('Tez orada')}`, () => { /* */ }, undefined, true),
       h('span', { class: 'vr' }), ...zoom),
   ].filter((x): x is NonNullable<typeof x> => !!x));
 }
@@ -838,8 +838,7 @@ function renderLeftH(): void {
       h('div', { class: 'joy-gl' }, h('i', { style: `background:${GROUP_COL[g]}` }), tr(gn)),
       ...LAYERS.filter(l => l.g === g).map(l => h('div', { class: `joy-l${here(l) ? '' : ' soon'}${isOn(l.id) ? ' on' : ''}${actId() === l.id ? ' act' : ''}`, 'data-layer': l.id, style: `--lc:${l.color}` },
         h('button', { type: 'button', class: 'lt', disabled: !here(l), 'aria-label': tf('${n} — faol qatlam', { n: tr(l.name) }), 'aria-pressed': actId() === l.id, onclick: () => setAct(l.id) }, layerIcon(l.id)),
-        h('span', { class: 'nm', onclick: here(l) ? () => setAct(l.id) : undefined }, tr(l.name)),
-        h('span', { class: 'src' }, tr(l.src), l.beta ? h('em', { class: 'beta' }, 'beta') : null),
+        h('span', { class: 'nm', title: `${tr(l.name)} · ${tr(l.src)}${l.beta ? ' · beta' : ''}`, onclick: here(l) ? () => setAct(l.id) : undefined }, tr(l.name)),   // 14.11: manba — kartochkada va izohda; qatorda faqat nom (noutbukda kesilmasin)
         here(l) ? sw(isOn(l.id), tr(l.name), () => toggle(l.id)) : l.ready ? h('em', { class: 'soon', title: tr('Bu qatlam maʼlumoti hozircha faqat Toshkent shahri uchun bor') }, tr('Faqat Toshkent')) : h('em', { class: 'soon', title: tr('Manba ulanmoqda — keyingi bosqichda') }, tr('Tez orada')),
       )),
     ))),

@@ -544,3 +544,19 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 /* Maydon rejimi (VGA) shkalasi */
 .joy-izgr { height: 10px; border-radius: 5px; margin: 8px 0 2px; }
 .joy-izgl { display: flex; justify-content: space-between; color: var(--muted, #6b6965); }
+/* 14.11 (egasi: noutbuk va planshetda chalkash): soddalashtirish
+   1) xarita uslubi (Stil / Sunʼiy yoʻldosh / palitra) — har qanday kenglikda bitta joyda: pastki chap asboblar ustida */
+#joyTools .joy-base{position:relative;left:auto;top:auto;right:auto;bottom:auto;z-index:auto}
+#joyTools .joy-base>.joy-pal:not(.inline){top:auto;bottom:40px;left:0;right:auto}
+#joyLegend{top:76px}
+/* 2) uslub tugmalari: matn kesilmaydi — kerak boʻlsa ikki qatorga oʻtadi */
+.jv-st.wrap{grid-auto-rows:minmax(26px,auto)}
+.jv-st.wrap button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15;padding:3px 5px}
+/* 3) tor ekran: pasport satri ixcham */
+@media (max-width:1100px){
+  .joy-pass .pp .t-small{display:none}
+  .joy-card.joy-pass .ttl{max-width:160px}
+  .joy-pass{max-width:calc(100% - 300px)}
+}
+@media (max-height:760px){.joy-lp,.joy-rp{max-height:calc(100% - 150px)}}
+@media (max-width:900px){.joy-pass{left:auto;right:12px;transform:none;max-width:calc(100% - 210px)}}
