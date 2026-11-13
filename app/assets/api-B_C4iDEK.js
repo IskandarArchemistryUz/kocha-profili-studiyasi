@@ -1,1 +1,0 @@
-export{o as toUpload}from"./api-DTYTIRoN.js";
