@@ -1777,6 +1777,7 @@ function designClick(ll,ev){
   const ds=DS(),h=hitTest(ll);
   if(ds.tool==='select'){selectAt(ll,h);return;}
   if(ds.tool==='sign'){placeSign(ll);return;}
+  if(ds.tool==='lane')return;                                                              // moʻyqalam — sudrash bilan ishlaydi
   if(ds.tool==='xwalk'){placeCrossing(ll,h);return;}
   if(ds.tool==='shape'||ds.tool==='line'){freeClick(ll);return;}
   if(ds.tool==='obj'){placeAtt(ll);return;}
@@ -1852,6 +1853,7 @@ function designHint(h){
   if(t==='round')h.innerHTML=`<b>Aylanma halqa</b> (${RTYPES[DS().rtype||'r2'].n}). Chorraha tugunini bosing — halqaga aylanadi (yana bosish — qaytaradi).`;
   if(t==='shape'||t==='line'){freeHint(h,t);return;}
   if(t==='obj'){h.innerHTML=`<b>${ATT[DS().attType||'bus'].n}.</b> Koʻchaning kerakli tomoniga bosing. Qoʻyilganini sudrab koʻchiring, oʻng tugma — menyu.`;return;}
+  if(t==='lane')h.innerHTML='<b>Boʻlak qoʻshish.</b> Koʻcha ustida bosib, boʻylab sudrang: qaysi tomonda boshlasangiz, oʻsha yoʻnalishga boʻlak qoʻshiladi. Qism boshida va oxirida koʻcha avtomatik boʻlinadi, kengayish silliq oʻtadi. <b>Alt</b> bilan sudrasangiz — boʻlak olib tashlanadi.';
   if(t==='xwalk')h.innerHTML='<b>Piyoda oʻtish joyi.</b> Koʻchaning istalgan joyiga bosing — oʻtish joyi qoʻyiladi. Turini oʻng panelda tanlang; qoʻyilganini sudrab koʻchiring.';
   const q=id=>h.querySelector(id);if(q('#dFin'))q('#dFin').onclick=()=>finishSeg(null);if(q('#dEsc'))q('#dEsc').onclick=()=>{D.start=null;D.pts=[];D.cur=null;afterDesign();};
 }
@@ -2971,6 +2973,7 @@ const TOOLS=[
   ['select','Tanlash / tahrirlash','i-select','V','Obyektni bosing — xususiyatlari shu yerda chiqadi. Nuqtalarni sudrang, oʻng tugma — menyu.'],
   ['draw','Koʻcha chizish','i-street','S','Modulni tanlang va xaritada nuqtalarni bosing. Mavjud koʻcha yoki tugunni bossangiz — ulanadi.'],
   ['xwalk','Piyoda oʻtish joyi','i-cross','P','Turini tanlang va koʻcha ustiga bosing. Qoʻyilganini sudrab koʻchiring.'],
+  ['lane','Boʻlak qoʻshish (moʻyqalam)','i-street','K','Koʻcha boʻylab sudrang — oʻsha qismga boʻlak qoʻshiladi (sudragan tomoningizga). Alt bilan — boʻlak olib tashlanadi. Trotuar oʻzi siljiydi.'],
   ['round','Aylanma halqa','i-round','R','Turini tanlang (turbo-halqa ham bor) va chorraha tugunini bosing.'],
   ['obj','Bekat, parklet, velo','i-obj','O','Turini tanlang va koʻchaning kerakli tomoniga bosing.'],
   ['shape','Erkin shakl','i-shape','F','Sirt turini tanlang va chegarasini nuqtama-nuqta chizing.'],
@@ -3009,6 +3012,44 @@ document.addEventListener('keydown',e=>{
   if(k==='M'){e.preventDefault();setTool('dist');}
   if(e.key==='Escape'&&DS().sel&&!D.start&&!F.pts.length){DS().sel=null;afterDesign();}
 });
+/* ===== BOʻLAK MOʻYQALAMI: koʻcha boʻylab sudrash → shu qismga boʻlak qoʻshish / olib tashlash ===== */
+{let BR=null,brL=null;
+  /* koʻcha oʻqiga proyeksiya: s (a dan masofa), i (siniq chiziq boʻlagi), d (chap — musbat) */
+  const projSeg=(sg,ll,o)=>{const P=segLL(sg).map(q=>toXY(q,o)),c=cumLen(P),p=toXY([ll.lat,ll.lng],o);let b=null;
+    for(let i=0;i<P.length-1;i++){const a=P[i],q=P[i+1],dx=q[0]-a[0],dy=q[1]-a[1],l2=dx*dx+dy*dy||1e-9;let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2;t=Math.max(0,Math.min(1,t));
+      const x=[a[0]+t*dx,a[1]+t*dy],dd=Math.hypot(p[0]-x[0],p[1]-x[1]),l=Math.sqrt(l2),sd=((p[0]-a[0])*(-dy)+(p[1]-a[1])*dx)/l;if(!b||dd<b.dd)b={dd,s:c[i]+t*l,i,d:sd};}
+    return {...b,T:c[c.length-1],P,c};};
+  /* s masofadagi nuqtada koʻchani boʻlish → yangi tugun */
+  const cutAt=(sg,s,o)=>{const P=segLL(sg).map(q=>toXY(q,o)),c=cumLen(P);let i=0;while(i<c.length-2&&c[i+1]<s)i++;
+    const t=(s-c[i])/((c[i+1]-c[i])||1e-9),xy=[P[i][0]+t*(P[i+1][0]-P[i][0]),P[i][1]+t*(P[i+1][1]-P[i][1])],ll=toLL(xy,o),n=newNode(ll);splitSegAt(sg,i,ll,n);return n;};
+  /* kesimga boʻlak qoʻshish: yoʻnalishning chetki (bordyur tomondagi) umumiy boʻlagi yoniga, eni — qoʻshnisidek */
+  const laneOp=(sg,dir,add)=>{ensureSt(sg);const st=sg.st,idx=st.map((x,i)=>i).filter(i=>st[i][0]==='lane'&&(st[i][2]||0)===dir);
+    if(!idx.length){if(!add)return false;const all=st.map((x,i)=>i).filter(i=>DK[st[i][0]]&&DK[st[i][0]].road);if(!all.length)return false;
+      const at=dir<0?Math.min(...all):Math.max(...all)+1;st.splice(at,0,['lane',3.25,dir]);return true;}
+    const outer=dir<0?Math.min(...idx):Math.max(...idx);
+    if(add){st.splice(dir<0?outer:outer+1,0,['lane',st[outer][1],dir]);return true;}
+    if(idx.length<2)return false;st.splice(outer,1);return true;};
+  const fin=(ok)=>{if(brL){map.removeLayer(brL);brL=null;}map.dragging.enable();const b=BR;BR=null;if(!ok||!b||!b.s1)return;
+    const ds=DS(),o=origin();let sg=segById(b.id);if(!sg)return;let s0=Math.min(b.s0,b.s1),s1=Math.max(b.s0,b.s1);const T=b.T;
+    if(s1-s0<8){toast('Qisqa — kamida 8 m sudrang.');return;}
+    /* uchlarga yaqin (20 m) boʻlsa — uchigacha: juda qisqa boʻlaklar (oʻtish chizilmaydi) hosil boʻlmaydi */
+    if(s0<20)s0=0;if(s1>T-20)s1=T;if(s1-s0<8){toast('Qisqa qism — kamida 8 m.');return;}
+    /* qism: oxiridan boshlab boʻlinadi (boshlangʻich s oʻzgarmasligi uchun) */
+    if(s1<T)cutAt(sg,s1,o);if(s0>0){cutAt(sg,s0,o);sg=ds.segs[ds.segs.length-1];}
+    const dir=b.side>0?-1:1;
+    if(!laneOp(sg,dir,!b.del)){toast(b.del?'Bu tomonda bitta boʻlak qolgan — olib tashlanmadi.':'Bu koʻchaga boʻlak qoʻshib boʻlmadi.');afterDesign();return;}
+    ds.sel={t:'seg',id:sg.id,strip:null};afterDesign();
+    toast(`${b.del?'Boʻlak olib tashlandi':'Boʻlak qoʻshildi'}: ${Math.round(s1-s0)} m, ${dir>0?'koʻcha yoʻnalishi boʻyicha':'qarama-qarshi yoʻnalishda'}.`);};
+  map.on('mousedown',e=>{const oe=e.originalEvent;if(S.app!=='design'||DS().tool!=='lane'||oe.button!==0)return;const h=hitSeg(e.latlng);if(!h)return;
+    const sg=segById(h.id),o=origin(),pr=projSeg(sg,e.latlng,o);BR={id:sg.id,s0:pr.s,s1:null,side:Math.sign(pr.d)||1,T:pr.T,del:oe.altKey,o};map.dragging.disable();});
+  map.on('mousemove',e=>{if(!BR)return;const sg=segById(BR.id);if(!sg)return;const pr=projSeg(sg,e.latlng,BR.o);BR.s1=pr.s;
+    const a=Math.min(BR.s0,BR.s1),b=Math.max(BR.s0,BR.s1),lay=layOf(sg),w=lay.outer,path=subLine(pr.P,a,b),side=offsetLine(path,BR.side*w*.5);
+    if(brL)map.removeLayer(brL);const ppm=1/(156543.03392*Math.cos(e.latlng.lat*Math.PI/180)/Math.pow(2,map.getZoom()));
+    brL=L.layerGroup([L.polyline(side.map(q=>toLL(q,BR.o)),{pane:'designEdit',interactive:false,color:BR.del?'#b23a2e':'#2b7449',opacity:.55,weight:Math.max(6,w*ppm),lineCap:'butt'}),
+      lab(e.latlng,`${BR.del?'− boʻlak':'+ boʻlak'} · ${Math.round(b-a)} m`)]).addTo(map);});
+  map.on('mouseup',()=>{if(BR)fin(true);});
+  window.addEventListener('keydown',e=>{if(e.key==='Escape'&&BR)fin(false);});
+}
 /* holat qatori */
 function updateStatus(){const m=document.getElementById('stMode'),z=document.getElementById('stZoom');if(!m)return;
   let t=APPNAME[S.app]||'';if(S.app==='design'){const tl=TOOLS.find(x=>x[0]===DS().tool);if(tl)t+=' · '+tl[1];const n=DS().segs.length;t+=` · ${n} koʻcha`;}
@@ -3459,7 +3500,7 @@ async function openAssetManager(onChange){
 
 
 /* ===== ArchiCAD uslubidagi interfeys: yorliqli asboblar paneli + kontekst (Info Box) paneli ===== */
-const TGROUPS=[['Tanlash',['select']],['Loyihalash',['draw','xwalk','round','obj']],['Chizma',['shape','line','sign']]];
+const TGROUPS=[['Tanlash',['select']],['Loyihalash',['draw','lane','xwalk','round','obj']],['Chizma',['shape','line','sign']]];
 function railBtn(attrs,ic,label,key,on){return `<button class="rbtn" ${attrs} aria-pressed="${!!on}" data-tip="${label}" aria-label="${label}"><svg class="ic"><use href="#${ic}"/></svg><span class="lb">${label}</span>${key?`<span class="k">${key}</span>`:''}</button>`;}
 renderRail=function(){
   const el=document.getElementById('railTools');if(!el)return;
