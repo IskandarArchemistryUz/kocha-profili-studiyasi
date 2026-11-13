@@ -19,7 +19,7 @@ const dirName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.P
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const KT=J=>J.ring?'halqa':J.sig?'svetofor':'belgisiz';
 let plan=null;
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=11',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=3',document.baseURI).href);return mod;}
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=12',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=4',document.baseURI).href);return mod;}
 
 /* tugundan boshlab koʻcha orqali bogʻlangan chorrahalar (JNET) */
 function component(nodeId){const all=[...JNET.values()],byReal=new Map();
@@ -76,7 +76,10 @@ window.openSim=async function(nodeId){
       ${anySig?`<span class="small">Sikl</span> <select data-cm title="Webster (1958): C=(1,5L+5)/(1−Y), yashil talabga mutanosib"><option value="a" selected>Avto (Webster)</option><option value="m">Qoʻlda</option></select> <input type="number" data-c value="90" min="40" max="180" step="5" style="width:56px" disabled> <span class="small">s</span>
       <span class="small">Chap faza</span> <select data-pl title="Avto: oddiy 2 fazali sxema toʻyinsa (Y>0,85) va alohida chap faza yengilroq boʻlsa"><option value="a" selected>Avto</option><option value="y">Har doim alohida</option><option value="n">Yoʻq (ruxsat etilgan)</option></select>`:''}
       ${anySig&&multi?`<span class="small">Yashil toʻlqin, s</span> <input type="number" data-o value="0" min="0" max="180" step="5" style="width:56px" title="Har keyingi svetoforning siljishi (offset)">`:''}
-    </div></details>
+    </div>
+    <div class="small" style="color:#555;margin:6px 0 2px">Burilish ulushlari har kirish uchun, % (boʻsh — yuqoridagi umumiy):</div>
+    <table style="width:100%;border-collapse:collapse"><tbody>${probe.net.arms.filter(a=>a.lanes.some(l=>!l.bus)).map(a=>`<tr><td class="small">${esc(probe.names[a.id]||a.id)}</td><td style="white-space:nowrap">↰<input type="number" data-as="${a.id}" data-m="L" min="0" max="100" style="width:42px"> ↑<input type="number" data-as="${a.id}" data-m="S" min="0" max="100" style="width:42px"> ↱<input type="number" data-as="${a.id}" data-m="R" min="0" max="100" style="width:42px"></td></tr>`).join('')}</tbody></table>
+    </details>
     <div data-out class="small" style="color:#555">Vaqtni tanlang va «Hisoblash»ni bosing — natija xaritada rang bilan chiqadi. Beta: natijalar taxminiy, loyiha qarori uchun tasdiqlangan model emas. Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (YHQ: chapga buriluvchi qarshidagiga, svetoforsizda oʻngdan kelayotganga, halqada — aylanayotganlarga), burilishda piyodaga yoʻl berish.</div>`;
   host.appendChild(box);
   ['mousedown','dblclick','wheel','click','contextmenu'].forEach(ev=>box.addEventListener(ev,e=>e.stopPropagation()));
@@ -94,7 +97,10 @@ window.openSim=async function(nodeId){
   const opts=()=>{const demand={},sh={};box.querySelectorAll('[data-q]').forEach(i=>demand[i.dataset.q]=Math.max(0,+i.value||0));
     box.querySelectorAll('[data-s]').forEach(i=>sh[i.dataset.s]=Math.max(0,+i.value||0)/100);
     const cm=box.querySelector('[data-cm]'),pl=box.querySelector('[data-pl]');
-    return {demand,shares:sh,cycle:Math.max(40,num('[data-c]',90)||90),auto:!cm||cm.value==='a',pl:pl?pl.value:'a',ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
+    /* har kirish ulushlari: kamida bittasi kiritilgan boʻlsa — qolganlari umumiydan; yigʻindi 1 ga keltiriladi */
+    const AS={};box.querySelectorAll('[data-as]').forEach(i=>{if(i.value==='')return;(AS[i.dataset.as]=AS[i.dataset.as]||{})[i.dataset.m]=Math.max(0,+i.value||0)/100;});
+    const armShares={};Object.entries(AS).forEach(([id,v])=>{const x={L:v.L??sh.L,S:v.S??sh.S,R:v.R??sh.R},t=x.L+x.S+x.R||1;armShares[id]={L:x.L/t,S:x.S/t,R:x.R/t};});
+    return {demand,shares:sh,armShares,cycle:Math.max(40,num('[data-c]',90)||90),auto:!cm||cm.value==='a',pl:pl?pl.value:'a',ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
   if(box.querySelector('[data-cm]'))box.querySelector('[data-cm]').onchange=e=>{box.querySelector('[data-c]').disabled=e.target.value==='a';};
   /* svetofor rejasi: chap faza qarori (koʻpaytma mezoni) + Webster sikli; koridorda umumiy sikl (yashil toʻlqin uchun) */
 
@@ -106,7 +112,7 @@ window.openSim=async function(nodeId){
     return {N,bound:B.bound,o,nl,bus,anySig};};
   const mk=seed=>{const b=baseOf(),sim=plan.makeSim(b,chosen||plan.defaultCh(b),seed);sigInfo=sim.info;return sim;};
   const runJob=(base,onP)=>new Promise((ok,bad)=>{
-    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=3',document.baseURI),{type:'module'});}}catch(e){WK=null;}
+    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=4',document.baseURI),{type:'module'});}}catch(e){WK=null;}
     if(!WK){setTimeout(()=>{try{ok(plan.evaluate(base,onP));}catch(e){bad(e);}},20);return;}
     const id=++job;WK.onmessage=e=>{const d=e.data;if(d.id!==job)return;if(d.p!=null)onP(d.p);if(d.done)ok(d.done);if(d.err)bad(new Error(d.err));};
     WK.onerror=e=>{WK.terminate();WK=null;try{ok(plan.evaluate(base,onP));}catch(x){bad(x);}};WK.postMessage({id,base});});
@@ -126,8 +132,9 @@ window.openSim=async function(nodeId){
     const dk=id=>(probe.names[id]||id).replace(/^\d+-tugun · /,'').split(' · ').pop();   // yoʻnalish nomi — hozir/loyiha moslash kaliti
     const DL=(d,b)=>{if(b==null)return '';const x=d-b,c=Math.abs(x)<1?'#777':x<0?'#2b7449':'#b23a2e';return `<span class="small" style="color:${c};margin-left:4px">${x>0?'+':''}${x.toFixed(0)}</span>`;};
     const row=(name,get,sg,dem=true,bk)=>{const d=avg(r=>get(r).delay),fl=avg(r=>get(r).flow),dm=get(R[0]).demand,F=R.filter(r=>get(r).los==='F').length>=2,l=los(d,sg,F),b=BASE&&bk!=null?(bk==='*'?BASE.T:(BASE.arms[bk]||{}).d):null;
+      ROWS.push([name,dem&&dm!=null?Math.round(dm):'',Math.round(fl),d.toFixed(1)+(b!=null?` (${d-b>0?'+':''}${(d-b).toFixed(0)})`:''),l]);
       return `<tr><td>${esc(name)}</td><td class="num">${dem&&dm!=null?Math.round(dm):''}</td><td class="num">${Math.round(fl)}</td><td class="num">${d.toFixed(1)}${DL(d,b)}</td><td><b style="color:${col(l)}">${l}</b></td></tr>`;};
-    let body='';
+    let body='';const ROWS=[];
     if(multi){C.list.forEach((J,i)=>{const jid='n'+J.id;body+=row(`${i+1}-tugun · ${KT(J)}`,r=>({...r.juncs[jid],demand:null}),J.sig&&!J.ring,false);});
       body+=`<tr><td colspan="5" class="small" style="color:#777;padding-top:4px">Chetki kirishlar</td></tr>`;}
     const JbyA=id=>C.list.find(J=>id.startsWith('n'+J.id+'a'));
@@ -160,7 +167,14 @@ window.openSim=async function(nodeId){
       <div style="margin-top:6px">3 ta tasodifiy takror × 15 daq. (birinchi 2 daq. — isinish). Kechikish — erkin harakatga nisbatan, navbatda qolganlar ham hisobga olingan${multi?'; tugun boʻyicha — shu chorrahaga yaqinlashish va undan oʻtish, jami — butun sayohat':''}. LOS — HCM (svetoforli: 10/20/35/55/80 s, svetoforsiz va halqa: 10/15/25/35/50 s); talab bajarilmasa — F.</div>`;
     const o2=box.querySelector('[data-out]');o2.insertAdjacentHTML('beforeend',saveBtn);
     o2.querySelector('[data-bsave]').onclick=()=>{saveBase(cur);show(R);};
-    if(o2.querySelector('[data-bclr]'))o2.querySelector('[data-bclr]').onclick=()=>{saveBase(null);show(R);};}
+    if(o2.querySelector('[data-bclr]'))o2.querySelector('[data-bclr]').onclick=()=>{saveBase(null);show(R);};
+    /* varaq: chizma + natija belgilari + jadval → PNG yoki Chizmadon albomi */
+    const plain=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent.replace(/\s+/g,' ').trim();};
+    const SH={title:`Harakatni sinash · ${title}`,verdict:plain(verdict),sig:plain(sigTxt),cmp:BASE?{base:BASE,cur}:null,rows:ROWS,note:`${lvl} · 3 takror × 15 daq. · LOS — HCM · Archemistry Lab, Koʻchasoz (BETA, kalibrlanmagan)`};
+    o2.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:6px;margin-top:6px"><button data-xpng class="btn">⬇ PNG varaq</button><button data-xalb class="btn" title="Chizmadon albomiga material sifatida">→ Chizmadon albomi</button></div>`);
+    o2.querySelector('[data-xpng]').onclick=()=>sheet(SH).then(cv=>cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(typeof fslug==='function'?fslug():'loyiha')+'-harakat.png';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);},'image/png'));
+    o2.querySelector('[data-xalb]').onclick=()=>sheet(SH).then(async cv=>{const src=cv.toDataURL('image/png'),id='ks'+Date.now().toString(36);
+      try{await kpsMatPut({id,kind:'png',name:SH.title,src,thumb:src,aspect:cv.width/cv.height,sub:'Harakat modeli',t:new Date().toISOString()});toast('Varaq Chizmadon albomiga yuborildi.',()=>window.open('app/#/chizmadon','_blank'),'Chizmadonni ochish');}catch(e){toast('Yuborilmadi: '+e.message);}});}
   function loop(){raf=requestAnimationFrame(loop);const now=performance.now(),dt=Math.min(.1,(now-st.last)/1000)*4;st.last=now;
     for(let k=0;k<Math.max(1,Math.round(dt/.1));k++)st.sim.step(Math.min(.1,dt));draw();
     if(Math.floor(st.sim.t)%2===0){const r=st.sim.result(0),q=st.sim.queues();box.querySelector('[data-out]').innerHTML=`t = ${Math.floor(st.sim.t)} s · mashina: ${st.sim.V.length} · oʻtdi: ${r.total.n} · oʻrtacha kechikish: ${r.total.delay} s · navbat: ${Object.values(q).reduce((a,b)=>a+b,0)}`;}}
@@ -181,6 +195,32 @@ function draw(){if(!cv)return;const host=map.getContainer(),W=host.clientWidth,H
     g.strokeStyle=v.bus?'#2a5a9a':(MCOL[v.m]||'#1c2628');g.lineWidth=Math.max(2,ppm*(v.bus?2.5:1.9));g.beginPath();g.moveTo(r[0],r[1]);g.lineTo(f[0],f[1]);g.stroke();
     if(ppm>3){g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=Math.max(1,ppm*.5);g.beginPath();const t=[f[0]+(r[0]-f[0])*.2,f[1]+(r[1]-f[1])*.2];g.moveTo(f[0],f[1]);g.lineTo(t[0],t[1]);g.stroke();}});
 }
+/* varaq chizish: chap — koʻcha chizmasi (eksport geometriyasi) + LOS belgilari, oʻng — xulosa va jadval */
+async function sheet(SH){const W=1800,H=1100,L0=1080,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+  g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#ece7dc';g.fillRect(20,20,L0-40,H-80);
+  const G=typeof exportGeom==='function'?exportGeom():null,C=res&&res.C;
+  if(G&&C){const pts=[];C.list.forEach(J=>J.E.forEach(e=>e.lanes.forEach(l=>pts.push(toXY(toLL(l.P,J.o),G.o)))));
+    let bb=pts.reduce((a,p)=>[Math.min(a[0],p[0]),Math.min(a[1],p[1]),Math.max(a[2],p[0]),Math.max(a[3],p[1])],[1e9,1e9,-1e9,-1e9]);const pad=70;bb=[bb[0]-pad,bb[1]-pad,bb[2]+pad,bb[3]+pad];
+    const k=Math.min((L0-80)/(bb[2]-bb[0]),(H-120)/(bb[3]-bb[1])),ox=20+((L0-40)-(bb[2]-bb[0])*k)/2,oy=20+((H-80)-(bb[3]-bb[1])*k)/2,X=p=>[ox+(p[0]-bb[0])*k,oy+(bb[3]-p[1])*k];
+    g.save();g.beginPath();g.rect(20,20,L0-40,H-80);g.clip();
+    G.items.forEach(it=>{if(it.t==='poly'){g.fillStyle=it.col;g.beginPath();it.xy.forEach((p,i)=>{const q=X(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]);});g.closePath();g.fill();}
+      else if(it.t==='line'){g.strokeStyle=it.opt.color;g.lineWidth=Math.max(.6,widthM(it.opt.weight)*k);g.setLineDash((dashM(it.opt.dashArray)||[]).map(v=>v*k));g.beginPath();it.xy.forEach((p,i)=>{const q=X(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]);});g.stroke();}});
+    g.setLineDash([]);
+    /* natija: drawRes bilan bir xil, lekin varaq koordinatalarida */
+    const P=q=>X(toXY(toLL(q,C.list[0].o),G.o));drawRes(g,P,k);g.restore();
+    const sb=[10,20,50,100,200].find(v=>v*k>90)||200;g.fillStyle='#141414';g.fillRect(40,H-90,sb*k,5);g.font='13px Archivo,Arial';g.textAlign='left';g.fillText(sb+' m',40,H-98);}
+  else{g.fillStyle='#777';g.font='16px Archivo,Arial';g.fillText('Chizma mavjud emas',60,80);}
+  /* oʻng panel */
+  let y=50;const x0=L0+10,wr=W-x0-30,txt=(t,f,c,lh)=>{g.font=f;g.fillStyle=c;g.textAlign='left';const words=String(t).split(' ');let line='';for(const w of words){const tt=line?line+' '+w:w;if(g.measureText(tt).width>wr&&line){g.fillText(line,x0,y);y+=lh;line=w;}else line=tt;}if(line){g.fillText(line,x0,y);y+=lh;}};
+  txt(SH.title,'700 24px Archivo,Arial','#141414',30);y+=6;txt(SH.verdict,'500 16px Archivo,Arial','#141414',22);y+=6;if(SH.sig)txt(SH.sig,'13px Archivo,Arial','#555',18);y+=10;
+  if(SH.cmp){const b=SH.cmp.base,c=SH.cmp.cur,f=(a,v)=>a==null?'—':a.toFixed(0)+' s';txt('Hozir ↔ Loyiha','700 16px Archivo,Arial','#141414',22);
+    [['LOS',b.TL,c.TL],['Oʻrtacha kechikish',f(b.T),f(c.T)],['Odam boshiga',f(b.person),f(c.person)],['Piyoda kutishi',f(b.pedW),f(c.pedW)]].forEach(r=>{g.font='14px Archivo,Arial';g.fillStyle='#141414';g.fillText(r[0],x0,y);g.textAlign='right';g.fillText(r[1],x0+wr-170,y);g.font='700 14px Archivo,Arial';g.fillText(r[2],x0+wr-40,y);g.textAlign='left';y+=20;});y+=10;}
+  const cx=[0,wr-300,wr-200,wr-60,wr];g.font='600 12px Archivo,Arial';g.fillStyle='#777';['','Talab','Oʻtdi','Kechikish, s','LOS'].forEach((h,i)=>{g.textAlign=i?'right':'left';g.fillText(h,x0+cx[i],y);});y+=8;
+  g.strokeStyle='#ddd';g.beginPath();g.moveTo(x0,y);g.lineTo(x0+wr,y);g.stroke();y+=18;
+  SH.rows.forEach(r=>{if(y>H-90)return;g.font='13px Archivo,Arial';g.fillStyle='#141414';g.textAlign='left';let nm=String(r[0]);while(g.measureText(nm).width>wr-310&&nm.length>4)nm=nm.slice(0,-2);g.fillText(nm===String(r[0])?nm:nm+'…',x0,y);
+    g.textAlign='right';g.fillText(String(r[1]),x0+cx[1],y);g.fillText(String(r[2]),x0+cx[2],y);g.fillText(String(r[3]),x0+cx[3],y);g.font='700 13px Archivo,Arial';g.fillStyle=LCOL[r[4]]||'#555';g.fillText(r[4],x0+cx[4],y);y+=20;});
+  g.textAlign='left';g.font='12px Archivo,Arial';g.fillStyle='#777';g.fillText(SH.note,20,H-30);g.textAlign='right';g.fillText(new Date().toLocaleDateString('ru-RU')+' · '+(typeof projName==='function'?projName():''),W-30,H-30);
+  return cv;}
 /* natija xaritada: navbat chizigʻi (kirish boʻlaklari boʻylab) + LOS belgisi */
 function drawRes(g,P,ppm){
   const badge=(c,txt,col,r)=>{g.fillStyle='#fff';g.beginPath();g.arc(c[0],c[1],r+2,0,7);g.fill();g.fillStyle=col;g.beginPath();g.arc(c[0],c[1],r,0,7);g.fill();
