@@ -179,3 +179,30 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_at ON events (at);
 CREATE INDEX IF NOT EXISTS events_anon ON events (anon, at);
 CREATE INDEX IF NOT EXISTS events_user ON events (user_id, at) WHERE user_id IS NOT NULL;
+
+-- agent «Maslahatchi» (2026-11-13): har yurish — bitta qator. Loyiha mazmuni va savol matni saqlanmaydi, faqat hisob.
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id),
+  svc         TEXT NOT NULL,
+  scenario    TEXT NOT NULL,
+  tier        TEXT NOT NULL,
+  free        BOOLEAN NOT NULL DEFAULT false,
+  owner       BOOLEAN NOT NULL DEFAULT false,
+  coins       INT NOT NULL DEFAULT 0,
+  steps       INT NOT NULL DEFAULT 0,
+  in_tok      INT NOT NULL DEFAULT 0,
+  out_tok     INT NOT NULL DEFAULT 0,
+  cost_micro  BIGINT NOT NULL DEFAULT 0,
+  status      TEXT NOT NULL DEFAULT 'open',
+  err         TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS agent_runs_at ON agent_runs (created_at);
+CREATE INDEX IF NOT EXISTS agent_runs_user ON agent_runs (user_id, created_at);
+CREATE TABLE IF NOT EXISTS agent_free (
+  user_id     BIGINT NOT NULL REFERENCES users(id),
+  week        TEXT NOT NULL,
+  used        INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, week)
+);

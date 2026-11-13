@@ -11,7 +11,8 @@ import { registerData } from './data/routes.js';
 import { ownerStats, grantCoins, ownerUser, ownerReveal, geoOf } from './owner.js';
 import { parseBatch, insertEvents, eventStats } from './events.js';
 import { makePrivate, parseBbox, PrivateError } from './private.js';
-import { ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
+import { registerAgent } from './agent.js';
+import { AGENT_COINS, AGENT_FREE_PER_WEEK, ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
 
@@ -28,9 +29,10 @@ export const COOKIE = 'ks_sess';
  * @param {boolean} [o.secure]    cookie Secure (ishda — true)
  * @param {{cache: object, fetchImpl?: Function, servers?: string[]}|null} [o.data]  hudud ma'lumoti keshi (data/cache.js); null — /data/* yo'q
  * @param {{arcgis?: string|null}} [o.mapKeys]  brauzerga beriladigan ochiq xarita kalitlari (ARCGIS_API_KEY)
+ * @param {object|null} [o.agent] agent «Maslahatchi» sozlamasi (agent.js: apiKey, services, …); null — agent oʻchiq
  * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -252,6 +254,12 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
       req.log.warn({ mc: { reason: r.body?.message, status: r.status, keys: Object.keys(b), store_id: b.store_id, invoice_id: b.invoice_id, amount: b.amount, uuid: b.uuid, ps: b.ps, signLen: b.sign ? String(b.sign).length : 0, ctype: req.headers['content-type'], ourStore: r.ourStore && JSON.stringify(r.ourStore) } }, 'multicard callback rad etildi');
     }
     return reply.code(r.status).send(r.body);
+  });
+
+  /* ---------- agent «Maslahatchi» (13.11): kalit .env da; boʻlmasa /agent/config → enabled: false ---------- */
+  registerAgent(app, {
+    db, wallet, requireUser, isOwner, limited, cfg: agent, now: now ?? (() => new Date()),
+    optionalUser: (req) => auth.userByToken(req.cookies[COOKIE]),
   });
 
   app.decorate('wallet', wallet);

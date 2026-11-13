@@ -145,6 +145,20 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
     return { spent, cap: projectCap(areaHa), k: areaK(areaHa), genFree: Math.max(0, GEN_FREE - gen) };
   }
 
+  /**
+   * Umumiy yechish (agent va boshqalar): loyiha shifti hisobga olinadi. ref takrorlansa ham har safar yechiladi —
+   * takrordan himoya chaqiruvchida (masalan, agent_runs qatori).
+   */
+  async function spend(userId, { coins, reason, ref, project, areaHa = 0, note }) {
+    if (!Number.isInteger(coins) || coins <= 0) throw new WalletError('bad_amount', 'miqdor notoʻgʻri');
+    return db.tx(async (q) => {
+      const c = await capIn(q, userId, project, areaHa, coins);
+      const bal = c.pay > 0 ? await debitIn(q, userId, c.pay, reason, ref, note) : await balance(userId, q);
+      await addSpent(q, userId, project, c.pay);
+      return { charged: c.pay, balance: bal, capped: c.pay < coins };
+    });
+  }
+
   async function trialsLeft(userId) {
     const { rows } = await db.query(`SELECT used FROM trials WHERE user_id = $1 AND week = $2`, [userId, weekKey(now())]);
     return Math.max(0, TRIALS_PER_WEEK - (rows[0]?.used ?? 0));
@@ -156,5 +170,5 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
     return rows;
   }
 
-  return { balance, credit, exportTicket, verifyTicket, useTrial, trialsLeft, history, projectInfo };
+  return { balance, credit, spend, exportTicket, verifyTicket, useTrial, trialsLeft, history, projectInfo };
 }
