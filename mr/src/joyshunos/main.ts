@@ -36,6 +36,9 @@ import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
 import type { XY } from '../core/geo';
 import { cacheGet, cachePut, cacheDel } from '../storage/db';
 import { svcDef, type Svc } from '../core/services';
+import { AgentPanel, agentIntro, agentSeen, markAgentSeen, type Quick } from '../agent/panel';
+import { agentConfig, agentApi } from '../agent/api';
+import { joyTools, type JoyHost } from '../agent/tools-joy';
 import { nearestStation, type Climate } from '../core/wind';
 import { windAt, srcAttr, srcShort, type WindSrc, type GlobalSrc } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
@@ -595,6 +598,64 @@ function setAn(k: 'hudud' | 'kocha'): void {
 }
 
 const ic = (d: string, cls = 'ic') => { const s = svgIcon(d); s.classList.add(cls); return s; };
+/* ---------------- Maslahatchi (agent, 13.11): faqat oʻqiydi — ekrandagi pasport kartalari, xizmatlar va narx kataklari ---------------- */
+const AGENT_QUICK: Quick[] = [
+  { id: 'pass', label: 'Hudud pasporti', scenario: 'joy.passport', prompt: 'Shu hudud uchun qisqa pasport matnini tuzing: yoqilgan qatlamlardagi asosiy raqamlar, kuchli va zaif tomonlar, meʼyorlar bilan solishtirish.' },
+  { id: 'svc', label: 'Xizmatlar yetadimi?', scenario: 'joy.ask', prompt: 'Maktab, bogʻcha, poliklinika va bekat meʼyoriy radiusda bormi? Har biri uchun masofa va manba.' },
+  { id: 'risk', label: 'Asosiy xavflar', scenario: 'joy.ask', prompt: 'Bu hududning eng muhim 3 ta muammosi nima (issiqlik, yashillik, nishablik, shovqin va boshqalar)? Raqamlar bilan.' },
+  { id: 'narx', label: 'Narxlar', scenario: 'joy.ask', prompt: 'Bu katakdagi uy narxi shahar medianasiga nisbatan qanday? Eʼlonlar soni va sana bilan.' },
+];
+let agent: AgentPanel | null = null, agentBtnEl: HTMLButtonElement | null = null;
+function joyHost(): JoyHost {
+  return {
+    center: () => S.c, radius: () => S.r, address: () => (D.addr.st === 'ok' ? D.addr.v ?? null : null),
+    layers: () => LAYERS.filter(l => isOn(l.id)).map(l => ({ id: l.id, name: tr(l.name) })),
+    cards: () => collectCards(),
+    services: () => {
+      if (!isOn('xizmat')) return null;
+      const p = D.poi.v; if (D.poi.st !== 'ok' || !p) return 'load';
+      const cnt = countPoi(p.pois, S.c, S.r, SVC_KINDS), rows = svcRows(p.pois, S.added ?? [], S.c, SVC_KINDS, k => svcDef(k).r);
+      return rows.map(x => ({ kind: x.kind, count_in_radius: cnt.find(c => c.kind === x.kind)?.n ?? 0, nearest_osm_m: x.osm, nearest_added_m: x.own, norm_radius_m: x.r, status: x.st }));
+    },
+    narx: () => {
+      if (!isOn('narx')) return null;
+      const d = D.narx.v; if (D.narx.st !== 'ok' || !d) return 'load';
+      const k = katOf(V('narx').st); if (!hasKat(d, k)) return 'nodata';
+      const a = narxAt(d, k, S.c), city = d.shahar?.[k];
+      return { category: k, date: d.sana, in_city: a.inCity, listings: a.n, median: a.median ?? null, p25: a.p25 ?? null, p75: a.p75 ?? null, rank_pct: a.rank ?? null,
+        city_median: city ? city[1] : null, city_listings: city ? city[0] : null, unit: isIjara(k) ? 'USD/m² per month' : 'USD/m²', cell_m: narxSize(k) };
+    },
+    clause: (doc, c) => agentApi.clause(doc, c),
+  };
+}
+function agentPanel(): AgentPanel {
+  if (!agent) {
+    agent = new AgentPanel({
+      svc: 'joy', quick: AGENT_QUICK, tools: () => joyTools(joyHost()), placeholder: 'Hudud haqida savol bering…',
+      project: () => null, areaHa: () => Math.round(Math.PI * S.r * S.r / 1e4 * 10) / 10,
+      onClose: () => agentBtnEl?.setAttribute('aria-pressed', 'false'),
+    });
+    document.body.append(agent.el);
+  }
+  return agent;
+}
+function agentToggle(open?: boolean): void {
+  const p = agentPanel(), want = open ?? !p.isOpen;
+  if (want) { p.open(); markAgentSeen(); agentBtnEl?.querySelector('.ag-dot')?.remove(); } else p.close();
+  agentBtnEl?.setAttribute('aria-pressed', String(want));
+}
+function agentBtn(): HTMLButtonElement {
+  if (agentBtnEl) return agentBtnEl;
+  // sarlavhada joy kam (Xarita/Aksonometriya almashtirgichi) — faqat belgi, nomi title va aria-label da
+  const b = agentBtnEl = h('button', { class: 'btn btn-sm btn-ghost icon-btn agbtn', id: 'agentBtn', type: 'button', hidden: true, 'aria-pressed': 'false', 'aria-label': tr('Maslahatchi'), title: tr('Maslahatchi — hudud boʻyicha savol bering'), onclick: () => agentToggle() },
+    svgIcon('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8M8 13h5"/>'), agentSeen() ? '' : h('span', { class: 'ag-dot', 'aria-label': tr('yangi') })) as HTMLButtonElement;
+  void agentConfig().then(c => {
+    if (!c?.enabled || !c.services.includes('joy')) return;
+    b.hidden = false;
+    agentIntro(b, () => agentToggle(true));
+  });
+  return b;
+}
 function renderHeader(): void {
   header.replaceChildren(
     mrBackBtn(),
@@ -602,6 +663,7 @@ function renderHeader(): void {
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
+    agentBtn(),
     langMenu(l => { void setLang(l); }),
     (() => { const b = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'themeBtn', type: 'button', title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }); b.append(ic(isDark() ? ICON.sun : ICON.moon)); return b; })(),
   );

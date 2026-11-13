@@ -20,10 +20,13 @@ export interface Quick { id: string; label: string; scenario: string; prompt: st
 export interface PanelOpts {
   svc: string; tools: () => Tools; project: () => string | null; areaHa: () => number; quick: Quick[];
   api?: AgentApi; onClose?: () => void;
+  /** savol maydoni matni (sukut: «Loyiha haqida savol bering…») */
+  placeholder?: string;
 }
 
 const TOOL_NAME: Record<string, string> = {
   project_summary: 'Loyiha xulosasi', get_tep: 'TEP koʻrsatkichlari', run_norm_check: 'Meʼyoriy tekshiruv natijalari', get_norm_clause: 'Meʼyor bandi',
+  joyshunos_layers: 'Qatlamlar xulosasi', nearby_services: 'Yaqin xizmatlar', price_hex_summary: 'Narx kataklari',
   list_objects: 'Obyektlar roʻyxati', get_object: 'Obyekt parametrlari', get_constraints: 'Cheklovlar', highlight: 'Xaritada belgilash', price_estimate: 'Narx',
 };
 const CLOSE = '<path d="M6 6l12 12M18 6L6 18"/>', SEND = '<path d="M5 12h14M13 6l6 6-6 6"/>', CHEV = '<path d="M9 6l6 6-6 6"/>';
@@ -63,7 +66,7 @@ export class AgentPanel {
   constructor(private o: PanelOpts) {
     this.api = o.api ?? agentApi;
     this.log = h('div', { class: 'ag-log', 'aria-live': 'polite' });
-    this.input = h('textarea', { class: 'ag-in', id: 'agIn', rows: 2, maxlength: 2000, placeholder: tr('Loyiha haqida savol bering…'), 'aria-label': tr('Savol') }) as HTMLTextAreaElement;
+    this.input = h('textarea', { class: 'ag-in', id: 'agIn', rows: 2, maxlength: 2000, placeholder: tr(o.placeholder ?? 'Loyiha haqida savol bering…'), 'aria-label': tr('Savol') }) as HTMLTextAreaElement;
     this.input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.submit(); } });
     this.send = h('button', { class: 'btn btn-primary', id: 'agSend', type: 'button', onclick: () => this.submit() }) as HTMLButtonElement;
     this.freeEl = h('span', { class: 't-small ag-free', id: 'agFree' });
@@ -74,7 +77,7 @@ export class AgentPanel {
         h('div', { class: 'ag-title' },
           h('div', { class: 'row' }, h('span', { class: 't-title' }, tr('Maslahatchi')), h('span', { class: 'ag-beta' }, 'beta')),
           h('div', { class: 't-small' }, tr('Faqat oʻqiydi · loyihani oʻzgartirmaydi'))),
-        h('button', { class: 'ib sm', id: 'agClose', type: 'button', 'aria-label': tr('Yopish'), onclick: () => this.close() }, svgIcon(CLOSE))),
+        h('button', { class: 'ib sm ag-x', id: 'agClose', type: 'button', 'aria-label': tr('Yopish'), onclick: () => this.close() }, svgIcon(CLOSE))),
       this.log,
       h('div', { class: 'ag-foot' }, quick, h('div', { class: 'ag-box' }, this.input, h('div', { class: 'row ag-row' }, this.freeEl, this.send))));
     this.empty();
