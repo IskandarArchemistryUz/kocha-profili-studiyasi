@@ -13,7 +13,7 @@ export type Block =
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean };
 export interface Msg { role: 'user' | 'assistant'; content: string | Block[] }
-export interface StepRes { content: Block[]; stop: string; status: 'open' | 'done' | 'limit'; stepsLeft: number }
+export interface StepRes { content: Block[]; stop: string; status: 'open' | 'done' | 'limit'; stepsLeft: number; /** server filtri: manbasi topilmagan raqamlar */ unsourced?: string[] }
 
 async function call<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let r: Response;
