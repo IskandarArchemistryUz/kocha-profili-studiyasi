@@ -197,7 +197,7 @@ async function setBase(k){
     if(k==='google'){lay=BASES.google||await googleBase();if(lay)BASES.google=lay;else{S.base=null;return setBase(fromMode(KPSMAP.base().mode));}}
     KB.release();if(curBase)curBase.forEach(l=>map.removeLayer(l));curBase=lay;curBase.forEach(l=>{l.addTo(map);l.bringToBack&&l.bringToBack();});
     if(KPSMAP.base().mode!==EXTRA[k])KPSMAP.set({mode:EXTRA[k]});}
-  document.getElementById('baseSel').value=k;save();
+  document.getElementById('baseSel').value=k;save();gridBg();
   if(k==='imgl')setTimeout(loadBoundaries,0);
 }
 /* boshqa boʻlimda fon almashsa — shu yerda ham */
@@ -205,7 +205,21 @@ KPSMAP.onChange(b=>{const k=S.base;if(EXTRA[k]&&EXTRA[k]===b.mode)return;if(SHAR
 {const bs=document.getElementById('baseSel');
   bs.innerHTML='<optgroup label="Asosiy — barcha boʻlimlarda"><option value="stil">Stil (ranglari oʻzgaradi)</option><option value="osm">OpenStreetMap</option><option value="img">Sunʼiy yoʻldosh (Esri)</option><option value="none">Fonsiz</option></optgroup><optgroup label="Qoʻshimcha — faqat shu boʻlimda"><option value="imgl">Sunʼiy yoʻldosh + OSM nomlar va chegaralar</option><option value="google">Google sunʼiy yoʻldosh (API kalit)</option><option value="street">Esri koʻcha xaritasi</option><option value="carto">OSM — Voyager (toza)</option></optgroup>';
   bs.after(KPSMAP.control({modes:false,down:true}));}
-document.getElementById('baseSel').onchange=e=>setBase(e.target.value);
+document.getElementById('baseSel').onchange=e=>{setBase(e.target.value);gridBg();};
+/* chizma uslubi tanlovi (fon tanlovi yonida) */
+{const bs=document.getElementById('baseSel'),sel=document.createElement('select');sel.id='dStySel';sel.setAttribute('aria-label','Chizma uslubi');sel.title='Chizma uslubi';
+  sel.innerHTML='<option value="color">Chizma: rangli</option><option value="line">Chizma: chiziqli</option>';sel.value=S.dsty==='line'?'line':'color';sel.style.marginLeft='6px';
+  sel.onchange=()=>{S.dsty=sel.value;save();if(typeof afterDesign==='function')afterDesign();gridBg();};bs.after(sel);}
+/* fonsiz xaritada och toʻr (5 m va 25 m) va yumshoq gradient — xarita bilan siljiydi va masshtablanadi */
+function gridBg(){const el=map.getContainer();if(S.base!=='none'){el.style.backgroundImage='';el.style.backgroundColor='';return;}
+  const ppm=1/(156543.03392*Math.cos(map.getCenter().lat*Math.PI/180)/Math.pow(2,map.getZoom())),m5=5*ppm,m25=25*ppm,o0=map.latLngToContainerPoint([41.3,69.2]);
+  const minor=m5>=6,c1='rgba(160,150,130,.16)',c2='rgba(150,140,118,.28)';
+  const lay=[`radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.75), rgba(255,255,255,0) 70%)`,
+    `linear-gradient(${c2} 1px, transparent 1px)`,`linear-gradient(90deg, ${c2} 1px, transparent 1px)`].concat(minor?[`linear-gradient(${c1} 1px, transparent 1px)`,`linear-gradient(90deg, ${c1} 1px, transparent 1px)`]:[]);
+  const sz=['100% 100%',`${m25}px ${m25}px`,`${m25}px ${m25}px`].concat(minor?[`${m5}px ${m5}px`,`${m5}px ${m5}px`]:[]);
+  const ps=['0 0',`${o0.x%m25}px ${o0.y%m25}px`,`${o0.x%m25}px ${o0.y%m25}px`].concat(minor?[`${o0.x%m5}px ${o0.y%m5}px`,`${o0.x%m5}px ${o0.y%m5}px`]:[]);
+  el.style.backgroundColor='#efece5';el.style.backgroundImage=lay.join(',');el.style.backgroundSize=sz.join(',');el.style.backgroundPosition=ps.join(',');el.style.backgroundAttachment='local';}
+map.on('move zoom zoomend',()=>{if(S.base==='none')gridBg();});setTimeout(gridBg,0);
 /* OSM maʼmuriy chegaralari (Overpass) — sunʼiy yoʻldosh ustida */
 let bndKey='',bndT=0;
 async function loadBoundaries(){
@@ -1681,12 +1695,25 @@ function buildShapes0(){
   sh.forEach(x=>{if(!x.lv)return;x.z+=x.lv*100;if(x.lv<0){if(x.t==='poly')x.op=(x.op??1)*.35;else if(x.t==='line')x.opt={...x.opt,opacity:.35};}});
   return {sh,marks};
 }
+/* chizma uslubi: «rangli» (andoza) yoki «chiziqli» (B4: och funksional ranglar, qora bordyur, kulrang chiziqlar) */
+const LINE_COL={'#e4d9c3':'#fbf8f2','#dccfb0':'#f6f1e6','#8cb36b':'#e3eedb','#86ad66':'#e3eedb','#d6d1c6':'#f1efea','#4b4e55':'#e9e9e6','#51545b':'#e6e6e2','#55585f':'#e6e6e2',
+  '#62656c':'#e1e5ee','#bf5a4d':'#dfe6f5','#6b6c72':'#e4e1ec','#5fae88':'#f5ddd3','#6aa07f':'#dcebd9','#d3cab6':'#e3eedb','#cdbfa3':'#f3ede2','#6e9c50':'#ffffff','#96c173':'#eef5e8','#f4f4f0':'#a8a49b','#d9d4c7':'#c9c5bc'};
+const isLineSty=()=>S.dsty==='line';
+const mixW=(c,k=.8)=>{const m=/^#([0-9a-f]{6})$/i.exec(c||'');if(!m)return c;const n=parseInt(m[1],16),f=v=>Math.round(v+(255-v)*k);return '#'+[n>>16,(n>>8)&255,n&255].map(v=>f(v).toString(16).padStart(2,'0')).join('');};
+const lineFill=c=>LINE_COL[(c||'').toLowerCase()]||mixW(c);
+const lineStroke=c=>{const l=(c||'').toLowerCase();return l==='#fff'||l==='#ffffff'||l==='white'?'#a8a49b':l==='#48703a'?'#8aa874':c;};
 function renderDesign(){
   designL.clearLayers();const {sh}=buildShapes();
+  if(isLineSty()){/* bordyur: yoʻl poligonlari ostidan qora chiziq — ichki chegaralarni qoʻshni yoʻl yopadi, tashqi chegara qoladi */
+    const tw=[];sh.forEach(x=>{if(x.t==='poly'&&(x.cat==='car'||x.cat==='pt'||x.cat==='bike'||x.cat==='node')&&!x.flat2d)tw.push({t:'poly',ll:x.ll,col:'none',stroke:'#141414',z:null,lv:x.lv||0});});
+    /* tartib: trotuar/yashil (0,9) → bordyur chizigʻi (0,95) → yoʻl (1 va undan yuqori): yoʻl ichki yarmini yopadi, tashqi yarmi trotuar ustida koʻrinadi */
+    sh.forEach(x=>{if(x.t==='poly'&&(x.cat==='ped'||x.cat==='green')&&x.z-(x.lv||0)*100===1)x.z-=.1;});tw.forEach(t=>t.z=.95+t.lv*100);
+    sh.forEach(x=>{if(x.t==='poly'){x.col=lineFill(x.col);}else if(x.t==='line'){x.opt={...x.opt,color:lineStroke(x.opt.color)};}});
+    sh.push(...tw);}
   const zk=Math.pow(2,map.getZoom()-19),sc=o=>{const r=Object.assign({},o);r.weight=Math.max(.5,(o.weight??3)*zk);if(o.dashArray)r.dashArray=String(o.dashArray).split(/[ ,]+/).map(v=>Math.max(1,+v*zk).toFixed(1)).join(' ');return r;};
   const oc=origin();
   sh.sort((a,b)=>a.z-b.z).forEach(x=>{
-    if(x.t==='poly')L.polygon(x.ll,{pane:'design',renderer:DR,stroke:false,fillColor:x.col,fillOpacity:x.op??1,interactive:false}).addTo(designL);
+    if(x.t==='poly')L.polygon(x.ll,x.stroke?{pane:'design',renderer:DR,fill:false,color:x.stroke,weight:Math.max(1.2,2.4*zk),interactive:false}:{pane:'design',renderer:DR,stroke:false,fillColor:x.col,fillOpacity:x.op??1,interactive:false}).addTo(designL);
     else if(x.t==='line')L.polyline(x.ll,Object.assign({pane:'design',renderer:DR,interactive:false,lineCap:'butt'},sc(x.opt))).addTo(designL);
     else if(x.t==='car'&&zk>=.45){const P=toXY(x.ll,oc),ca=Math.cos(x.h),sa=Math.sin(x.h),R=(u,v)=>toLL([P[0]+u*ca-v*sa,P[1]+u*sa+v*ca],oc);
       L.polygon([R(-2.2,-.85),R(1.9,-.85),R(2.2,-.6),R(2.2,.6),R(1.9,.85),R(-2.2,.85)],{pane:'design',renderer:DR,color:'#8a8d94',weight:Math.max(.5,zk),fillColor:'#f3f3f0',fillOpacity:1,interactive:false}).addTo(designL);
