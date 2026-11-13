@@ -1,0 +1,74 @@
+name: Master reja — testlar
+on:
+  push:
+    branches: [main]
+    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'gis.html', 'shamol.html', 'posadka.html', 'ai.html', 'js/eko.js', 'css/**', 'js/site.js', 'js/narx.js', 'js/home-i18n.js', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html', 'js/fikr.js', 'atamalar.html', 'js/i18n.js', 'js/i18n/**', '.github/workflows/master-reja.yml']
+  pull_request:
+    paths: ['mr/**', 'app/**', 'index.html', 'kocha.html', 'dizaynkod.html', 'dizaynkod-joy.html', 'gis.html', 'shamol.html', 'posadka.html', 'ai.html', 'js/eko.js', 'css/**', 'js/site.js', 'js/narx.js', 'js/home-i18n.js', 'narxlar.html', 'haqida.html', 'narxlar-batafsil.html', 'js/fikr.js', 'atamalar.html', 'js/i18n.js', 'js/i18n/**', '.github/workflows/master-reja.yml']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, pull-requests: write, issues: write }
+    defaults: { run: { working-directory: mr } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: mr/package-lock.json }
+      - run: npm ci
+      - name: Birlik testlari
+        run: npm test
+      - name: Yigʻish (tur tekshiruvi bilan)
+        run: npm run build
+      - name: Saytdagi app/ yigʻilgan natija bilan bir xilmi
+        # git diff yangi (kuzatilmagan) fayllarni ko'rmaydi — #503 da shu sabab sayt 404 bo'lgan; porcelain ularni ham ushlaydi
+        run: |
+          s=$(git status --porcelain -- ../app ../css/ds2.css)
+          if [ -n "$s" ]; then echo "$s"; echo "app/ eskirgan yoki yangi fayllar commit qilinmagan — mr ichida npm run build, keyin git add ../app (yangi fayllar bilan)"; exit 1; fi
+      - name: app/*.html murojaat qiladigan har bir asset repoda bormi
+        working-directory: .
+        run: |
+          miss=0
+          for h in app/*.html; do
+            for f in $(grep -oE 'assets/[A-Za-z0-9_.-]+' "$h" | sort -u); do
+              git cat-file -e "HEAD:app/$f" 2>/dev/null || { echo "::error title=Yetishmayotgan asset::$h -> app/$f"; miss=1; }
+            done
+          done
+          exit $miss
+
+  e2e:
+    # E2E 4 ta parallel oqimda (yigʻilgan app/ repoda — har oqim qayta yigʻmaydi; app eskirmaganini «test» ishi tekshiradi)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # 11.11: e2e baʼzan soatlab osilardi
+    permissions: { contents: read, pull-requests: write, issues: write }
+    defaults: { run: { working-directory: mr } }
+    strategy:
+      fail-fast: false
+      matrix: { shard: [1, 2, 3, 4] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: mr/package-lock.json }
+      - run: npm ci
+      # 11.11: apt (security.ubuntu.com) DNS xatosi e2e ni kod sababsiz yiqitardi, har urinish ~7 daq. Runner da Chromium kutubxonalari
+      # bor (yetishmagani faqat CJK/qoʻshimcha shriftlar) — apt siz, faqat brauzer
+      - name: Playwright Chromium
+        timeout-minutes: 10
+        run: npx playwright install chromium
+      - name: E2E testlar (${{ matrix.shard }}/4)
+        run: npx playwright test --shard=${{ matrix.shard }}/4 2>&1 | tee e2e.log; exit ${PIPESTATUS[0]}
+        shell: bash
+        env: { CI: 'true' }
+      - name: E2E xatolari (annotatsiya — main dagi push uchun ham koʻrinadi)
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "✘|Error:|Expected|Received|waiting for|Timeout|failed|flaky" e2e.log | head -40 | sed -E 's/\x1b\[[0-9;]*m//g' > /tmp/a.txt || true
+          body=$(sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g' /tmp/a.txt)
+          echo "::error title=E2E ${{ matrix.shard }}/4::${body}"
+      - name: E2E xatolari (PR izohiga)
+        if: failure() && github.event_name == 'pull_request'
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          { echo '**E2E yiqildi** — oqim ${{ matrix.shard }}/4, urinish ${{ github.run_attempt }}:'; echo '```'; grep -E "✘|Error:|Expected|Received|expect\(|waiting for|Timeout|failed|flaky" e2e.log | head -60; echo '--- oxiri:'; tail -25 e2e.log; echo '```'; } > /tmp/c.md
+          cat /tmp/c.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/c.md

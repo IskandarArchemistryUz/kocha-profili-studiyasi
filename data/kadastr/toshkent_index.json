@@ -1,0 +1,33 @@
+{
+ "versiya": 1,
+ "manba": "Toshkent shahar GIS, 2023-iyun (kadastr), tozalangan; 50 m katakka umumlashtirilgan",
+ "sana": "2026-11-13",
+ "bbox": [
+  69.12,
+  41.1599,
+  69.48,
+  41.42
+ ],
+ "qadam": [
+  0.0006,
+  0.00045
+ ],
+ "nx": 600,
+ "ny": 578,
+ "qatlamlar": [
+  "aholi",
+  "kku",
+  "yil",
+  "seysmik8_qavat"
+ ],
+ "tartib": "uint16 LE, 4 tekislik ketma-ket, har biri ny×nx, qator 0 — shimol",
+ "aholi": "kishi: koʻp kvartirali uy xonadonlari × 3,54 + har yakka uy uchastkasi 3,54 (taxmin)",
+ "kku": "koʻp kvartirali uylar soni (markazi katakda)",
+ "yil": "koʻp kvartirali uylar qurilgan yili medianasi (0 — yoʻq)",
+ "seysmik": "yuqori bayt: 4 — 1966 gacha, 3 — 1966–1991 gʻisht/yogʻoch, 2 — 1966–1991 beton/panel, 1 — 1992 dan keyin, 0 — nomaʼlum (katakdagi eng yuqori); pastki bayt — eng baland qavat",
+ "jami": {
+  "aholi": 2506592,
+  "kku": 11220,
+  "katak_aholi": 68476
+ }
+}
