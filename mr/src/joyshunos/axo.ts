@@ -17,13 +17,14 @@ import type { Palette } from '../context/mapstyle';
 import { STYLE_PAL, type SceneStyle } from '../scene/styles';
 import { CC } from '../scene/context3d';
 
-export type AxLayer = 'relyef' | 'kochalar' | 'transport' | 'yashil' | 'binolar' | 'xizmat' | 'shamol' | 'quyosh';
+export type AxLayer = 'relyef' | 'kochalar' | 'transport' | 'yashil' | 'binolar' | 'aholi' | 'xizmat' | 'shamol' | 'quyosh';
 export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string }[] = [
   { id: 'relyef', name: 'Relyef', sub: 'AWS Terrain · halqalar', color: '#8b7a6a' },
   { id: 'kochalar', name: 'Koʻchalar', sub: 'OSM', color: '#9a9893' },
   { id: 'transport', name: 'Transport oqimi', sub: 'OSM · koʻcha toifasi (sxema)', color: '#ff7a2f' },
   { id: 'yashil', name: 'Yashil va suv', sub: 'OSM', color: '#7fa65a' },
   { id: 'binolar', name: 'Binolar', sub: 'OSM · balandlik', color: '#141414' },
+  { id: 'aholi', name: 'Aholi zichligi', sub: 'kadastr · GHS-POP', color: '#d94801' },
   { id: 'xizmat', name: 'Xizmatlar va raqobatchilar', sub: 'OSM', color: '#4c5bd4' },
   { id: 'shamol', name: 'Shamol', sub: 'EPW · ERA5', color: '#3f8f6b' },
   { id: 'quyosh', name: 'Quyosh yoʻli', sub: '21 mart · 21 iyun · 21 dek', color: '#e8a317' },
@@ -31,7 +32,7 @@ export const AX_LAYERS: { id: AxLayer; name: string; sub: string; color: string 
 export type AxView = 'plan' | 'axo' | 'persp';
 export interface AxPin { at: LngLat; label: string; col: string }
 export interface AxWind { petals: number[]; rose: number[][]; bins: number[]; mean: number }
-export interface AxInput { bundle: ContextBundle; center: LngLat; r: number; pins: AxPin[]; wind: AxWind | null; sat: boolean; dark: boolean; pal: Palette; site: LngLat[] | null; style: AxStyle; cols?: AxCols }
+export interface AxInput { bundle: ContextBundle; center: LngLat; r: number; pins: AxPin[]; wind: AxWind | null; sat: boolean; dark: boolean; pal: Palette; site: LngLat[] | null; style: AxStyle; cols?: AxCols; /** 13.11 (kanvas 17b): aholi kataklari — markazi va kishi soni; cell — katak tomoni, m */ pop?: { at: LngLat; v: number }[]; popCell?: number }
 /** 3D uslub: Master rejadagi 5 uslub yoki xarita palitrasi */
 export type AxStyle = SceneStyle | 'palitra' | 'tungi';
 /** Foydalanuvchi ranglari (E4a): asosiy obyekt, tahlil 1 (quyosh, shamol), tahlil 2 (radius), atrof binolari. Boʻsh — uslub rangi. */
@@ -113,7 +114,7 @@ export class Axo {
   view: AxView = 'axo';
   private placed = false;
   order: AxLayer[] = AX_LAYERS.map(l => l.id);
-  vis: Record<AxLayer, boolean> = { relyef: true, kochalar: true, transport: false, yashil: true, binolar: true, xizmat: true, shamol: true, quyosh: true };
+  vis: Record<AxLayer, boolean> = { relyef: true, kochalar: true, transport: false, yashil: true, binolar: true, aholi: false, xizmat: true, shamol: true, quyosh: true };
   /** quyosh yoʻli: «gumbaz» — osmon yarim sferasi, «yelpigʻich» — eski parda */
   sunStyle: 'gumbaz' | 'yelpigich' = 'gumbaz';
   /** gumbaz koʻrinishi: yonish — quyoshgacha boʻlak; lenta — yoʻl ostidagi tasma; soat — oxirgi soat boʻlagi; ingichka — faqat chiziqlar; shisha — shaffof gumbaz */
@@ -224,6 +225,7 @@ export class Axo {
     this.site(fr, inp.site);
     this.wind(inp.wind);
     this.traffic(fr, H, clipR);
+    this.needles(fr, H, Math.min(clipR, inp.r), inp.pop ?? [], inp.popCell ?? 50);   // faqat tahlil doirasi ichida
     this.sunPaths();
     if (this.model) this.placeModel();
     this.sideLabels();
@@ -329,6 +331,24 @@ export class Axo {
   }
 
   /** Xizmatlar va raqobatchilar: ustun + shar + HTML yorliq */
+  /** Aholi «ignalari» (kanvas 17b): har katakda ingichka ustun, balandligi — kishi soniga mutanosib (eng koʻpi ≈ 0,3 R), rang — och sariqdan toʻq jigarranggacha; faqat doira ichida */
+  /** SVG eksporti uchun: ignalar (mahalliy x, y, yer sathi z, balandlik h, rang) */
+  popList: { x: number; y: number; z: number; h: number; v: number; col: string }[] = [];
+  private needles(fr: ReturnType<typeof frame>, H: (x: number, y: number) => number, clipR: number, pop: { at: LngLat; v: number }[], cell: number): void {
+    const g = this.groups.get('aholi')!, pts = pop.map(p => { const [x, y] = fr.toLocal(p.at); return { x, y, v: p.v }; }).filter(p => p.v > 0 && Math.hypot(p.x, p.y) <= clipR - cell * 0.3);
+    this.popList = [];
+    if (!pts.length) return;
+    const vmax = Math.max(...pts.map(p => p.v)), w = Math.max(3, cell * 0.2), geo = new THREE.BoxGeometry(w, 1, w); geo.translate(0, 0.5, 0);
+    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: false }), pts.length), M = new THREE.Matrix4(), C = new THREE.Color();
+    const RAMP = ['#fdd0a2', '#fd8d3c', '#d94801', '#a63603', '#5a1a02'].map(c => new THREE.Color(c));
+    pts.forEach((p, i) => {
+      const t = Math.sqrt(p.v / vmax), hh = 3 + t * this.R * 0.22;
+      M.makeScale(1, hh, 1); M.setPosition(p.x, H(p.x, p.y), -p.y); mesh.setMatrixAt(i, M);
+      const f = t * (RAMP.length - 1), k = Math.min(RAMP.length - 2, Math.floor(f)); C.copy(RAMP[k]).lerp(RAMP[k + 1], f - k); mesh.setColorAt(i, C);
+      this.popList.push({ x: p.x, y: p.y, z: H(p.x, p.y), h: hh, v: p.v, col: '#' + C.getHexString() });
+    });
+    mesh.castShadow = true; mesh.userData.popMax = vmax; mesh.name = 'aholi-ignalar'; g.add(mesh);
+  }
   private pins(fr: ReturnType<typeof frame>, H: (x: number, y: number) => number, pins: AxPin[]): void {
     const g = this.groups.get('xizmat')!, hgt = Math.max(16, this.R * 0.05);
     const pos: number[] = [];
