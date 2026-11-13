@@ -176,6 +176,7 @@ export class AgentPanel {
         h('button', { class: 'btn btn-sm btn-primary', type: 'button', onclick: () => void buyDialog() }, tr('Tanga sotib olish'))));
     } else if (st === 401) { this.note(tr('Hisobga kiring.')); void ensureLogin(undefined, 'Maslahatchidan foydalanish uchun kiring.'); }
     else if (code === 'agent_budget') this.note(tr('Bugungi umumiy chegara tugadi — ertaga yana urinib koʻring.'));
+    else if (code === 'agent_interrupted') this.note(tr('Model javobni yakunlay olmadi — savolni qayta yuboring.'));
     else if (code === 'agent_busy' || code === 'agent_upstream') this.note(tr('Model hozir javob bermadi. Tanga va bepul savol qaytarildi — birozdan keyin qayta yuboring.'));
     else if (code === 'run_limit' || code === 'run_closed' || code === 'run_expired') this.note(tr('Bu savol yakunlandi. Davom etish uchun yangi savol bering.'));
     else if (code === 'agent_off') this.note(tr('Maslahatchi hozircha yoqilmagan.'));
