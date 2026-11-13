@@ -54,7 +54,7 @@ async function open(page: Page, errs: string[], hash = ''): Promise<void> {
 
 /** Markazni koʻchirib qayta yuklash: holat ilova skriptlaridan OLDIN yoziladi — ilova kechikkan save() bilan eski markazni qaytarib yozolmaydi (13.11, CI poygasi) */
 async function moveTo(page: Page, c: [number, number]): Promise<void> {
-  await page.addInitScript(cc => { try { if (sessionStorage.getItem('joyMove') !== cc.join()) { sessionStorage.setItem('joyMove', cc.join()); const s = JSON.parse(localStorage.getItem('joy-state') || '{}'); s.c = cc; localStorage.setItem('joy-state', JSON.stringify(s)); } } catch { /* */ } }, c);
+  await page.addInitScript(cc => { try { if (sessionStorage.getItem('joyMove') !== cc.join()) { sessionStorage.setItem('joyMove', cc.join()); const s = JSON.parse(localStorage.getItem('joy-state') || '{}'); s.c = cc; s.on ??= ['relyef', 'shamol', 'xizmat', 'raqobat']; localStorage.setItem('joy-state', JSON.stringify(s)); } } catch { /* */ } }, c);
   await page.reload();
 }
 /** Uy narxlari (28.10): uybor.uz eʼlonlari → soti (olti burchakli katak) boʻyicha median $/m²; kam eʼlonli katak — narxsiz (oq) */
@@ -124,7 +124,7 @@ test('uy narxlari — ijara va yangi / ikkilamchi tanlovi', async ({ page }) => 
   expect(errs).toEqual([]);
 });
 
-/** 13.11: Toshkentdan tashqarida — «Uylar va aholi» va «Uy narxlari» oʻchiq, «Faqat Toshkent» belgisi; Toshkentga qaytganda yana yoqiladi */
+/** 13.11: Toshkentdan tashqarida — «Uy narxlari» oʻchiq, «Faqat Toshkent» belgisi; Toshkentga qaytganda yana yoqiladi */
 test('faqat Toshkent qatlamlari qamrovdan tashqarida', async ({ page }) => {
   test.setTimeout(120_000);
   const errs: string[] = [];
@@ -133,14 +133,45 @@ test('faqat Toshkent qatlamlari qamrovdan tashqarida', async ({ page }) => {
   await joyClick(page, 'narx', '.switch');
   await expect(page.locator('[data-card=narx]')).toBeVisible();
   await moveTo(page, [66.9597, 39.6542]);   // Samarqand
-  for (const id of ['narx', 'uylar']) {
-    await expect(page.locator(`[data-layer=${id}] em.soon`)).toHaveText('Faqat Toshkent');
-    await expect(page.locator(`[data-layer=${id}] .switch`)).toHaveCount(0);
-  }
+  await expect(page.locator('[data-layer=narx] em.soon')).toHaveText('Faqat Toshkent');
+  await expect(page.locator('[data-layer=narx] .switch')).toHaveCount(0);
   await expect(page.locator('[data-card=narx]')).toHaveCount(0);
   await expect(page.locator('[data-layer=xizmat] .switch')).toHaveCount(1);
   await moveTo(page, [69.29507, 41.32561]);
   await expect(page.locator('[data-layer=narx] .switch')).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('[data-card=narx] .big')).toHaveText(/\$\/m²/, { timeout: 20_000 });
+  expect(errs).toEqual([]);
+});
+
+/** 13.11: Toshkentdan tashqarida «Uylar va aholi» — global GHS-POP (COG, HTTP Range); sinovda — sunʼiy 2×2 plitkali TIFF */
+function ghsTiff(c: [number, number]): Buffer {
+  const px = 3 / 3600, W = 1024, T = 512, ox = c[0] - 512 * px, oy = c[1] + 512 * px, tiles: Buffer[] = [];
+  for (let k = 0; k < 4; k++) { const b = Buffer.alloc(T * T * 8); for (let p = 0; p < T * T; p++) b.writeDoubleLE(p % 7 === 0 ? 0 : 30 + (p % 50), p * 8); tiles.push(deflateSync(b)); }
+  const tags: [number, number, number[]][] = [[256, 3, [W]], [257, 3, [W]], [258, 3, [64]], [259, 3, [8]], [322, 3, [T]], [323, 3, [T]], [324, 4, [0, 0, 0, 0]], [325, 4, tiles.map(t => t.length)], [339, 3, [3]], [33550, 12, [px, px, 0]], [33922, 12, [0, 0, 0, ox, oy, 0]]];
+  const head = Buffer.alloc(8 + 2 + tags.length * 12 + 4 + 16 + 16 + 24 + 48); head.writeUInt16LE(0x4949, 0); head.writeUInt16LE(42, 2); head.writeUInt32LE(8, 4); head.writeUInt16LE(tags.length, 8);
+  let ext = 8 + 2 + tags.length * 12 + 4; const tileOff: number[] = []; let o = head.length; for (const t of tiles) { tileOff.push(o); o += t.length; }
+  tags.forEach(([tag, typ, v], k) => {
+    const e = 10 + k * 12, vals = tag === 324 ? tileOff : v, s = typ === 3 ? 2 : typ === 4 ? 4 : 8; head.writeUInt16LE(tag, e); head.writeUInt16LE(typ, e + 2); head.writeUInt32LE(vals.length, e + 4);
+    const put = (at: number) => vals.forEach((x, i) => typ === 3 ? head.writeUInt16LE(x, at + i * s) : typ === 4 ? head.writeUInt32LE(x, at + i * s) : head.writeDoubleLE(x, at + i * s));
+    if (s * vals.length <= 4) put(e + 8); else { head.writeUInt32LE(ext, e + 8); put(ext); ext += s * vals.length; }
+  });
+  return Buffer.concat([head, ...tiles]);
+}
+test('aholi zichligi Toshkentdan tashqarida — GHS-POP', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [], SAM: [number, number] = [66.9597, 39.6542], tif = ghsTiff(SAM); let full = 0;
+  await page.route(/jrc-ghsl\.s3/, r => { const m = /bytes=(\d+)-(\d+)/.exec(r.request().headers().range ?? ''); if (!m) { full++; return r.fulfill({ status: 200, body: tif }); } const a = +m[1], b = Math.min(+m[2], tif.length - 1); return r.fulfill({ status: 206, headers: { 'content-range': `bytes ${a}-${b}/${tif.length}`, 'access-control-allow-origin': '*' }, body: tif.subarray(a, b + 1) }); });
+  await open(page, errs);
+  await moveTo(page, SAM);
+  await expect(page.locator('[data-layer=uylar] .switch')).toHaveCount(1);
+  await joyClick(page, 'uylar', '.switch');
+  const card = page.locator('[data-card=uylar]');
+  await expect(card.locator('.big')).toHaveText(/kishi/, { timeout: 30_000 });
+  await expect(card.locator('.sub')).toContainText('GHS-POP');
+  await expect(card.locator('.sub')).toContainText(/Zichlik \d+ kishi\/ga/);
+  await expect(page.locator('.joy-legend')).toContainText('GHS-POP, 90 m');
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-kad', 'visibility'))).toBe('visible');
+  await expect(page.locator('[data-layer=narx] em.soon')).toHaveText('Faqat Toshkent');
+  expect(full).toBe(0);
   expect(errs).toEqual([]);
 });
