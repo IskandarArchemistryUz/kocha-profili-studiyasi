@@ -51,12 +51,13 @@ import { contours } from './albomMap';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
 import { privFeatures, privLayers, privDelete, privUpload, parseUpload, attachPriv, HH, type PrivData, type PrivLayer } from './shaxsiy';
+import { buildIndex, isovist, polyline, walkSteps, walkAt, walkSum, type IsoIndex, type Iso, type Walk, type P2 } from './izovist';
 import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetClick, streetLayers, streetPaint, streetHide, streetLegend, streetEnter, streetFinish, streetKey } from './streetui';
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
 type Group = 'yer' | 'iqlim' | 'shahar' | 'biznes';
-type LayerId = 'relyef' | 'nishab' | 'yuza' | 'issiqlik' | 'quyosh' | 'shamol' | 'shovqin' | 'xizmat' | 'piyoda' | 'skaner' | 'uylar' | 'oqim' | 'raqobat' | 'narx';
+type LayerId = 'relyef' | 'nishab' | 'yuza' | 'issiqlik' | 'quyosh' | 'shamol' | 'shovqin' | 'xizmat' | 'piyoda' | 'skaner' | 'izovist' | 'uylar' | 'oqim' | 'raqobat' | 'narx';
 interface LayerDef { id: LayerId; g: Group; name: string; src: string; color: string; ready: boolean; beta?: boolean; /** 13.11: maʼlumot faqat Toshkent shahri uchun — qamrovdan tashqarida qatlam oʻchiq */ tash?: boolean }
 const LAYERS: LayerDef[] = [
   { id: 'relyef', g: 'yer', name: 'Relyef', src: 'AWS Terrain', color: '#8b7a6a', ready: true },
@@ -69,6 +70,7 @@ const LAYERS: LayerDef[] = [
   { id: 'xizmat', g: 'shahar', name: 'Xizmatlar', src: 'OSM', color: '#2a9d8f', ready: true },
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
+  { id: 'izovist', g: 'shahar', name: 'Koʻrinadigan joy', src: 'OSM', color: '#e08600', ready: true, beta: true },
   { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr 2023', color: '#d94801', ready: true, beta: true, tash: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
@@ -82,7 +84,7 @@ const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
-interface State { siteSt?: SiteSt; /** issiqlik: tanlangan yil (Landsat arxivi 2013–…; yoʻq — oxirgisi) */ ly?: number; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha'; /** E2: foydalanuvchi qoʻshgan obyektlar (bogʻcha, maktab…) — OSM da yoʻqlari */ added?: AddedObj[] }
+interface State { siteSt?: SiteSt; /** issiqlik: tanlangan yil (Landsat arxivi 2013–…; yoʻq — oxirgisi) */ ly?: number; c: LngLat; r: number; on: LayerId[]; /** qatlam koʻrinishi: uslub, intensivlik, palitra */ v?: Record<string, LayerView>; /** faol (fokus) qatlam — xaritada toʻliq rangda, qolganlari xira */ act?: LayerId; cat: string; base: 'stil' | 'sat'; z?: number; site?: LngLat[] | null; sd?: number; sh?: number; /** tahlil turi: hudud (nuqta atrofi) yoki koʻcha (A → B) */ an?: 'hudud' | 'kocha'; /** E2: foydalanuvchi qoʻshgan obyektlar (bogʻcha, maktab…) — OSM da yoʻqlari */ added?: AddedObj[]; /** koʻrinadigan joy (izovist): radius, burchak, marshrut, kuzatuvchi nuqtasi, oʻtilgan yoʻl izi */ iz?: { R?: number; fov?: number; route?: LngLat[]; p?: LngLat; tr?: boolean } }
 /** uchastka uslubi xaritada */
 type SiteSt = 'kontur' | 'yashil' | 'shtrix' | 'yorug';
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
@@ -244,6 +246,182 @@ function pvUploadPick(): void {
     renderRight();
   });
   document.body.append(inp); inp.click();
+}
+/* ---------- koʻrinadigan joy (13.11): izovist — yoʻlovchi nimani koʻradi — izovist.ts; kanvas «Joyshunos» K0–K2 ---------- */
+const IZ_COL = '#ff9900', IZ_RS = [50, 100, 150, 200], IZ_FOVS = [120, 200, 360], IZ_THR = 1000;
+const izR = () => S.iz?.R ?? 100, izFov = () => S.iz?.fov ?? 200;
+const izMode = (): 'nuqta' | 'marshrut' => (V('izovist').st === 'marshrut' ? 'marshrut' : 'nuqta');
+const izOpt = () => ({ R: izR(), fov: izMode() === 'nuqta' ? 360 : izFov(), clip: S.r });
+/** Binolar indeksi: kontekst toʻplamidan, doira atrofida */
+let IX: { key: string; ix: IsoIndex; fr: ReturnType<typeof geoFrame> } | null = null;
+function izIndex(): typeof IX {
+  const b = axBundle?.b; if (!b) return null;
+  const key = `${axBundle!.key}|${S.r}`; if (IX?.key === key) return IX;
+  const fr = geoFrame(S.c), lim = S.r + 60, rings: P2[][] = [];
+  for (const bd of b.osm.buildings) { const r = bd.rings[0]; if (!r || r.length < 3) continue; const L = r.map(p => fr.toLocal(p) as P2); if (L.some(q => Math.hypot(q[0], q[1]) <= lim)) rings.push(L); }
+  IX = { key, ix: buildIndex(rings), fr };
+  return IX;
+}
+/** Marshrut boʻylab hisob (boʻlaklab, UI qotmasin) */
+let WK: { key: string; w: Walk; pl: ReturnType<typeof polyline>; N: number; done: number } | null = null;
+let izMkKey = '';
+let izD = 0, izPlaying = false, izSpeed = 1, izRaf = 0, izLast = 0, izKey = '';
+const IZ_SEC = 20;   // 1× — butun yoʻl 20 soniyada
+function izSetRoute(pts: LngLat[]): void {
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, lim = S.r * 0.98;
+  // marshrut tahlil doirasidan chiqmaydi: tashqaridagi nuqtalar doira chetiga tortiladi
+  const r = pts.map(p => { const x = (p[0] - S.c[0]) * kx, y = (p[1] - S.c[1]) * ky, d = Math.hypot(x, y); return d <= lim ? p : [S.c[0] + x / d * lim / kx, S.c[1] + y / d * lim / ky] as LngLat; });
+  S.iz = { ...S.iz, route: r }; save(); WK = null; izD = 0; izStop(); renderRight(); paint();
+}
+function computeIz(): void {
+  if (!isOn('izovist')) { izStop(); return; }
+  if (izMode() !== 'marshrut') return;
+  const r = S.iz?.route, X = izIndex(); if (!r || r.length < 2 || !X) return;
+  const key = `${X.key}|${r.map(p => p.join()).join(';')}|${izR()}|${izFov()}`;
+  if (WK?.key === key) return;
+  const pl = polyline(r.map(p => X.fr.toLocal(p) as P2)), N = walkSteps(pl.L, 1, 700), o = izOpt();
+  const w: Walk = { d: new Float64Array(N), area: new Float64Array(N), open: new Float64Array(N), comp: new Float64Array(N), L: pl.L };
+  const wk = WK = { key, w, pl, N, done: 0 }; izD = 0; izStop();
+  const step = () => {
+    if (WK !== wk) return;
+    const t0 = performance.now();
+    while (wk.done < N && performance.now() - t0 < 24) { walkAt(X.ix, pl, o, w, wk.done, N); wk.done++; }
+    if (wk.done < N) { const el = document.getElementById('izProg'); if (el) el.textContent = tf('Hisoblanmoqda… ${p} %', { p: Math.round(wk.done / N * 100) }); setTimeout(step, 0); }
+    else { renderRight(); paint(); }
+  };
+  setTimeout(step, 0);
+}
+const izReady = () => !!WK && WK.done >= WK.N;
+/** Joriy koʻrinish (kesh) */
+let izC: { key: string; iso: Iso; at: P2 } | null = null;
+function izCur(): { key: string; iso: Iso; at: P2 } | null {
+  if (!isOn('izovist')) return null;
+  const X = izIndex(); if (!X) return null;
+  const nq = izMode() === 'nuqta';
+  if (!nq && !izReady()) return null;
+  const at: P2 = nq ? X.fr.toLocal(S.iz?.p ?? S.c) as P2 : WK!.pl.at(izD);
+  const key = `${X.key}|${nq ? `n|${at.join()}` : `${WK!.key}|${izD.toFixed(2)}`}|${izR()}|${izFov()}`;
+  if (izC?.key !== key) izC = { key, at, iso: isovist(X.ix, at, nq ? 0 : WK!.pl.heading(izD), izOpt()) };
+  return izC;
+}
+/** Oʻtilgan yoʻl izi: 12 ta teng oraliqdagi koʻrinish (kesh) */
+let izTrail: { key: string; polys: P2[][] } | null = null;
+function izTrailPolys(): P2[][] {
+  const X = izIndex(); if (!X || !izReady() || S.iz?.tr === false) return [];
+  const key = `${WK!.key}`; if (izTrail?.key !== key) {
+    const polys: P2[][] = [], L = WK!.pl.L;
+    for (let i = 0; i <= 12; i++) { const d = L * i / 12; polys.push(isovist(X.ix, WK!.pl.at(d), WK!.pl.heading(d), izOpt()).poly); }
+    izTrail = { key, polys };
+  }
+  return izTrail.polys.filter((_, i) => WK!.pl.L * i / 12 <= izD);
+}
+function paintIz(m: MLMap): void {
+  if (!m.getSource('joy-iz')) return;
+  const on = isOn('izovist'), cur = on ? izCur() : null, X = IX;
+  const vis = (l: string, v: boolean) => { if (m.getLayer(l)) m.setLayoutProperty(l, 'visibility', v ? 'visible' : 'none'); };
+  for (const l of ['joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n']) vis(l, on);
+  if (!on || !X) { if (izKey) { izKey = ''; (m.getSource('joy-iz') as GeoJSONSource).setData(fc([]) as never); (m.getSource('joy-izm') as GeoJSONSource).setData(fc([]) as never); } return; }
+  const key = `${cur?.key ?? ''}|${S.iz?.route?.length ?? 0}|${izMode()}|${S.iz?.tr}|${WK?.done}`;
+  if (key === izKey) return; izKey = key;
+  const g = (p: P2) => X.fr.toGeo(p), ring = (poly: P2[]) => [...poly.map(g), g(poly[0])];
+  const f: unknown[] = [], mk: unknown[] = [];
+  if (izMode() === 'marshrut') {
+    for (const poly of izTrailPolys()) if (poly.length > 2) f.push({ type: 'Feature', properties: { k: 'trail' }, geometry: { type: 'Polygon', coordinates: [ring(poly)] } });
+    const r = S.iz?.route; if (r && r.length > 1) f.push({ type: 'Feature', properties: { k: 'route' }, geometry: { type: 'LineString', coordinates: r } });
+    if (izReady()) { const s = walkSum(WK!.w, IZ_THR); [s.iMax, s.iMin].forEach((i, n) => { if (i >= 0) mk.push(pt(g(WK!.pl.at(WK!.w.d[i])) as LngLat, { n: String(n + 1) })); }); }
+  }
+  if (cur?.iso.poly.length) f.push({ type: 'Feature', properties: { k: 'poly' }, geometry: { type: 'Polygon', coordinates: [ring(cur.iso.poly)] } });
+  if (cur) f.push(pt(g(cur.at) as LngLat, { k: 'obs' }));
+  (m.getSource('joy-iz') as GeoJSONSource).setData(fc(f) as never);
+  const mkKey = mk.length ? `${WK?.key}` : '';
+  if (mkKey !== izMkKey) { izMkKey = mkKey; (m.getSource('joy-izm') as GeoJSONSource).setData(fc(mk) as never); }
+}
+/* ijro: faqat xarita va kartadagi raqamlar yangilanadi (butun panel qayta chizilmaydi) */
+function izStop(): void { izPlaying = false; if (izRaf) cancelAnimationFrame(izRaf); izRaf = 0; const b = document.getElementById('izPlay'); if (b) { b.textContent = tr('Ijro'); b.setAttribute('aria-pressed', 'false'); } }
+function izPlay(): void {
+  if (!izReady()) return;
+  if (izPlaying) { izStop(); return; }
+  if (izD >= WK!.pl.L) izD = 0;
+  izPlaying = true; izLast = performance.now();
+  const b = document.getElementById('izPlay'); if (b) { b.textContent = tr('Pauza'); b.setAttribute('aria-pressed', 'true'); }
+  const tick = (t: number) => {
+    if (!izPlaying || !WK) return;
+    izD = Math.min(WK.pl.L, izD + WK.pl.L / IZ_SEC * izSpeed * Math.min(0.1, (t - izLast) / 1000)); izLast = t;
+    izLive();
+    if (izD >= WK.pl.L) { izStop(); return; }
+    izRaf = requestAnimationFrame(tick);
+  };
+  izRaf = requestAnimationFrame(tick);
+}
+function izSeek(d: number): void { if (!izReady()) return; izD = Math.max(0, Math.min(WK!.pl.L, d)); izLive(); }
+function izLive(): void {
+  if (map) paintIz(map);
+  const c = izCur(); if (!c) return;
+  const card = document.querySelector('[data-card=izovist]'); if (!card) return;
+  const set = (sel: string, v: string) => { const e = card.querySelector(sel); if (e) e.textContent = v; };
+  set('.big', c.iso.inside ? tr('bino ichida') : `${fmt(c.iso.area)} m²`);
+  set('#izO', `${fmt(c.iso.open * 100, 1)} %`); set('#izC', fmt(c.iso.comp, 2));
+  if (WK) { set('#izPos', `${fmt(izD)} / ${fmt(WK.pl.L)} m`); const cu = card.querySelector('#izCur'); if (cu) { const x = String(WK.pl.L ? izD / WK.pl.L * 300 : 0); cu.setAttribute('x1', x); cu.setAttribute('x2', x); } }
+}
+/** Marshrut grafigi: maydon, m²; kulrang tasma — chegaradan kam; ①② — eng ochiq va eng tor */
+function izChart(w: Walk, s: ReturnType<typeof walkSum>): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg', W = 300, H = 64;
+  let mx = 0; for (const a of w.area) if (a > mx) mx = a; mx = Math.max(mx, IZ_THR * 1.5);
+  const X = (d: number) => (w.L ? d / w.L * W : 0), Y = (a: number) => H - 4 - (a / mx) * (H - 10);
+  const pts: string[] = []; for (let i = 0; i < w.d.length; i++) if (!Number.isNaN(w.area[i])) pts.push(`${X(w.d[i]).toFixed(1)},${Y(w.area[i]).toFixed(1)}`);
+  const el = (t: string, a: Record<string, string>) => { const e = document.createElementNS(NS, t); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); return e; };
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', class: 'joy-izch', id: 'izChart', role: 'img', 'aria-label': tr('Marshrut boʻylab koʻrinadigan maydon grafigi') }) as SVGSVGElement;
+  svg.append(el('rect', { x: '0', y: Y(IZ_THR).toFixed(1), width: String(W), height: (H - Y(IZ_THR)).toFixed(1), fill: 'currentColor', 'fill-opacity': '0.06' }));
+  if (pts.length > 1) { svg.append(el('polygon', { points: `0,${H} ${pts.join(' ')} ${W},${H}`, fill: IZ_COL, 'fill-opacity': '0.18' })); svg.append(el('polyline', { points: pts.join(' '), fill: 'none', stroke: '#e08600', 'stroke-width': '1.6', 'vector-effect': 'non-scaling-stroke' })); }
+  [s.iMax, s.iMin].forEach((i, n) => { if (i < 0) return; const t = el('text', { x: X(w.d[i]).toFixed(1), y: '10', 'font-size': '9', 'text-anchor': 'middle', fill: 'currentColor' }); t.textContent = String(n + 1); svg.append(t); });
+  svg.append(el('line', { id: 'izCur', x1: String(X(izD)), x2: String(X(izD)), y1: '0', y2: String(H), stroke: '#e3242b', 'stroke-width': '1.6', 'vector-effect': 'non-scaling-stroke' }));
+  svg.addEventListener('click', e => { const r = svg.getBoundingClientRect(); izStop(); izSeek((e.clientX - r.left) / r.width * w.L); });
+  return svg;
+}
+function izCard(L: LayerDef): HTMLElement {
+  const nq = izMode() === 'nuqta', X = izIndex(), cur = izCur(), r = S.iz?.route;
+  const busyIz: Ld<unknown> = axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
+  const ctl = h('div', { class: 'joy-izctl' },
+    h('div', { class: 'row' }, h('span', { class: 't-small' }, tr('Koʻrish radiusi')),
+      seg(IZ_RS.map(v => ({ id: String(v), label: `${v} m` })), String(izR()), v => { S.iz = { ...S.iz, R: Number(v) }; save(); WK = null; izStop(); renderRight(); paint(); }, { class: 'seg sm', 'aria-label': tr('Koʻrish radiusi'), id: 'izR' })),
+    nq ? null : h('div', { class: 'row' }, h('span', { class: 't-small' }, tr('Koʻrish burchagi')),
+      seg(IZ_FOVS.map(v => ({ id: String(v), label: `${v}°` })), String(izFov()), v => { S.iz = { ...S.iz, fov: Number(v) }; save(); WK = null; izStop(); renderRight(); paint(); }, { class: 'seg sm', 'aria-label': tr('Koʻrish burchagi'), id: 'izF' })));
+  const rows = (iso: Iso) => h('ul', { class: 'joy-norm' },
+    h('li', {}, h('span', {}, tr('Ochiqlik')), h('b', { id: 'izO' }, `${fmt(iso.open * 100, 1)} %`), h('em', {}, tr('doiraning koʻringan ulushi'))),
+    h('li', {}, h('span', {}, tr('Ixchamlik')), h('b', { id: 'izC' }, fmt(iso.comp, 2)), h('em', {}, tr('1 — doira, 0 — tor va uzun'))));
+  const src = h('span', { class: 'src' }, tr('Binolar — OSM. Faqat binolar toʻsiq: daraxt, ayvon va past devor hisobga olinmagan; OSM da yoʻq bino koʻrinishni oshirib koʻrsatadi. Usul — izovist (Benedikt, 1979), nur otish, koʻz sathida 2D.'));
+  let sub: (string | Node)[] = [], big: string = '—', st: Ld<unknown> | undefined = X ? undefined : busyIz;
+  if (X && nq) {
+    big = cur ? (cur.iso.inside ? tr('bino ichida') : `${fmt(cur.iso.area)} m²`) : '—';
+    sub = [ctl, tr('Xaritada doira ichini bosing — kuzatuvchi oʻsha joyga koʻchadi (360°).'), cur && !cur.iso.inside ? rows(cur.iso) : '', src];
+  } else if (X) {
+    const draw = h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'izDraw', 'aria-pressed': drawing?.kind === 'iz', onclick: () => startDraw('iz') }, tr(r ? 'Qayta chizish' : 'Marshrutni chizish')),
+      r ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'izClr', onclick: () => { S.iz = { ...S.iz, route: undefined }; save(); WK = null; izStop(); renderRight(); paint(); } }, tr('Tozalash')) : null);
+    if (!r) sub = [ctl, draw, tr('Marshrutni chizing: yoʻl nuqtalarini bosing, ikki marta bosish yoki Enter — tugatish.'), src];
+    else if (!izReady()) { big = '…'; sub = [ctl, draw, h('span', { id: 'izProg' }, tr('Hisoblanmoqda…')), src]; }
+    else {
+      const w = WK!.w, s = walkSum(w, IZ_THR);
+      big = cur ? (cur.iso.inside ? tr('bino ichida') : `${fmt(cur.iso.area)} m²`) : '—';
+      sub = [
+        h('b', { class: 'joy-izh' }, s.low > 0 ? tf('Yoʻlning ${p} foizida koʻrinish ${t} m² dan kam', { p: fmt(s.low * 100), t: fmt(IZ_THR) }) : tf('Butun yoʻlda koʻrinish ${t} m² dan koʻp', { t: fmt(IZ_THR) })), h('br'),
+        ctl, draw,
+        h('div', { class: 'joy-izplay' },
+          h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'izPlay', 'aria-pressed': izPlaying, onclick: () => izPlay() }, tr(izPlaying ? 'Pauza' : 'Ijro')),
+          h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'izBack', 'aria-label': tr('Boshidan'), onclick: () => { izStop(); izSeek(0); } }, '⏮'),
+          seg([0.5, 1, 2].map(v => ({ id: String(v), label: `${String(v).replace('.', ',')}×` })), String(izSpeed), v => { izSpeed = Number(v); renderRight(); }, { class: 'seg sm', 'aria-label': tr('Tezlik') }),
+          h('span', { class: 'mono t-small', id: 'izPos' }, `${fmt(izD)} / ${fmt(w.L)} m`)),
+        izChart(w, s),
+        h('ul', { class: 'joy-norm' },
+          h('li', {}, h('span', {}, tr('Oʻrtacha, butun yoʻl')), h('b', {}, `${fmt(s.mean)} m²`), h('em', {}, '')),
+          s.iMax >= 0 ? h('li', { class: 'ok' }, h('span', {}, `1 · ${tr('Eng ochiq')}`), h('b', {}, `${fmt(w.area[s.iMax])} m²`), h('em', {}, `${fmt(w.d[s.iMax])} m`)) : '',
+          s.iMin >= 0 ? h('li', { class: 'warn' }, h('span', {}, `2 · ${tr('Eng tor')}`), h('b', {}, `${fmt(w.area[s.iMin])} m²`), h('em', {}, `${fmt(w.d[s.iMin])} m`)) : ''),
+        cur && !cur.iso.inside ? rows(cur.iso) : '',
+        h('label', { class: 'joy-iztr t-small' }, swc({ on: S.iz?.tr !== false, label: tr('Oʻtilgan yoʻl izi'), onchange: v => { S.iz = { ...S.iz, tr: v }; save(); izKey = ''; paint(); } }), ' ', tr('Oʻtilgan yoʻl izi')),
+        src];
+    }
+  }
+  return card(L, 'OSM', big, sub, null, st);
 }
 /* ---------- quyosh va soya (binolar — kontekst toʻplamidan, aksonometriya bilan umumiy) ---------- */
 /** Sukut kun — mahalliy yoz: shimolda 22 iyun, janubiy yarimsharda 22 dekabr */
@@ -461,7 +639,8 @@ function toggle(id: LayerId): void {
 }
 
 /* ---------------- chizish: lineyka, maydon, uchastka ---------------- */
-type DrawKind = 'ruler' | 'area' | 'site';
+type DrawKind = 'ruler' | 'area' | 'site' | 'iz';
+const isLine = (k: DrawKind) => k === 'ruler' || k === 'iz';
 let drawing: { kind: DrawKind; pts: LngLat[] } | null = null, measure = '';
 const kxy = (c: LngLat) => [111_320 * Math.cos(c[1] * Math.PI / 180), 111_132] as const;
 function ringArea(r: LngLat[]): number { const [kx, ky] = kxy(r[0]); let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += (p[0] * kx) * (q[1] * ky) - (q[0] * kx) * (p[1] * ky); } return Math.abs(a / 2); }
@@ -475,36 +654,37 @@ function setSite(r: LngLat[] | null, write = true): void {
   renderLeft(); renderRight(); paintDraw(); if (mode === 'axo') axBuild();
 }
 function startDraw(k: DrawKind): void {
-  drawing = drawing?.kind === k ? null : { kind: k, pts: [] }; measure = drawing ? tr(k === 'ruler' ? 'Nuqtalarni bosing; ikki marta bosish yoki Enter — tugatish, Esc — bekor.' : 'Burchaklarni bosing; ikki marta bosish, Enter yoki birinchi nuqta — yopish, Esc — bekor.') : '';
+  drawing = drawing?.kind === k ? null : { kind: k, pts: [] }; measure = drawing ? tr(k === 'iz' ? 'Yoʻl nuqtalarini bosing; ikki marta bosish yoki Enter — tugatish, Esc — bekor.' : k === 'ruler' ? 'Nuqtalarni bosing; ikki marta bosish yoki Enter — tugatish, Esc — bekor.' : 'Burchaklarni bosing; ikki marta bosish, Enter yoki birinchi nuqta — yopish, Esc — bekor.') : '';
   if (map) { if (drawing) map.doubleClickZoom.disable(); else map.doubleClickZoom.enable(); map.getCanvas().style.cursor = drawing ? 'crosshair' : ''; }
   renderLeft(); paintDraw();
 }
 function finishDraw(): void {
   const d = drawing; if (!d) return;
-  if (d.kind === 'ruler') { measure = d.pts.length > 1 ? tf('Uzunlik: ${l} m (${n} nuqta)', { l: fmt(lineLen(d.pts)), n: d.pts.length }) : ''; }
+  if (d.kind === 'iz') { measure = ''; if (d.pts.length > 1) izSetRoute(d.pts); }
+  else if (d.kind === 'ruler') { measure = d.pts.length > 1 ? tf('Uzunlik: ${l} m (${n} nuqta)', { l: fmt(lineLen(d.pts)), n: d.pts.length }) : ''; }
   else if (d.pts.length > 2) {
     if (d.kind === 'area') measure = tf('Maydon: ${a} m² (${h} ga) · perimetr ${p} m', { a: fmt(ringArea(d.pts)), h: fmt(ringArea(d.pts) / 10000, 2), p: fmt(ringPerim(d.pts)) });
     else { measure = ''; setSite(d.pts); }
   }
-  lastShape = d.kind === 'site' ? null : { kind: d.kind, pts: d.pts };
+  lastShape = d.kind === 'site' || d.kind === 'iz' ? null : { kind: d.kind, pts: d.pts };
   drawing = null; if (map) { map.doubleClickZoom.enable(); map.getCanvas().style.cursor = ''; }
   renderLeft(); paintDraw();
 }
 let lastShape: { kind: DrawKind; pts: LngLat[] } | null = null;
 function drawClick(c: LngLat, px: { x: number; y: number }): void {
   const d = drawing!; 
-  if (d.kind !== 'ruler' && d.pts.length > 2 && map) { const f = map.project(d.pts[0] as [number, number]); if (Math.hypot(f.x - px.x, f.y - px.y) < 10) { finishDraw(); return; } }
+  if (!isLine(d.kind) && d.pts.length > 2 && map) { const f = map.project(d.pts[0] as [number, number]); if (Math.hypot(f.x - px.x, f.y - px.y) < 10) { finishDraw(); return; } }
   d.pts.push(c);
-  measure = d.kind === 'ruler' ? tf('Uzunlik: ${l} m', { l: fmt(lineLen(d.pts)) }) : d.pts.length > 2 ? tf('Maydon: ${a} m² (${h} ga)', { a: fmt(ringArea(d.pts)), h: fmt(ringArea(d.pts) / 10000, 2) }) : tr('Yana burchak bosing…');
+  measure = isLine(d.kind) ? tf('Uzunlik: ${l} m', { l: fmt(lineLen(d.pts)) }) : d.pts.length > 2 ? tf('Maydon: ${a} m² (${h} ga)', { a: fmt(ringArea(d.pts)), h: fmt(ringArea(d.pts) / 10000, 2) }) : tr('Yana burchak bosing…');
   renderLeft(); paintDraw();
 }
 function paintDraw(): void {
   const m = map; if (!m || !m.getSource('joy-draw')) return;
   const feats: unknown[] = [], sh = drawing ?? lastShape;
   if (sh && sh.pts.length) {
-    const closed = sh.kind !== 'ruler' && (!drawing || sh.pts.length > 2);
+    const closed = !isLine(sh.kind) && (!drawing || sh.pts.length > 2);
     feats.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: closed && !drawing ? [...sh.pts, sh.pts[0]] : sh.pts } });
-    if (sh.kind !== 'ruler' && sh.pts.length > 2) feats.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...sh.pts, sh.pts[0]]] } });
+    if (!isLine(sh.kind) && sh.pts.length > 2) feats.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...sh.pts, sh.pts[0]]] } });
     sh.pts.forEach(p => feats.push(pt(p, { v: 1 })));
   }
   (m.getSource('joy-draw') as GeoJSONSource).setData(fc(feats) as never);
@@ -632,6 +812,7 @@ function renderRightH(): void {
       null, r ? undefined : busySk));
     if (isOwner()) cards[cards.length - 1].append(pvPanel());
   }
+  if (isOn('izovist')) cards.push(izCard(L('izovist')));
   if (isOn('oqim')) {
     const F = NM?.flow, v = F && NM ? flowAt(NM.net, F) : null;
     cards.push(card(L('oqim'), tr('model'), v != null ? tr(flowClass(v)) : '—',
@@ -774,6 +955,7 @@ function frame(duration = 0): void {
 function pick(c: LngLat, fly = false): void {
   S.c = c; save(); seq++;
   D.addr = { st: 'idle' }; D.ter = { st: 'idle' }; D.poi = { st: 'idle' }; D.comp = { st: 'idle' }; D.wind = { st: 'idle' }; D.lst = { st: 'idle' }; NM = null; SM = null;
+  if (S.iz) S.iz = { ...S.iz, p: undefined, route: undefined }; WK = null; izD = 0; izStop();
   renderLeft(); renderRight(); paint();
   if (fly) frame(900);
   ensure();
@@ -808,7 +990,7 @@ function ensure(): void {
     if (!g) throw new Error(tr('relyef plitkalari ochilmadi')); return { g, s: terrainStats(g, r) };
   });
   if ((isOn('xizmat') || isOn('piyoda') || isOn('skaner') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
-  if ((isOn('skaner') || isOn('oqim')) && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();   // oqim: binolar — boshlangʻich nuqta vazni
+  if ((isOn('skaner') || isOn('oqim') || isOn('izovist')) && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();   // oqim: binolar — boshlangʻich nuqta vazni; izovist — toʻsiqlar
   loadPv();
   computeNet();
   if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
@@ -974,7 +1156,7 @@ async function initMap(): Promise<void> {
   map.on('style.load', () => { addOverlays(); applySite(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else if (isOn('skaner') && SK && map!.getLayer('joy-skan-f')) { const f = map!.queryRenderedFeatures(e.point, { layers: ['joy-skan-f'] })[0]; if (f) { skSel = Number(f.properties?.i); renderRight(); paint(); } else pick(c); } else pick(c); });
+  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else if (actId() === 'izovist' && izMode() === 'nuqta' && distM(S.c, c) <= S.r) { S.iz = { ...S.iz, p: c }; save(); renderRight(); paint(); } else if (isOn('skaner') && SK && map!.getLayer('joy-skan-f')) { const f = map!.queryRenderedFeatures(e.point, { layers: ['joy-skan-f'] })[0]; if (f) { skSel = Number(f.properties?.i); renderRight(); paint(); } else pick(c); } else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
   map.on('moveend', () => {
     S.z = +map!.getZoom().toFixed(2); save();
@@ -1016,6 +1198,12 @@ function addOverlays(): void {
   heatKey = sunKey = shadowKey = '';
   m.addSource('joy-noise', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-noise', type: 'raster', source: 'joy-noise', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
+  // koʻrinadigan joy (izovist): koʻrinish poligoni binolar ostida; marshrut, kuzatuvchi va ①② — ustida
+  m.addSource('joy-iz', { type: 'geojson', data: fc([]) as never });
+  // ①② — alohida manba: shrift yuklanmasa ham koʻrinish poligonlari chiziladi (yozuv xatosi butun manba plitkasini toʻxtatadi)
+  m.addSource('joy-izm', { type: 'geojson', data: fc([]) as never });
+  m.addLayer({ id: 'joy-iz-t', type: 'fill', source: 'joy-iz', filter: ['==', ['get', 'k'], 'trail'], layout: { visibility: 'none' }, paint: { 'fill-color': IZ_COL, 'fill-opacity': 0.07 } } as never, before);
+  m.addLayer({ id: 'joy-iz-f', type: 'fill', source: 'joy-iz', filter: ['==', ['get', 'k'], 'poly'], layout: { visibility: 'none' }, paint: { 'fill-color': IZ_COL, 'fill-opacity': 0.85 } } as never, before);
   // ijtimoiy skaner: binolar umumiy ball (yoki eng zaif yoʻnalish) rangida; tanlangan bino — koʻk kontur
   m.addSource('joy-skan', { type: 'geojson', data: fc([]) as never }); skKey = '';
   m.addLayer({ id: 'joy-skan-f', type: 'fill', source: 'joy-skan', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.92 } } as never);
@@ -1058,12 +1246,17 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-comp-i', type: 'symbol', source: 'joy-comp', layout: { visibility: 'none', 'icon-image': `comp-${S.cat}`, 'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.6, 16, 1], 'icon-allow-overlap': true }, paint: { 'icon-opacity': ['case', ['get', 'in'], 1, 0.45] } } as never);
   m.addLayer({ id: 'joy-c-h', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 18, 'circle-color': ACC, 'circle-opacity': 0.16 } });
   m.addLayer({ id: 'joy-c', type: 'circle', source: 'joy-c', paint: { 'circle-radius': 8, 'circle-color': ACC, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
+  m.addLayer({ id: 'joy-iz-l', type: 'line', source: 'joy-iz', filter: ['==', ['get', 'k'], 'route'], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': '#e3242b', 'line-width': 1.8, 'line-dasharray': [2, 2] } } as never);
+  m.addLayer({ id: 'joy-iz-p', type: 'circle', source: 'joy-iz', filter: ['==', ['get', 'k'], 'obs'], layout: { visibility: 'none' }, paint: { 'circle-radius': 6, 'circle-color': '#e3242b', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } } as never);
+  m.addLayer({ id: 'joy-iz-m', type: 'circle', source: 'joy-izm', layout: { visibility: 'none' }, paint: { 'circle-radius': 9, 'circle-color': '#ffffff', 'circle-stroke-color': '#141414', 'circle-stroke-width': 1.5 } } as never);
+  m.addLayer({ id: 'joy-iz-n', type: 'symbol', source: 'joy-izm', layout: { visibility: 'none', 'text-field': ['get', 'n'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': true }, paint: { 'text-color': '#141414' } } as never);
+  izKey = ''; izMkKey = '';
   streetLayers(m);
 }
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
-const HUD_LAYERS = ['joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1075,6 +1268,7 @@ function paint(): void {
   }
   if (m && m.getSource('joy-ring')) { streetHide(m); for (const id of ['joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p']) m.setLayoutProperty(id, 'visibility', 'visible'); if (rlab) rlab.addTo(m); }
   computeSk();
+  computeIz();
   paintH();
 }
 function paintH(): void {
@@ -1103,6 +1297,7 @@ function paintH(): void {
     if (on) { const key = `${SK!.key}|${zaif}`; if (key !== skKey) { skKey = key; (m.getSource('joy-skan') as GeoJSONSource).setData(fc(SK!.res.b.map((b, i) => ({ type: 'Feature', properties: { i, col: zaif ? (b.s[b.weak] >= 100 ? '#dedbd4' : SK_COL[SK_DIMS[b.weak].id]) : skColor(b.comp) }, geometry: { type: 'Polygon', coordinates: [[...SK!.rings[i], SK!.rings[i][0]]] } }))) as never); } }
     for (const id of ['joy-skan-f', 'joy-skan-s']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
     m.setFilter('joy-skan-s', ['==', ['get', 'i'], on && skSel != null ? skSel : -1]); }
+  paintIz(m);
   const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];
   (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
   const cp = isOn('raqobat') ? D.comp.v ?? [] : [];
@@ -1173,6 +1368,8 @@ function paintH(): void {
   if (isOn('skaner') && SK) lg.push(V('skaner').st === 'zaif'
     ? h('div', { class: 'lg' }, h('b', {}, tr('Eng zaif yoʻnalish')), ...SK_DIMS.map(d => h('span', {}, h('i', { style: `background:${SK_COL[d.id]}` }), tr(d.name))), h('span', {}, h('i', { style: 'background:#dedbd4' }), tr('hammasi meʼyorda')))
     : h('div', { class: 'lg' }, h('b', {}, tr('Ijtimoiy skaner: umumiy ball')), ...SK_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
+  if (isOn('izovist') && izCur()) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Koʻrinadigan joy · ${r} m', { r: izR() })), h('span', {}, h('i', { style: `background:${IZ_COL}` }), tr('hozir koʻrinadi')),
+    izMode() === 'marshrut' && S.iz?.tr !== false ? h('span', {}, h('i', { style: 'background:#fde9c9' }), tr('oʻtilgan yoʻlda koʻringan')) : '', izMode() === 'marshrut' ? h('span', {}, h('i', { style: 'background:#e3242b;height:2px' }), tr('marshrut')) : ''));
   if (isOn('nishab') && t) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (p.length) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
   if (cp.length) lg.push(h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
@@ -1315,6 +1512,7 @@ function focusMap(m: MLMap): void {
   set('joy-noise', 'raster-opacity', q('shovqin', 0.3, 0.9) * (V('shovqin').st === 'kontur' ? 0.25 : 1));
   set('joy-walk', 'line-opacity', q('piyoda', 0.45, 1));
   set('joy-skan-f', 'fill-opacity', q('skaner', 0.5, 0.95));
+  set('joy-iz-f', 'fill-opacity', q('izovist', 0.45, 0.95)); set('joy-iz-t', 'fill-opacity', 0.1 * k('izovist'));
   set('joy-wind', 'line-opacity', q('shamol', 0.45, 1)); set('joy-wind-a', 'icon-opacity', q('shamol', 0.45, 1));
   set('joy-flow', 'line-opacity', q('oqim', 0.45, 1));
   set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.6 + V('oqim').k, 1, 3 + 9 * V('oqim').k]);
