@@ -38,7 +38,9 @@ export const KAD_SEI: [number, string, string][] = [[4, '#b2182b', 'A · 1966 ga
 export const KAD_DENS: [number, string][] = [[0, '#fff3e6'], [120, '#fdd0a2'], [240, '#fd8d3c'], [360, '#d94801'], [480, '#a63603'], [600, '#7f2704']];
 export const KAD_CELL_HA = 0.25;   // ≈ 50 × 50 m
 
-export function eraCol(y: number): string | null { if (!y) return null; for (const [a, b, c] of KAD_ERA) if (y >= a && y <= b) return c; return null; }
+/** 13.11 (kanvas 16b): bir rangli qizil gradatsiya — eski uy toʻqroq */
+export const KAD_ERA_MONO = ['#67000d', '#cb181d', '#fb6a4a', '#fcbba1'];
+export function eraCol(y: number, mono = false): string | null { if (!y) return null; for (let i = 0; i < KAD_ERA.length; i++) { const [a, b, c] = KAD_ERA[i]; if (y >= a && y <= b) return mono ? KAD_ERA_MONO[i] : c; } return null; }
 export function seiCol(s: number): string | null { return KAD_SEI.find(x => x[0] === s)?.[1] ?? null; }
 export function densCol(perHa: number): string | null { if (perHa <= 0) return null; let c = KAD_DENS[0][1]; for (const [t, col] of KAD_DENS) if (perHa >= t) c = col; return c; }
 

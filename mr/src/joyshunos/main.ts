@@ -28,7 +28,7 @@ import { frame as geoFrame } from '../core/geo';
 import { distAt, type Net } from '../core/services';
 import { walkNet, strictNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
-import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
+import { narxCallouts, NIGHT_PAL, loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
 import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, bilinear, type LstGrid, type Px, heatSpots } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
@@ -45,7 +45,7 @@ import { layerIcon, GROUP_COL } from './layerIcons';
 import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
 import { readCogWindow, kadWindow, popStats, popDens, ghsCol, GHS_POP_URL, GHS_DENS, type PopWin } from './population';
-import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, KAD_ERA, KAD_SEI, KAD_DENS, KAD_CELL_HA, type KadGrid } from './kadastr';
+import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, KAD_ERA, KAD_ERA_MONO, KAD_SEI, KAD_DENS, KAD_CELL_HA, type KadGrid } from './kadastr';
 import { windFlow, clipLine, windSpeedGrid } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, WALK_MIN_PAL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
 import { contours } from './albomMap';
@@ -240,7 +240,7 @@ function kadOwnerFeats(): { fc: ReturnType<typeof fc>; n: number; aholi: number 
   for (const f of PV.d.features) {
     const polys = (f.g.type === 'Polygon' ? [f.g.coordinates] : f.g.coordinates) as number[][][][];
     if (!polys.every(pl => pl.every(r => r.every(([x, y]) => Math.hypot((x - S.c[0]) * kx, (y - S.c[1]) * ky) <= S.r)))) continue;
-    const p = f.p, pz = (p.xonadon ?? 0) * 3.54, col = st === 'yosh' ? eraCol(p.yil ?? 0) : st === 'seysmik' ? seiCol(seiCat(p.yil, p.devor)) : bldCol(pz);
+    const p = f.p, pz = (p.xonadon ?? 0) * 3.54, col = st === 'yosh' ? eraCol(p.yil ?? 0, V('uylar').p === 1) : st === 'seysmik' ? seiCol(seiCat(p.yil, p.devor)) : bldCol(pz);
     aholi += pz; if (!col) continue;
     out.push({ type: 'Feature', properties: { col }, geometry: f.g });
   }
@@ -789,7 +789,7 @@ function renderRightH(): void {
       null, POP.key === popKey() ? POP : { st: 'load' }));
   } else if (isOn('uylar')) {
     const g = KAD.v, st = V('uylar').st, inC = !!g && kadCovers(g, S.c[0], S.c[1]), k = g && inC ? kadStats(g, S.c, S.r) : null, n0 = (v: number) => fmt(v);
-    const rows: [string, string, number][] = !k ? [] : st === 'yosh' ? KAD_ERA.map(([, , c, nm], i) => [c, nm, k.era[i]]) : st === 'seysmik' ? KAD_SEI.map(([s2, c, nm]) => [c, nm, k.sei[s2]]) : [];
+    const rows: [string, string, number][] = !k ? [] : st === 'yosh' ? KAD_ERA.map(([, , c, nm], i) => [V('uylar').p === 1 ? KAD_ERA_MONO[i] : c, nm, k.era[i]]) : st === 'seysmik' ? KAD_SEI.map(([s2, c, nm]) => [c, nm, k.sei[s2]]) : [];
     cards.push(card(L('uylar'), tr('kadastr 2023'), k ? tf('~${n} kishi', { n: n0(Math.round(k.aholi / 100) * 100) }) : '—',
       !g ? [] : !inC ? [tr('Maʼlumot hozircha faqat Toshkent shahri uchun.')] : [
         tf('Zichlik ${z} kishi/ga · koʻp kvartirali uylar ${u} ta', { z: n0(k!.zich), u: k!.kku }), k!.yilMed ? h('span', {}, ' · ', tf('qurilgan yili medianasi ${y}', { y: k!.yilMed })) : '', h('br'),
@@ -1217,6 +1217,8 @@ function addOverlays(): void {
   // uy narxlari — soti (olti burchakli katakchalar): qimmat — toʻq, arzon — och, maʼlumot yoʻq — oq
   m.addSource('joy-narx', { type: 'geojson', data: fc([]) as never }); narxKey = '';
   m.addLayer({ id: 'joy-narx-f', type: 'fill', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.75 } } as never, before);
+  m.addSource('joy-narx-t', { type: 'geojson', data: fc([]) as never });
+  m.addLayer({ id: 'joy-narx-t', type: 'symbol', source: 'joy-narx-t', layout: { visibility: 'none', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': ['case', ['get', 'c0'], 16, 12.5], 'text-allow-overlap': false, 'text-line-height': 1.15 }, paint: { 'text-color': '#f2c14e', 'text-halo-color': '#0e0f16', 'text-halo-width': 1.8 } } as never);
   m.addLayer({ id: 'joy-narx-l', type: 'line', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'line-color': ['case', ['==', ['get', 'm'], null], '#b9b5ad', '#ffffff'], 'line-width': 0.7, 'line-opacity': 0.8 } } as never, before);
   for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow', 'joy-cov']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   kadKey = ''; kadbKey = '';
@@ -1289,8 +1291,8 @@ function addOverlays(): void {
 }
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
-let slopeKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
-const HUD_LAYERS = ['joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+let slopeKey = '', narxTKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
+const HUD_LAYERS = ['joy-narx-t', 'joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1326,6 +1328,12 @@ function paintH(): void {
   } else m.setLayoutProperty('joy-slope', 'visibility', 'none');
   { const d = D.narx.v, on = isOn('narx') && !!d;
     if (on) { const k = katOf(V('narx').st), key = `${d!.sana}|${k}`; if (key !== narxKey) { narxKey = key; (m.getSource('joy-narx') as GeoJSONSource).setData(narxFC(d!, k) as never); } }
+    const pk = on && V('narx').st.split('|')[3] === 'plakat';   // 13.11 (kanvas 7b): tungi plakat — toʻq kataklar, oltin chaqiriqlar
+    m.setPaintProperty('joy-narx-f', 'fill-color', pk ? ['get', 'ncol'] : ['get', 'col']);
+    m.setPaintProperty('joy-narx-l', 'line-color', pk ? '#3a3c52' : ['case', ['==', ['get', 'm'], null], '#b9b5ad', '#ffffff']);
+    if (pk) { const k2 = katOf(V('narx').st), key = `${d!.sana}|${k2}|${S.c.join()}`; if (key !== narxTKey) { narxTKey = key; const cs = narxCallouts(d!, k2, S.c, 3500), dp = narxDp(k2);
+      (m.getSource('joy-narx-t') as GeoJSONSource).setData(fc(cs.map((x, i) => ({ type: 'Feature', properties: { c0: i === 0, t: `${fmt(x.m, dp)} ${isIjara(k2) ? '$/m²·oy' : '$/m²'}\n${x.diff == null ? '' : `${x.diff >= 0 ? '+' : '−'}${fmt(Math.abs(x.diff) * 100)} % · `}${tf('${n} eʼlon', { n: x.n })}` }, geometry: { type: 'Point', coordinates: x.at } }))) as never); } }
+    m.setLayoutProperty('joy-narx-t', 'visibility', pk ? 'visible' : 'none');
     for (const id of ['joy-narx-f', 'joy-narx-l']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'); }
   { const on = isOn('skaner') && !!SK, zaif = V('skaner').st === 'zaif';
     if (on) { const key = `${SK!.key}|${zaif}`; if (key !== skKey) { skKey = key; (m.getSource('joy-skan') as GeoJSONSource).setData(fc(SK!.res.b.map((b, i) => ({ type: 'Feature', properties: { i, col: zaif ? (b.s[b.weak] >= 100 ? '#dedbd4' : SK_COL[SK_DIMS[b.weak].id]) : skColor(b.comp) }, geometry: { type: 'Polygon', coordinates: [[...SK!.rings[i], SK!.rings[i][0]]] } }))) as never); } }
@@ -1363,10 +1371,10 @@ function paintH(): void {
   const upd = (id: string, im: { url: string; coords: [number, number][] }) => (m.getSource(id) as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords });
   const lg0 = D.lst.v;
   { const ob = isOn('uylar') ? kadOwnerFeats() : null;
-    if (ob) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${PV?.key}|${PV?.d?.features.length}`; if (k !== kadbKey) { kadbKey = k; (m.getSource('joy-kadb') as GeoJSONSource).setData(ob.fc as never); } }
+    if (ob) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${V('uylar').p}|${PV?.key}|${PV?.d?.features.length}`; if (k !== kadbKey) { kadbKey = k; (m.getSource('joy-kadb') as GeoJSONSource).setData(ob.fc as never); } }
     if (m.getLayer('joy-kadb')) m.setLayoutProperty('joy-kadb', 'visibility', ob ? 'visible' : 'none'); }
   const pwG = isOn('uylar') && !inTash(S.c) && POP.key === popKey() ? POP.v : undefined;
-  if (isOn('uylar') && (pwG || (inTash(S.c) && KAD.v))) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${pwG ? POP.key : 'kad'}`; if (k !== kadKey) { kadKey = k; upd('joy-kad', pwG ? popImage(pwG) : kadImage(KAD.v!, V('uylar').st)); } m.setLayoutProperty('joy-kad', 'visibility', 'visible'); }
+  if (isOn('uylar') && (pwG || (inTash(S.c) && KAD.v))) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${V('uylar').p}|${pwG ? POP.key : 'kad'}`; if (k !== kadKey) { kadKey = k; upd('joy-kad', pwG ? popImage(pwG) : kadImage(KAD.v!, V('uylar').st)); } m.setLayoutProperty('joy-kad', 'visibility', 'visible'); }
   else if (m.getLayer('joy-kad')) m.setLayoutProperty('joy-kad', 'visibility', 'none');
   if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), vec = vh.st === 'binolar' || vh.st === 'kochalar', ok = !vec || axBundle?.key === `${S.c.join()}|${S.r + 100}`;
     if (vec && !ok) void needCtx();
@@ -1405,11 +1413,11 @@ function paintH(): void {
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
   if (isOn('uylar') && !inTash(S.c) && POP.v) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (GHS-POP, 90 m)')), ...GHS_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === GHS_DENS.length - 1 ? `${t}+` : `${t}–${GHS_DENS[i + 1][0]}`))));
   else if (isOn('uylar') && KAD.v) { const st = V('uylar').st;
-    lg.push(st === 'yosh' ? h('div', { class: 'lg' }, h('b', {}, tr('Uylar yoshi (koʻp kvartirali, median)')), ...KAD_ERA.map(([, , c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))))
+    lg.push(st === 'yosh' ? h('div', { class: 'lg' }, h('b', {}, tr('Uylar yoshi (koʻp kvartirali, median)')), ...KAD_ERA.map(([, , c, n], i) => h('span', {}, h('i', { style: `background:${V('uylar').p === 1 ? KAD_ERA_MONO[i] : c}` }), tr(n))))
       : st === 'seysmik' ? h('div', { class: 'lg' }, h('b', {}, tr('Seysmik eʼtibor (saralash)')), ...KAD_SEI.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))))
       : kadOwnerFeats() ? h('div', { class: 'lg' }, h('b', {}, tr('Uy aholisi, kishi (bino darajasi)')), ...([[0, '#fdd0a2'], [50, '#fd8d3c'], [150, '#d94801'], [300, '#a63603'], [600, '#7f2704']] as const).map(([t, c], i, A) => h('span', {}, h('i', { style: `background:${c}` }), i === A.length - 1 ? `${t}+` : `${t}–${A[i + 1][0]}`)))
       : h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (50 m)')), ...KAD_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === KAD_DENS.length - 1 ? `${t}+` : `${t}–${KAD_DENS[i + 1][0]}`)))); }
-  if (isOn('narx') && D.narx.v) { const k = katOf(V('narx').st), b = narxBreaks(D.narx.v, k), pal = NARX_PAL.slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x, narxDp(k));
+  if (isOn('narx') && D.narx.v) { const k = katOf(V('narx').st), b = narxBreaks(D.narx.v, k), pal = (V('narx').st.split('|')[3] === 'plakat' ? NIGHT_PAL : NARX_PAL).slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x, narxDp(k));
     lg.push(h('div', { class: 'lg' }, h('b', {}, isIjara(k) ? tr('Ijara, $/m²·oy') : tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
       h('span', {}, h('i', { style: 'background:#ffffff;box-shadow:inset 0 0 0 1px #b9b5ad' }), tr('maʼlumot yetarli emas')))); }
   if (isOn('skaner') && SK) lg.push(V('skaner').st === 'zaif'
@@ -1901,7 +1909,7 @@ function kadImage(g: KadGrid, st: string, px = 384): { url: string; coords: [num
   for (let r = 0; r < px; r++) for (let q = 0; q < px; q++) {
     const x = -clip + (q + 0.5) * k, y = clip - (r + 0.5) * k, d = Math.hypot(x, y); if (d > clip) continue;
     const o = kadCell(g, S.c[0] + x / kx, S.c[1] + y / ky); if (o < 0) continue;
-    const c = st === 'yosh' ? eraCol(g.yil[o]) : st === 'seysmik' ? seiCol(g.sq[o] >> 8) : densCol(g.aholi[o] / KAD_CELL_HA); if (!c) continue;
+    const c = st === 'yosh' ? eraCol(g.yil[o], V('uylar').p === 1) : st === 'seysmik' ? seiCol(g.sq[o] >> 8) : densCol(g.aholi[o] / KAD_CELL_HA); if (!c) continue;
     const p = (r * px + q) * 4, edge = Math.min(1, (clip - d) / k);
     img.data[p] = parseInt(c.slice(1, 3), 16); img.data[p + 1] = parseInt(c.slice(3, 5), 16); img.data[p + 2] = parseInt(c.slice(5, 7), 16); img.data[p + 3] = Math.round(235 * edge);
   }

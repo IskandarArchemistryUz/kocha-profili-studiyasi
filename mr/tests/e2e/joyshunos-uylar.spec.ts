@@ -52,6 +52,12 @@ test('uylar va aholi: 50 m kadastr agregati, uch uslub, doira ichida', async ({ 
   await page.locator('.jv-st button', { hasText: 'Uylar yoshi' }).click();
   await expect(card).toContainText('qurilgan yili medianasi 1962');
   await expect(page.locator('.joy-legend')).toContainText('1966 gacha');
+  // 13.11 (kanvas 16b): bir rangli qizil gradatsiya
+  const era0 = () => page.evaluate(() => (document.querySelector('.joy-legend .lg i') as HTMLElement).style.background);
+  const before = await era0();
+  await page.locator('.jv-pal[aria-label="Bir rang"]').click();
+  await expect.poll(era0).not.toBe(before);
+  expect(await era0()).toMatch(/103, 0, 13|#67000d/);
   await page.locator('.jv-st button', { hasText: 'Seysmik eʼtibor' }).click();
   await expect(card).toContainText('A · 1966 gacha');
   await expect(card).toContainText('ekspertiza emas');

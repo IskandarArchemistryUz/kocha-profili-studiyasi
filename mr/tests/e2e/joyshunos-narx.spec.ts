@@ -175,3 +175,23 @@ test('aholi zichligi Toshkentdan tashqarida — GHS-POP', async ({ page }) => {
   expect(full).toBe(0);
   expect(errs).toEqual([]);
 });
+
+/** 13.11 (kanvas 7b): uy narxi — tungi plakat: toʻq kataklar, oltin chaqiriqlar (median, shahar medianasidan farq, eʼlonlar) */
+test('uy narxi — tungi plakat', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [];
+  await page.route(/raw\.githubusercontent\.com\/.*toshkent_hex\.json/, r => r.fulfill({ path: NARX, contentType: 'application/json' }));
+  await open(page, errs);
+  await moveTo(page, [69.29507, 41.32561]);
+  await joyClick(page, 'narx', '.switch');
+  await expect(page.locator('[data-card=narx] .big')).toHaveText(/\$\/m²/, { timeout: 20_000 });
+  if ((await page.locator('.jv-btn').getAttribute('aria-expanded')) !== 'true') await page.locator('.jv-btn').click();
+  await page.locator('.jv-st[data-axis="3"] button', { hasText: 'Tungi plakat' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-narx-t', 'visibility'))).toBe('visible');
+  await expect.poll(() => page.evaluate(() => ((window as any).joyMap.getSource('joy-narx-t')._data?.features ?? []).map((f: any) => f.properties.t).join(' / '))).toMatch(/\$\/m²\n[+−]\d+ % · \d+ eʼlon/);
+  expect(await page.evaluate(() => (window as any).joyMap.getPaintProperty('joy-narx-f', 'fill-color'))).toEqual(['get', 'ncol']);
+  if (process.env.SHOT) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOT }); }
+  await page.locator('.jv-st[data-axis="3"] button', { hasText: 'Kataklar' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-narx-t', 'visibility'))).toBe('none');
+  expect(errs).toEqual([]);
+});

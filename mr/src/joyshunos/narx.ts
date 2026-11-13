@@ -31,6 +31,18 @@ export const hasKat = (d: NarxData, k: NarxKat): boolean => !!d.kat[k]?.[String(
 /** Och → toʻq (iliq jigarrang): 7 sinf */
 export const NARX_PAL = ['#fbf3e4', '#f1dcb2', '#e2bb81', '#cc9156', '#a96833', '#7a431d', '#47250e'];
 
+/** Tungi plakat (13.11, kanvas 7b): toʻq fon, qimmat — iliq */
+export const NIGHT_PAL = ['#1c1e2b', '#25283a', '#30324a', '#3f3c58', '#5b4a63', '#8a6656', '#c49a45'];
+/** Plakat chaqiriqlari: markazdan R m ichidagi, kamida minN eʼlonli kataklar — median va shahar medianasidan farq */
+export function narxCallouts(d: NarxData, k: NarxKat, c: LngLat, R: number, minN = 5): { at: LngLat; m: number; n: number; diff: number | null }[] {
+  const w = sizeOf(k), city = d.shahar?.[k]?.[1], kx = 111_320 * Math.cos(c[1] * Math.PI / 180), out: { at: LngLat; m: number; n: number; diff: number | null; d: number }[] = [];
+  for (const x of cells(d, k)) {
+    if (x[2] < minN) continue; const [cx, cy] = center(x[0], x[1], w), at = toGeo(cx, cy), dist = Math.hypot((at[0] - c[0]) * kx, (at[1] - c[1]) * 111_132);
+    if (dist <= R) out.push({ at, m: x[3], n: x[2], diff: city ? x[3] / city - 1 : null, d: dist });
+  }
+  return out.sort((a, b) => a.d - b.d).slice(0, 8).map(({ d: _d, ...r }) => r);
+}
+
 let memo: Promise<NarxData> | null = null;
 export function loadNarx(f: typeof fetch = fetch): Promise<NarxData> {
   memo ??= f(NARX_URL).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<NarxData>; }).catch(e => { memo = null; throw e; });
@@ -67,7 +79,7 @@ export const colorOf = (m: number, b: number[]): string => NARX_PAL[Math.min(NAR
 /** Xarita uchun: har katak — koʻpburchak; m — median (yoʻq boʻlsa null), c — rang */
 export function narxFC(d: NarxData, k: NarxKat): unknown {
   const w = sizeOf(k), b = breaks(d, k);
-  return { type: 'FeatureCollection', features: cells(d, k).map(c => ({ type: 'Feature', properties: { m: c[2] > 0 ? c[3] : null, n: c[2], col: c[2] > 0 ? colorOf(c[3], b) : '#ffffff' }, geometry: { type: 'Polygon', coordinates: [hexRing(c[0], c[1], w)] } })) };
+  return { type: 'FeatureCollection', features: cells(d, k).map(c => ({ type: 'Feature', properties: { m: c[2] > 0 ? c[3] : null, n: c[2], col: c[2] > 0 ? colorOf(c[3], b) : '#ffffff', ncol: c[2] > 0 ? NIGHT_PAL[NARX_PAL.indexOf(colorOf(c[3], b))] : '#14151d' }, geometry: { type: 'Polygon', coordinates: [hexRing(c[0], c[1], w)] } })) };
 }
 
 export interface NarxAt { inCity: boolean; n: number; median?: number; p25?: number; p75?: number; /** shahar kataklarining necha foizidan qimmat */ rank?: number; size: number }
