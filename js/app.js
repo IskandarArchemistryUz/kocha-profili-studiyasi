@@ -1656,15 +1656,15 @@ function buildShapes0(){
       const fr=s=>frameAt(a.xy,cc,a.atA?s:T-s),fS=fr(z+1),fE=fr(z),out=a.atA?fS.t:[-fS.t[0],-fS.t[1]],hin=[-out[0],-out[1]];
       const pt=(f,d)=>[f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],lv=[-out[1],out[0]],outDir=a.atA?1:-1;
       /* boʻlak oʻqi: chorrahadan sMax gacha (kiruvchi — uzoqdan toʻxtash chizigʻiga, chiquvchi — teskari) */
-      const sMax=Math.max(z+6,Math.min(160,T-3)),axis=(d,s0)=>{const P=[];for(let s=s0;s<sMax;s+=4)P.push(pt(fr(s),d));P.push(pt(fr(sMax),d));return P;};
+      const far=nodeById(a.atA?a.sg.b:a.sg.a),farJ=far&&isInter(nodeKind(far)),sMax=Math.max(z+6,Math.min(160,farJ?T/2-4:T-3)),axis=(d,s0)=>{const P=[];for(let s=s0;s<sMax;s+=4)P.push(pt(fr(s),d));P.push(pt(fr(sMax),d));return P;};
       const exits=lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===outDir).map(x=>({x,P:pt(fE,x.mid),pts:axis(x.mid,z)}))
         .sort((p,q)=>((q.P[0]-fE.p[0])*lv[0]+(q.P[1]-fE.p[1])*lv[1])-((p.P[0]-fE.p[0])*lv[0]+(p.P[1]-fE.p[1])*lv[1]));
       const lanes=arrowPlan(a.sg,!a.atA).map(pl=>({x:pl.x,code:pl.code||'',P:pt(fS,pl.x.mid),pts:axis(pl.x.mid,z+1).reverse()}));
       const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(z0+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
-      return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||''};});
+      return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||'',real:a.sg._real??a.sg.id};});
     const C=laneConnections(E);C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
     const ring=k==='round'?{c:toXY(n.ll,o),r:(n.ri||12)+(n.rw||6)/2}:null;
-    JNET.set(n.id,{E,C,o,sig:k==='sig',ring});
+    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id});
     if(ds.conn&&!ring)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
   });
   freeShapes(ds,o,poly,line,mark);
