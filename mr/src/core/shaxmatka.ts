@@ -215,7 +215,23 @@ export function shxSheet(doc: Project, plans: SecPlan[], o: ShxOpts, tr: (s: str
       },
       side: (x, y, w, yMax) => {
         const mx = shxMix(bs), t = mixTable(mx, x, y, w, tr, tr('Loyiha tarkibi')); let out = t.svg, yy = y + t.h + 6;
-        if (o.insol) { const b = insolBox(bs, x, yy, w, tr); return out + b.svg; }
+        if (o.insol) {
+          const b = insolBox(bs, x, yy, w, tr); out += b.svg; yy += b.h + 6;
+          // qavat boʻyicha mos emaslar (kanvas IN-02): past qavatlar qoʻshni binolar soyasida
+          const byF = new Map<number, [number, number]>();
+          for (const B of bs) for (const f of B.floors) for (const a of f.apts) if (a.st === 'bad' || a.st === 'edge') { const v = byF.get(f.f) ?? [0, 0]; v[a.st === 'bad' ? 0 : 1]++; byF.set(f.f, v); }
+          const fl = [...byF.keys()].sort((p, q) => p - q), mx = Math.max(1, ...[...byF.values()].map(v => v[0] + v[1]));
+          if (!fl.length || yy + 14 > yMax) return out;
+          out += `<text x="${n2(x)}" y="${n2(yy + 3)}" font-size="2.6" font-weight="700" letter-spacing="0.3" fill="#1d1d1b">${esc(tr('Mos emaslar qavat boʻyicha').toUpperCase())}</text>`; yy += 6;
+          const bw = w - 14, rh = Math.min(4, (yMax - yy) / fl.length);
+          for (const f of fl) {
+            if (yy + rh > yMax) break;
+            const [nb, ne] = byF.get(f)!;
+            out += `<text x="${n2(x + 4)}" y="${n2(yy + rh * 0.75)}" font-size="${n2(Math.min(2, rh * 0.6))}" font-weight="600" text-anchor="end" fill="#1d1d1b">${f}</text><rect x="${n2(x + 6)}" y="${n2(yy + 0.3)}" width="${n2(bw * nb / mx)}" height="${n2(rh - 0.8)}" fill="${ST_COL.bad}"/><rect x="${n2(x + 6 + bw * nb / mx)}" y="${n2(yy + 0.3)}" width="${n2(bw * ne / mx)}" height="${n2(rh - 0.8)}" fill="${ST_COL.edge}"/><text x="${n2(x + 7 + bw * (nb + ne) / mx)}" y="${n2(yy + rh * 0.7)}" font-size="${n2(Math.min(1.9, rh * 0.55))}" fill="#55524b">${nb + ne}</text>`;
+            yy += rh;
+          }
+          return out;
+        }
         const tgt = doc.settings.aptMix ?? MIX_DEFAULT, sum = tgt.reduce((s, v) => s + v, 0) || 1, NN = mx.reduce((s, r) => s + r.n, 0) || 1;
         if (yy + 30 > yMax) return out;
         out += `<text x="${n2(x)}" y="${n2(yy + 3)}" font-size="2.6" font-weight="700" letter-spacing="0.3" fill="#1d1d1b">${esc(tr('Miks: maqsad va amalda').toUpperCase())}</text>`; yy += 6;
@@ -247,20 +263,40 @@ export function shxSheet(doc: Project, plans: SecPlan[], o: ShxOpts, tr: (s: str
           tint = { fill: FI.apts.map(a => ST_FILL[a.status]), stroke: FI.apts.map(a => ST_COL[a.status]), sub: FI.apts.map(a => (a.status === 'na' ? '—' : `${a.ok}/${a.need} ${a.status === 'ok' ? '✓' : '✗'}`)) };
         }
         const P = floorPlanSvg(pl, { scale: 100, dims: false, title: '', floor: tf.f, bare: true, num: true, ...opt(pl), ...(tint ? { tint } : {}) });
+        let dots = '';
+        if (o.insol && ins) for (let m = 0; m < pl.layout.mods.length; m++) {
+          const hv = ins(pl.bid, tf.f, m); if (hv == null) continue;
+          const q = P.toSvg(pl.layout.mods[m].p), c = hv >= 2 - 1e-6 ? ST_COL.ok : hv >= EDGE_H - 1e-6 ? ST_COL.edge : ST_COL.bad;
+          dots += `<g data-shx="deraza"><circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="5.2" fill="${c}" stroke="#fff" stroke-width="0.8"/><text x="${n2(q[0])}" y="${n2(q[1] + 1.4)}" font-size="3.8" font-weight="700" text-anchor="middle" fill="#fff">${hm(hv)}</text></g>`;
+        }
         const inner = P.svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/id="hatch"/g, 'id="shxPH"').replace(/url\(#hatch\)/g, 'url(#shxPH)').replace(/id="tile"/g, 'id="shxPT"').replace(/url\(#tile\)/g, 'url(#shxPT)');
         const ph0 = wide ? vh * 0.6 : vy + vh - py0 - 22;
         let ph = Math.min(ph0, pw * P.heightMm / P.widthMm + 1); const pw2 = Math.min(pw, ph * P.widthMm / P.heightMm);
         if (ph < 20) return out;
         out += `<text x="${n2(px)}" y="${n2(py0 + 4)}" font-size="2.6" font-weight="700" letter-spacing="0.3" fill="#1d1d1b">${esc(`${tf.f}-${tr('qavat')} ${tr('rejasi')}`.toUpperCase())}</text>`
           + `<text x="${n2(px)}" y="${n2(py0 + 7.4)}" font-size="1.9" fill="#8a857c">${esc(tr('raqamlar — qavat ichidagi tartib'))}</text>`
-          + `<svg x="${n2(px)}" y="${n2(py0 + 9)}" width="${n2(pw2)}" height="${n2(ph)}" viewBox="0 0 ${P.widthMm.toFixed(1)} ${P.heightMm.toFixed(1)}" preserveAspectRatio="xMinYMin meet">${inner}</svg>`;
+          + `<svg x="${n2(px)}" y="${n2(py0 + 9)}" width="${n2(pw2)}" height="${n2(ph)}" viewBox="0 0 ${P.widthMm.toFixed(1)} ${P.heightMm.toFixed(1)}" preserveAspectRatio="xMinYMin meet" overflow="visible">${inner}${dots}</svg>`;
         if (o.insol) out += `<text x="${n2(px)}" y="${n2(py0 + 9 + ph + 5)}" font-size="2" fill="#55524b">${esc('SanQvaN 0102-25: 95-band — 2 soat uzluksiz; 94-band — 1–3 xonalida ≥ 1, 4–5 xonalida ≥ 2 xona.')}</text><text x="${n2(px)}" y="${n2(py0 + 9 + ph + 8.4)}" font-size="2" fill="#55524b">${esc(`${tr('chegarada')}: ≥ ${fm(EDGE_H)} ${tr('soat')} · N — ${tr('bir tomonlama shimoliy')}`)}</text>`;
       }
       return out;
     },
-    side: (x, y, w) => {
+    side: (x, y, w, yMax) => {
       const t = mixTable(shxMix([B]), x, y, w, tr, tr('Kvartiralar tarkibi'));
-      return t.svg + (o.insol ? insolBox([B], x, y + t.h + 6, w, tr).svg : '');
+      if (!o.insol) return t.svg;
+      const ib = insolBox([B], x, y + t.h + 6, w, tr); let out = t.svg + ib.svg, yy = y + t.h + 6 + ib.h + 6;
+      const bad = B.floors.flatMap(f => f.apts.filter(a => a.st === 'bad' || a.st === 'edge').map(a => ({ f: f.f, a }))).sort((p, q) => p.a.n - q.a.n);
+      if (!bad.length || yy + 16 > yMax) return out;
+      out += `<text x="${n2(x)}" y="${n2(yy + 3)}" font-size="2.6" font-weight="700" letter-spacing="0.3" fill="#1d1d1b">${esc(tr('Mos emas kvartiralar').toUpperCase())}</text><line x1="${n2(x)}" y1="${n2(yy + 4.6)}" x2="${n2(x + w)}" y2="${n2(yy + 4.6)}" stroke="#1d1d1b" stroke-width="0.3"/>`;
+      yy += 8.5; const cx = [0, 0.12, 0.26, 0.4, 0.56];
+      [tr('№'), tr('Qavat'), tr('Turi'), tr('soat'), tr('Sabab')].forEach((c, j) => { out += `<text x="${n2(x + cx[j] * w)}" y="${n2(yy)}" font-size="1.9" fill="#8a857c">${esc(c)}</text>`; });
+      const room = Math.floor((yMax - yy - 6) / 4.2), shown = bad.slice(0, Math.max(0, room));
+      for (const { f, a } of shown) {
+        yy += 4.2;
+        out += `<rect x="${n2(x - 1.4)}" y="${n2(yy - 2.6)}" width="0.8" height="3" fill="${ST_COL[a.st!]}"/>`;
+        [String(a.n), String(f), `${a.k}x`, hm(a.best ?? 0), tr(a.north ? 'bir tomonlama shimoliy' : 'qoʻshni bino soyasi')].forEach((c, j) => { out += `<text x="${n2(x + cx[j] * w)}" y="${n2(yy)}" font-size="2.1" fill="#1d1d1b">${esc(c)}</text>`; });
+      }
+      if (shown.length < bad.length) out += `<text x="${n2(x)}" y="${n2(yy + 4.2)}" font-size="2" fill="#8a857c">${esc(`… +${bad.length - shown.length}`)}</text>`;
+      return out;
     },
   };
 }

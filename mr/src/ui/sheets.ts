@@ -15,7 +15,7 @@ import { uid } from '../core/doc';
 import { planApartments } from '../core/apartments';
 import { floorGroups, groupName } from '../core/floorplan';
 import { aptSheet, sheetGroup } from '../core/aptsheet';
-import { shxSheet } from '../core/shaxmatka';
+import { shxSheet, type ShxInsolAt } from '../core/shaxmatka';
 import { aptPicks, houseTypes } from '../core/albumset';
 import { SERVICES } from '../core/services';
 import { housePlan, housePlanSvg } from '../core/lowplan';
@@ -40,6 +40,10 @@ export interface SheetsHost {
   svc?: () => SheetSvc[];
   /** 02.11: oxirgi insolyatsiya xaritasi (6-qadam) */
   insol?: () => SheetCtx['insol'];
+  /** 13.11: derazalar insolyatsiyasi («Kvartiralar» qadami) — bino, qavat (1 dan), modul → uzluksiz soat; hisob yoʻq — null */
+  aptInsol?: () => ShxInsolAt | null;
+  /** 13.11: derazalar insolyatsiyasini hisoblash (tanga / haftalik sinov editor tomonida) */
+  runAptInsol?: () => Promise<ShxInsolAt | null>;
   /** 04.11: shamol guli va oxirgi oqim xaritasi (6-qadam) */
   wind?: () => SheetCtx['wind'];
   /** 06.11: yer sathi xaritalari (yuza qizishi, HAND, TWI) — Qatlamlar paneli bilan bir xil hisob */
@@ -173,6 +177,8 @@ export function openGraphics(host: SheetsHost): void {
   let axSel: string | null = null;
   const axLayers = new Set<AxoLayerId>(host.axoLayers?.() ?? AXO_LAYER_IDS);
   const planOpt = (pl: (typeof plans)[number]) => { const bb = doc.buildings.find(b => b.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? areaOf(bb.footprint.map(frameOf(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; };
+  let aptInsAt: ShxInsolAt | null | undefined;
+  const aptIns = (): ShxInsolAt | null => (aptInsAt === undefined ? (aptInsAt = host.aptInsol?.() ?? null) : aptInsAt);
   const innerOf = (o: SheetOpts): SheetInner | undefined => {
     if (o.mode === 'qavat') {
       if (!plans.length) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Turar joy seksiyalari yoʻq')}</text>` };
@@ -180,7 +186,7 @@ export function openGraphics(host: SheetsHost): void {
       const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1));
       return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, planOpt);
     }
-    if (o.mode === 'shaxmatka') return shxSheet(doc, plans, { scope: o.shx?.scope ?? 'bino', bi: o.shx?.bi ?? 0, cell: o.shx?.cell ?? 'toliq', insol: false }, tr, null, planOpt);
+    if (o.mode === 'shaxmatka') return shxSheet(doc, plans, { scope: o.shx?.scope ?? 'bino', bi: o.shx?.bi ?? 0, cell: o.shx?.cell ?? 'toliq', insol: o.shx?.insol === true }, tr, o.shx?.insol ? aptIns() : null, planOpt);
     if (o.mode === 'uy') {
       // 02.11: past qavatli uy rejasi (core/lowplan) — tur va qavat; katakka sigʻdiriladi
       const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))];
@@ -313,7 +319,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'fazalar') return tr('Qurilish navbatlari ketma-ketligi'); if (o.mode === 'kesim') { const c = doc.cuts?.find(x => x.id === o.cut) ?? doc.cuts?.[0]; return `${tr('Koʻcha profili')} ${c ? `${c.label}–${c.label}` : '—'}`; } if (o.mode === 'siluet') { if (o.sec === '*') return `${tr('Kesim va fasad')} · ${tr('barcha kesimlar')}`; const c = doc.sections?.find(x => x.id === o.sec) ?? doc.sections?.[0]; return `${tr('Kesim va fasad')} ${c ? `${c.label}–${c.label}` : '—'}`; } if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'shaxmatka') { if (o.shx?.scope === 'loyiha') return tr('Loyiha shaxmatkasi'); const bi = Math.max(0, Math.min(plans.length - 1, o.shx?.bi ?? 0)); return `${tr(`${bi + 1}-bino`)} · ${tr('shaxmatka')}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'fazalar') return tr('Qurilish navbatlari ketma-ketligi'); if (o.mode === 'kesim') { const c = doc.cuts?.find(x => x.id === o.cut) ?? doc.cuts?.[0]; return `${tr('Koʻcha profili')} ${c ? `${c.label}–${c.label}` : '—'}`; } if (o.mode === 'siluet') { if (o.sec === '*') return `${tr('Kesim va fasad')} · ${tr('barcha kesimlar')}`; const c = doc.sections?.find(x => x.id === o.sec) ?? doc.sections?.[0]; return `${tr('Kesim va fasad')} ${c ? `${c.label}–${c.label}` : '—'}`; } if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'shaxmatka') { if (o.shx?.scope === 'loyiha') return tr(o.shx?.insol ? 'Insolyatsiya shaxmatkasi' : 'Loyiha shaxmatkasi'); const bi = Math.max(0, Math.min(plans.length - 1, o.shx?.bi ?? 0)); return `${tr(`${bi + 1}-bino`)} · ${tr(o.shx?.insol ? 'insolyatsiya' : 'shaxmatka')}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -510,9 +516,12 @@ export function openGraphics(host: SheetsHost): void {
           // 13.11: shaxmatka — bino (qavat × seksiya) yoki butun loyiha; katak uslubi (kanvas S-00: A, B, C)
           const S = o.shx ?? {}, setS = (p: Partial<NonNullable<SheetOpts['shx']>>) => set({ shx: { ...S, ...p } }), sc = S.scope ?? 'bino';
           return [h('div', { class: 'glabel' }, h('span', {}, tr('Shaxmatka'))),
+            h('div', { class: 'seg sm', id: 'shShxMode', role: 'group', 'aria-label': tr('Rang') }, ...([[false, 'Kvartira turi'], [true, 'Insolyatsiya']] as const).map(([k, t]) => h('button', { 'data-shxins': String(k), 'aria-pressed': (S.insol === true) === k, onclick: () => setS({ insol: k }) }, tr(t)))),
+            ...(S.insol && !aptIns() ? [h('div', { class: 'note' }, tr('Derazalar insolyatsiyasi hali hisoblanmagan (22 mart, SanQvaN 0102-25).')),
+              ...(host.runAptInsol ? [h('button', { class: 'btn btn-block', id: 'shShxRun', onclick: async (e: Event) => { const b = e.currentTarget as HTMLButtonElement; b.disabled = true; b.textContent = tr('Hisoblanmoqda…'); aptInsAt = (await host.runAptInsol!()) ?? null; memo.clear(); render(); } }, tr('Derazalar insolyatsiyasi'))] : [])] : []),
             h('div', { class: 'seg sm', id: 'shShxScope', role: 'group', 'aria-label': tr('Shaxmatka') }, ...([['bino', 'Bitta bino'], ['loyiha', 'Butun loyiha']] as const).map(([k, t]) => h('button', { 'data-scope': k, 'aria-pressed': sc === k, onclick: () => setS({ scope: k }) }, tr(t)))),
             ...(sc === 'bino' && plans.length ? [h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Bino'), h('span', { class: 'sub' }, `1–${plans.length}`)), stepper({ id: 'shShxBld', label: tr('Bino'), min: 1, max: plans.length, step: 1, value: Math.min(plans.length, (S.bi ?? 0) + 1), onchange: v => setS({ bi: v - 1 }) }))] : []),
-            ...(sc === 'bino' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Katak'))),
+            ...(sc === 'bino' && !S.insol ? [h('div', { class: 'glabel' }, h('span', {}, tr('Katak'))),
               h('div', { class: 'tiles c3', id: 'shShxCell' }, ...([['toliq', 'Toʻliq', 'raqam, xonalar, maydon'], ['ixcham', 'Ixcham', 'faqat raqam'], ['maydon', 'Maydon', 'rang — maydon boʻyicha']] as const).map(([k, t, n]) => tile({ 'data-cell': k, 'aria-pressed': (S.cell ?? 'toliq') === k, onclick: () => setS({ cell: k }) }, tr(t), tr(n))))] : []),
             plans.length ? '' : h('div', { class: 'note' }, tr('Turar joy seksiyalari yoʻq')),
             h('span', { class: 't-small' }, tr(sc === 'bino' ? 'Qavatlar (pastdan) × seksiyalar; kvartiralar seksiya → qavat → chapdan oʻngga raqamlanadi. Oʻng ustunda tarkib jadvali, keng varaqda — tipik qavat rejasi.' : 'Har bino — kichik toʻr (qavatlar × kvartiralar); oʻng ustunda loyiha tarkibi va miks: maqsad va amalda.'))];
