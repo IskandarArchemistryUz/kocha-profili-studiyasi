@@ -234,9 +234,11 @@ export async function useHeavy(kind: Heavy, ref?: string): Promise<boolean> {
 /** «Soʻramasdan yechilsin» — hisob menyusidan oʻchirish */
 export const autoPayOn = (): boolean => autoPay(exportProject());
 export function autoPayOff(): void { const p = exportProject(); if (p) setAutoPay(p, false); emit(); }
+/** Maslahatchi (agent/panel.ts): pullik xulosa tasdigʻida «bu loyihada soʻramasdan yechilsin» */
+export function setAutoPayHere(on: boolean): void { const p = exportProject(); if (p) setAutoPay(p, on); emit(); }
 
 /* ---------- 3) mening tangalarim ---------- */
-const REASON: Record<string, string> = { export: 'Toza fayl', trial: 'Ogʻir hisob', payment: 'Sotib olindi', pay: 'Sotib olindi', topup: 'Sotib olindi', gift: 'Sovgʻa', bonus: 'Sovgʻa', promo: 'Sinov kirishi', refund: 'Qaytarildi', admin: 'Tuzatish' };
+const REASON: Record<string, string> = { export: 'Toza fayl', trial: 'Ogʻir hisob', payment: 'Sotib olindi', pay: 'Sotib olindi', topup: 'Sotib olindi', gift: 'Sovgʻa', bonus: 'Sovgʻa', promo: 'Sinov kirishi', refund: 'Qaytarildi', agent: 'Maslahatchi', agent_refund: 'Qaytarildi', admin: 'Tuzatish' };
 const ITEM_NAME: Record<string, string> = {
   'mr.album': 'Albom PDF', 'mr.dxf': 'DXF — reja', 'mr.dxf3d': 'DXF — 3D', 'mr.glb': 'GLB / OBJ', 'mr.tik': 'TIK — Excel', 'mr.norm': 'Meʼyoriy hisobot', 'mr.ifc': 'IFC4',
   'mr.sheet': 'Varaq', 'mr.axo': 'Aksonometriya', 'mr.floors': 'Qavat rejalari', 'mr.png': 'PNG', 'chz.album': 'Chizmadon albomi', 'ks.section': 'Koʻcha kesimi', 'ks.a3': 'Koʻchasoz A3',
