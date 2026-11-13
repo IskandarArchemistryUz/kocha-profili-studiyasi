@@ -90,4 +90,24 @@ describe('Kesim va fasad (atrof bilan)', () => {
     expect(body('aksent')).toContain('#d4483b');
     expect(silSheet(d, ctx(), 's1', s => s, 380, 220, 'siluet').legend!.length).toBeGreaterThan(2);
   });
+  it('relyef (×N) va tahlil qatlami (kanvas K-06, K-07)', () => {
+    const n = 21, h: number[] = [];
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) h.push(400 + (-100 + i * 20) * 0.05);   // sharqqa 5 % koʻtarilish
+    const c = { ...ctx(), terrain: { n, step: 20, radius: 200, c0: [100, 0] as [number, number], h }, waterways: [{ pts: [[20, -30], [20, 30]] as [number, number][], w: 2 }] };
+    const d = doc(), g = silhouette(d, c, d.sections![0])!;
+    expect(g.zAbs).not.toBeNull(); expect(g.water.map(Math.round)).toEqual([70]);   // A = (−50, 0): 20 − (−50)
+    const r = silSheet(d, c, 's1', s => s, 380, 220, 'kesim', { vex: 5 });
+    expect(r.label).toMatch(/×5$/);
+    const svg = r.body(0, 0, 380, 220);
+    expect(svg).toContain('data-sil="relyef"'); expect(svg).toContain('data-sil="ariq"'); expect(svg).toContain('data-sil="nishab"'); expect(svg).toContain('+5 %');
+    expect(svg).not.toContain('data-sil="loyiha-kesim"');                              // binolar faqat izi bilan
+    // tahlil: chiziq sharq–gʻarb (azimut 90°) — quyosh proeksiyasi yoʻq, ogohlantirish bor; shamol yoʻq — xabar
+    const t = silSheet(d, c, 's1', s => s, 380, 220, 'kesim', { tahlil: true }).body(0, 0, 380, 220);
+    expect(t).not.toContain('data-sil="quyosh"'); expect(t).toContain('quyosh proeksiyasi koʻrsatilmaydi'); expect(t).toContain('iqlim maʼlumoti yuklanmagan'); expect(t).toContain('data-sil="suv"');
+    // shimol–janub chizigʻi: quyosh, qishki soya, shamol
+    const fr = frame(d.origin), G = (x: number, y: number) => fr.toGeo([x, y]);
+    const d2 = apply(d, { type: 'setSections', sections: [{ id: 's2', a: G(60, -150), b: G(60, 150), label: '2', look: 1, depth: 200 }] });
+    const t2 = silSheet(d2, c, 's2', s => s, 380, 220, 'kesim', { tahlil: true, wind: { dir: 90, prevailing: 'sharq', mean: 2.3 } }).body(0, 0, 380, 220);
+    expect((t2.match(/data-sil="quyosh"/g) ?? []).length).toBe(3); expect(t2).toContain('data-sil="soya"'); expect(t2).toContain('data-sil="shamol"'); expect(t2).toContain('22.12 · 25,');
+  });
 });

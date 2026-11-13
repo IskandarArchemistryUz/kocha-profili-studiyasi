@@ -43,5 +43,13 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kesim va f
   await expect(v.locator('[data-sil="loyiha-kesim"]').first()).toBeAttached();
   await expect(v.locator('[data-sil="deraza"]').first()).toBeAttached();
   if (process.env.GX_SHOTS) { await page.waitForTimeout(800); await page.screenshot({ path: `${process.env.GX_SHOTS}/siluet_uslub_${w}${dark ? 'd' : 'l'}.png` }); }
+  // 13.11 (K-07): tahlil qatlami — yer usti suvi / shamol xabari; (K-06): relyef ×5 — gipsometrik yer, binolar izi
+  await page.click('#shSilStyle [data-silstyle=kesim]');
+  await page.click('#shSilTahlil');
+  await expect(v.locator('svg').first()).toContainText(/iqlim|shamol/i);
+  await page.click('#shSilVex [data-vex="5"]');
+  await expect(v.locator('[data-sil="relyef"]').first()).toBeAttached();
+  await expect(v.locator('[data-sil="loyiha-iz"]').first()).toBeAttached();
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(800); await page.screenshot({ path: `${process.env.GX_SHOTS}/siluet_relyef_${w}${dark ? 'd' : 'l'}.png` }); }
   expect(errs).toEqual([]);
 });

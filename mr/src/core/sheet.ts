@@ -133,6 +133,8 @@ export interface SheetOpts {
   sec?: string;
   /** 13.11: «Kesim va fasad» uslubi (kanvas K-01…K-05; sukut — kesim) */
   silStyle?: 'kesim' | 'siluet' | 'rangli' | 'juft' | 'aksent' | 'shahar';
+  /** 13.11 (kanvas K-06, K-07): relyef kesimi — vertikal boʻrttirish (1 — yoʻq) va tahlil qatlami (quyosh, soya, shamol, suv) */
+  silVex?: 1 | 2 | 5 | 10; silTahlil?: boolean;
   /** qavat rejalari: namuna va qavat; aksonometriya: namuna va saqlangan koʻrinish */
   /** qavat rejasi varagʻi: floor — bino raqami (1 dan; tarixiy nom), grp — qavatlar guruhi (boʻlmasa — turar qavat) */
   /** qavat: floor — bino (1 dan), grp — qavat guruhi; uy (02.11): floor — uy turi (1 dan), grp — uy qavati (1 dan) */
