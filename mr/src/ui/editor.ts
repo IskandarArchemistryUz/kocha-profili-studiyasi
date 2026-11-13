@@ -11,6 +11,7 @@ import type { LngLat, Project, Garage, Street, SiteSection } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
+import { korinishVga, korColor, korStat, KOR_COLS, type KorJob, type KorOut } from '../core/korinish';
 import { staleGen, spacingIssues } from '../core/spacing';
 import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
@@ -556,7 +557,10 @@ export class Editor {
   }
 
   /* ---------- tahliliy qatlamlar: qavatlar soni, yuza qizishi, suv bosish (HAND), namlik (TWI) ---------- */
-  private mapKind: 'yoq' | 'issiq' | 'hand' | 'twi' = 'yoq';
+  private mapKind: 'yoq' | 'issiq' | 'hand' | 'twi' | 'kor' | 'kor0' = 'yoq';
+  /** Koʻrinish tekshiruvi (VGA): hozir va loyiha — bir hisob, kesh (13.11) */
+  private korCache: { key: string; pts: XY[]; hozir: Float32Array; loyiha: Float32Array; inSite: boolean[]; cell: number } | null = null;
+  private korW: Worker | null = null;
   private mapInfo: MapInfo | null = null;
   private mapBusy = false;
   private hydroCache: { key: string; hy: Hydro; g: TerrainGrid; c0: XY } | null = null;
@@ -583,7 +587,9 @@ export class Editor {
         opt('yoq', 'Yoʻq', 'xaritani olib tashlash'),
         opt('issiq', 'Yuza qizishi', 'taxmin: qoplama + soya, 15 iyul 11–17'),
         opt('hand', 'Suv bosish xavfi (HAND)', 'drenajdan balandlik, relyef boʻyicha'),
-        opt('twi', 'Namlik (TWI)', 'suv yigʻiladigan pastliklar')),
+        opt('twi', 'Namlik (TWI)', 'suv yigʻiladigan pastliklar'),
+        opt('kor', 'Koʻrinish — loyiha', 'har nuqtadan 100 m atrofga koʻrinadigan maydon'),
+        opt('kor0', 'Koʻrinish — hozir', 'oʻsha nuqtalar, faqat mavjud binolar')),
       this.mapBusy ? h('div', { class: 'note', id: 'mapBusy' }, tr('Hisoblanmoqda…')) : '',
       h('span', { class: 't-small' }, tr('Xarita loyiha oʻzgarsa avtomatik yangilanmaydi — qayta tanlang. Insolyatsiya va shamol xaritalari ham shu qatlamni ishlatadi.')),
       this.mapInfo ? h('div', { class: 'glabel' }, h('span', {}, tr('Xarita legendasi')), h('span', {}, tr('tanlangan xarita boʻyicha'))) : '',
@@ -598,11 +604,11 @@ export class Editor {
       ...m.stats.map(t => h('div', { class: 'st' }, t)), h('div', { class: 'nt' }, tr(m.note)),
       h('button', { class: 'ib sm', title: 'Yopish', 'aria-label': 'Xaritani olib tashlash', onclick: () => void this.runMap('yoq') }, svgIcon(IC.x)));
   }
-  private async runMap(k: 'yoq' | 'issiq' | 'hand' | 'twi'): Promise<void> {
+  private async runMap(k: typeof this.mapKind): Promise<void> {
     this.mapKind = k;
     if (k === 'yoq') { this.scene.setGroundMap(null); this.mapInfo = null; this.renderMapLegend(); this.refreshPop(); return; }
     this.mapBusy = true; this.refreshPop();
-    try { if (k === 'issiq') await this.heatMap(); else this.hydroMap(k); }
+    try { if (k === 'issiq') await this.heatMap(); else if (k === 'kor' || k === 'kor0') await this.korMap(k === 'kor0'); else this.hydroMap(k); }
     catch (e) { toast((e as Error).message); this.mapKind = 'yoq'; this.mapInfo = null; this.scene.setGroundMap(null); }
     finally { this.mapBusy = false; this.refreshPop(); this.renderMapLegend(); }
   }
@@ -652,6 +658,43 @@ export class Editor {
       note: '15 iyul, 11:00–17:00: qoplama turi (OSM va loyiha) + binolar soyasi + daraxt toji. Sunʼiy yoʻldosh oʻlchovi emas — variantlarni solishtirish uchun.',
     };
     this.heatCache.info = this.mapInfo;
+  }
+  /** Koʻrinish tekshiruvi: bir xil toʻrda hozir (mavjud OSM binolari) va loyiha; rang shkalasi bir xil (0 – πR²) */
+  private async korMap(hozir: boolean): Promise<void> {
+    const doc = this.store.doc, fr = frame(doc.origin), R = 100;
+    const [x0, y0, x1, y1] = this.mapWindow(60), cell = Math.max(3, Math.sqrt((x1 - x0) * (y1 - y0) / 14000));
+    const key = JSON.stringify([doc.buildings.map(b => [b.footprint, b.floors]), doc.removed ?? [], doc.site?.rings ?? null, this.ctxMgr.current?.osm.buildings.length ?? 0, Math.round(cell * 10)]);
+    if (this.korCache?.key !== key) {
+      if (!await useHeavy('view')) { this.mapKind = 'yoq'; return; }
+      track('mr/calc/view');
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, rad = Math.hypot(x1 - x0, y1 - y0) / 2 + R + 20;
+      const now = (this.ctxMgr.current?.osm.buildings ?? []).map(b => b.rings[0].map(fr.toLocal) as XY[]).filter(r => r.length > 2 && Math.hypot(r[0][0] - cx, r[0][1] - cy) < rad);
+      const plan = this.aroundPrisms(x0, y0, x1, y1, R + 20).map(p => p.ring);
+      const pts: XY[] = []; for (let x = x0 + cell / 2; x < x1; x += cell) for (let y = y0 + cell / 2; y < y1; y += cell) pts.push([x, y]);
+      const job: KorJob = { pts, hozir: now, loyiha: plan, R };
+      let out: KorOut;
+      try {
+        this.korW ??= new Worker(new URL('../workers/korinish.worker.ts', import.meta.url), { type: 'module' });
+        out = await new Promise<KorOut>((ok, no) => { const w = this.korW!; w.onmessage = e => { if (e.data.out) ok(e.data.out); else if (e.data.prog != null) { const el = document.getElementById('mapBusy'); if (el) el.textContent = tf('Hisoblanmoqda… ${p} %', { p: Math.round(e.data.prog * 100) }); } }; w.onerror = e => no(e); w.postMessage({ id: 3, job }); });
+      } catch { out = korinishVga(job); }
+      const site = doc.site?.rings.map(r => r.map(fr.toLocal));
+      this.korCache = { key, pts, hozir: out.hozir, loyiha: out.loyiha, inSite: pts.map(p => (site ? pointIn(p, site) : true)), cell };
+    }
+    const C = this.korCache!, v = hozir ? C.hozir : C.loyiha, vmax = Math.PI * R * R, P: XY[] = [], cols: number[] = [];
+    v.forEach((a, i) => { if (!Number.isNaN(a)) { P.push(C.pts[i]); cols.push(korColor(a, vmax)); } });
+    this.scene.setGroundMap(P, cols, C.cell);
+    const a = korStat(C.loyiha, C.inSite, C.cell), b = korStat(C.hozir, C.inSite, C.cell), m2 = (x: number) => fmt(Math.round(x / 10) * 10, 0);
+    this.mapInfo = {
+      title: hozir ? 'Koʻrinish — hozir, m²' : 'Koʻrinish — loyiha, m²',
+      bins: [0, 0.25, 0.5, 0.75, 1].map((t, i) => ({ color: KOR_COLS[i], label: i === 0 ? 'yopiq' : i === 4 ? `${fmt(Math.round(vmax / 1000) * 1000, 0)} m² · ${tr('ochiq')}` : `${fmt(Math.round(vmax * t / 1000) * 1000, 0)} m²` })),
+      stats: [
+        tf('Uchastka, mediana: loyiha ${a} · hozir ${b} m²', { a: m2(a.med), b: m2(b.med) }),
+        tf('Eng yopiq 10 %: loyiha ${a} gacha · hozir ${b} gacha m²', { a: m2(a.p10), b: m2(b.p10) }),
+        tf('1 000 m² dan tor joy: loyiha ${a} % · hozir ${b} %', { a: fmt(a.low * 100, 0), b: fmt(b.low * 100, 0) }),
+        tf('Binolardan boʻsh joy: loyiha ${a} ga · hozir ${b} ga', { a: fmt(a.freeHa, 1), b: fmt(b.freeHa, 1) }),
+      ],
+      note: 'Har nuqtadan 100 m radiusda atrofga (360°) koʻrinadigan maydon (izovist, Benedikt 1979; VGA, Turner 2001). Faqat binolar toʻsadi — daraxt, devor hisobga olinmaydi. Hozir — OSM dagi mavjud binolar.',
+    };
   }
   private hydroMap(k: 'hand' | 'twi'): void {
     const d = this.hydroData(k);
