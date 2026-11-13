@@ -11,27 +11,46 @@ import type { Bal } from './facade';
 import { aptInterior, IN_LABEL, type AptInterior, type Furn } from './aptplan';
 import { gridChecks, gridWindows, ptOf, type StructGrid } from './axes';
 import { liftChecks } from './liftadj';
+import { FURN_BLOCKS } from './furnblocks';
 
 export const APT_FILL: Record<number, string> = { 1: '#f6d58f', 2: '#f4b08a', 3: '#9bd3b8', 4: '#8fa5cc' };
 /** Mebel belgisi (chizma birliklarida): orqa qirra ring[0]→ring[1] devorda, ring[3] — old tomon */
-function furnSvg(f: Furn, X: (v: number) => string, Y: (v: number) => string, k: number): string {
+function furnSvg(f: Furn, X: (v: number) => string, Y: (v: number) => string): string {
   const r = f.ring, P = (p: XY) => `${X(p[0])} ${Y(p[1])}`, poly = (q: XY[], st = 'fill="#ffffff" fill-opacity="0.85"') => `<path d="M${q.map(P).join('L')}Z" ${st} stroke="#6b6965" stroke-width="0.15" pointer-events="none"/>`;
   const at = (a: number, b: number): XY => [r[0][0] + (r[1][0] - r[0][0]) * a + (r[3][0] - r[0][0]) * b, r[0][1] + (r[1][1] - r[0][1]) * a + (r[3][1] - r[0][1]) * b];
   const box = (a0: number, b0: number, a1: number, b1: number, st?: string) => poly([at(a0, b0), at(a1, b0), at(a1, b1), at(a0, b1)], st);
   const L = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]), Dp = Math.hypot(r[3][0] - r[0][0], r[3][1] - r[0][1]);
-  const circ = (a: number, b: number, rr: number) => { const c = at(a, b); return `<circle cx="${X(c[0])}" cy="${Y(c[1])}" r="${(rr * k).toFixed(2)}" fill="none" stroke="#6b6965" stroke-width="0.15" pointer-events="none"/>`; };
+  // 13.11 (egasi): CAD bloklar (furnblocks.ts) — a, b oraligʻida joylashtiriladi; ostida oq fon
+  const box0 = () => [at(0, 0), at(1, 0), at(1, 1), at(0, 1), at(0, 0)].map((q, i) => (i ? 'L' : 'M') + P(q)).join('');
+  const blk = (key: string, a0 = 0, b0 = 0, a1 = 1, b1 = 1) => (FURN_BLOCKS[key] ?? []).map(c => { let d = ''; for (let i = 0; i < c.length; i += 2) d += (i ? 'L' : 'M') + P(at(a0 + (a1 - a0) * c[i], b0 + (b1 - b0) * c[i + 1])); return d; }).join('');
+  const lines = (d: string, w = 0.1) => d ? `<path d="${d}" fill="none" stroke="#6b6965" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>` : '';
+  const bg = (a0 = 0, b0 = 0, a1 = 1, b1 = 1) => `<path d="M${[at(a0, b0), at(a1, b0), at(a1, b1), at(a0, b1)].map(P).join('L')}Z" fill="#ffffff" fill-opacity="0.85" stroke="none" pointer-events="none"/>`;
   switch (f.k) {
-    case 'bed': return box(0, 0, 1, 1) + box(0.06, 0.04, 0.47, 0.04 + 0.5 / Dp) + box(0.53, 0.04, 0.94, 0.04 + 0.5 / Dp) + box(0, 0.36, 1, 1, 'fill="none"');
-    case 'bed1': return box(0, 0, 1, 1) + box(0.1, 0.04, 0.9, 0.04 + 0.45 / Dp) + box(0, 0.36, 1, 1, 'fill="none"');
-    case 'sofa': return box(0, 0, 1, 1) + box(0, 0, 1, 0.25 / Dp, 'fill="none"') + box(0, 0, 0.2 / L, 1, 'fill="none"') + box(1 - 0.2 / L, 0, 1, 1, 'fill="none"');
-    case 'table': { const ch = [0.2, 0.5, 0.8].flatMap(a => [box(a - 0.12, -0.42, a + 0.12, -0.08), box(a - 0.12, 1.08, a + 0.12, 1.42)]); return box(0, 0, 1, 1) + ch.join(''); }
-    case 'tub': return box(0, 0, 1, 1) + box(0.06, 0.12, 0.94, 0.88, 'fill="none"') + circ(0.12, 0.5, 0.04);
-    case 'shower': return box(0, 0, 1, 1) + `<path d="M${P(at(0, 0))}L${P(at(1, 1))}M${P(at(1, 0))}L${P(at(0, 1))}" stroke="#6b6965" stroke-width="0.12" pointer-events="none"/>`;
-    case 'wc': { const c = at(0.5, 0.62); return box(0.05, 0, 0.95, 0.28) + `<ellipse cx="${X(c[0])}" cy="${Y(c[1])}" rx="${(0.17 * k).toFixed(2)}" ry="${(0.21 * k).toFixed(2)}" fill="#fff" stroke="#6b6965" stroke-width="0.15" pointer-events="none"/>`; }
-    case 'sink': return box(0, 0, 1, 1) + circ(0.5, 0.55, 0.13);
-    case 'washer': return box(0, 0, 1, 1) + circ(0.5, 0.55, 0.2);
+    case 'bed': case 'bed1': case 'sofa': case 'tub': case 'shower': case 'wc': case 'sink': return bg() + lines(blk(f.k));
+    case 'table': {
+      // kvadrat halqa — dumaloq stol 4 stul bilan (#416, kichik kvartiralar; ≥ 1,5 m halqa — stullar ham ichida, devor yonida), aks holda — 6 oʻrinli toʻrtburchak (#422)
+      const key = Math.abs(L - Dp) < 0.15 ? (L > 1.5 ? 'tableRf' : 'tableR') : 'table';
+      return lines(blk(key));
+    }
+    case 'washer': {
+      // #641 + «W» belgisi (blokdagi yozuv TEXT — chizilmaydi, shuning uchun chiziq bilan)
+      const w = [[0.34, 0.36], [0.42, 0.66], [0.5, 0.44], [0.58, 0.66], [0.66, 0.36]].map(q => P(at(q[0], q[1]))).join('L');
+      return bg() + lines(blk('washer')) + lines('M' + w, 0.12);
+    }
+    case 'wardrobe': {
+      // #562 — har ~1,9 m ga bitta blok (ilgichlar choʻzilib ketmasin)
+      const n = Math.max(1, Math.round(L / 1.9));
+      return bg() + lines(box0()) + lines(Array.from({ length: n }, (_, i) => blk('wardrobe', i / n, 0, (i + 1) / n, 1)).join(''));
+    }
     case 'shelf': return box(0, 0, 1, 1) + `<path d="M${P(at(0, 1))}L${P(at(1, 0))}" stroke="#6b6965" stroke-width="0.12" pointer-events="none"/>`;
-    case 'counter': return box(0, 0, 1, 1) + (L > 1.6 ? circ(0.25, 0.5, 0.15) + circ(Math.min(0.75, 0.25 + 1.2 / L), 0.5, 0.18) : '');
+    case 'counter': {
+      // ish yuzasi + moyka #634 (0,9 m) + plita #476 (0,6 m); qisqa qatorda — faqat moyka
+      let d = '';
+      const sw = Math.min(0.9 / L, 0.6), hw = 0.6 / L, s0 = Math.min(0.12, 0.3 / L);
+      if (L >= 0.95) d += blk('ksink', s0, 0, s0 + sw, 0.55 / 0.6);
+      if (L > 1.6) { const h0 = Math.min(1 - hw - 0.02, s0 + sw + 0.3 / L); d += blk('hob', h0, 0, h0 + hw, 1); }
+      return box(0, 0, 1, 1) + lines(d);
+    }
   }
   return '';
 }
@@ -187,7 +206,7 @@ export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
       const rf = Math.min(1.7, 0.17 * k);
       for (const q of inn.rooms) out.push(`<path d="${path(q.ring)}" fill="${q.wet ? '#ffffff' : tf ?? (o.mono ? '#ffffff' : APT_FILL[Math.min(4, a.rooms)])}" stroke="none" pointer-events="none"/>${q.wet ? `<path d="${path(q.ring)}" fill="url(#tile)" stroke="none" pointer-events="none"/>` : ''}`);
       if (inn.kitchen && (o.furn !== true || !inn.furn)) out.push(seg(inn.kitchen[0], inn.kitchen[1], 'stroke="#6b6965" stroke-width="0.18" stroke-dasharray="0.8 0.5"'));
-      if (o.furn === true && inn.furn) for (const f of inn.furn) out.push(`<g data-furn="${f.k}">${furnSvg(f, X, Y, k)}</g>`);
+      if (o.furn === true && inn.furn) for (const f of inn.furn) out.push(`<g data-furn="${f.k}">${furnSvg(f, X, Y)}</g>`);
       // 07.11 (egasi, 06.11 17:36 — «?» belgilari): umumiy xona orqasidagi sayoz (< 1,0 m) kiyimxona tasmasi — devor shkafi: old devori
       // yupqa chiziq, ichida shkaf belgisi (diagonal); avval qalin devor boʻlagi boʻlib, nimaligi tushunarsiz edi
       const shk = inn.rooms.filter(q => q.kind === 'garderob' && q.ring.length === 4 && Math.min(Math.hypot(q.ring[1][0] - q.ring[0][0], q.ring[1][1] - q.ring[0][1]), Math.hypot(q.ring[2][0] - q.ring[1][0], q.ring[2][1] - q.ring[1][1])) < 1.0);
