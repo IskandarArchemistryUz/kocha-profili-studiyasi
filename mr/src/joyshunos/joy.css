@@ -541,3 +541,6 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-izv .input { width: 100%; box-sizing: border-box; }
 .joy-izchks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
 .joy-izchk { display: flex; align-items: center; gap: 6px; }
+/* Maydon rejimi (VGA) shkalasi */
+.joy-izgr { height: 10px; border-radius: 5px; margin: 8px 0 2px; }
+.joy-izgl { display: flex; justify-content: space-between; color: var(--muted, #6b6965); }

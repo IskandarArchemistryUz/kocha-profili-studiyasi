@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-pr0XwuV8.js";

@@ -99,3 +99,20 @@ test('koʻrinadigan joy: video yuklab olish (egasi — toza)', async ({ page }) 
   expect(statSync(path!).size).toBeGreaterThan(20_000);
   if (process.env.GX_SHOTS) await d.saveAs(`${process.env.GX_SHOTS}/${d.suggestedFilename()}`);
 });
+
+test('koʻrinadigan joy: Maydon rejimi — koʻrinish xaritasi va nuqta qiymati', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1440, height: 860 });
+  await open(page);
+  const card = page.locator('[data-card=izovist]');
+  await expect(card.locator('.big')).toHaveText(/m²$/, { timeout: 60_000 });
+  await card.getByRole('button', { name: 'Maydon', exact: true }).click();
+  await expect(card.locator('.joy-izh')).toHaveText(/^Mediana — [\d\s ]+ m²; eng ochiq 10 % joy — [\d\s ]+ m² dan koʻp$/, { timeout: 90_000 });
+  await expect(card.locator('.big')).toHaveText(/^[\d\s ]+ m²$/);
+  expect(await page.evaluate(() => (window as unknown as { joyMap: { getLayoutProperty: (l: string, p: string) => string } }).joyMap.getLayoutProperty('joy-izv', 'visibility'))).toBe('visible');
+  await clickAt(page, 0, 0);
+  await expect(card.locator('#izPt')).toHaveText(/^[\d\s ]+ m²$/);
+  await clickAt(page, 50, 50);
+  await expect(card.locator('#izPt')).toHaveText('bino ichida');
+  if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/joy_izovist_maydon.png` });
+});
