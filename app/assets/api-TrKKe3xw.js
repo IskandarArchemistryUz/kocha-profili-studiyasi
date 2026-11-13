@@ -1,0 +1,1 @@
+export{o as toUpload}from"./api-C06xi_SC.js";
