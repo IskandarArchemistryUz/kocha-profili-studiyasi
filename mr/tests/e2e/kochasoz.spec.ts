@@ -18,7 +18,7 @@ test.beforeEach(() => { errs.length = 0; });
 test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', async ({ page }) => {
   await open(page, 'b');
   await expect(page.locator('.eko .svc a.on')).toHaveText(/Koʻchasoz/);
-  await expect(page.locator('.ws-b .mtabs')).toBeHidden();   // 28.10: saytda faqat «Kesim» — rejimlar qatori yashirin
+  await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' })).toContainText('beta');   // 13.11: saytda Kesim + Chorraha (beta)
   const n0 = await blk(page).count(); expect(n0).toBeGreaterThan(8);
   await expect(page.locator('.ws-b .chk').first()).toBeVisible();
   // 3-zonani tanlab, enini oshirish
@@ -46,11 +46,12 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
   expect(errs).toEqual([]);
 });
 
-test('saytda: faqat Kesim (Kesim, Reja, Aksonometriya koʻrinishlari) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
-  await open(page, 'c');
+test('saytda: Kesim (Kesim, Reja, Aksonometriya koʻrinishlari), Chorraha (beta) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
+  await open(page, 'e');
   await expect(page).toHaveURL(/#\/b$/);                                   // tayyor boʻlmagan rejim → B
-  // 28.10 (5B): tayyor boʻlmagan rejimlar qatori umuman koʻrinmaydi
-  await expect(page.locator('.ws-b .mtabs')).toBeHidden();
+  // 13.11: Chorraha harakat modeli bilan saytda — «beta»; Tarmoq va Koʻcha muhiti — «Tez orada»
+  await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' })).toContainText('beta');
+  await expect(page.locator('.ws-b .mtab', { hasText: 'Tarmoq' })).toHaveAttribute('aria-disabled', 'true');
   await expect(page.locator('.ws-b .mtab', { hasText: 'Mikromodel' })).toHaveCount(0);       // butunlay yashirin
   await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja', 'Aksonometriya']);
   await expect(page.locator('#ksGrafika')).toHaveCount(0);

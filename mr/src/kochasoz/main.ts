@@ -45,8 +45,10 @@ const BETA = (() => {
 /** ?embed — Master reja ichidagi oyna (MR «Koʻchasozda tahrirlash»): sarlavha yoʻq, faqat B; har oʻzgarish ota oynaga yuboriladi */
 const EMBED = (() => { try { return new URLSearchParams(location.search).has('embed') && window.parent !== window; } catch { return false; } })();
 if (EMBED) document.body.classList.add('ks-embed');
-const READY_BOARDS = new Set<BoardId>(['b', 'varaq']);
-const READY_MODES = new Set(['B']);
+const READY_BOARDS = new Set<BoardId>(['b', 'c', 'varaq']);
+const READY_MODES = new Set(['B', 'C']);
+/** 13.11 (Iskandar): Chorraha (harakat modeli bilan) saytda — «beta» belgisi bilan */
+const BETA_MODES = new Set(['C']);
 const HIDDEN_MODES = new Set(['E']);
 const READY_VIEWS = new Set([0, 1, 2]);   // B: Kesim, Reja, Aksonometriya (26.10 — 3D)
 const ready = (id: BoardId) => BETA || READY_BOARDS.has(id);
@@ -56,7 +58,7 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
   if (BETA) return v;
   const o = { ...v };
   /* Mikromodel saytda umuman koʻrinmaydi (Iskandar, 10:24: «alohida takomillashtiramiz, keyin chiqaramiz») */
-  if (Array.isArray(o.modes)) o.modes = (o.modes as { k: string }[]).filter(m => !HIDDEN_MODES.has(m.k)).map(m => READY_MODES.has(m.k) ? m : { ...m, dis: 'true', soon: SOON() });
+  if (Array.isArray(o.modes)) o.modes = (o.modes as { k: string }[]).filter(m => !HIDDEN_MODES.has(m.k)).map(m => READY_MODES.has(m.k) ? (BETA_MODES.has(m.k) ? { ...m, soon: 'beta' } : m) : { ...m, dis: 'true', soon: SOON() });
   if (Array.isArray(o.views)) o.views = (o.views as unknown[]).filter((_x, i) => READY_VIEWS.has(i));
   /* 28.10 (5B): saytda faqat «Kesim» tayyor — rejimlar qatori yashiriladi, chizma tepaga koʻtariladi */
   if (Array.isArray(o.modes) && (o.modes as { dis?: string }[]).filter(m => !m.dis).length <= 1) { o.mtCls = 'off'; if (typeof o.pCls === 'string') o.pCls = `${o.pCls} nomt`; }
