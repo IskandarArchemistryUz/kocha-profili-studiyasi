@@ -187,7 +187,7 @@ export function openGraphics(host: SheetsHost): void {
       return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'kesim') { const L = sheetLayout(o); return cutSheet(doc, o.cut, tr, L.vw, L.vh); }
-    if (o.mode === 'siluet') { const L = sheetLayout(o); return silSheet(doc, host.ctx, o.sec, tr, L.vw, L.vh, o.silStyle ?? 'kesim'); }
+    if (o.mode === 'siluet') { const L = sheetLayout(o); const w = o.silTahlil ? host.wind?.() : null; return silSheet(doc, host.ctx, o.sec, tr, L.vw, L.vh, o.silStyle ?? 'kesim', { vex: o.silVex ?? 1, tahlil: o.silTahlil === true, wind: w ? { dir: w.dir, prevailing: w.prevailing, mean: w.mean } : null }); }
     if (o.mode === 'fazalar') return stageSheet(doc, tr);
     if (o.mode === 'akso') {
       const L = sheetLayout(o), key = axoKey(o), ed = normAxoEdit(o.axo?.edit);
@@ -518,7 +518,10 @@ export function openGraphics(host: SheetsHost): void {
           (doc.sections ?? []).length ? h('div', { class: 'tiles c2' }, ...(doc.sections ?? []).map((c, i) => tile({ 'data-sec': c.id, 'aria-pressed': (o.sec ?? doc.sections![0].id) === c.id || (!doc.sections!.some(x => x.id === o.sec) && i === 0), onclick: () => set({ sec: c.id }) }, `${c.label}–${c.label}`, `${tr('chuqurlik')} ${c.depth} m`)))
             : h('p', { class: 't-small' }, tr('Kesim chizigʻi yoʻq: Hajmlar → «Kesim va fasad» → «Chiziq chizish»')),
           h('div', { class: 'glabel' }, h('span', {}, tr('Uslub')), h('span', {}, `${SIL_STYLES.length}`)),
-          h('div', { class: 'tiles c2', id: 'shSilStyle', role: 'radiogroup', 'aria-label': tr('Uslub') }, ...SIL_STYLES.map(x => tile({ 'data-silstyle': x.id, role: 'radio', 'aria-pressed': (o.silStyle ?? 'kesim') === x.id, onclick: () => set({ silStyle: x.id }) }, tr(x.name), tr(x.sub))))] : []),
+          h('div', { class: 'tiles c2', id: 'shSilStyle', role: 'radiogroup', 'aria-label': tr('Uslub') }, ...SIL_STYLES.map(x => tile({ 'data-silstyle': x.id, role: 'radio', 'aria-pressed': (o.silStyle ?? 'kesim') === x.id, onclick: () => set({ silStyle: x.id }) }, tr(x.name), tr(x.sub)))),
+          h('div', { class: 'glabel' }, h('span', {}, tr('Relyef: vertikal boʻrttirish'))),
+          h('div', { class: 'seg sm', id: 'shSilVex', role: 'group', 'aria-label': tr('Relyef: vertikal boʻrttirish') }, ...([1, 2, 5, 10] as const).map(v => h('button', { 'data-vex': v, 'aria-pressed': (o.silVex ?? 1) === v, onclick: () => set({ silVex: v }) }, v === 1 ? tr('Yoʻq') : `×${v}`))),
+          h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Tahlil qatlami'), h('span', { class: 'sub' }, tr('quyosh va qishki soya, shamol, yer usti suvi — sxematik'))), sw({ id: 'shSilTahlil', label: tr('Tahlil qatlami'), on: o.silTahlil === true, onchange: v => set({ silTahlil: v }) }))] : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama'], ['qavatlilik', 'Qavatlilik'], ['kontekst', 'Loyiha va kontekst'], ['demontaj', 'Saqlanadi va buziladi']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),

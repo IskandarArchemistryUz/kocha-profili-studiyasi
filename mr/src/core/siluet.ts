@@ -26,6 +26,10 @@ export interface SilGeom {
   horizon: [number, number][];
   /** odamlar — kesim chizigʻi boʻylab, kesilgan binolar ichida emas */
   people: SilPerson[];
+  /** ground z = 0 ning mutlaq balandligi, m (relyef yoʻq — null) */
+  zAbs: number | null;
+  /** ariq/daryo (OSM waterways) chiziqni kesgan joylar, s */
+  water: number[];
 }
 
 /** Barqaror psevdotasodifiy son [0, 1) — kalit boʻyicha (har chizishda bir xil) */
@@ -117,5 +121,10 @@ export function silhouette(doc: Project, ctx: SheetCtx | null, sec: SiteSection)
     if (!cuts.some(c => s > c.s0 - 1.5 && s < c.s1 + 1.5)) { const r = rnd(`${sec.id}:${k}`); people.push({ s, sp: PEOPLE_SP[Math.floor(r * 1009) % PEOPLE_SP.length], flip: r > 0.5 }); }
     s += 18 + 37 * rnd(`${sec.id}s${k}`);
   }
-  return { sec, A, B, u, n, L, depth, items, ground, site: site.sort((x, y) => x - y), horizon, people };
+  const water: number[] = [];
+  for (const w of ctx?.waterways ?? []) for (let i = 0; i + 1 < w.pts.length; i++) {
+    const a = w.pts[i], b = w.pts[i + 1], da = D(a), db = D(b);
+    if ((da > 0) !== (db > 0)) { const t = da / (da - db), s = S(a) + (S(b) - S(a)) * t; if (s >= 0 && s <= L) water.push(s); }
+  }
+  return { sec, A, B, u, n, L, depth, items, ground, site: site.sort((x, y) => x - y), horizon, people, zAbs: known.length > 1 ? zref : null, water: water.sort((x, y) => x - y) };
 }
