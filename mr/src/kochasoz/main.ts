@@ -313,7 +313,7 @@ stage.addEventListener('click', e => {
     const k = MODE_KEY[tab.querySelector('b')?.textContent?.trim() ?? ''];
     if (tab.getAttribute('aria-disabled') === 'true') { toast(tr('Tez orada — bu boʻlim hali ishlab chiqilmoqda')); return; }
     if (k === 'd') { toast(tr('D · Koʻcha muhiti — maketi hali chizilmagan')); return; }
-    if (k === 'a' && !BETA) { location.href = '../studio.html'; return; }   // Tarmoq = xaritada chizish (studiya)
+    if (k === 'a' && !BETA) { location.href = '../studio.html#design'; return; }   // Tarmoq = xaritada chizish (studiya)
     if (k) go(k);
     return;
   }
