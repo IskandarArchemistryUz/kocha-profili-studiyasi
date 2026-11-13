@@ -11,7 +11,9 @@ import type { SheetCtx } from './sheet';
 import type { ReliefGrid } from './relief';
 
 type XY = [number, number];
-export interface SilItem { kind: 'loyiha' | 'atrof' | 'daraxt'; cut: boolean; s0: number; s1: number; z0: number; h: number; d: number; floors?: number; id: string }
+export interface SilItem { kind: 'loyiha' | 'atrof' | 'daraxt'; cut: boolean; s0: number; s1: number; z0: number; h: number; d: number; floors?: number; id: string; /** daraxt siluet turi (silh.json) */ sp?: string }
+/** Kesim chizigʻidagi odam (shtaffaj): s — joyi, sp — silh.json siluet kaliti */
+export interface SilPerson { s: number; sp: string; flip: boolean }
 export interface SilGeom {
   sec: SiteSection; A: XY; B: XY; u: XY; n: XY; L: number; depth: number;
   /** chizish tartibida: uzoqdan yaqinga, keyin kesimlar */
@@ -20,7 +22,16 @@ export interface SilGeom {
   ground: [number, number][];
   /** uchastka chegarasi chiziqni kesgan nuqtalar (s) */
   site: number[];
+  /** orqa relyef (ufq): har s da koʻrish chuqurligidagi eng baland yer, z ≥ ground — uzoqdagi binolar «havoda osilmasin» (13.11) */
+  horizon: [number, number][];
+  /** odamlar — kesim chizigʻi boʻylab, kesilgan binolar ichida emas */
+  people: SilPerson[];
 }
+
+/** Barqaror psevdotasodifiy son [0, 1) — kalit boʻyicha (har chizishda bir xil) */
+function rnd(key: string): number { let h = 2166136261; for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 100000) / 100000; }
+const TREE_SP = ['31', '32', '31', '33', '32'];
+const PEOPLE_SP = ['6b', '1', '7', '16', '6e', '17', '22', '6a', '0', '3', '11'];
 
 export const SEC_LABELS = '123456789';
 export const nextSecLabel = (doc: Project): string => { const used = new Set((doc.sections ?? []).map(s => s.label)); return [...SEC_LABELS].find(l => !used.has(l)) ?? '9'; };
@@ -78,7 +89,7 @@ export function silhouette(doc: Project, ctx: SheetCtx | null, sec: SiteSection)
     let r = clipHalf(ring, D); r = clipHalf(r, p => depth - D(p)); r = clipHalf(r, S); r = clipHalf(r, p => L - S(p));
     if (r.length < 3) return;
     const ss = r.map(S), ds = r.map(D), s0 = Math.min(...ss), s1 = Math.max(...ss); if (s1 - s0 < 0.3) return;
-    const c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length], z0 = zAt(c);
+    const c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length], z0 = Math.min(zAt(c), ...r.map(zAt));
     items.push({ kind, cut: false, s0, s1, z0, h, d: Math.min(...ds), floors, id });
     for (const [a, b] of cutSpans(ring, S, D)) { const c0 = Math.max(0, a), c1 = Math.min(L, b); if (c1 - c0 > 0.2) items.push({ kind, cut: true, s0: c0, s1: c1, z0, h, d: 0, floors, id }); }
   };
@@ -86,11 +97,25 @@ export function silhouette(doc: Project, ctx: SheetCtx | null, sec: SiteSection)
   for (const b of ctx?.buildings ?? []) if (b.rings[0]) add(`osm${b.id}`, b.rings[0], b.h, 'atrof');
   // daraxtlar (atrof): toj ~ 8 m, eng yaqin 600 tasi
   const trees = (ctx?.trees ?? []).map(p => ({ p, s: S(p), d: D(p) })).filter(t => t.d >= 0 && t.d <= depth && t.s >= 0 && t.s <= L).sort((a, b) => a.d - b.d).slice(0, 600);
-  for (const [i, t] of trees.entries()) items.push({ kind: 'daraxt', cut: false, s0: t.s - 3, s1: t.s + 3, z0: zAt(t.p), h: 8, d: t.d, id: `t${i}` });
+  for (const [i, t] of trees.entries()) { const r = rnd(`${Math.round(t.p[0] * 10)}:${Math.round(t.p[1] * 10)}`), h = 7 + 6 * r; items.push({ kind: 'daraxt', cut: false, s0: t.s - h * 0.32, s1: t.s + h * 0.32, z0: zAt(t.p), h, d: t.d, id: `t${i}`, sp: TREE_SP[Math.floor(r * 997) % TREE_SP.length] }); }
   items.sort((a, b) => (a.cut === b.cut ? b.d - a.d : a.cut ? 1 : -1));
 
   const site: number[] = [];
   const ring = doc.site?.rings[0]?.map(q => fr.toLocal(q) as XY);
   if (ring) for (const [a, b] of cutSpans(ring, S, D)) { if (a >= 0 && a <= L) site.push(a); if (b >= 0 && b <= L) site.push(b); }
-  return { sec, A, B, u, n, L, depth, items, ground, site: site.sort((x, y) => x - y) };
+  // orqa relyef: chiziqdan depth gacha (≤ 30 qadam) eng baland yer
+  const dStep = Math.max(10, depth / 30);
+  const horizon: [number, number][] = ground.map(([s, z]) => {
+    let m = z;
+    for (let d = dStep; d <= depth + 0.01; d += dStep) { const h = heightAt(terr, [A[0] + u[0] * s + n[0] * d, A[1] + u[1] * s + n[1] * d]); if (h != null && h - zref > m) m = h - zref; }
+    return [s, m];
+  });
+  // odamlar: har 18–55 m da, kesilgan bino ichida emas
+  const cuts = items.filter(i => i.cut);
+  const people: SilPerson[] = [];
+  for (let s = 6 + 14 * rnd(`${sec.id}p`), k = 0; s < L - 4; k++) {
+    if (!cuts.some(c => s > c.s0 - 1.5 && s < c.s1 + 1.5)) { const r = rnd(`${sec.id}:${k}`); people.push({ s, sp: PEOPLE_SP[Math.floor(r * 1009) % PEOPLE_SP.length], flip: r > 0.5 }); }
+    s += 18 + 37 * rnd(`${sec.id}s${k}`);
+  }
+  return { sec, A, B, u, n, L, depth, items, ground, site: site.sort((x, y) => x - y), horizon, people };
 }

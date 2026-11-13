@@ -58,4 +58,24 @@ describe('Kesim va fasad (atrof bilan)', () => {
     expect(m.sections?.[0].depth).toBe(200); expect(m.sections?.[0].look).toBe(1);
     expect(nextSecLabel(d)).toBe('2');
   });
+  it('orqa relyef (ufq), yerga oʻtirgan binolar, odamlar kesim ichida emas, shtaffaj siluetlari', () => {
+    // relyef: chiziq (y = 0) da 0 m, ortda (y ≥ 30) 10 m — uzoqdagi bino ufq ustida turadi
+    const n = 21, h: number[] = [];
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) h.push(-200 + j * 20 >= 30 ? 110 : 100);
+    const c = { ...ctx(), terrain: { n, step: 20, radius: 200, c0: [100, 0] as [number, number], h } };
+    const d = doc(), g = silhouette(d, c, d.sections![0])!;
+    expect(g.horizon.length).toBe(g.ground.length);
+    g.horizon.forEach((p, i) => expect(p[1]).toBeGreaterThanOrEqual(g.ground[i][1] - 1e-9));
+    expect(Math.max(...g.horizon.map(p => p[1]))).toBeCloseTo(10, 1);
+    const ort = g.items.find(i => i.id === 'ort')!;
+    expect(ort.z0).toBeGreaterThan(5);                                           // ortdagi bino tepalikda
+    expect(g.people.length).toBeGreaterThan(0);
+    const cut = g.items.filter(i => i.cut);
+    for (const p of g.people) expect(cut.some(k => p.s > k.s0 && p.s < k.s1)).toBe(false);
+    expect(g.items.filter(i => i.kind === 'daraxt').every(t => !!t.sp && t.h >= 7 && t.h <= 13)).toBe(true);
+    const svg = silSheet(d, c, 's1', s => s, 380, 220).body(0, 0, 380, 220);
+    expect(svg).toContain('data-sil="relyef-orqa"'); expect(svg).toContain('data-sil="daraxt"'); expect(svg).toContain('data-sil="odam"');
+    // bir xil kirish — bir xil natija (barqaror tasodif)
+    expect(silhouette(d, c, d.sections![0])!.people).toEqual(g.people);
+  });
 });
