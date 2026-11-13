@@ -5161,7 +5161,7 @@ export class Editor {
 
   private openGraphics(start?: number): void {
     const doc = this.store.doc;
-    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), wind: () => this.windSheet(), gmap: k => this.gmapSheet(k), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
+    openGraphics({ doc, ctx: this.sheetCtx(), svc: () => this.svcSheet(), insol: () => this.insolSheet(), aptInsol: () => this.aptInsolView()?.at ?? null, runAptInsol: async () => { await this.runApts(); return this.aptInsolView()?.at ?? null; }, wind: () => this.windSheet(), gmap: k => this.gmapSheet(k), start, views: doc.views.map(v => ({ id: v.id, name: v.name })),
       axo: (look, viewId, detail, ratio, labels, gs, edit) => this.axoShot(look, viewId, detail, ratio, labels === true, gs, edit),
       axoLegend: look => this.axoLegend(look),
       axoPicks: () => this.axoPicksLast, axoLayers: () => this.scene.axoLayers(),
