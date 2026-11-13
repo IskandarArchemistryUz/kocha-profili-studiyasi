@@ -52,6 +52,11 @@ async function open(page: Page, errs: string[], hash = ''): Promise<void> {
 
 
 
+/** Markazni koʻchirib qayta yuklash: holat ilova skriptlaridan OLDIN yoziladi — ilova kechikkan save() bilan eski markazni qaytarib yozolmaydi (13.11, CI poygasi) */
+async function moveTo(page: Page, c: [number, number]): Promise<void> {
+  await page.addInitScript(cc => { try { if (sessionStorage.getItem('joyMove') !== cc.join()) { sessionStorage.setItem('joyMove', cc.join()); const s = JSON.parse(localStorage.getItem('joy-state') || '{}'); s.c = cc; localStorage.setItem('joy-state', JSON.stringify(s)); } } catch { /* */ } }, c);
+  await page.reload();
+}
 /** Uy narxlari (28.10): uybor.uz eʼlonlari → soti (olti burchakli katak) boʻyicha median $/m²; kam eʼlonli katak — narxsiz (oq) */
 const NARX = join(process.cwd(), 'tests/e2e/fixtures/narx_hex.json');
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`uy narxlari — soti · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
@@ -68,8 +73,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`uy narxlar
   await expect(page.locator('.joy-legend')).toContainText('Uy narxi, $/m²');
   await expect(page.locator('.joy-legend')).toContainText('maʼlumot yetarli emas');
   // narxli katak (Yunusobod janubi): median va oraliq
-  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('joy-state') || '{}'); s.c = [69.29507, 41.32561]; localStorage.setItem('joy-state', JSON.stringify(s)); });
-  await page.reload();
+  await moveTo(page, [69.29507, 41.32561]);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(card.locator('.big')).toHaveText(/2.?832 \$\/m²/, { timeout: 20_000 });
   await expect(card.locator('.sub')).toContainText('64 ta eʼlon');
@@ -96,8 +100,7 @@ test('uy narxlari — ijara va yangi / ikkilamchi tanlovi', async ({ page }) => 
   await joyClick(page, 'narx', '.switch');
   const card = page.locator('[data-card=narx]');
   await expect(card.locator('.sub')).toContainText('5 tadan kam', { timeout: 20_000 });
-  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('joy-state') || '{}'); s.c = [69.29507, 41.32561]; localStorage.setItem('joy-state', JSON.stringify(s)); });
-  await page.reload();
+  await moveTo(page, [69.29507, 41.32561]);
   await expect(card.locator('.big')).toHaveText(/2.?832 \$\/m²$/, { timeout: 20_000 });
   if ((await page.locator('.jv-btn').getAttribute('aria-expanded')) !== 'true') await page.locator('.jv-btn').click();
   const ax = (i: number, t: string) => page.locator(`.jv-st[data-axis="${i}"] button`, { hasText: t });
