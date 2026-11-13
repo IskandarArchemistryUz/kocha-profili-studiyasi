@@ -274,7 +274,9 @@ test('C: joy pasporti hisoboti — SVG (qatlamli), PDF va Chizmadonga', async ({
   for (const s of ['inkscape:label="01 Xarita"', 'inkscape:label="03 Pasport"', 'inkscape:label="09 Shtamp"', '<image', 'Xizmatlar', 'Piyoda yetish', 'Joy pasporti'.toUpperCase(), 'ShNQ 2.07.01-23']) expect(svg).toContain(s);
   const v = await context.newPage(); await v.setViewportSize({ width: 1588, height: 1123 });
   await v.setContent(`<body style="margin:0;background:#888">${svg.replace(/width="420mm" height="297mm"/, 'width="1588" height="1123"')}</body>`);
-  await v.screenshot({ path: 'test-results/joy-c-sheet.png' }); await v.close();
+  // varaq rasmi — faqat koʻrish uchun (tasdiq emas); CI dasturiy GPU da ba'zan «Unable to capture screenshot» — 3 urinish
+  for (let t = 0; t < 3; t++) { try { await v.screenshot({ path: 'test-results/joy-c-sheet.png' }); break; } catch (e) { if (t === 2) throw e; await v.waitForTimeout(1500); } }
+  await v.close();
   // PDF
   const dp = page.waitForEvent('download', { timeout: 60_000 });
   await joyRep(page, 'repPdf');
