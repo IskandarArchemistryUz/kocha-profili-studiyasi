@@ -1360,6 +1360,26 @@ function approachMoves(sg,atB){const ds=DS(),n=nodeById(atB?sg.b:sg.a),o=origin(
   return M;}
 /* har bir kiruvchi boʻlak uchun strelka (chapdan oʻngga). Natija: [{i (lay.st indeksi), code, auto}] */
 /* 14.11 polosani polosaga ulash: kirish (arm) kaliti — haqiqiy koʻcha id + uchi (karman boʻlaklari ham shu kalitga tushadi) */
+/* 14.11 imtiyoz belgilari (TM:PE uslubi): n.pri = {kirish kaliti: 'main' | 'yield' | 'stop'}; yoʻq — YHQ andozasi */
+const PRI_N={main:'Asosiy yoʻl (2.1)',yield:'Yoʻl bering (2.4)',stop:'Toʻxtamasdan oʻtish taqiqlanadi (2.5)'};
+function priOf(n,key){return n&&n.pri?(n.pri[key]||'main'):null;}
+function setPri(nid,key,v){const n=nodeById(nid),J=JNET.get(nid);if(!n||!J)return;
+  if(v==null){delete n.pri;afterDesign();return;}
+  if(!n.pri){n.pri={};J.E.forEach(e=>{n.pri[e.key]=v==='main'?'yield':'main';});}   // bitta yon koʻchaga «Yoʻl bering» — qolganlari asosiy (va aksincha)
+  n.pri[key]=v;afterDesign();}
+const PRI_NEXT={main:'yield',yield:'stop',stop:'main'};
+function priGlyph(v,sz){const s=sz||24;
+  if(v==='main')return `<svg width="${s}" height="${s}" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" transform="rotate(45 12 12)" fill="#f0b323" stroke="#fff" stroke-width="2.4"/><rect x="5" y="5" width="14" height="14" transform="rotate(45 12 12)" fill="none" stroke="#3a3936" stroke-width=".8"/></svg>`;
+  if(v==='stop')return `<svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z" fill="#c8312a" stroke="#fff" stroke-width="1.6"/><text x="12" y="14.6" text-anchor="middle" font-size="6.6" font-weight="700" fill="#fff" font-family="Archivo,sans-serif">STOP</text></svg>`;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M2.5 4h19L12 21z" fill="#fff" stroke="#c8312a" stroke-width="2.6" stroke-linejoin="round"/></svg>`;}
+function armLabel(e){if(e.name)return e.name;const o=[-e.hin[0],-e.hin[1]],a=Math.atan2(o[1],o[0])*180/Math.PI;return (a>45&&a<=135?'Shimoliy':a>-45&&a<=45?'Sharqiy':a>-135&&a<=-45?'Janubiy':'Gʻarbiy')+' kirish';}
+/* xaritada: imtiyoz belgilari kirishlarda; Tanlash rejimida bosib almashtiriladi */
+function drawPriSigns(){const ds=DS(),act=ds.tool==='select';
+  JNET.forEach((J,nid)=>{const n=nodeById(nid);if(!n||J.sig||J.ring)return;const sel=ds.sel&&ds.sel.t==='node'&&ds.sel.id===nid;if(!n.pri&&!(sel&&act))return;
+    J.E.forEach(e=>{if(!e.lanes.length)return;const l=e.lanes[e.lanes.length-1],r=[e.hin[1],-e.hin[0]],P=[l.P[0]+r[0]*3.6-e.hin[0]*4,l.P[1]+r[1]*3.6-e.hin[1]*4],v=priOf(n,e.key);
+      const html=`<div title="${v?PRI_N[v]:'Belgi qoʻyish'}" style="transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 ${sel&&act?2:1}px ${sel&&act?'#4c5bd4':'rgba(0,0,0,.12)'},0 2px 6px rgba(0,0,0,.2);cursor:${act?'pointer':'default'};opacity:${v?1:.75}">${v?priGlyph(v,22):'<span style="font:600 15px Archivo,sans-serif;color:#4c5bd4">+</span>'}</div>`;
+      const mk=L.marker(toLL(P,J.o),{pane:'designEdit',interactive:act,keyboard:false,zIndexOffset:1800,icon:L.divIcon({className:'',html,iconSize:null})}).addTo(previewL);
+      if(act){const el=mk.getElement();if(el){L.DomEvent.disableClickPropagation(el);el.addEventListener('click',ev=>{ev.stopPropagation();setPri(nid,e.key,v?PRI_NEXT[v]:'yield');});}}});});}
 function armKey(sg,atB){return (sg._real??sg.id)+':'+(sg._end??(atB?'b':'a'));}
 /* tugundagi qoʻlda ulagichlar (n.lc) shu kirish uchun amalda boʻlsa — polosa boʻyicha manevrlar ('' — ulanmagan) */
 function lcCodes(sg,atB){const n=nodeById(atB?sg.b:sg.a),K=armKey(sg,atB);if(!n||!n.lc||!(n.lcArms||[]).includes(K))return null;
@@ -1583,7 +1603,8 @@ function buildShapes0(){
       const s0=off(kind),s1=s0+cwW,S0=atB?T-s1:s0,S1=atB?T-s0:s1,dirSel=atB?1:-1;
       if(atB?cwB:cwA)zebra(S0,S1);
       const sStop=(atB?cwB:cwA)?(atB?T-s1-1:s1+1):(atB?T-1.5:1.5);
-      const code=kind==='sig'?'1.12':kind==='round'?'1.13':(majorArms(node).has(sg.id)?null:'1.13');
+      const pv=kind==='x'?priOf(node,armKey(sg,atB)):null;   // 14.11: qoʻlda imtiyoz belgilari
+      const code=kind==='sig'?'1.12':kind==='round'?'1.13':pv?(pv==='main'?null:pv==='stop'?'1.12':'1.13'):(majorArms(node).has(sg.id)?null:'1.13');
       if(code)stopLine(sStop,dirSel,code);
       if(kind==='round')return;
       const plan=arrowPlan(sg,atB),other=atB?(isInter(ka)?zoneA+gap+8:4):(isInter(kb)?T-zoneB-gap-8:T-4);
@@ -1699,7 +1720,7 @@ function buildShapes0(){
     if(n.lc&&k!=='round'){const on=new Set(n.lcArms||[]);for(let i=C.length-1;i>=0;i--)if(on.has(C[i].from.key))C.splice(i,1);
       n.lc.forEach(c=>{const e=E.find(x=>x.key===c.f),f=E.find(x=>x.key===c.t),s2=e&&e.lanes[c.fl],d=f&&f.exits[c.tl];if(s2&&d)C.push({from:e,to:f,m:c.m,s:s2,d,man:1});});}C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
     const ring=k==='round'?{c:toXY(n.ll,o),r:(n.ri||12)+(n.rw||6)/2}:null;
-    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id});
+    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id,pri:k==='x'&&n.pri?Object.fromEntries(E.map(e=>[e.key,priOf(n,e.key)])):null});
     if(ds.conn&&!ring)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
   });
   CUR_LV=0;freeShapes(ds,o,poly,line,mark);
@@ -1762,6 +1783,7 @@ function drawPreview(){previewL.clearLayers();if(S.app!=='design')return;
         el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();
           if(b.dataset.sim!=null){openSim(n.id);return;}
           const v=b.dataset.nt;n.type=v;if(v==='round'){const rt=RTYPES[n.rtype||ds0.rtype||'r2'];n.rtype=n.rtype||ds0.rtype||'r2';n.ri=n.ri||rt.ri;n.rw=n.rw||rt.rw;n.lanes=n.lanes||rt.lanes;}afterDesign();});}}}
+  if(!D.start)drawPriSigns();
   /* 14.11 (Iskandar: «Vissim uslublari qani?»): har chorraha va halqa ustida doimiy «▶» — bir bosishda harakat modeli */
   if(!D.start&&typeof openSim==='function'&&(ds0.tool==='select'||ds0.tool==='sim'))ds0.nodes.forEach(n=>{const k=nodeKind(n);if(!(k==='x'||k==='sig'||k==='round'))return;if(sl&&sl.t==='node'&&sl.id===n.id&&ds0.tool==='select')return;
     const hot=ds0.tool==='sim',mk=L.marker(n.ll,{pane:'designEdit',interactive:true,keyboard:false,zIndexOffset:1500,title:'Harakatni sinash',icon:L.divIcon({className:'',iconSize:null,html:`<button class="simpin" style="transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;height:${hot?28:22}px;padding:0 ${hot?10:7}px;border:2px solid #fff;border-radius:999px;background:#4c5bd4;color:#fff;font:600 ${hot?12:11}px Archivo,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;white-space:nowrap">▶${hot?' Sinash':''}</button>`})}).addTo(previewL);
@@ -2546,7 +2568,12 @@ function nodeHTML(n){const k=nodeKind(n),rt=RTYPES[n.rtype||'r2'];
     <label class="small">Orol r, m <input id="dRi" type="number" step="0.5" min="1" value="${n.ri}" style="width:58px"></label><label class="small">Halqa eni, m <input id="dRw" type="number" step="0.5" min="4" value="${n.rw}" style="width:58px"></label>
     <label class="small">Boʻlaklar <input id="dLn" type="number" step="1" min="1" max="4" value="${n.lanes||rt.lanes}" style="width:48px"></label>${rt.turbo?`<label class="small" style="flex-basis:100%">Spiral burchagi ${n.rot||0}° <input id="dRot" type="range" min="0" max="355" step="5" value="${n.rot||0}" style="width:100%"></label>`:''}`:''}
   <button class="btn sm" id="dDel" style="color:var(--bad)">Oʻchirish</button></div>
-  ${k==='x'?`<p class="small" style="margin:6px 0 0">Asosiy yoʻl — eng koʻp boʻlakli ikki yoʻl; qolganlarida «Yoʻl bering» chizigʻi (1.13) va belgisi.</p>`:''}</div>`;}
+  ${k==='x'?priHTML(n):''}</div>`;}
+function priHTML(n){const J=JNET.get(n.id);if(!J)return '';
+  const chip=(key,v,cur,t)=>`<button class="btn sm${cur===v?' primary':''}" data-pri="${key}" data-pv="${v}" style="padding:3px 8px;font-size:12px" title="${PRI_N[v]}">${priGlyph(v,14)} ${t}</button>`;
+  return `<div style="margin-top:10px;display:flex;align-items:center;gap:8px"><b style="font-size:13.5px">Imtiyoz belgilari</b><span style="flex:1"></span>${n.pri?'<button class="btn sm" id="dPriR" title="YHQ andozasi: teng ahamiyatli — oʻngdan kelayotganga yoʻl beriladi">Andoza</button>':''}</div>
+  ${J.E.filter(e=>e.lanes.length).map(e=>{const cur=priOf(n,e.key);return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap"><span class="small" style="flex:1 1 100%;margin-bottom:-2px">${armLabel(e)}</span>${chip(e.key,'main',cur,'Asosiy')}${chip(e.key,'yield',cur,'Yoʻl ber')}${chip(e.key,'stop',cur,'Stop')}</div>`;}).join('')}
+  <p class="small" style="margin:6px 0 0">${n.pri?'Bitta yon koʻchaga «Yoʻl ber» qoʻyilsa, qolganlari asosiy boʻladi. Harakat modeli va 1.13 / 1.12 chiziqlari shu belgilardan.':'Hozir YHQ andozasi: chiziqlar — eng koʻp boʻlakli ikki yoʻl asosiy; harakat modelida teng ahamiyatli (oʻngdan kelayotganga yoʻl beriladi). Belgini shu yerda yoki xaritada bosing.'}</p>`;}
 function bindDesignExtras(el,q,num){const ds=DS(),sel=ds.sel;
   el.querySelectorAll('[data-rr]').forEach(b=>b.onclick=()=>{ds.drawR=+b.dataset.rr;afterDesign();});
   if(q('#dR'))q('#dR').onchange=e=>{ds.drawR=Math.max(0,+e.target.value||0);afterDesign();};
@@ -2556,6 +2583,7 @@ function bindDesignExtras(el,q,num){const ds=DS(),sel=ds.sel;
   if(sel&&sel.t==='seg'){const sg=segById(sel.id);if(sg){const setR=r=>{sg.rad=sg.rad||[];while(sg.rad.length<sg.pts.length)sg.rad.push(0);sg.rad[sel.v]=r;afterDesign();};
     el.querySelectorAll('[data-vr]').forEach(b=>b.onclick=()=>setR(+b.dataset.vr));if(q('#vR'))q('#vR').onchange=e=>setR(Math.max(0,+e.target.value||0));}}
   if(sel&&sel.t==='xw'){const sg=segById(sel.id),x=sg&&sg.xw&&sg.xw[sel.i];if(x&&q('#xwT')){q('#xwT').onchange=e=>{x.type=e.target.value;afterDesign();};num('#xwW',v=>x.w=v);}}
+  if(sel&&sel.t==='node'){el.querySelectorAll('[data-pri]').forEach(b=>b.onclick=()=>setPri(sel.id,b.dataset.pri,b.dataset.pv));if(q('#dPriR'))q('#dPriR').onclick=()=>setPri(sel.id,null,null);}
   if(sel&&sel.t==='node'){const n=nodeById(sel.id);if(n&&q('#dNT')){
     q('#dNT').onchange=e=>{n.type=e.target.value;if(n.type==='round'&&!n.rtype)n.rtype='r2';if(n.type==='round'){const r=RTYPES[n.rtype];n.ri=n.ri||r.ri;n.rw=n.rw||r.rw;}afterDesign();};
     if(q('#dSim'))q('#dSim').onclick=()=>openSim(n.id);

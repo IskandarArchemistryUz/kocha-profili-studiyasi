@@ -57,6 +57,17 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     expect(r.total.flow).toBeGreaterThan(700);
     expect(r.total.los).not.toBe('F');
   }, 60_000);
+  it('imtiyoz belgilari: asosiy yoʻl (2.1) tezroq, «Stop» (2.5) kirishda kechikish ortadi, ustma-ust tushmaydi', () => {
+    const run = (stop: boolean) => { const N = net([0, 90, 180, 270], false); N.juncs = [{ id: 'J', main: ['a1', 'a3'], ...(stop ? { stop: ['a0', 'a2'] } : {}) } as never];
+      for (const a of N.arms) (a as { j?: string }).j = 'J';
+      const sim = new GraphSim(N, { demand: { a0: 150, a1: 350, a2: 150, a3: 350 }, seed: 2 }).run(1020);
+      return { r: sim.result(120), g: minGap(sim) }; };
+    const y = run(false), s = run(true);
+    expect(y.r.arms.a1.delay).toBeLessThan(y.r.arms.a0.delay);          // asosiy yoʻl kamroq kutadi
+    expect(s.r.arms.a0.delay).toBeGreaterThan(y.r.arms.a0.delay);       // Stop — har mashina toʻxtaydi
+    expect(s.r.total.flow).toBeGreaterThan(700);
+  }, 60_000);
+
   it('avtobus: avtobus boʻlagi avtobus boʻlagiga ulanadi, umumiy boʻlak unga tushmaydi; odam-kechikish hisoblanadi', () => {
     const N = net([0, 90, 180, 270], true);
     const A = N.arms.map((a) => ({ ...a, lanes: [...a.lanes, { id: a.id + 'b', mid: 8.75, bus: true, codes: 'S', pts: a.lanes[1].pts.map((p) => [p[0] + (a.lanes[1].pts[0][0] - a.lanes[0].pts[0][0]) * 2, p[1] + (a.lanes[1].pts[0][1] - a.lanes[0].pts[0][1]) * 2] as XY) }],
