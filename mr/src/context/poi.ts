@@ -11,10 +11,11 @@ import { overpass } from './load';
 
 export interface Poi { id: string; kind: Svc; at: LngLat; name?: string }
 /** roads — xizmat radiuslari uchun piyoda tarmogʻi (kontekstdan kengroq, 2 km): [cls, nuqtalar] */
-export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[]; f?: string }[]; attr?: { at: LngLat; w: number }[] }
+export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[]; f?: string; id?: number }[]; attr?: { at: LngLat; w: number }[] }
 
 export const POI_R = 2000;
-export const poiKey = (c: LngLat) => `poi4:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
+/** poi5 (14.11): yoʻllarda OSM id — loyihada olib tashlangan / koʻchaga aylantirilgan yoʻllarni ajratish uchun */
+export const poiKey = (c: LngLat) => `poi5:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
 
 const SHOP = /^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$/;
 export function classify(t: Record<string, string>): Svc | null {
@@ -67,7 +68,7 @@ export function parseAttr(j: { elements?: El[] }): { at: LngLat; w: number }[] {
 export function parseRoads(j: { elements?: El[] }): PoiBundle['roads'] {
   const r = (v: number) => Math.round(v * 1e6) / 1e6;
   return (j.elements || []).filter(e => e.type === 'way' && e.tags?.highway && e.geometry && e.geometry.length >= 2)
-    .map(e => { const t = e.tags!, f = roadFlags(t); return { cls: t.highway, pts: e.geometry!.filter((g): g is { lat: number; lon: number } => !!g).map(g => [r(g.lon), r(g.lat)] as LngLat), ...(f ? { f } : {}) }; });
+    .map(e => { const t = e.tags!, f = roadFlags(t); return { id: e.id, cls: t.highway, pts: e.geometry!.filter((g): g is { lat: number; lon: number } => !!g).map(g => [r(g.lon), r(g.lat)] as LngLat), ...(f ? { f } : {}) }; });
 }
 /** Piyoda uchun muhim teglar (13.11) qisqa bayroqlarda: b — koʻprik/estakada/tunnel, n — piyodaga taqiqlangan (foot=no, access=no), s — trotuar alohida chizilgan yoki yoʻq */
 export function roadFlags(t: Record<string, string>): string {
