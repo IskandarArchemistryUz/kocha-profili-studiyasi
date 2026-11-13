@@ -1,5 +1,5 @@
 /* Maslahatchi paneli — ds2 tokenlari bilan; tungi rejim tokenlar orqali (alohida qoida kerak emas) */
-.agentp{position:absolute;right:12px;top:76px;bottom:76px;width:380px;max-width:calc(100% - 24px);z-index:40;background:var(--surface);color:var(--ink);border-radius:var(--r-panel);box-shadow:var(--sh-float);display:flex;flex-direction:column;overflow:hidden;animation:ag-in .22s var(--spring,ease-out)}
+.agentp{position:absolute;right:12px;top:76px;bottom:76px;width:420px;max-width:calc(100% - 24px);z-index:40;background:var(--surface);color:var(--ink);border-radius:var(--r-panel);box-shadow:var(--sh-float);display:flex;flex-direction:column;overflow:hidden;animation:ag-in .22s var(--spring,ease-out)}
 .agentp[hidden]{display:none}
 .ag-head{display:flex;align-items:flex-start;gap:10px;padding:16px 16px 10px}
 .ag-title{flex:1;display:flex;flex-direction:column;gap:2px}
@@ -25,7 +25,8 @@
 .ag-done[open] summary svg{transform:rotate(90deg)}
 .ag-done .ag-steps{margin-top:8px}
 .ag-wait{color:var(--muted)}
-.ag-ans{display:flex;flex-direction:column;gap:8px}
+.ag-ans{display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.45}
+.ag-ans b{font-weight:600}
 .ag-ans p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .ag-ans ul,.ag-ans ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .ag-ans .mono{font-size:12.5px}

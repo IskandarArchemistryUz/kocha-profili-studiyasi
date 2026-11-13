@@ -449,7 +449,7 @@ export class Editor {
   private agent: AgentPanel | null = null;
   private agentOn = false;
   private static readonly AGENT_QUICK: Quick[] = [
-    { id: 'why', label: 'Nega FAIL?', scenario: 'mr.why_fail', prompt: 'Qaysi meʼyorlar bajarilmagan va nega? Har biri uchun band, raqamlar va tuzatish yoʻlini ayting.' },
+    { id: 'why', label: 'Nega FAIL?', scenario: 'mr.why_fail', prompt: 'Eng muhim bajarilmagan meʼyorlar qaysi? Har biri bir qatorda: haqiqiy qiymat, talab, band va nima qilish kerak. Tegishli binolarni xaritada belgilang.' },
     { id: 'audit', label: 'Audit xulosasi', scenario: 'mr.audit', prompt: 'Loyihaning meʼyoriy audit xulosasini tuzing: barcha buzilish va koʻrib chiqish bandlari ogʻirligi boʻyicha, har birida band va raqamlar.' },
     { id: 'brief', label: 'Brief bilan solishtirish', scenario: 'mr.brief', fill: true, prompt: 'Mening briefim: … Loyiha TEP koʻrsatkichlarini shu brief bilan solishtiring va farqlarni jadval qiling.' },
     { id: 'tep', label: 'TEP haqida', scenario: 'mr.ask', prompt: 'Asosiy TEP koʻrsatkichlarini qisqa tushuntiring: aholi, zichlik, umumiy maydon, koʻkalamzorlashtirish.' },
