@@ -9,6 +9,23 @@ import { frame } from './geo';
 import { bLevels } from './levels';
 import type { SheetCtx } from './sheet';
 import type { ReliefGrid } from './relief';
+import { profileById } from './profiles';
+import { landscape } from './landscape';
+import { pointIn } from './plan';
+import { projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
+
+/** 13.11: loyiha daraxtlari — koʻcha profillaridagi daraxtlar (sahna geometriyasi) va hovli daraxtlari (bosh rejadagi kabi) */
+const PT = new WeakMap<Project, XY[]>();
+export function projectTrees(doc: Project): XY[] {
+  const c = PT.get(doc); if (c) return c;
+  const fr = frame(doc.origin), out: XY[] = [];
+  try {
+    const ps = doc.streets.map(s => ({ id: s.id, axis: s.axis.map(q => fr.toLocal(q) as XY), parts: profileById(s.profile).parts }));
+    if (ps.length) out.push(...projectStreetsGeo(ps, () => 0, [], { curbR: doc.settings.recon ? CURB_R_RECON : CURB_R }).trees);
+  } catch { /* koʻcha geometriyasi chiqmasa — daraxtsiz */ }
+  try { out.push(...landscape(doc).flatMap(y => y.trees)); } catch { /* hovlilar hisoblanmasa — daraxtsiz */ }
+  PT.set(doc, out); return out;
+}
 
 type XY = [number, number];
 export interface SilItem { kind: 'loyiha' | 'atrof' | 'daraxt'; cut: boolean; s0: number; s1: number; z0: number; h: number; d: number; floors?: number; id: string; /** daraxt siluet turi (silh.json) */ sp?: string; /** loyiha binosi funksiyasi va noturar pastki qavatlar (rangli fasad uchun) */ use?: string; nonRes?: number }
@@ -98,9 +115,14 @@ export function silhouette(doc: Project, ctx: SheetCtx | null, sec: SiteSection)
     for (const [a, b] of cutSpans(ring, S, D)) { const c0 = Math.max(0, a), c1 = Math.min(L, b); if (c1 - c0 > 0.2) items.push({ kind, cut: true, s0: c0, s1: c1, z0, h, d: 0, floors, id, ...(use ? { use } : {}), ...(nonRes ? { nonRes } : {}) }); }
   };
   for (const b of doc.buildings) if (b.floors > 0) add(b.id, b.footprint.map(q => fr.toLocal(q) as XY), bLevels(doc.settings, b).top, 'loyiha', b.floors, b.use, b.nonRes);
-  for (const b of ctx?.buildings ?? []) if (b.rings[0]) add(`osm${b.id}`, b.rings[0], b.h, 'atrof');
+  // 13.11: uchastka ichidagi mavjud (OSM) binolar buziladi — kesimda chizilmaydi (bosh rejadagi «buziladigan» kabi)
+  const siteR = doc.site?.rings.map(r => r.map(q => fr.toLocal(q) as XY)) ?? null;
+  const inSite = (r: XY[]) => !!siteR && pointIn([r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length], siteR);
+  for (const b of ctx?.buildings ?? []) if (b.rings[0] && !inSite(b.rings[0])) add(`osm${b.id}`, b.rings[0], b.h, 'atrof');
   // daraxtlar (atrof): toj ~ 8 m, eng yaqin 600 tasi
-  const trees = (ctx?.trees ?? []).map(p => ({ p, s: S(p), d: D(p) })).filter(t => t.d >= 0 && t.d <= depth && t.s >= 0 && t.s <= L).sort((a, b) => a.d - b.d).slice(0, 600);
+  // 13.11: uchastka ichidagi OSM daraxtlari oʻrniga (bosh rejadagidek) — loyiha koʻcha va hovli daraxtlari
+  const allT = [...(ctx?.trees ?? []).filter(p => !siteR || !pointIn(p, siteR)), ...projectTrees(doc)];
+  const trees = allT.map(p => ({ p, s: S(p), d: D(p) })).filter(t => t.d >= 0 && t.d <= depth && t.s >= 0 && t.s <= L).sort((a, b) => a.d - b.d).slice(0, 600);
   for (const [i, t] of trees.entries()) { const r = rnd(`${Math.round(t.p[0] * 10)}:${Math.round(t.p[1] * 10)}`), h = 7 + 6 * r; items.push({ kind: 'daraxt', cut: false, s0: t.s - h * 0.32, s1: t.s + h * 0.32, z0: zAt(t.p), h, d: t.d, id: `t${i}`, sp: TREE_SP[Math.floor(r * 997) % TREE_SP.length] }); }
   items.sort((a, b) => (a.cut === b.cut ? b.d - a.d : a.cut ? 1 : -1));
 
