@@ -1,7 +1,7 @@
 import { test, expect, type Page } from './fx';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { deflateSync } from 'node:zlib';
+import { deflateSync, gzipSync } from 'node:zlib';
 
 /** Joyshunos (app/joyshunos.html, «Joy-A» maketi): qatlamlar paneli, joy pasporti, radius, raqobatchilar turi, qidiruv, saqlanish.
  *  Tarmoq soxtalashtiriladi: relyef plitkasi — fixtures/terrarium.png, Overpass va Nominatim — sunʼiy javoblar. */
@@ -72,5 +72,23 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`quyosh gum
   await expect.poll(async () => (await st()).cars).toBeGreaterThan(10);
   const a1 = await st(); expect(a1.vis).toBe(true);
   await expect.poll(async () => JSON.stringify((await st()).p0) !== JSON.stringify(a1.p0)).toBe(true);
+  expect(errs).toEqual([]);
+});
+
+/** 13.11 (kanvas 17b): aksonometriyada aholi «ignalari» — kadastr 50 m toʻri (soxta: har katakda 25, markazda 100 kishi) */
+test('aksonometriya: aholi ignalari', async ({ page }) => {
+  test.setTimeout(150_000);
+  const DX = 0.0006, DY = 0.00045, NX = 600, NY = 578, W = 69.12, N = 41.42, n = NX * NY, a = new Uint16Array(4 * n); a.fill(25, 0, n);
+  const ci = Math.floor((69.2797 - W) / DX), cj = Math.floor((N - 41.3111) / DY); a[cj * NX + ci] = 100;
+  const IX = { bbox: [W, N - NY * DY, W + NX * DX, N], qadam: [DX, DY], nx: NX, ny: NY, sana: '2026-11-13' }, BIN = gzipSync(Buffer.from(a.buffer));
+  await page.route(/raw\.githubusercontent\.com\/.*\/kadastr-agregat\//, r => r.request().url().endsWith('.json') ? r.fulfill({ contentType: 'application/json', body: JSON.stringify(IX) }) : r.fulfill({ contentType: 'application/octet-stream', body: BIN }));
+  const errs: string[] = []; await open(page, errs, '#/axo');
+  await expect.poll(() => page.evaluate(() => { const a = (window as any).joyAxo; return a ? a.groups.get('binolar').children.length : 0; }), { timeout: 90_000 }).toBeGreaterThan(0);
+  const row = page.locator('[data-ax=aholi]'); await expect(row).toBeVisible(); await expect(row).toHaveClass(/off/);
+  await row.locator('.check').click();
+  const st = () => page.evaluate(() => { const a = (window as any).joyAxo, g = a.groups.get('aholi'), m = g.children.find((c: any) => c.name === 'aholi-ignalar'); return { vis: g.visible, n: m ? m.count : 0, max: m ? m.userData.popMax : 0, far: a.popList.reduce((x: number, p: any) => Math.max(x, Math.hypot(p.x, p.y)), 0), R: a.R }; });
+  await expect.poll(async () => (await st()).n, { timeout: 30_000 }).toBeGreaterThan(50);
+  const s1 = await st(); expect(s1.vis).toBe(true); expect(s1.max).toBe(100); expect(s1.far).toBeLessThan(s1.R);
+  if (process.env.SHOT) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOT }); }
   expect(errs).toEqual([]);
 });

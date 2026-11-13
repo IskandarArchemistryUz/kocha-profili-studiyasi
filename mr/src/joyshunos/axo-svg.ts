@@ -26,7 +26,7 @@ export function axoSvg(a: Axo, layered: boolean): string {
   const line = (pts: P2[]) => `M${pts.map(p => `${f1(p[0])} ${f1(p[1])}`).join('L')}`;
   const inC = (x: number, y: number) => x * x + y * y <= clipR * clipR;
   const vis = (id: AxLayer) => a.eff(id);
-  const out: Record<AxLayer, string[]> = { relyef: [], kochalar: [], transport: [], yashil: [], binolar: [], xizmat: [], shamol: [], quyosh: [] };
+  const out: Record<AxLayer, string[]> = { relyef: [], kochalar: [], transport: [], yashil: [], binolar: [], aholi: [], xizmat: [], shamol: [], quyosh: [] };
   const top = (_id: AxLayer) => (a.exploded ? slabTop : 0);
 
   /* --- disk (portlatilgan: qalin plastinka) yoki yer --- */
@@ -130,6 +130,12 @@ export function axoSvg(a: Axo, layered: boolean): string {
     const pts = site.map(([x, y]) => pr(x, y, (a.exploded ? top(id) : H(x, y)) + 1.2, id));
     // 02.11 (egasi): yer chizigʻi binolar ostida — qatlam boshiga (binolar uni toʻsadi)
     out[id].unshift(`<path d="${poly(pts)}" fill="${AC.site}" fill-opacity=".14" stroke="${AC.site}" stroke-width="1.4" stroke-dasharray="6 4"/>`);
+  }
+
+  /* --- aholi ignalari (kanvas 17b): uzoqdagisi avval --- */
+  if (vis('aholi')) {
+    const ls = a.popList.map(n => { const b = pr(n.x, n.y, n.z, 'aholi'), t = pr(n.x, n.y, n.z + n.h, 'aholi'); return { b, t, col: n.col }; }).sort((p, q) => p.b[1] - q.b[1]);
+    out.aholi.push(`<g stroke-linecap="butt">${ls.map(l => `<path d="M${f1(l.b[0])} ${f1(l.b[1])}L${f1(l.t[0])} ${f1(l.t[1])}" stroke="${l.col}" stroke-width="2.4"/>`).join('')}</g>`);
   }
 
   /* --- belgilar --- */

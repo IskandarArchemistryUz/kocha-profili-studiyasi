@@ -76,7 +76,7 @@ const LAYERS: LayerDef[] = [
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
   { id: 'izovist', g: 'shahar', name: 'Koʻrinadigan joy', src: 'OSM', color: '#e08600', ready: true, beta: true },
-  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr · GHS-POP', color: '#d94801', ready: true, beta: true },
+  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'GHS-POP', color: '#d94801', ready: true, beta: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
   { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true, tash: true },
@@ -134,18 +134,18 @@ function loadPop(): void {
   const k = popKey(); if (POP.key === k && POP.st !== 'idle') return;
   const c = S.c, R = Math.max(S.r, 500) * 1.3;
   if (inTash(c)) {   // shaharning oʻz batafsil maʼlumoti ustun
-    if (KAD.v) { const w = kadWindow(KAD.v, c, R); POP = w ? { st: 'ok', v: w, key: k } : { st: 'err', err: 'kadastr', key: k }; return; }
+    if (KAD.v) { const w = kadWindow(KAD.v, c, R); POP = w ? { st: 'ok', v: w, key: k } : { st: 'err', err: 'kadastr', key: k }; if (mode === 'axo') axBuild(); return; }
     if (KAD.st !== 'err') { loadKad(); return; }   // kadastr kelgach qayta chaqiriladi
   }
   POP = { st: 'load', key: k };
-  readCogWindow(GHS_POP_URL, c, R).then(v => { if (POP.key !== k) return; POP = { st: 'ok', v, key: k }; computeNet(); renderRight(); paint(); },
+  readCogWindow(GHS_POP_URL, c, R).then(v => { if (POP.key !== k) return; POP = { st: 'ok', v, key: k }; computeNet(); renderRight(); paint(); if (mode === 'axo') axBuild(); },
     e => { if (POP.key !== k) return; POP = { st: 'err', err: (e as Error).message || String(e), key: k }; renderRight(); });
 }
 function loadKad(): void {
   if (KAD.st !== 'idle') return;
   KAD = { st: 'load' };
-  loadKadastr(fetch.bind(globalThis)).then(v => { KAD = { st: 'ok', v }; POP = { st: 'idle' }; if (isOn('uylar') || isOn('oqim')) loadPop(); computeNet(); renderRight(); paint(); },
-    e => { KAD = { st: 'err', err: (e as Error).message || String(e) }; POP = { st: 'idle' }; if (isOn('uylar') || isOn('oqim')) loadPop(); renderRight(); });
+  loadKadastr(fetch.bind(globalThis)).then(v => { KAD = { st: 'ok', v }; POP = { st: 'idle' }; if (isOn('uylar') || isOn('oqim') || (mode === 'axo' && axo?.vis.aholi)) loadPop(); computeNet(); renderRight(); paint(); },
+    e => { KAD = { st: 'err', err: (e as Error).message || String(e) }; POP = { st: 'idle' }; if (isOn('uylar') || isOn('oqim') || (mode === 'axo' && axo?.vis.aholi)) loadPop(); renderRight(); });
 }
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
@@ -1438,7 +1438,7 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-kad', type: 'raster', source: 'joy-kad', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
   m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
   m.addSource('joy-heat-l', { type: 'geojson', data: fc([]) as never });
-  m.addLayer({ id: 'joy-heat-l', type: 'symbol', source: 'joy-heat-l', layout: { visibility: 'none', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 13, 'text-allow-overlap': true, 'text-anchor': 'center' }, paint: { 'text-color': ['get', 'c'], 'text-halo-color': ['get', 'hc'], 'text-halo-width': 1.6 } } as never);
+  m.addLayer({ id: 'joy-heat-l', type: 'symbol', source: 'joy-heat-l', layout: { visibility: 'none', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 15, 'text-allow-overlap': true, 'text-anchor': 'center' }, paint: { 'text-color': ['get', 'c'], 'text-halo-color': ['get', 'hc'], 'text-halo-width': 2.2 } } as never);
   m.addLayer({ id: 'joy-sun', type: 'raster', source: 'joy-sun', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } } as never, before);
   m.addLayer({ id: 'joy-shadow', type: 'raster', source: 'joy-shadow', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.4, 'raster-fade-duration': 0 } } as never, before);
   heatKey = sunKey = shadowKey = '';
@@ -1594,6 +1594,8 @@ function paintH(): void {
     if (vec && !ok) void needCtx();
     const k = `${S.c.join()}|${S.r}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}|${ok ? axBundle?.key : '-'}|${isDark()}`; if (k !== heatKey) { heatKey = k; upd('joy-heat', heatImage(lg0, vh.st, ok)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
+  // 13.11 (haqiqiy maʼlumot): binolarni oʻzi chizadigan uslublarda xarita binolari (bld) ustidan yopib qoʻymasin
+  if (m.getLayer('bld')) { const own = (isOn('issiqlik') && !!lg0 && /^(binolar|kochalar)$/.test(V('issiqlik').st)) || isOn('yuza') || (isOn('shovqin') && V('shovqin').st === 'nyc') || (isOn('narx') && V('narx').st.split('|')[3] === 'plakat'); m.setLayoutProperty('bld', 'visibility', own ? 'none' : 'visible'); }
   { const vh = V('issiqlik'), on = isOn('issiqlik') && !!lg0 && (vh.st === 'jurnal' || vh.st === 'doglar');
     if (m.getLayer('joy-heat-l')) m.setLayoutProperty('joy-heat-l', 'visibility', on ? 'visible' : 'none');
     if (on) { const k = `${heatKey}|l`; if (k !== heatLKey) { heatLKey = k; const mu = lstMean(lg0!), fr = geoFrame(S.c), dg = vh.st === 'doglar', sp = heatSpots(lg0!.v, lg0!.n, lg0!.step, mu, S.r, dg ? 2 : 3), num = ['①', '②', '③', '④', '⑤', '⑥'];
@@ -1697,7 +1699,7 @@ function heatImage(g: LstGrid, st: string, vecOk: boolean): { url: string; coord
   const mu = lstMean(g), dAt = (x: number, y: number) => bilinear(g.v, g.n, g.step, x, y) - mu;
   if (st === 'geks') return hexImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, S.r);
   if (st === 'jurnal') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) || Math.abs(v - mu) < 0.5 ? null : heatCol(v - mu), 220);
-  if (st === 'doglar') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : Math.abs(v - mu) < 1 ? '#0d1627' : heatCol(v - mu), v => Math.abs(v - mu) < 1 ? 235 : 250);
+  if (st === 'doglar') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : v - mu < 1 ? '#0d1627' : rampColor(['#f6b27c', '#e8743b', '#c4381f', '#7a160c'], Math.min(1, (v - mu - 1) / 3)), 245);   // 13.11 (haqiqiy maʼlumot): faqat issiq dogʻlar uzluksiz rangda; salqin — konturlar
   if ((st !== 'binolar' && st !== 'kochalar') || !vecOk || !axBundle) return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210);
   const px = 768, clip = S.r, k = px / (2 * clip), cv = document.createElement('canvas'); cv.width = cv.height = px;
   const cx = cv.getContext('2d')!, fr = geoFrame(S.c), P = (q: LngLat): [number, number] => { const [x, y] = fr.toLocal(q); return [(x + clip) * k, (clip - y) * k]; };
@@ -1716,7 +1718,7 @@ function heatImage(g: LstGrid, st: string, vecOk: boolean): { url: string; coord
     }
   }
   cx.strokeStyle = isDark() ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.7)'; cx.lineWidth = 0.6;
-  for (const b of o.buildings) { const r = b.rings[0]; if (!r || r.length < 3) continue; const [x, y] = ctr(r), d = dAt(x, y); if (Number.isNaN(d)) continue; cx.fillStyle = heatCol(d); cx.beginPath(); for (const rr of b.rings) ring(rr); cx.fill('evenodd'); cx.stroke(); }
+  for (const b of o.buildings) { const r = b.rings[0]; if (!r || r.length < 3) continue; const [x, y] = ctr(r), d = dAt(x, y); if (Number.isNaN(d)) continue; cx.fillStyle = Math.abs(d) < 0.5 ? (isDark() ? '#4a4740' : '#cdc4b5') : heatCol(d); /* fonga teng — neytral, lekin koʻrinadi */ cx.beginPath(); for (const rr of b.rings) ring(rr); cx.fill('evenodd'); cx.stroke(); }
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
   return { url: cv.toDataURL(), coords: [[S.c[0] - clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] - clip / ky], [S.c[0] - clip / kx, S.c[1] - clip / ky]] };
 }
@@ -1840,7 +1842,7 @@ function focusMap(m: MLMap): void {
   set('joy-topo', 'line-opacity', q('relyef', 0.35, 1)); set('joy-topo-l', 'text-opacity', k('relyef'));
   set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95));
   set('joy-windf', 'raster-opacity', q('shamol', 0.55, 0.92)); set('joy-yuza', 'raster-opacity', q('yuza', 0.45, 0.9));   // 13.11: faol boʻlmaganda xira (fokus)
-  set('joy-narx-f', 'fill-opacity', q('narx', 0.35, 0.9)); set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
+  set('joy-narx-f', 'fill-opacity', V('narx').st.split('|')[3] === 'plakat' ? Math.max(0.6, q('narx', 0.7, 0.96)) : q('narx', 0.35, 0.9));   // plakat — xarita deyarli yopiladi (tungi fon) set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
   set('joy-kad', 'raster-opacity', q('uylar', 0.35, 0.88) * (isOn('uylar') && kadOwnerFeats() ? 0.35 : 1));
   set('joy-kadb', 'fill-opacity', q('uylar', 0.4, 0.92));
   set('joy-heat', 'raster-opacity', V('issiqlik').st === 'doglar' ? Math.min(1, q('issiqlik', 0.6, 1)) : q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : /^(binolar|kochalar)$/.test(V('issiqlik').st) ? 1.15 : 1));
@@ -2307,8 +2309,10 @@ function axBuild(): void {
     for (const p of D.poi.v?.pois ?? []) if (SVC_KINDS.includes(p.kind) && distM(S.c, p.at) <= S.r) pins.push({ at: p.at, label: p.name || tr(SVC_SHORT[p.kind]), col: SVC_COL[p.kind] });
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0];
     for (const c of D.comp.v ?? []) if (c.d <= S.r) pins.push({ at: c.at, label: c.name || tr(cat.name), col: '#7a5a3c' });
-    const w = windV();
-    axo.setData({ bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark() || axStyle === 'tungi', pal: PALETTES[palKey()], site: S.site ?? null, style: axStyle, cols: { ...axCol } });
+    const w = windV(), pw = POP.st === 'ok' && POP.key === popKey() ? POP.v : undefined, pop: { at: LngLat; v: number }[] = [];
+    if (axo.vis.aholi && !pw) loadPop();
+    if (pw) for (let j = 0; j < pw.h; j++) for (let i = 0; i < pw.w; i++) { const v = pw.v[j * pw.w + i]; if (v > 0) pop.push({ at: [pw.lon0 + (i + 0.5) * pw.dx, pw.lat0 - (j + 0.5) * pw.dy], v }); }
+    axo.setData({ pop, popCell: pw ? pw.dy * 111_132 : 50, bundle: axBundle.b, center: S.c, r: S.r, pins, wind: w ? { petals: w.w.petals, rose: w.w.rose, bins: w.bins, mean: w.w.mean } : null, sat: axSat, dark: isDark() || axStyle === 'tungi', pal: PALETTES[palKey()], site: S.site ?? null, style: axStyle, cols: { ...axCol } });
     renderNotes();
   }, 150);
 }
@@ -2375,7 +2379,7 @@ function renderAxo(): void {
     h('ol', { class: 'joy-axlist' }, ...a.order.map((id, i) => {
       const L = A.AX_LAYERS.find(l => l.id === id)!;
       return h('li', { 'data-ax': id, class: a.vis[id] ? '' : 'off' },
-        h('button', { type: 'button', class: `check${a.vis[id] ? ' on' : ''}`, role: 'checkbox', 'aria-checked': a.vis[id], 'aria-label': tr(L.name), onclick: () => { a.vis[id] = !a.vis[id]; re(); } }, svgIcon('<path d="M5 12l5 5 9-10"/>')),
+        h('button', { type: 'button', class: `check${a.vis[id] ? ' on' : ''}`, role: 'checkbox', 'aria-checked': a.vis[id], 'aria-label': tr(L.name), onclick: () => { a.vis[id] = !a.vis[id]; if (id === 'aholi' && a.vis[id]) axBuild(); re(); } }, svgIcon('<path d="M5 12l5 5 9-10"/>')),
         h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), h('i', { style: `background:${L.color}` }), h('span', { class: 'nm' }, tr(L.name), a.exploded && (id === 'shamol' || id === 'quyosh') ? h('small', {}, tr('yigʻilganda koʻrinadi')) : null),
         h('button', { type: 'button', class: 'mv', title: tr('Pastga'), 'aria-label': tr('Pastga'), disabled: i === 0, onclick: () => { [a.order[i - 1], a.order[i]] = [a.order[i], a.order[i - 1]]; re(); } }, '↓'),
         h('button', { type: 'button', class: 'mv', title: tr('Yuqoriga'), 'aria-label': tr('Yuqoriga'), disabled: i === a.order.length - 1, onclick: () => { [a.order[i + 1], a.order[i]] = [a.order[i], a.order[i + 1]]; re(); } }, '↑'));
@@ -2437,7 +2441,8 @@ function renderNotes(): void {
     h('div', { class: 'glabel' }, tr('Izohlar')),
     h('ul', {}, it(axCol.a1 ?? '#e8a317', 'Quyosh yoʻli (soatlar)'), it('#e0532c', 'Quyosh', 'big'), it(axCol.a1 ?? '#3f8f6b', 'Shamol guli'),
       ...(a?.flows ?? []).map((f, i) => h('li', {}, h('i', { class: 'bar', style: `background:${f.col}` }), tf('Shamol ${n}: ${d} · ${p} % · ${v} m/s', { n: i + 1, d: tr(dir8(f.deg)), p: fmt(f.share * 100), v: fmt(f.v, 1) }))),
-      it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it(axCol.a2 ?? '#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq'), S.site ? it(axCol.main ?? '#d2492f', 'Uchastka', 'ring') : null),
+      it('#4c5bd4', 'Xizmatlar'), it('#7a5a3c', 'Raqobatchilar'), it(axCol.a2 ?? '#c0643a', 'Masofa halqalari', 'ring'), it('#6b6965', 'Binolar soyasi', 'sq'), S.site ? it(axCol.main ?? '#d2492f', 'Uchastka', 'ring') : null,
+      a?.vis.aholi && a.popList.length ? h('li', {}, h('i', { class: 'bar', style: 'background:linear-gradient(90deg,#fdd0a2,#d94801,#5a1a02)' }), tf('Aholi: katakda eng koʻpi ${n} kishi (${s})', { n: fmt(Math.round(a.popList.reduce((m, p) => Math.max(m, p.v), 0))), s: POP.v?.src === 'kadastr' ? tr('kadastr, 50 m') : 'GHS-POP, 90 m' })) : null),
     ...(a && a.labelMode === 'raqam' && a.pinList.length && a.vis.xizmat ? [h('div', { class: 'glabel' }, tr('Obyektlar')),
       h('ol', { class: 'pl', id: 'axPinList' }, ...a.pinList.map(p => h('li', {}, h('b', { style: `--pc:${p.col}` }, String(p.n)), h('span', { title: p.label }, p.label), h('em', {}, `${fmt(Math.round(p.d / 10) * 10)} m`))))] : []),
     h('p', { class: 't-small' }, tr('Binolar balandligi OSM dan; yozilmaganlari qavat soni yoki maydoniga qarab taxmin qilingan.')),
@@ -2505,6 +2510,7 @@ async function axoSheets(which: 'one' | 'all'): Promise<void> {
       if (on('relyef')) legend.push([axCol.a2 ?? '#c0643a', tf('Masofa halqalari · ${r} m ≈ ${m} daq piyoda', { r: S.r, m: walkMin(S.r) })]);
       if (S.site) legend.push([axCol.main ?? '#d2492f', tr('Uchastka')]);
       if (on('transport')) legend.push(['#ff7a2f', tr('Transport oqimi (sxema)')]);
+      if (on('aholi') && a.popList.length) legend.push(['#d94801', tf('Aholi zichligi · ustun balandligi — katakdagi kishilar (${s})', { s: POP.v?.src === 'kadastr' ? tr('kadastr, 50 m') : 'GHS-POP, 90 m' })]);
       if (on('xizmat')) { const seen = new Set<string>(); for (const p of pois) if (!seen.has(p.kind)) { seen.add(p.kind); legend.push([SVC_COL[p.kind], tr(SVC_SHORT[p.kind])]); } if (comps.length) legend.push(['#7a5a3c', tr('Raqobatchilar')]); }
       if (on('quyosh')) legend.push([axCol.a1 ?? '#e8a317', tr('Quyosh yoʻli (soatlar)')], ['#6b6965', tf('Binolar soyasi · ${d} ${h}', { d: tr(A.SUN_DAYS[a.day][2]), h: `${String(Math.floor(a.hour)).padStart(2, '0')}:${String(Math.round(a.hour % 1 * 60)).padStart(2, '0')}` })]);
       if (on('shamol')) flows.forEach((f, j) => legend.push([f.col, tf('Shamol ${n}: ${d} · ${p} %', { n: j + 1, d: tr(dir8(f.deg)), p: fmt(f.share * 100) })]));
