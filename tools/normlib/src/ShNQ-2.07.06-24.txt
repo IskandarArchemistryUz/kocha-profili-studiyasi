@@ -1,0 +1,424 @@
+﻿
+Oʻzbekiston Respublikasi qurilish va uy-joy kommunal xoʻjaligi vazirining
+buyrugʻi
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalarini tasdiqlash toʻgʻrisida
+[Oʻzbekiston Respublikasi Adliya vazirligi tomonidan 2024-yil 25-iyulda hisobga olindi, hisob raqami 266]
+Oʻzbekiston Respublikasining Shaharsozlik kodeksi, Oʻzbekiston Respublikasi Prezidentining 2020-yil 27-noyabrdagi PF-6119-son “Oʻzbekiston Respublikasi qurilish tarmogʻini modernizatsiya qilish, jadal va innovatsion rivojlantirishning 2021 — 2025-yillarga moʻljallangan strategiyasini tasdiqlash toʻgʻrisida”gi, 2023-yil 28-avgustdagi PF-151-son “Maʼmuriy islohotlar doirasida qurilish va uy-joy kommunal xoʻjaligi sohasida davlat boshqaruvini samarali tashkil qilish chora-tadbirlari toʻgʻrisida”gi farmonlari hamda Oʻzbekiston Respublikasi Vazirlar Mahkamasining 2024-yil 23-apreldagi 231-son “Qurilish sohasidagi normativ hujjatlarni xalqaro standartlar bilan uygʻunlashtirish chora-tadbirlari toʻgʻrisida”gi qaroriga muvofiq buyuraman:
+1. SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalari ilovaga muvofiq tasdiqlansin.
+2. Mazkur buyruq Oʻzbekiston Respublikasi Favqulodda vaziyatlar vazirligi, Transport vazirligi hamda Sogʻliqni saqlash vazirligi huzuridagi Sanitariya-epidemiologik osoyishtalik va jamoat salomatligi qoʻmitasi bilan kelishilgan.
+3. Ushbu buyruq rasmiy eʼlon qilingan kundan eʼtiboran kuchga kiradi.
+Vazir B. ZAKIROV
+Toshkent sh.,
+2024-yil 25-iyun,
+01/2-23-son
+Kelishildi:
+Sanitariya-epidemiologik osoyishtalik va jamoat salomatligi qoʻmitasi raisi B. YUSUPALIYEV
+2024-yil 28-may
+Transport vaziri I. MAXKAMOV
+2024-yil 7-iyun
+Favqulodda vaziyatlar vaziri A. KULDASHEV
+2024-yil 18-iyun
+Oʻzbekiston Respublikasi qurilish va uy-joy kommunal xoʻjaligi vazirining 2024-yil 25-iyundagi 01/2-23-son buyrugʻiga
+ILOVA
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalari
+Mazkur shaharsozlik normalari va qoidalari (bundan buyon matnda SHNQ deb yuritiladi) shahar koʻcha-yoʻllarining asosiy klassifikatsiyasi, texnik talablari, loyiha elementlari, namunaviy loyihalari va ularni joylashtirishning rejaviy sxemalariga oid talablarni belgilaydi.
+Ushbu SHNQning talablari shahar koʻcha-yoʻllarida velosiped va piyodalar yoʻlkalarini yoritish elementlari, obodonlashtirish, jihozlashga nisbatan tatbiq etilmaydi.
+1-bob. Shaharsozlik normalari va qoidalari, sanitariya qoidalari, normalari va gigiyena normativlari hamda texnik jihatdan tartibga solish sohasidagi normativ hujjatlarga havolalar
+1. Mazkur SHNQda quyidagi shaharsozlik normalari va qoidalari, sanitariya qoidalari, normalari va gigiyena normativlari hamda texnik jihatdan tartibga solish sohasidagi normativ hujjatlarga havolalar keltirilgan:
+SHNQ 2.05.02-07 “Avtomobil yoʻllari”;
+SHNQ 2.07.01-23 “Aholi punktlarining hududlarini rivojlantirish va qurishni shaharsozlik jihatidan rejalashtirish”;
+SHNQ 2.08.07-22 “Nogironligi boʻlgan bolalar uchun ixtisoslashtirilgan taʼlim muassasalari binolarini loyihalash”;
+QMQ 2.04.03-19 “Kanalizatsiya. Tashqi tarmoqlar va inshootlar”;
+SanQvaN 0008-20 “Turar joylarda, jamoat binolarida, aholi yashash hududlarida va dam olish zonalarida ruxsat etilgan shovqin darajasining sanitariya qoidalari va meʼyorlari”;
+GOST 52289-2004 “Yoʻl belgilari, chiziqlar, toʻsiqlar va svetaforlarni oʻrnatish qoidalari boʻyicha asosiy hujjat” (rasmiy manba: Osnovnoy dokument, opisivayushiy pravila razmesheniya dorojnix znakov, razmetki, ograjdeniy i svetoforov).
+2-bob. Atamalar va taʼriflar
+2. Ushbu SHNQda quyidagi atama va taʼriflardan foydalanilgan:
+shahar koʻcha-yoʻllarining asosiy klassifikatsiyasi — koʻcha yoki yoʻlning shaharsozlik ahamiyati, funksional maqsadi va loyiha parametrlarini belgilaydigan xususiyati;
+shahar ahamiyatidagi magistral koʻcha-yoʻllar — magistral yoʻl aralash foydalanish (tijorat, turar joy, kichik tijorat maqsadlarida)dagi koʻcha;
+kollektor yoʻllar (jamlovchi koʻchalar) — bir necha koʻchalar bilan kesishib magistral koʻcha-yoʻllari bilan bogʻlovchi koʻcha yoʻl tarmogʻi;
+tuman ahamiyatidagi yoʻllar — turar joy, savdo va xizmat koʻrsatish sohalari aralash foydalanish bilan kirish koʻchasi yoki magistral yoʻl;
+mahalliy ahamiyatdagi koʻcha-yoʻllar — mahalliy asosiy koʻchalar shaharlarning markazida yoki kichik va oʻrta shaharlarning markazlarida joylashgan yoʻl;
+turar joy hududlari (mahalla) ichki yoʻllari (boshi berk koʻchalar) — terassali va alohida uylar bilan qoplangan turar joy hududlaridagi yoʻl;
+turar joy hududlari (mavze, daha) yoʻllari — qatorlar, terassali va yakka tartibdagi uylarga kirish yoʻli;
+jamoat-ishchi va savdo hududlari yoʻllari — turar joy obyektlari bilan tijorat maqsadlarida foydalanish uchun moʻljallangan yoʻl;
+tijorat (hududlari) tumanlaridagi yoʻllar — alohida turuvchi binolar va tegishli avtomobil toʻxtash joylariga ega boʻlgan katta yer uchastkalariga ega yoʻl;
+sanoat hududi (zonasi) yoʻli — sanoat obyektlari va omborlarni bogʻlovchi yoʻl;
+oʻtish joylari boʻlmagan yoʻllar (halqa yoʻllar) — bino jabhalari koʻchaga qaragan holda yoki oʻzlashtirilmagan joylarga yaqinlashganda yoki qurilgan hudud ichida joylashgan yoʻllar.
+3-bob. Shahar koʻcha-yoʻllarining asosiy klassifikatsiyasi
+1-§. Umumiy talablar
+3. Shahar koʻcha-yoʻllari quyidagilarga boʻlinadi:
+shahar ahamiyatidagi magistral koʻcha-yoʻllar;
+kollektor yoʻllar (jamlovchi koʻchalar);
+tuman ahamiyatidagi yoʻllar;
+mahalliy ahamiyatdagi koʻcha-yoʻllar;
+turar joy hududlari (mahalla) ichki yoʻllari (boshi berk koʻchalar);
+turar joy hududlari (mavze, daha) yoʻllari;
+jamoat-ishchi va savdo hududlari yoʻllari;
+tijorat (hududlari) tumanlaridagi yoʻllar;
+sanoat hududi (zonasi) yoʻli;
+oʻtish joylari boʻlmagan yoʻllar (halqa yoʻllar).
+4. Shaharsozlik hujjatlarining transport boʻlimida quyidagilarni inobatga olish lozim:
+aholiga transport xizmati koʻrsatishni tashkil etish va ishlab chiqishni;
+transport infratuzilmasini shakllantirishni;
+koʻcha-yoʻl tarmogʻini shakllantirish va rivojlantirishni;
+joriy transport holatini;
+aholi punkti hududida yoʻlovchi va yuk tashishning zarur hajmlari prognozini;
+transport infratuzilmasini rivojlantirish chora-tadbirlarini amalga oshirishni;
+transport infratuzilmasi obyektlarini loyihalash, qurish, rekonstruksiya qilishni.
+5. Shaharning koʻcha-yoʻl tarmogʻining bosh rejasida quyidagilar hisobga olinishi lozim:
+yoʻlovchi va yuk tashish, ularning transport turlari boʻyicha taqsimlanishning prognoz hajmi;
+prognoz hajmi asosida transport infratuzilmasini rivojlantirish ehtiyojlarini aniqlanishi;
+transport infratuzilmasi obyektlarini, avtomobil yoʻllari bilan birgalikda joylashtirilishi;
+transport infratuzilmasini rivojlantirish va aholiga transport xizmati koʻrsatishni tashkil etish ishlab chiqilishi;
+shaharning transport loyihalash va rejalashtirish asoslarini shakllantirish, koʻchalar va yoʻllarning tasnifi toifalarini belgilash, ularning asosiy xususiyatlarini aniqlash;
+yuqori tezlikda harakatlanishga ruxsat etilgan yoʻllardan tashqari transport (temir yoʻl, metro) shox bekatlarida yoki boshqa turdagi tezyurar transportning toʻxtash joylarida tashkil etilgan asosiy transport tugunlarining joylashuvi va sonini aniqlanishi;
+shaharning turli funksional hududlarida turli klassifikatsiyadagi koʻchalar va yoʻllarda harakatlanish tezligi rejimlarini aniqlashga oid tadqiqotlar oʻtkazilishi;
+umumiy shahar ahamiyatiga ega boʻlgan asosiy koʻcha-yoʻl tarmogʻi chorrahalarida tashkil etilgan asosiy transport chorrahalarining joylashuvi va soni aniqlanishi;
+piyoda va velosipedda harakatlanish uchun infratuzilmani shakllantirishda harakat jadalligining oʻsishi va ularni bosqichma-bosqich qurilishi SHNQ 2.05.02-07 talablariga muvofiqligi;
+jamoat joylarida, turar joy va sanoat hududlarida koʻcha-yoʻl tarmogʻini rivojlantirish, istiqbolini belgilash SHNQ 2.07.01-23 talablariga muvofiq belgilanishi.
+6. Koʻcha-yoʻl tarmogʻining bir yoki bir nechta chiziqli obyektlarni joylashtirishda hududlarni rejalashtirish loyihalari ishlab chiqilishi kerak.
+7. Shaharsozlik hujjati loyihalarida koʻcha-yoʻl tarmogʻining quyidagi koʻrsatkichlari aniqlanishi kerak:
+qatnov qismlarning soni va kengligi;
+harakat tasmasining soni va kengligi;
+piyoda yoʻlaklarining uzunligi va kengligi;
+avtomobil toʻxtash joylarining joylashuvi;
+umumiy foydalanishdagi yoʻlovchi transportining hudud boʻylab harakat yoʻnalishi;
+transport vositalarini saqlash joylarining joylashuvi;
+koʻcha-yoʻl tarmogʻining boshqa elementlari, shuningdek obodonlashtirish va koʻkalamzorlashtirish elementlari.
+8. Koʻcha-yoʻl tarmogʻining bir yoki bir nechta chiziqli obyektlarini joylashtirishni nazarda tutuvchi hududni rejalashtirish loyihalari doirasida aholiga transport xizmatlarini koʻrsatishni tashkil etish boʻyicha loyihalar 1:10 000, 1:5000 masshtablarida ishlab chiqilishi lozim.
+9. Chiziqli obyektlar uchun rejalashtirish yechimlarini hisobga olgan holda ushbu SHNQ talablariga muvofiq 1:2000, 1:500 masshtablarida ishlab chiqilishi kerak.
+10. Loyiha hujjatlarini tayyorlashda hududiy rejalashtirish loyihalarida qabul qilingan loyiha qarorlari, shu jumladan bir yoki bir nechta klassifikatsiyadagi koʻcha-yoʻl tarmogʻi obyektlarini joylashtirishni inobatga oluvchi hududiy rejalashtirish loyihalari amalga oshirilishiga yoʻl qoʻyiladi.
+11. Shahar aholi punktlaridan tashqarida oʻtadigan yoʻllarni loyihalash SHNQ 2.05.02-07 talablariga muvofiq boʻlishi kerak.
+12. Piyodalar oqimini inobatga olgan holda piyodalar oʻtish joylari oraliqlarini 300 m dan 500 m gacha boʻlgan masofada loyihalash lozim.
+13. Avtobus va trolleybuslarning toʻxtash joylarini SHNK 2.07.01-23 talablariga muvofiq loyihalash lozim.
+14. Yoʻlning qatnov qismini chetida tashqi suvlarni qochirish uchun QMQ 2.04.03-19 talablariga muvofiq yopiq turdagi drenajlar loyihalanishi kerak.
+2-§. Shahar koʻcha-yoʻl asosiy klassifikatsiyasi
+15. Shaharsozlik hujjatini ishlab chiqishda shahar koʻcha-yoʻl asosiy klassifikatsiyasi, tarkibi va ularning tasnifi shaharning kattaligi, uni rejalashtirish tuzilmasi, iqlim sharoiti, relyefi, transport hajmiga koʻra shakllantirilishi zarur.
+16. Shahar koʻcha-yoʻl tarmogʻidagi mavjud harakat oqimi, tarkibi, shuningdek istiqbolda kutilayotgan harakat jadalligi, yoʻlovchi oqimi va shaharni rivojlantirish holatini inobatga olish kerak.
+17. Shahar koʻcha-yoʻllari tizimining rejaviy yechimlari aholi punktlarining barcha funksional zonalari orasida qulay aloqalar, markaziy va tarixiy zonalardan avtomobillar tranzit oqimlarini chetlatish, yuk va yengil avtomobillar oqimlari ajratilishini taʼminlash lozim.
+18. Shahar koʻcha-yoʻllarining klassifikatsiyasi harakat jadalligi, transport qatnovining tezligi va tarkibi, shuningdek shaharning funksional vazifasi hamda ushbu SHNQning 1-ilovasiga muvofiq qabul qilinishi lozim.
+19. Toʻxtovsiz harakat magistrallari yoʻlini aholi punkti markazidan chetda loyihalash zarur.
+20. Uzluksiz transport yoʻllarining qatnov qismining chetidan qurilish chizigʻigacha boʻlgan masofa SHNQ 2.07.01-23 talablariga muvofiq boʻlishi kerak.
+21. Toʻxtovsiz harakat magistrallarida markaziy qatnov qismlari va bir tomonlama harakatli mahalliy oʻtishlar loyihalanishi zarur.
+Toʻxtovsiz harakat magistrallari oʻtishlarining eni aholi punkti ichida koʻpi bilan 11,25 m, aholi punktidan tashqarida 7,5 m ni boʻlishi lozim.
+22. Shahar koʻcha-yoʻllarni loyihalashda klassifikatsiyasiga koʻra koʻrsatkichlar ushbu SHNQning 2-ilovasiga muvofiq boʻlishi zarur.
+4-bob. Shahar koʻcha-yoʻllarining namunaviy loyihalari
+1-§. Shahar ahamiyatidagi magistral koʻcha-yoʻllar
+23. Shahar ahamiyatidagi avtomobil yoʻllari boshqa yoʻllar bilan, shuningdek temir yoʻllar bilan uzluksiz harakatlanadigan avtomobil yoʻllarining markaziy qatnov qismlarining barcha kesishmalari turli sathlarda amalga oshiriladi va kamida 1500 — 2000 m masofada SHNK 2.07.01-23 talablariga muvofiq joylashtirish kerak.
+24. Harakat jadalligi bir tomonlama harakat uchun 1000 avt/h dan 2500 avt/h gacha taʼminlanishi lozim.
+25. Tezlikni pasaytirish va oʻtish imkoniyatini taʼminlash uchun koʻchani qismlarga boʻlib loyihalashga yoʻl qoʻyiladi.
+26. Transport infratuzilmasi obyektlari shahar yoʻlovchilar transporti bekatlari orasidagi masofa 400 m dan 600 m gacha boʻlishi lozim.
+27. Yoʻllarni kesishuvida xavfsizlik orolchalari va kichik aylanma yoʻllarni rejalashtirishga yoʻl qoʻyiladi.
+28. Hududda joylashgan binolarning funksional vazifasidan kelib chiqib, koʻcha boʻylab yoʻl yoqasida vaqtinchalik avtomobil saqlash joylarini loyihalashga yoʻl qoʻyiladi.
+29. Yoʻlning qatnov qismini va piyodalar yoʻlagi orasida himoya hududi loyihalanishi lozim.
+30. Shahar ahamiyatidagi magistral koʻcha-yoʻllarni ushbu SHNQning 3-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash zarur.
+2-§. Kollektor yoʻllari (jamlovchi koʻchalar)
+31. Aholi punktining kattaligiga qarab yoʻlning uzunligi 300 m dan 1000 m gacha loyihalash lozim.
+32. Kollektor yoʻllarida (jamlovchi koʻchalar) harakat jadalligi bir tomonlama harakat uchun kamida 400 avt/h dan 800 avt/h ni taʼminlash kerak.
+33. Toʻxtovsiz harakat magistrallarining markaziy qatnov qismlaridan piyodalar oʻtish joylarini turli sathlarda loyihalash SHNQ 2.07.01-23 talablariga muvofiq amalga oshirilishi zarur.
+34. Piyodalar oʻtish joylarini hisobga olgan holda avtobus bekatlarini SHNQ 2.07.01-23 talablariga muvofiq loyihalash lozim.
+35. Kollektor yoʻllarda (jamlovchi koʻchalar) tezlikni cheklash yoki oshirish belgilarini GOST 52289-2004 talablariga muvofiq oʻrnatilishini inobatga olib loyihalash lozim.
+36. Kollektor (jamlovchi koʻchalar) yoʻllarni ushbu SHNQning 4-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash kerak.
+3-§. Tuman ahamiyatidagi yoʻllar
+37. Koʻcha boʻylab turar joy, tijorat va xizmat koʻrsatish obyektlarini loyihalashga yoʻl qoʻyiladi.
+38. Koʻchaning uzunligini 100 m dan 1000 m gacha loyihalash lozim.
+39. Qurilish chizigʻi orasidagi masofa SHNQ 2.07.01-23 talablariga muvofiq boʻlishi kerak.
+40. Harakat jadalligini minimum 500 avt/h dan 2000 avt/h gacha taʼminlash lozim.
+41. Koʻcha boʻylab piyodalar yoʻllari, shuningdek yoʻl yoqasida vaqtinchalik avtomobil saqlash joylarini loyihalashga yoʻl qoʻyiladi.
+42. Tuman ahamiyatidagi magistral koʻchalarda joylashgan turar joy, jamoat va dam olish hududlarida nogironligi boʻlgan shaxslarning oʻzi yurar oʻrindiqli aravachalari oʻta oladigan piyoda yoʻlaklari SHNQ 2.08.07-22 talablariga muvofiq loyihalanishi kerak.
+43. Tuman ahamiyatidagi magistral koʻchalarda qatnov qismidan maxsus ajratish yoʻllari (maxsus chiziqlar) bilan ajratilgan velosiped yoʻlaklarini loyihalashga yoʻl qoʻyiladi.
+44. Avtotransport vositalarining taqiqlangan hududlarda toʻxtashini oldini olish maqsadida GOST 52289-2004 talablariga muvofiq maxsus yoʻl belgilarini oʻrnatishga yoʻl qoʻyiladi.
+45. Tuman ahamiyatidagi yoʻllarni ushbu SHNQning 5-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash kerak.
+4-§. Mahalliy ahamiyatdagi koʻcha-yoʻllar
+46. Hududning relefi va joylashuviga koʻra koʻcha-yoʻl kengligi turli oʻlchamlarda boʻlishiga yoʻl qoʻyiladi.
+47. Koʻchaning uzunligini 300 m dan 600 m gacha loyihalashga yoʻl qoʻyiladi.
+48. Harakat jadalligini kamida 500 avt/h dan 1500 avt/h gacha taʼminlash lozim.
+49. Piyodalar harakatini taʼminlashda yoʻl boʻylab piyoda yoʻlaklarini yoʻlning harakat tasmasidan 20 — 30 sm balandlikda alohida qilib loyihalash lozim.
+50. Koʻcha-yoʻl boʻyida parallel vaqtinchalik avtoturargohlar joylashtirilganda kesishmalarda avtotransport erkin harakatlanishini taʼminlashga yetarli maydon bilan loyihalanishi lozim.
+51. Yoʻlovchilar oqimini hisobga olgan holda koʻchada avtobus yoki tramvay jamoat transporti harakatini yoʻlga qoʻyish SHNK 2.07.01-23 talablariga muvofiq amalga oshirilishi kerak.
+52. Tijorat, ofis va boshqa maqsadlarda foydalanishga moslashtirilgan binolar oldidagi piyodalar yoʻlagini koʻkalamzor hudud bilan ajratgan holda loyihalashga yoʻl qoʻyiladi.
+53. Tramvaylar qatnovi mavjud koʻcha yoʻl kesishmasida katta kuchlanishli elektr taʼminot liniyasi (tramvay taʼminot liniyasi) ustunlari hisobga olinishi kerak.
+54. Mahalliy ahamiyatdagi koʻcha-yoʻllarni ushbu SHNQning 6-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash lozim.
+5-§. Turar joy hududlari (mahalla) ichki yoʻllari (boshi berk koʻchalar)
+55. Turar joy hududlari (mahalla) ichki yoʻllari (boshi berk koʻchalar) quyidagilarni oʻz ichiga olishi lozim:
+kirish yoʻllarini;
+terassali va mustaqil ravishda qurilgan yakka tartibdagi uylar joylashgan koʻchalarni;
+ichki yoʻllarning uzunligi 100 m dan kam boʻlmagan koʻchalarni.
+56. Harakat jadalligi 150 avt/h dan 300 avt/h gachani taʼminlash lozim.
+57. Berk koʻchalar qatnov qismlarini aylanish radiusi kamida 15 m boʻlgan maydonchalar yoki aylanib olish uchun oʻlchami 20 x 20 m boʻlgan maydonchalar bilan tugashi lozim.
+58. Aylanish maydonchalarida jamoat transportining oxirgi bekatlarini va avtotransport toʻxtash joylarini joylashtirishga yoʻl qoʻyilmaydi.
+59. Yoʻlning kengligi velosipedlar va transport vositalarining bir sathda toʻsiqsiz harakatlanishiga imkon berishi kerak.
+60. Yashash hududiga kirish-chiqish joylariga juda yaqin keladigan transport vositalaridan himoyalangan boʻlishi, bunda koʻrish uchburchagi taʼminlanishi lozim.
+61. Nogironligi boʻlgan shaxslarning oʻzi yurar oʻrindiqli aravachalari oʻta oladigan piyoda yoʻlaklarini SHNQ 2.08.07-22 talablariga muvofiq loyihalash lozim.
+62. Turar joy hududi (mahalla) ichki yoʻllarini ushbu SHNQning 7-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash kerak.
+6-§. Turar joy hududlari (mavze, daha) yoʻllari
+63. Turar joy hududlari (mavze, daha) yoʻllarini loyihalashda quyidagi talablarni nazarda tutish lozim:
+turar joy hududlariga (mavze, daha) kirish va chiqish yoʻli bilan taʼminlanishi;
+kirish yoʻllarning kamida uzunligi 30 m dan oshmasligi.
+64. Harakat jadalligi 400 avt/h ni taʼminlashi kerak.
+65. Turar joy hududlarining (mavze, daha) ichki yoʻllaridan avtomobil saqlash joyi sifatida foydalanishga yoʻl qoʻyilmaydi.
+66. Turar joy hududlari (mavze, daha) yoʻllarini ushbu SHNQning 8-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash kerak.
+7-§. Jamoat-ishchi va savdo hududlari yoʻllari
+67. Jamoat-ishchi va savdo hududlari yoʻllarini loyihalash quyidagi talablarni nazarda tutish kerak:
+Jamoat-ishchi va savdo hududlariga kirish va chiqish yoʻli bilan taʼminlanishi;
+asosiy savdo koʻchalari yirik va oʻrta shaharlarning markazlarida rejalashtirishi;
+shaharning kattaligiga koʻra uzunligi 300 — 000 m dan oshmasligi lozim.
+68. Harakat jadalligi bir tomonlama harakat uchun 800 avt/h dan 1000 avt/h gachani taʼminlash kerak.
+69. Piyodalar harakatini taʼminlashda yoʻl boʻylab piyoda yoʻlaklarini yoʻlning harakat tasmasidan alohida loyihalash lozim.
+70. Piyodalar yoʻlagi enini piyodalar harakatini hisobga olgan holda piyodalar oʻtkazish qobiliyatini taʼminlanishi, bunda piyodalar maydonlarini loyihalashga yoʻl qoʻyiladi.
+Piyodalar yoʻllarini toʻgʻridan-toʻgʻri piyodalar maydonlariga xavfsiz oʻtishini taʼminlash lozim.
+71. Koʻcha boʻylab nogironligi boʻlgan shaxslarning oʻzi yurar oʻrindiqli aravachalari oʻta oladigan piyoda yoʻlaklarini SHNQ 2.08.07-22 talablariga muvofiq loyihalash lozim.
+Harakat paytida kesib oʻtish zarurati tufayli piyodalar va transport vositalari oʻrtasida belgilangan tezlik va koʻrish uchburchagi taʼminlanishi kerak.
+72. Savdo hududlari koʻcha-yoʻllarida odamlarning gavjumligini hisobga olgan holda harakat tezligini tartibga soluvchi yoʻl belgilarini GOST 52289-2004 talablariga muvofiq oʻrnatish kerak.
+73. Kesishmalarda erkin harakatlanishni taʼminlash uchun vaqtinchalik avtoturargohlar yetarli maydon bilan loyihalanishi lozim.
+74. Savdo markazlariga tashrif buyuruvchilar harakatini yaxshilash va boʻlinish taʼsirini pasaytirish maqsadida asosiy shahar savdo koʻchalarida joylashgan savdo obyektlarini old tomoni va shahar markazlariga turli transport vositalari (taksi, yuk tashish mashinalari va velosiped harakati)ni va baʼzi hollarda jamoat transporti harakatini cheklashga yoʻl qoʻyiladi.
+75. Velosiped harakatini tashkillashtirish boʻyicha ishlab chiqiladigan loyihaviy yechimlar avtomobil harakatining jadalligini SHNQ 2.05.02-07 talablarini inobatga olgan holda amalga oshirilishi kerak.
+76. Tramvaylar qatnovi mavjud koʻcha yoʻl kesishmasida katta kuchlanishli elektr taʼminot liniyasi (tramvay taʼminot liniyasi) ustunlari hisobga olinishi lozim.
+77. Jamoat-ishchi va savdo hududlari yoʻllarini ushbu SHNQning 9-ilovasidagi 1 — 3-rasmlarga muvofiq loyihalash lozim.
+8-§. Tijorat (hududlari) tumanlaridagi yoʻllar
+78. Tijorat (hududlari) tumanlaridagi yoʻllarni loyihalashda quyidagi talablarni nazarda tutish lozim:
+kirish yoʻllarning loyihalashni;
+koʻcha boʻylab tijorat maqsadlarida foydalanishda chakana savdo, ofis, dam olish joylari obyektlarini rejalashtirishni.
+Koʻchaning uzunligini 200 dan 1000 m gacha loyihalash kerak.
+79. Harakat jadalligi bir tomonlama harakat uchun 400 avt/h dan 1000 avt/h gacha taʼminlash kerak.
+80. Tashrif buyuruvchilar uchun koʻchaning kiraverishida yoki chiqishida maxsus avtoturargoh loyihalanilishi lozim.
+81. Koʻkalamzorlashtirilgan hudud ichida yashil avtoturargohlar loyihalashga yoʻl qoʻyiladi.
+82. Tijorat (hududlari) tumanlaridagi yoʻllarga boshqa avtomobil yoʻllari bilan bogʻlashda transport vositalari uchun qulay boʻlgan yoʻl inshootlari (yoʻl oʻtkazgichlar va piyoda koʻpriklari) loyihalashga yoʻl qoʻyiladi.
+83. Tijorat (hududlari) tumanlaridagi yoʻllarni ushbu SHNQning 10-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash kerak.
+9-§. Sanoat hududi (zonasi) yoʻllari
+84. Sanoat hududi yoʻllarini loyihalashda quyidagi talablar nazarda tutilishi lozim:
+kirish yoʻllarni loyihalanishi;
+uzunligi 500 dan 1000 m gacha rejalashtirish.
+85. Harakat jadalligi 800 avt/h dan 1500 avt/h gacha taʼminlashi lozim.
+86. Muntazam avtobus qatnovini tashkillashtirishda SHNK 2.07.01-23 da belgilangan talablarni inobatga olish lozim.
+87. Koʻcha-yoʻlning koʻndalang kesimida yuk mashinalari, yarim tirkamali mashinalar uchun toʻxtash joylari loyihalanishi kerak.
+88. Sanoat hududi yoʻllari ushbu SHNQning 11-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalanishi lozim.
+10-§. Oʻtish joylari boʻlmagan yoʻllar (halqa yoʻllar)
+89. Oʻtish joylari boʻlmagan yoʻllarni loyihalashda quyidagi talablarni nazarda lozim:
+oʻtish joylari boʻlmagan yoʻllarni aholi punktlaridan tashqarida rejalashtirilishi;
+oʻtish joylari boʻlmagan yoʻllarda aholi punktlaridan chiquvchi aholini hisobga olgan holda jamoat transporti qatnovini yoʻlga qoʻyilishi.
+90. Harakat jadalligi 2000 avt/h dan 2500 avt/h gacha taʼminlash kerak.
+91. Yoʻlning markaziy ajratuvchi qismida koʻkalamzorlashtirilgan hudud loyihalashga yoʻl qoʻyiladi.
+92. Piyodalar va velosipedchilar harakati yoʻlning qatnov qismidan alohida tashkillashtirilishi lozim.
+93. Oʻtish joylari boʻlmagan (halqa) yoʻllarga yaqin joylashgan aholi punktlarini transport shovqinidan himoya qilish tadbirlari ishlab chiqilishi kerak.
+94. Yoʻl yaqinida joylashgan aholi punktlaridagi avtotransport shovqinining yoʻl qoʻyilgan meʼyorlari SanQvaN 0008-20 talablariga muvofiq boʻlishi lozim.
+95. Oʻtish joylari boʻlmagan yoʻllarni ushbu SHNQning 12-ilovasidagi 1 va 2-rasmlarga muvofiq loyihalash lozim.
+5-bob. Shahar koʻcha-yoʻllarini rejalashtirish
+96. Shahar koʻcha-yoʻllarining rejasini loyihalashda harakat xavfsizligi va qulayligi, shuningdek uni kelajakda qayta qurish imkoniyatini taʼminlash lozim.
+97. Shahar koʻcha-yoʻllarini loyihalashda minimal radiuslar avtomobil egri boʻylab harakatlanayotganda hosil boʻladigan koʻchalarni hisobga olgan holda belgilanishi kerak.
+98. Rejadagi egri chiziqlarning minimal radiusi ushbu SHNQning 1-formulasiga muvofiq hisoblash yoʻli bilan aniqlanishi, bunda mazkur SHNQning 13-ilovasidagi 1-jadval talablariga javob berishi lozim.
+99. Toʻxtash uchun koʻrishning eng kichik masofasi avtomobil haydovchisi koʻzining qatnov qismi yuzasidan 1,2 m boʻlgan balandlikdan, harakat tasmasining oʻrtasida joylashgan, balandligi 0,2 m va undan katta boʻlgan barcha predmetlarni koʻrishni taʼminlash lozim.
+100. Radiusi 750 m gacha boʻlgan gorizontal egri uchastkalarida bir yoʻnalishda bir va ikki qatorli harakatlanadigan yoʻllarning qatnov qismi harakat tasmasining kengligi ushbu SHNQning 13-ilovasidagi 2-jadvalga muvofiq kengaytirishga yoʻl qoʻyiladi.
+101. Yoʻlning boʻylama qiyaligi 40 foizdan katta hamda uzunligi 300 m dan ortiq boʻlganda qoʻshimcha harakat tasmasini loyihalashga yoʻl qoʻyiladi.
+102. Rejada bir tomonga yoʻnalgan ikki egrilik orasida oʻlchami kichik toʻgʻri qism joylashtirishga yoʻl qoʻyilmaydi. Uning uzunligi 100 m dan kam boʻlganda ikkala egrilikni katta radiusli bitta egrilik bilan almashtirish, uzunligi 100 — 300 m boʻlganida toʻgʻri qismni katta uzunlikdagi oʻtish egriligi bilan almashtirishga yoʻl qoʻyiladi.
+Toʻgʻri qism yoʻl oʻqining alohida elementi sifatida uning uzunligi tuman va mahalliy ahamiyatdagi yoʻllar uchun 700 m dan ortiq, turar joy hududlari yoʻllari uchun 300 m dan ortiq qilib loyihalashga yoʻl qoʻyiladi.
+103. Boʻylama kesimda uzun toʻgʻri qismlar boʻlishiga yoʻl qoʻyilmaslik kerak. Boʻylama kesimning chegaraviy uzunligi ushbu SHNQning 13-ilovasidagi 3-jadvalga muvofiq loyihalanishi lozim.
+104. Rejadagi va boʻylama kesimdagi egriliklar birgalikda joylashishi, bunda ular boʻylama kesimdagi egriliklardan 100 — 150 m uzun boʻlishi hamda egrilik choʻqqilarining siljishi kichik egrilikning 1/4 uzunligidan katta boʻlmasligi kerak.
+105. Rejadagi egrilik oxiri bilan boʻylama kesimdagi egrilik boshining tutashishiga yoʻl qoʻyilmaydi.
+Bunda, ular orasidagi masofa 150 m dan kam boʻlmasligi, uzunligi 500 m dan va qiyaligi 30 ‰ dan ortiq boʻlgan rejadagi egrilik tushishning oxirida joylashgan boʻlsa, uning radiusini mazkur SHNQning 13-ilovasidagi 1-jadvalda keltirilgan qiymatlarga nisbatan 1,5 marotaba oshirilishi, tushish oxirida rejadagi egrilik bilan boʻylama kesimdagi botiq egrilikning birligini taʼminlash lozim.
+106. Koʻp qavatli uylarda yashovchi aholining soni 3 ming kishidan ortiq boʻlganda turar joy obyektlari guruhiga olib boruvchi yoʻlning eni 5,5 m ikki tasmali hamda piyodalar yoʻlaklarini esa 1,5 m qiymatda boʻlishi, bunda uzunligi 150 m dan oshmagan boshi berk tor koʻchalar piyodalar yoʻlagi bilan birlashtirilgan holda, enini kamida 3,5 m qilib loyihalanishi, boshi berk koʻchalar oʻlchamlari 12x12 m boʻlgan aylanish maydonchalari yoki yoʻl oʻqi boʻyicha kamida 20 m radiusli halqa bilan tugashi kerak.
+107. Bir tomonlama harakat tashkil etilgan transport harakatlanuvchi yoʻllarning uzunligi 300 m dan ortiq boʻlmaganda, shuningdek piyodalar yoʻlaklari boʻlganda, qatnov qismining enini 3,5 m olinishiga yoʻl qoʻyiladi.
+Bir tasmali yoʻllarda transport vositalarini oʻtkazib yuborish uchun kengligi 6 m, uzunligi 15 m boʻlgan keng joylar loyihalanishi kerak.
+108. Trotuarlar cheti va ajratuvchi tasmalarda qatnov qismidagi burilish radiusini 15 m dan kam boʻlmagan holda hisoblanishi kerak.
+Qayta qurilayotgan murakkab qurilishlar vaqtida ushbu radiusni 5 m gacha hisoblashga yoʻl qoʻyiladi.
+109. Toʻxtovsiz harakat davom etadigan magistrallarda markaziy ajratuvchi tasmaning kengligini 4 m etib loyihalashga yoʻl qoʻyiladi.
+Ushbu qiymatni ajratuvchi toʻsiq yoki himoya toʻsigʻini qoʻllaganda 2 m gacha kamaytirish lozim.
+110. Markaziy ajratuvchi tasmaning kengligi 5 m dan kam boʻlmaganda, harakat xavfsizligini taʼminlashga moʻljallanmagan inshootlarni joylashtirishga yoʻl qoʻyiladi.
+111. Piyodalar yoʻlakchalaridagi boʻylama qiyaliklarni 60 ‰ dan hamda togʻli hududlarda esa 80 ‰ dan oshmagan holda, qiyaliklar uzunligi 30 m dan oshirmaslik kerak.
+112. Asfaltbeton va sementbeton qoplamalar bilan qurilgan yoʻllarning chetiga oʻrnatiladigan yon ariqlarining boʻylama qiyaligini 4 ‰ dan kam boʻlmasligi, bunda qatnov qismining qoplamasi boshqa turdagi materiallardan boʻlsa, boʻylama qiyaligi 5 foizdan kam boʻlmasligi lozim.
+113. Qurilishdan tashqarida qoʻllanilgan ochiq turdagi suv chetlatuvchi tizimlarning minimal qiyaligi normalanmaydi.
+114. Yopiq turdagi suv chetlatuvchi inshootning boʻylama qiyaligini 4 ‰ dan kam boʻlmasligi lozim.
+115. Suv chetlatuvchi ariqlarning yoʻl oʻqi boʻyicha alohida boʻylama kesimda loyihalashga yoʻl qoʻyiladi.
+116. Bir xil sathda kesishgan chorrahalarda boʻylama qiyalikni qiymatini 40 ‰ dan ortiq qilib loyihalanishi kerak.
+117. Ikki qatorli koʻchalar va transport vositalarini quvib oʻtish mumkin boʻlgan yoʻllarning qismlarida vertikal qavariq egri chizigʻining minimal radiusi quvib oʻtish paytida yaqinlashib kelayotgan transport vositasining minimal koʻrish masofasiga muvofiq hisob-kitob yoʻli bilan aniqlanishi lozim.
+118. Aholi punktlarining koʻchalari va yoʻllarini loyihalashda koʻrinish uchburchagi masofalarini quyidagi minimal qiymatlarini taʼminlash kerak:
+transport vositasini toʻsiq oldida toʻxtashi uchun eng kichik masofa;
+rejadagi egrida yondan koʻrinishda eng kam masofa;
+kesishmalardagi eng kichik koʻrinish masofasi.
+119. Haqiqiy koʻrinish masofalari minimal qiymatlardan katta boʻlishiga yoʻl qoʻyiladi.
+120. Avtotransport vositasini toʻxtatish uchun toʻsiqning minimal koʻrinadigan masofasi balandligi 0,2 m va undan koʻp boʻlgan, harakat tasmasining oʻrtasida joylashgan, qatnov qismining yuzasidan transport vositasi haydovchisining koʻz balandligigacha 1,0 m boʻlgan obyektlarning koʻrinishini taʼminlashi lozim.
+121. Transport vositasini toʻsiq oldida toʻxtash uchun eng kichik koʻrinish masofasi ushbu SHNQning 13-ilovasiga muvofiq aniqlanishi kerak.
+122. Rejadagi egrilarda trassaning oʻqidan harakat tasmasining eng chetki qismini koʻrish imkoniyatini taʼminlaydigan darajada koʻrinish masofasi taʼminlanishi lozim.
+123. Rejadagi egri boʻlakda harakatlanib kelayotgan avtomobil haydovchisi qatnov qismining oʻrtasida turgan 1 m va undan baland boʻlgan obyektlarni koʻra oladigan darajadan yondan koʻrinish sxemasi boʻyicha koʻrinishlik taʼminlanishi kerak.
+Bunda, qatnov qismidan haydovchining koʻzigacha boʻlgan balandlikni hamda qarama-qarshi harakatlanayotgan avtomobilni koʻrish uchun eng kichik hisobiy koʻrish masofasi taʼminlanishi lozim.
+124. Murakkab shaharsozlik sharoitida va rejadagi egri chiziqli qismlarni qayta qurishda, yondan koʻrinishni taʼminlashning iloji boʻlmasa, hisobiy tezlikni minimal koʻrinish masofasini taʼminlaydigan darajada kamaytirishga yoʻl qoʻyiladi.
+6-bob. Reja va boʻylama kesim elementlarini hisoblash
+125. Rejadagi egrini eng kichik qiymati 1-formulaga asosan aniqlanadi:
+Bu yerda:
+Rmin — rejadagi egrining eng kichik qiymati, m;
+vhis — hisobiy tezlik, km/h mazkur SHNQning 13-ilovasidagi 4-jadvali;
+μ — koʻndalang kuch koeffitsiyenti, ushbu SHNQning 13-ilovasidagi 4-jadvali;
+in — qatnov qismining koʻndalang qiyaligi (ulush).
+126. Oʻtish egrilarining eng kam uzunligi hisoblash usuli bilan quyidagi 2-formula yordamida aniqlanadi:
+Bu yerda:
+L — oʻtish egrisining uzunligi, m;
+vhis — hisobiy tezlik, km/h;
+R — rejadagi egrining radiusi, m;
+Ir — markazdan qochma tezlanish, magistral koʻchalar uchun — 0,8 m/s3, qolgan koʻcha va yoʻllar uchun — 1,0 m/s3.
+127. Rejadagi egrining qiymatidan kelib chiqib bitta harakat tasmasini transport vositasining uzunligidan kelib chiqib kengaytirish quyidagi 3-formula yordamida aniqlanadi:
+Bu yerda:
+𐤃 — kengaytirish qiymati, m;
+L — oʻtish egrisining uzunligi, m;
+R — Rejadagi egrining radiusi, m.
+128. Virajdagi oʻtish egriligining minimal uzunligi L hisob yoʻli bilan quyidagi 4-formuladan aniqlanadi:
+Bu yerda:
+L — virajdagi oʻtish egriligining uzunligi, m;
+iv — virajdagi koʻndalang qiyalik, ‰;
+ik — qatnov qismining koʻndalang qiyaligi (qatnov qismining virajgacha boʻlgan oraligʻi hamda virajdagi qiyaliklar qarama-qarshi yoʻnalgan boʻlsa “ — ” ishorasi olinadi), ‰;
+I — boʻylama qiyalikning oʻsish qiymati, ‰; (boʻylama qiyalikning oʻsish qiymatini 10 ‰ dan katta olmaslik kerak, murakkab sharoitlarda — 20 ‰).
+Bq — yoʻlning chetki nuqtasidan qoʻshimcha koʻtarilish boshlangan nuqtagacha boʻlgan masofa kesimdagi masofa, m.
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+1-ILOVA
+Shahar koʻcha-yoʻllarining klassifikatsiyasi
+Shahar koʻcha-yoʻllarining tasnifi | Yoʻllar va koʻchalarning asosiy maqsadi
+Asosiy shahar yoʻllari:
+1-sinf — yuqori tezlikdagi harakatlanish | Eng yirik va yirik shaharlardagi uzoq sanoat va turar joy hududlari oʻrtasidagi yuqori tezlikdagi transport aloqasi, tashqi avtomagistrallar, aeroportlar, yirik dam olish joylariga va aholini joylashtirish tizimidagi aholi punktlariga chiqish. | Harakat uzluksiz boʻlishi. | Turli darajadagi chorrahalar (razvyazkalar) orqali transport vositalariga kirish. | Barcha transport turlarini oʻtkazish. | Barcha toifadagi yoʻllar va koʻchalar bilan kesishish — turli darajalarda. | Piyodalar oʻtish joylari yoʻlning tashqarisida quriladi.
+2-sinf — boshqariladigan harakatlanish | Shahar tumanlari oʻrtasidagi transport aloqasi, tashqi avtomobil yoʻllariga chiqish. | Chorrahalar va tutashuvlar orqali transport vositalariga kirish 300-400 m dan oshmaydi. | Barcha transport turlarini oʻtkazish. | Barcha toifadagi yoʻllar va koʻchalar bilan kesishish — bir xil yoki turli darajalarda. | Piyodalar oʻtish joylari qatnov qismidan tashqarida va qatnov qismi darajasida joylashgan. | Bogʻlovchi yoʻl, magistral yoʻl. | Ichki hududning chetidan, turli xil shahar belgilariga ega boʻlgan turli joylar. | Foydalanish uchun maxsus talablar: velosiped harakati, jamoat transporti.
+Shahar ahamiyatiga ega asosiy koʻchalar: | Shaharning asosiy yoʻli — Aralash foydalanishdagi magistral yoʻl, tijorat, turar joy, kichik tijorat foydalanish.
+1-sinf — uzluksiz harakatlanish (qatnov) | Eng yirik, yirik va katta shaharlardagi turar joy, sanoat hududlari va jamoat markazlari, shuningdek boshqa asosiy koʻchalar, shahar va tashqi avtomobil yoʻllari bilan transport aloqasi. | Asosiy yoʻnalish boʻyicha toʻxtovsiz uzluksiz harakatni taʼminlaydi. | Urbanizatsiyalashgan shahar hududlarida yuqori tezlikda bogʻlanishni taʼminlaydigan asosiy transport kommunikatsiyalari. | Avtomobil yoʻllariga chiqishni taʼminlaydi. | Tutash binolarga xizmat koʻrsatish yon yoki mahalliy oʻtish yoʻllaridan amalga oshiriladi. | Barcha transport turlarini oʻtkazish. | Piyodalar oʻtish joylari yoʻlning tashqarisida quriladi.
+2-sinf — boshqariladigan harakatlanish | Turar joy, sanoat hududlari va shahar markazi, rejalashtirish hududlarining markazlari oʻrtasidagi transport aloqasi, tashqi avtomobil yoʻllariga chiqish. | Shaharning transport va rejalashtirish oʻqlari, shaharning funksional va rejalashtirish tuzilishining asosiy elementlari, aholi punktlari. | Boshqariladigan harakat. | Barcha transport turlarini oʻtkazish. | Yer usti jamoat transporti harakati uchun tegishli asoslash bilan ajratilgan yoʻl quriladi. | Boshqa toifadagi yoʻllar va koʻchalar bilan kesishmalar — bir xil yoki turli darajalarda. | Piyodalar oʻtish joylari qatnov qismidan tashqarida va svetoforli tartibga solish (boshqarish) bilan qatnov qismi darajasida quriladi. | Sanoat hududining yoʻli. Boshqa foydalanish uchun minimal talablar. Harakat intensivligi 800 dan 2600 avt/h gacha, katta intensiv (shiddatli) harakat bilan.
+3-sinf — boshqariladigan harakatlanish | Shahar tumanlarini, shahar okruglarini bir-biri bilan bogʻlaydi. Harakat boshqariladi va oʻzini oʻzi tartibga soladi. | Barcha transport turlarini oʻtkazish. Yer usti jamoat transporti harakati uchun tegishli asoslash bilan ajratilgan yoʻl quriladi. Piyodalar oʻtish joylari qatnov qismi darajasida va qatnov qismidan tashqarida quriladi.
+Tuman ahamiyatidagi asosiy koʻchalar | Turar joylar ichidagi transport va piyodalar aloqalari, boshqa magistral koʻchalarga chiqish. | Tumanlararo va shahar miqyosidagi koʻchalar va yoʻllarga chiqishni taʼminlaydi. | Harakat boshqariladi va oʻzini oʻzi tartibga soladi. | Barcha transport turlarini oʻtkazish. Bir xil darajadagi yoʻllar va koʻchalar bilan kesishish. | Piyodalar oʻtish joylari qatnov qismidan tashqarida va qatnov qismi darajasida quriladi. | Tuman ahamiyatidagi yoʻllar. Kirish yoʻli/turar joy, savdo va xizmat koʻrsatish sohalaridan aralash foydalanish bilan magistral yoʻl. Foydalanish uchun talablar: piyodalar yoʻllari, yoʻl boʻylab mashinalarning toʻxtash joylari.
+Mahalliy koʻchalar va yoʻllar: | Mahalliy asosiy koʻchalar shaharlarning markazida yoki kichik va oʻrta shaharlarning markazlarida joylashgan. Maxsus foydalanish ehtiyojlari: boʻylab va koʻndalang yuradigan piyodalar, toʻxtash joyi, yetkazib berish va yuklash, avtobus va/yoki tramvay koʻrinishidagi mahalliy jamoat transporti.
+turar joylar hududidagi koʻchalar | Turar joylar (mikrorayonlar) hududidagi transport va piyodalar bogʻlanishlari, tuman ahamiyatiga ega boʻlgan magistral koʻchalarga chiqish, boshqariladigan harakatning koʻchalari va yoʻllari. | Binolar va yer uchastkalariga toʻgʻridan-toʻgʻri kirishni taʼminlaydi. | Kirish yoʻllari asosan terrasali va yakka tartibdagi uylar bilan qurilgan. Faqat harakat intensivligi 150 transport/h dan past boʻlgan turar joylar. | Turar joy hududidagi yoʻllar — Qator shakllari, terrasali va yakka tartibdagi uylar bilan va harakat intensivligi 400 transport/h dan past boʻlgan kirish yoʻli
+jamoat, biznes va savdo hududlaridagi koʻchalar | Savdo, ofis va maʼmuriy binolar, aholiga xizmat koʻrsatish obyektlari, taʼlim tashkilotlari va boshqalarga kirishni taʼminlash uchun zonalar va tumanlar ichidagi transport va piyodalar bogʻlanishlari. | Piyodalar oʻtish joylari yoʻl darajasida quriladi. | Tijorat hududlaridagi yoʻllar. Asosan alohida binolar va tegishli toʻxtash joylari boʻlgan katta yer uchastkalari. Maxsus foydalanish talablari: yetkazib berish va yuklash, tashrif buyuruvchilar uchun toʻxtash joyi | Asosiy savdo koʻchasi. Binoning uzluksiz fasadi bilan zich tijorat maqsadlarida foydalanish, turar joy faqat alohida holatlarda. Foydalanish uchun maxsus talablar: boʻylab va koʻndalang yuradigan piyodalar, toʻxtash joyi, yetkazib berish va yuklash, mahalliy jamoat transporti va odamlarning umumiy mavjudligi.
+ishlab chiqarish hududlaridagi koʻchalar va yoʻllar | Sanoat, kommunal va ombor hududlari hamda tumanlar ichidagi transport va piyodalar aloqalari, ushbu hududlarning binolari va yer uchastkalariga kirishni taʼminlash. Piyodalar oʻtish joylari yoʻl darajasida quriladi.
+Piyodalar koʻchalari va maydonlari | Piyodalarning toʻliq xavfsizligi va yuqori qulayligi bilan harakatlanish va dam olish uchun moʻljallangan koʻcha va yoʻl tarmogʻining bir qismi sifatida obodonlashtirilgan makonlar. Ommaviy qatnashish va piyodalar konsentratsiyasi obyektlarining piyodalar bogʻlanishlari. | Barcha transport turlarining harakati istisno qilinadi. | Maxsus transportning oʻtish imkoniyati taʼminlanadi.
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+2-ILOVA
+Shahar koʻcha-yoʻllarining klassifikatsiyasiga koʻra koʻrsatkichlari
+1-jadval
+Koʻcha-yoʻl klassifikatsiyasi | Hisobiy harakat tezligi, | km/h | Harakat tasmasi kengligi, | m | Harakat tasmalari soni | (ikkala yoʻnalish boʻyicha jami) | Virajsiz yoʻlning eng kam qiyaligi, | m | Eng kam boʻylama qiyalik, | ‰ | Vertikal koʻtarilish qiyaligining eng kichik radiusi, | m | Vertikal botiqlik qiyaligining eng kichik radiusi, | m | Trotuardagi piyoda yoʻlagi kengligi, | m
+Magistral koʻcha-yoʻllar
+Shahar magistral koʻchalari:
+1-toifa | 130 | 3,0-3,50 | 4-10 | 1200/1900 | 40 | 21500 | 2600 | -
+110 | 760/1100 | 45 | 12500 | 1900
+90 | 430/580 | 55 | 6700 | 1300
+2-toifa | 90 | 3,0-3,25 | 4-8 | 430/580 | 55 | 5700 | 1300 | -
+80 | 2,75-3,0 | 310/420 | 60 | 3900 | 1000
+70 | 230/310 | 65 | 2600 | 800
+Umumiy foydalanishdagi magistral yoʻllar:
+1-toifa | 90 | 3,0-3,50 | 4-10 | 430/580 | 55 | 5700 | 1300 | 4,5
+80 | 3,0-3,25 | 310/420 | 60 | 3900 | 1000
+70 | 230/310 | 65 | 2600 | 800
+2-toifa | 80 | 2,75-3,0 | 4-10 | 310/420 | 60 | 3900 | 1000 | 3,0
+70 | 230/310 | 65 | 2600 | 800
+60 | 170/220 | 70 | 1700 | 600
+3-toifa | 70 | 2,75-3,0 | 4-6 | 230/310 | 65 | 2600 | 800 | 3,0
+60 | 170/220 | 70 | 1700 | 600
+50 | 110/140 | 70 | 1000 | 400
+Tuman ahamiyatidagi magistral yoʻllar | 70 | 3,0-3,50 | 2-4 | 230/310 | 60 | 2600 | 800 | 2,25
+60 | 170/220 | 70 | 1700 | 600
+50 | 110/140 | 70 | 1000 | 400
+Mahalliy ahamiyatdagi koʻcha-yoʻllar:
+Turar joy hududidagi yoʻllar | 50 | 2-4 | 110/140 | 80 | 1000 | 400 | 2,0
+40 | 70/80 | 80 | 600 | 250
+30 | 40/40 | 80 | 600 | 200
+Jamoat-ishchi va savdo hududlari yoʻllari | 50 | 3,0-3,5 | 2-4 | 110/140 | 80 | 1000 | 400 | 2,0
+40 | 70/80 | 80 | 600 | 250
+30 | 40/40 | 80 | 600 | 200
+Sanoat hududidagi koʻcha va yoʻllar | 50 | 3,5 | 2-4 | 110/140 | 60 | 1000 | 400 | 2,0
+Piyodalar yoʻlagi va maydoni:
+Piyodalar yoʻlagi va maydoni | Hisob-kitob boʻyicha | Hisob-kitob boʻyicha | - | 50 | - | - | Loyiha boʻyicha
+Xiyobon (Parkovie) koʻchalari | 40 | 3,0 | 2 | 75 | 80 | 600 | 250 | -
+Kvartal ichki yoʻllari:
+asosiy | 40 | 3,0 | 2 | 50 | 70 | 600 | 250 | 1,0
+ikkinchi darajali | 30 | 3,5 | 1 | 25 | 80 | 600 | 200 | 0,75
+Velosiped yoʻlagi:
+Koʻcha yoʻl tizimi koʻndalang kesimi tarkibida | - | 1,50* | 1,00** | 1-2 | 2 | 25 | 70 | - | - | -
+dam olish maskanlari hududlari, turar joy hududlari va boshqalar tarkibida | 20 | 1,50* | 1,00** | 1-2 | 2 | 25 | 70 | - | - | -
+* Bir tomonlama harakatda.
+** Ikki tomonlama harakatda.
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+3-ILOVA
+1-rasm. Shahar ahamiyatidagi magistral koʻchalarning joylashuv sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Shahar ahamiyatidagi magistral koʻcha-yoʻllarning namunaviy loyihasi
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+4-ILOVA
+1-rasm. Kollektor (jamlovchi koʻchalar) yoʻllarni joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Kollektor (jamlovchi koʻchalar) yoʻllarning namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+5-ILOVA
+1-rasm. Tuman ahamiyatidagi yoʻllar joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Tuman ahamiyatidagi yoʻllarning namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+6-ILOVA
+1-rasm. Mahalliy ahamiyatidagi yoʻllar joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Mahalliy ahamiyatdagi koʻcha-yoʻllarining namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+7-ILOVA
+1-rasm. Turar joy hududlari (mahalla) ichki yoʻllari (boshi berk koʻchalar) joylashuvini sxematik koʻrinishi. Namunaviy rasmlar sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm Turar joy hududlari (mahalla) ichki yoʻllari (boshi berk koʻchalar)ning namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+8-ILOVA
+1-rasm. Turar joy hududlari (mavze, daha) yoʻllari joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Turar joy hududlari (mavze, daha) yoʻllarining namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+9-ILOVA
+1-rasm. Jamoat-ishchi va savdo hududlari koʻcha-yoʻllari joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Jamoat-ishchi va savdo hududlari koʻcha-yoʻllarining namunaviy loyihalari
+3-rasm. Jamoat-ishchi va savdo hududlari koʻcha-yoʻllarining namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+10-ILOVA
+1-rasm. Tijorat (hududlari) tumanlaridagi koʻcha-yoʻllari joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Tijorat (hududlari) tumanlaridagi koʻcha-yoʻllarini namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+11-ILOVA
+1-rasm. Sanoat hududi (zonasi) yoʻllari joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Sanoat hududi (zonasi) koʻcha-yoʻllarining namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+12-ILOVA
+1-rasm. Oʻtish joylari boʻlmagan yoʻllar joylashuvini sxematik koʻrinishi. Namunaviy rasmlar
+2-rasm. Oʻtish joylari boʻlmagan yoʻllarning namunaviy loyihalari
+SHNQ 2.07.06-24 “Shahar koʻcha-yoʻllari. Loyihalash talablari” shaharsozlik normalari va qoidalariga
+13-ILOVA
+Rejadagi egri chiziqlarning minimal radiusi
+1-jadval
+Hisobiy tezlik, km/soat | eng katta boʻylama nishablik, ‰ | Eng kichik koʻrish masofasi, m | Egrilikning eng kichik radiuslari, m
+Toʻxtash uchun* | Qarama-qarshi harakatlanayotgan avtomobillar uchun | Rejada | Boʻylama kesimda
+qabariqda | botiq
+Asosiy joylarda | Togʻli joylarda | Asosiy joylarda | Togʻli joylarda
+150 | 30 | 300 | - | 1200 | 1000 | 30000 | 8000 | 4000
+120 | 40 | 250 | 450 | 800 | 600 | 15000 | 5000 | 2500
+100 | 50 | 200 | 350 | 600 | 400 | 10000 | 3000 | 1500
+80 | 60 | 150 | 250 | 300 | 250 | 5000 | 2000 | 1000
+60 | 70 | 85 | 170 | 150 | 125 | 2500 | 1500 | 600
+50 | 80 | 75 | 130 | 100 | 100 | 1500 | 1200 | 400
+40 | 90 | 55 | 110 | 60 | 60 | 1000 | 1000 | 300
+30 | 100 | 45 | 90 | 30 | 30 | 600 | 600 | 200
+Bir va ikki qatorli harakatlanadigan yoʻllarning qatnov qismi harakat tasmasi kengligi
+2-jadval
+Radius, m | Har bir harakat tasmasini kengaytirish, m
+551 dan 750 gacha | 0,2
+401 — 550 | 0,25
+301 — 400 | 0,3
+201 — 300 | 0,35
+151 — 200 | 0,6
+91 — 150 | 0,7
+51 — 90 | 0,8
+Boʻylama kesimning chegaraviy uzunligi
+3-jadval
+Boʻylama kesimda botiq egriliklar radiusi, m | Boʻylama qiyaliklarning algebraik farqi, | ‰
+20 | 30 | 40 | 50 | 60 | 80 | 100
+Boʻylama kesimdagi toʻgʻri qismining eng katta uzunligi, m
+2000 | 120 | 100 | 50 | - | - | - | -
+4000 | 150 | 100 | 50 | - | - | - | -
+6000 | 550 | 440 | 320 | 220 | 140 | 60 | -
+8000 | 360 | 250 | 200 | 170 | 140 | 110 | -
+10000 | - | - | 680 | 600 | 420 | 300 | 200
+12000 | 680 | 500 | 400 | 350 | 250 | 200 | -
+15000 | - | - | - | - | - | 800 | 600
+20000 | - | - | 850 | 700 | 600 | 550 | -
+25000 | - | - | - | - | 900 | 800 | -
+Hisobiy tezlik hamda koʻndalang kuch koeffitsiyentlari
+4-jadval
+Hisobiy tezlik vhis , km/h | Koʻndalang kuch koeffitsiyenti, μ
+150 | 0.08
+120 | 0.09
+100 | 0.12
+80 | 0.14
+60 | 0.15
+50 | 0.16
+40 | 0.17
+30 dan kam | 0.18
+Izoh: koʻndalang kuch koeffitsiyentining oraliq qiymatlari interpolyatsiya usuli bilan aniqlanadi.

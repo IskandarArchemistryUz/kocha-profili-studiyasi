@@ -24,6 +24,8 @@ export function findDoc(doc, lib = loadLib()) {
 /** «86», «86-band», «651¹», «651^1», «5-jadval», «jadval 5», «3-ilova» → { kind, key } */
 export function parseClause(c) {
   const s = String(c ?? '').trim().toLowerCase();
+  const md = s.match(/(\d+)\s*-?\s*(modda|модда|article)\b/);
+  if (md) return { kind: 'clause', key: `${md[1]}-modda`, sup: '' };
   // «1-ilova, 50-band» — band ustun (ilova ichidagi band)
   const b = s.match(/(\d+)\s*(?:\^\s*)?([⁰¹²³⁴⁵⁶⁷⁸⁹]+|)\s*-?\s*band/);
   if (b) return { kind: 'clause', key: b[1], sup: b[2] || '' };
@@ -54,8 +56,8 @@ export function lookup(doc, clause, lib = loadLib()) {
   }
   // «6511» kabi yozuv: avval aynan, keyin oxirgi raqam(lar)ni yuqori indeks deb sinab koʻramiz
   const tries = p.sup ? [p.key + p.sup] : [p.key, ...[1, 2].filter((n) => p.key.length > n).map((n) => p.key.slice(0, -n) + toSup(p.key.slice(-n)))];
-  const k = tries.find((t) => d.clauses[t]);
+  const k = [...tries, `${p.key}-modda`].find((t) => d.clauses[t]);
   if (!k) return { found: false, reason: 'not_in_library', ...meta };
   const c = d.clauses[k];
-  return { found: true, ...meta, clause: `${k}-band`, text: cap(c.text), amend: c.amend ?? [] };
+  return { found: true, ...meta, clause: k.endsWith('-modda') ? k : `${k}-band`, text: cap(c.text), amend: c.amend ?? [] };
 }
