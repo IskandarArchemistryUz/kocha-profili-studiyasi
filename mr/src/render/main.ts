@@ -18,7 +18,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
 import { STY, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
-import { ENGINES, renderApi, toUpload, waitJob, type Engine, type Job, type JobBody, type RenderCfg } from './api';
+import { ENGINES, LAB, renderApi, toUpload, waitJob, type Engine, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
 import { ensureLogin } from '../account/gate';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
@@ -61,9 +61,9 @@ const UP = new Map<string, { key: string; w: number; h: number }>();   // mahall
 const FOLLOW = new Set<string>();         // kuzatilayotgan ishlar
 const HIDDEN_K = 'ren-hidden';
 const hidden = (): string[] => { try { return JSON.parse(localStorage.getItem(HIDDEN_K) || '[]') as string[]; } catch { return []; } };
-const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4 };
+const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2 };
 const coinsOf = (e: Engine) => CFG?.engines?.[e]?.coins ?? DEF_COINS[e];
-const engName = (e: string) => `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`;
+const engName = (e: string) => { const l = LAB.find(x => x[0] === e); return l ? l[1] : `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`; };
 let viewer: { id: string; mode: 'natija' | 'cmp' | 'yon' } | null = null;
 const base = () => SRC.find(s => s.id === baseId) ?? null;
 const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem('render-base', id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
@@ -196,7 +196,10 @@ function renderRight(): void {
     h('div', { class: 'glabel' }, h('span', {}, tr('Sifat'))),
     h('div', { class: 'seg ren-eng', role: 'group', 'aria-label': tr('Sifat'), id: 'eng' }, ...ENGINES.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.engine === k, 'data-eng': k, onclick: () => { A.engine = k; save(); renderRight(); } },
       tr(n), own ? null : h('code', {}, String(coinsOf(k)))))),
-    h('p', { class: 't-small' }, tr(A.engine === 'fast' ? 'Tez — eskiz va variantlar uchun, taxminan 20 soniya.' : A.engine === 'pro' ? 'Pro 2K — geometriya va materiallar aniqroq, taxminan 40 soniya.' : 'Pro 4K — taqdimot va chop etish uchun, taxminan 1 daqiqa.')),
+    ...(own && LAB.some(([k]) => CFG?.engines?.[k]) ? [
+      h('div', { class: 'glabel' }, h('span', {}, tr('Sinov modellari (faqat egasi)'))),
+      h('div', { class: 'ren-chips', role: 'group', 'aria-label': tr('Sinov modellari (faqat egasi)'), id: 'engLab' }, ...LAB.filter(([k]) => CFG?.engines?.[k]).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.engine === k, 'data-eng': k, onclick: () => { A.engine = k; save(); renderRight(); } }, n)))] : []),
+    h('p', { class: 't-small' }, LAB.some(([k]) => k === A.engine) ? engName(A.engine) : tr(A.engine === 'fast' ? 'Tez — eskiz va variantlar uchun, taxminan 20 soniya.' : A.engine === 'pro' ? 'Pro 2K — geometriya va materiallar aniqroq, taxminan 40 soniya.' : 'Pro 4K — taqdimot va chop etish uchun, taxminan 1 daqiqa.')),
     h('div', { class: 'ren-row' }, h('span', { class: 'glabel' }, h('span', {}, tr('Variantlar'))),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Variantlar soni'), id: 'nVar' }, ...[1, 2, 4].map(n => h('button', { type: 'button', 'aria-pressed': A.n === n, onclick: () => { A.n = n; save(); renderRight(); } }, String(n))))),
     ...(off ? [h('p', { class: 'note warn', id: 'renOff', role: 'status' }, tr('Render vaqtincha ishlamayapti'))] : []),
@@ -270,7 +273,7 @@ async function go(): Promise<void> {
     for (const r of REFS) refs.push({ key: (await upKey(`r:${r.id}`, r.img, 1024)).key, role: r.role });
     const orig = (await shrink(b.img, 512)).url;
     const styN = tr((STY.find(x => x[0] === A.sty) ?? ['', 'Referens boʻyicha'])[1]);
-    const body: JobBody = { engine: A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id };
+    const body: JobBody = { engine: LAB.some(([k]) => k === A.engine) && !CFG?.owner ? 'pro' : A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id };
     const waits: Promise<void>[] = [];
     for (let i = 0; i < n; i++) {
       tick();

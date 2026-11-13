@@ -311,6 +311,35 @@ describe('render — cheklovlar', () => {
   });
 });
 
+describe('render — sinov modellari (lab)', () => {
+  it('faqat egasiga: konfigda koʻrinadi va ishlaydi; boshqalarga — bad_engine', async () => {
+    const ck = await login(); await give('ali@mail.uz', 5);
+    expect(Object.keys((await get('/render/config', ck)).json().engines)).toEqual(['fast', 'pro', 'pro4k']);
+    expect((await job(ck, { engine: 'qwen' })).json().error).toBe('bad_engine');
+    expect(await balance('ali@mail.uz')).toBe(5);
+    const own = await login('boss@mail.uz');
+    const cfg = (await get('/render/config', own)).json();
+    expect(cfg.engines.qwen).toMatchObject({ lab: true });
+    expect(Object.keys(cfg.engines)).toEqual(['fast', 'pro', 'pro4k', 'qwen', 'kontext', 'seedream5', 'gptimg']);
+  });
+  it('har model oʻz sxemasi bilan; Kontext — faqat asos rasm, kadr nisbati saqlanadi', async () => {
+    const own = await login('boss@mail.uz');
+    const refs = [{ key: await inputKey(own), role: 'material' }];
+    const runs = { qwen: 'fal-ai/qwen-image-edit-2511', kontext: 'fal-ai/flux-pro/kontext', seedream5: 'fal-ai/bytedance/seedream/v5/lite/edit', gptimg: 'openai/gpt-image-2/edit' };
+    for (const [engine, model] of Object.entries(runs)) {
+      const r = await job(own, { engine, refs });
+      expect(r.statusCode).toBe(200);
+      const call = falCalls.at(-1);
+      expect(call.url.startsWith(`https://queue.fal.run/${model}?`)).toBe(true);
+      if (engine === 'kontext') { expect(call.body.image_url).toMatch(/\/in\//); expect(call.body.image_urls).toBeUndefined(); expect(call.body.aspect_ratio).toBe('16:9'); }
+      else expect(call.body.image_urls).toHaveLength(2);
+      if (engine === 'seedream5') expect(call.body.image_size).toEqual({ width: 2048, height: 1152 });
+      // parallel chegara oshmasin — ishni yakunlaymiz
+      await hook(okPayload((await jobRow(r.json().id)).fal_request_id)); await app.render.flush();
+    }
+  });
+});
+
 describe('render — webhook imzosi', () => {
   it('notoʻgʻri imzo, eski vaqt, imzosiz — 401; nomaʼlum ish — 200', async () => {
     const ck = await login(); await give('ali@mail.uz', 5);

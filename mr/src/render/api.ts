@@ -5,9 +5,11 @@
 import { apiBase } from '../account/config';
 import { ApiError } from '../account/session';
 
-export type Engine = 'fast' | 'pro' | 'pro4k';
+/** Hammaga: fast · pro · pro4k. Sinov modellari (lab) — faqat egasiga, server konfigida keladi */
+export type Engine = 'fast' | 'pro' | 'pro4k' | 'qwen' | 'kontext' | 'seedream5' | 'gptimg';
 export const ENGINES: [Engine, string][] = [['fast', 'Tez'], ['pro', 'Pro 2K'], ['pro4k', 'Pro 4K']];
-export interface RenderCfg { enabled: boolean; message: string | null; engines: Record<Engine, { coins: number }>; maxBytes: number; maxSide: number; maxRefs: number; types: string[]; owner?: boolean; parallel?: number }
+export const LAB: [Engine, string][] = [['qwen', 'Qwen Edit'], ['kontext', 'FLUX Kontext'], ['seedream5', 'Seedream 5'], ['gptimg', 'GPT Image 2']];
+export interface RenderCfg { enabled: boolean; message: string | null; engines: Partial<Record<Engine, { coins: number; lab?: boolean }>>; maxBytes: number; maxSide: number; maxRefs: number; types: string[]; owner?: boolean; parallel?: number }
 export type Status = 'queued' | 'running' | 'done' | 'failed' | 'refunded';
 export interface Job {
   id: string; status: Status; engine: Engine; source: string; coins: number; created: string; finished: string | null; downgraded: boolean;

@@ -91,7 +91,8 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     try { u = await optionalUser(req); } catch { /* kirmagan */ }
     return {
       enabled: !!c, message: c ? null : OFF_MSG,
-      engines: Object.fromEntries(Object.entries(ENGINES).map(([k, e]) => [k, { coins: RENDER_COINS[e.item] }])),
+      // sinov modellari (lab) — faqat egasiga koʻrinadi
+      engines: Object.fromEntries(Object.entries(ENGINES).filter(([, e]) => !e.lab || (u && isOwner(u))).map(([k, e]) => [k, { coins: RENDER_COINS[e.item], ...(e.lab ? { lab: true } : {}) }])),
       maxBytes: c?.maxBytes ?? RENDER_DEFAULTS.maxBytes, maxSide: 2048, maxRefs: RENDER_DEFAULTS.maxRefs, types: [...TYPES],
       ...(u ? { owner: isOwner(u), parallel: isOwner(u) || await paidUser(u.id) ? (c?.userMax ?? RENDER_DEFAULTS.userMax) : (c?.freeMax ?? RENDER_DEFAULTS.freeMax) } : {}),
     };
@@ -115,8 +116,8 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     if (limited(`renjob:${u.id}`, 12)) throw new RenderError(429, 'rate', 'juda koʻp soʻrov');
     const b = req.body ?? {};
     let engine = String(b.engine ?? '');
-    if (!ENGINES[engine]) throw new RenderError(400, 'bad_engine', 'dvigatel notoʻgʻri');
     const own = isOwner(u);
+    if (!ENGINES[engine] || (ENGINES[engine].lab && !own)) throw new RenderError(400, 'bad_engine', 'dvigatel notoʻgʻri');
 
     // kirishlar: faqat shu foydalanuvchi yuklagan kalitlar
     const pre = prefixOf(u.id);
@@ -176,8 +177,10 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
 
     // fal navbatiga
     try {
-      const images = inputs.map((x) => c.r2.presignGet(x.key, c.getTtl));
-      const s = await c.fal.submit(engine, { prompt, images, aspect: nearAR(Number(b.input?.w), Number(b.input?.h)) }, c.hookUrl);
+      // bitta rasm qabul qiladigan model (refs: false) — faqat asos rasm
+      const images = (ENGINES[engine].refs === false ? inputs.slice(0, 1) : inputs).map((x) => c.r2.presignGet(x.key, c.getTtl));
+      const w = Number(b.input?.w), h = Number(b.input?.h);
+      const s = await c.fal.submit(engine, { prompt, images, aspect: nearAR(w, h), w: Number.isFinite(w) ? w : 0, h: Number.isFinite(h) ? h : 0 }, c.hookUrl);
       await db.query(`UPDATE render_jobs SET status = 'running', fal_request_id = $2, submitted_at = $3, params = params || $4::jsonb WHERE id = $1`,
         [job.id, s.request_id, now(), JSON.stringify({ fal: { status_url: s.status_url, response_url: s.response_url } })]);
     } catch (e) {
