@@ -123,7 +123,7 @@ export class GraphSim{
     this.o={demand:{},shares:{L:.2,S:.65,R:.15},seed:1,...opt};this.rnd=mulberry(this.o.seed);this.t=0;this.V=[];this.nid=1;this.done=[];this.pend={};this.pass=[];
     this.yUp=net.yUp!==false;
     const JJ=net.juncs&&net.juncs.length?net.juncs:[{id:'J',signal:net.signal||null,ring:net.ring||null,main:net.main||[]}];
-    this.J={};JJ.forEach(j=>{const J={id:j.id,sig:j.signal||null,ring:j.ring||null,main:new Set(j.main||[])};
+    this.J={};JJ.forEach(j=>{const J={id:j.id,sig:j.signal||null,ring:j.ring||null,main:new Set(j.main||[]),stop:new Set(j.stop||[])};
       if(J.sig){const ph=J.sig.phases.map(p=>Array.isArray(p)?{arms:p,mv:null}:{arms:p.arms,mv:p.mv||null}),C=J.sig.cycle,n=ph.length,G=C-n*(AMBER+ALLRED),
         sp=J.sig.split&&J.sig.split.length===n?J.sig.split:ph.map(()=>1/n),off=J.sig.offset||0;let t0=off;
         J.plan=ph.map((p,k)=>{const g=Math.max(5,G*sp[k]),r={...p,t0,g};t0+=g+AMBER+ALLRED;return r;});}
@@ -266,6 +266,8 @@ export class GraphSim{
     const a=this.ap(v);if(!a)return 1e9;const J=a.J,cid=a.cid,toStop=a.toStop,gap=J.sig?3.5:2.0,permL=J.sig&&a.m==='L';
     const lt=this.light(a.arm,this.t,a.m);
     if(lt!=='G'&&toStop>0.3){const need=v.v*v.v/(2*3.5);if(lt==='R'||toStop>need)return toStop;}
+    /* 2.5 «Toʻxtamasdan harakatlanish taqiqlanadi»: toʻxtash chizigʻida toʻliq toʻxtaydi, keyin yoʻl berish qoidasi */
+    if(!J.sig&&J.stop.has(a.arm)&&!v.stopDone){if(v.v<.3&&toStop<3)v.stopDone=1;else if(!v.commit)return toStop;}
     if(toStop>Math.max(12,v.v*v.v/(2*IDM.b)+6))return 1e9;
     const ex=a.ex;if(ex&&this.onLink(ex).some(u=>u.route[u.li]===ex&&u.s<u.len+3&&u.v<1))return toStop;   // chiqish toʻla
     if(permL&&this.V.some(u=>u.li>0&&u.route[u.li-1]===a.L.id&&this.cur(u).kind==='conn'&&this.cur(u).m==='L'&&u.v<1))return toStop; // ichkarida bitta kutuvchi yetarli
@@ -337,7 +339,7 @@ export class GraphSim{
           const A=this.link[v.route[v.li-2]],ff=A.len/V0+L.len/L.vmax;this.pass.push({arm:L.arm,j:L.j,m:L.m,d:Math.max(0,this.t-v.tA-ff),t:this.t,bus:v.bus?1:0});}
         const N=this.link[v.route[v.li]];if(!N)break;
         if(N.kind==='conn')v.tIn=this.t;
-        if(N.kind==='in'){v.tA=this.t;v.wait=0;v.commit=0;}
+        if(N.kind==='in'){v.tA=this.t;v.wait=0;v.commit=0;v.stopDone=0;}
         if(N.kind==='out')this.extend(v);}
       if(v.li>=v.route.length){this.done.push({arm:v.arm,m:v.m,tt:this.t-v.t0,ff:v.ff,stopped:v.stopped,t:this.t,bus:v.bus?1:0,occ:v.occ});continue;}
       keep.push(v);}

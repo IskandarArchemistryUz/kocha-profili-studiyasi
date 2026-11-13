@@ -130,7 +130,7 @@ function fileMenu(): HTMLElement {
     item('ksSave', 'Saqlash', '.json', () => saveJson(allState())),
     item('ksOpen', 'Faylni ochish', '.json', () => openJson(o => { restoreAll(o); toast(tr('Fayl ochildi')); })),
     /* 13.11 (Iskandar): xaritada chizish studiyasi hammaga ochiq — beta (chorrahada harakatni sinash bilan) */
-    item('ksOld', 'Xaritada ishlash', 'beta · ' + tr('xaritada chizish va harakatni sinash'), () => { location.href = '../studio.html'; })) : null);
+    item('ksOld', 'Xaritada ishlash', 'beta · ' + tr('xaritada chizish va harakatni sinash'), () => { location.href = '../tarmoq.html'; })) : null);
 }
 document.addEventListener('pointerdown', e => {
   const t = e.target as Element;
@@ -313,7 +313,7 @@ stage.addEventListener('click', e => {
     const k = MODE_KEY[tab.querySelector('b')?.textContent?.trim() ?? ''];
     if (tab.getAttribute('aria-disabled') === 'true') { toast(tr('Tez orada — bu boʻlim hali ishlab chiqilmoqda')); return; }
     if (k === 'd') { toast(tr('D · Koʻcha muhiti — maketi hali chizilmagan')); return; }
-    if (k === 'a' && !BETA) { location.href = '../studio.html#design'; return; }   // Tarmoq = xaritada chizish (studiya)
+    if (k === 'a' && !BETA) { location.href = '../tarmoq.html'; return; }   // Tarmoq — yangi sahifa (14.11: noldan interfeys, studiya dvigateli)
     if (k) go(k);
     return;
   }

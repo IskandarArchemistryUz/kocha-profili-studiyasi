@@ -1360,6 +1360,12 @@ function approachMoves(sg,atB){const ds=DS(),n=nodeById(atB?sg.b:sg.a),o=origin(
   return M;}
 /* har bir kiruvchi boʻlak uchun strelka (chapdan oʻngga). Natija: [{i (lay.st indeksi), code, auto}] */
 /* 14.11 polosani polosaga ulash: kirish (arm) kaliti — haqiqiy koʻcha id + uchi (karman boʻlaklari ham shu kalitga tushadi) */
+/* 14.11 imtiyoz belgilari: n.pri = {kirish kaliti: 'main' | 'yield' | 'stop'}; yoʻq — YHQ andozasi (harakat modeli: kssim juncs.main/stop) */
+function priOf(n,key){return n&&n.pri?(n.pri[key]||'main'):null;}
+function setPri(nid,key,v){const n=nodeById(nid),J=JNET.get(nid);if(!n||!J)return;
+  if(v==null){delete n.pri;afterDesign();return;}
+  if(!n.pri){n.pri={};J.E.forEach(e=>{n.pri[e.key]=v==='main'?'yield':'main';});}   // bitta yon koʻchaga «Yoʻl bering» — qolganlari asosiy (TM:PE)
+  n.pri[key]=v;afterDesign();}
 function armKey(sg,atB){return (sg._real??sg.id)+':'+(sg._end??(atB?'b':'a'));}
 /* tugundagi qoʻlda ulagichlar (n.lc) shu kirish uchun amalda boʻlsa — polosa boʻyicha manevrlar ('' — ulanmagan) */
 function lcCodes(sg,atB){const n=nodeById(atB?sg.b:sg.a),K=armKey(sg,atB);if(!n||!n.lc||!(n.lcArms||[]).includes(K))return null;
@@ -1583,7 +1589,8 @@ function buildShapes0(){
       const s0=off(kind),s1=s0+cwW,S0=atB?T-s1:s0,S1=atB?T-s0:s1,dirSel=atB?1:-1;
       if(atB?cwB:cwA)zebra(S0,S1);
       const sStop=(atB?cwB:cwA)?(atB?T-s1-1:s1+1):(atB?T-1.5:1.5);
-      const code=kind==='sig'?'1.12':kind==='round'?'1.13':(majorArms(node).has(sg.id)?null:'1.13');
+      const pv=kind==='x'?priOf(node,armKey(sg,atB)):null;   // 14.11: imtiyoz belgilari (n.pri)
+      const code=kind==='sig'?'1.12':kind==='round'?'1.13':pv?(pv==='main'?null:pv==='stop'?'1.12':'1.13'):(majorArms(node).has(sg.id)?null:'1.13');
       if(code)stopLine(sStop,dirSel,code);
       if(kind==='round')return;
       const plan=arrowPlan(sg,atB),other=atB?(isInter(ka)?zoneA+gap+8:4):(isInter(kb)?T-zoneB-gap-8:T-4);
@@ -1699,7 +1706,7 @@ function buildShapes0(){
     if(n.lc&&k!=='round'){const on=new Set(n.lcArms||[]);for(let i=C.length-1;i>=0;i--)if(on.has(C[i].from.key))C.splice(i,1);
       n.lc.forEach(c=>{const e=E.find(x=>x.key===c.f),f=E.find(x=>x.key===c.t),s2=e&&e.lanes[c.fl],d=f&&f.exits[c.tl];if(s2&&d)C.push({from:e,to:f,m:c.m,s:s2,d,man:1});});}C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
     const ring=k==='round'?{c:toXY(n.ll,o),r:(n.ri||12)+(n.rw||6)/2}:null;
-    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id});
+    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id,pri:k==='x'&&n.pri?Object.fromEntries(E.map(e=>[e.key,priOf(n,e.key)])):null});
     if(ds.conn&&!ring)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
   });
   CUR_LV=0;freeShapes(ds,o,poly,line,mark);

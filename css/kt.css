@@ -1,0 +1,89 @@
+/* =====================================================================
+   Koʻchasoz · Tarmoq (tarmoq.html) — yangi sahifa, noldan interfeys (14.11.2026)
+   Xarita butun ekran. Pastda 5 tugma (Tanlash · Koʻcha · Polosa · Ulash · Sinash),
+   tanlangan narsa sozlamalari — oʻsha joy yonidagi kichik kartada. Eski studiya
+   elementlari (yuqori panel, chap/oʻng panel, holat qatori, maslahat) yashirin.
+   ===================================================================== */
+body.kt{--kc:76,91,212;--kp:201,207,246;--ke:160,170,232;--kt:37,47,140;--pn:rgba(250,249,246,.97);font-family:Archivo,-apple-system,system-ui,sans-serif}
+body.kt .app{padding:0;background:#f1f3f8}
+body.kt .topbar,body.kt .rail,body.kt .side,body.kt .statusbar,body.kt .infobox,body.kt .hint,body.kt .basemap,body.kt .viewtog,body.kt .ntq,body.kt #frameWarn{display:none!important}
+body.kt .work,body.kt.big .work,body.kt.railc .work{display:block!important;position:relative;grid-template-columns:none}
+body.kt .mapwrap{position:absolute;inset:0;border-radius:0;box-shadow:none}
+body.kt .simpin{display:none!important}
+body.kt.kt-sim .simpin{display:inline-flex!important}
+body.kt .leaflet-bottom.leaflet-right{bottom:84px;right:6px}
+body.kt .leaflet-control-zoom{border:0!important;box-shadow:0 0 0 1px rgba(0,0,0,.05),0 3px 0 #dcd9d2!important;border-radius:14px!important;overflow:hidden}
+body.kt .kssim{left:16px!important;top:76px!important;max-height:calc(100% - 180px)!important;z-index:1200!important;border:0!important;border-radius:22px!important;background:var(--pn)!important;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)!important;padding:14px 16px!important}
+
+/* --- umumiy --- */
+.kt-pn{background:var(--pn);border-radius:22px;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)}
+.kt-ui{position:fixed;z-index:1100;font-family:Archivo,-apple-system,system-ui,sans-serif;color:#141414;font-size:13.5px}
+.kt-ui button{font:inherit;color:inherit;cursor:pointer;border:0;background:transparent}
+.kt-btn{height:34px;padding:0 13px;border-radius:12px;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8;font-weight:600;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+.kt-btn:hover{transform:translateY(-1px)}
+.kt-btn.on,.kt-btn.pr{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+.kt-btn.dg{color:#b2342a;background:#f6dcd7;box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 2px 0 #e6b9b1}
+.kt-btn.ic{width:34px;padding:0}
+.kt-seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:#d9d7d1;box-shadow:inset 0 1px 1px rgba(255,255,255,.65),0 3px 0 #c4c1ba}
+.kt-seg>*{height:28px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:600;color:#3a3936;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;text-decoration:none}
+.kt-seg>.on{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+.kt-mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.kt-tag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.7);color:#6b6965}
+.kt-mut{color:#6b6965}
+.kt-ns{font-size:10px;font-weight:600;padding:1px 7px;border-radius:999px;background:#fbefd2;color:#8a6a1c}
+
+/* --- yuqori chap: nom va rejimlar --- */
+.kt-top{left:16px;top:16px;display:flex;align-items:center;gap:12px;padding:8px 10px 8px 14px}
+.kt-top .lg{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;text-decoration:none;color:inherit}
+.kt-badge{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;font-size:12.5px;font-weight:600;color:rgb(var(--kc));background:rgba(var(--kc),.1);box-shadow:inset 0 0 0 1px rgba(var(--kc),.45)}
+.kt-badge i{width:7px;height:7px;border-radius:50%;background:rgb(var(--kc));box-shadow:0 0 8px rgb(var(--kc))}
+/* --- yuqori oʻng: amallar --- */
+.kt-acts{right:16px;top:16px;display:flex;align-items:center;gap:8px;padding:8px}
+.kt-q{position:relative}
+.kt-q input{height:34px;width:230px;border:0;border-radius:999px;padding:0 14px 0 34px;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8;font:inherit;font-size:13px}
+.kt-q svg{position:absolute;left:11px;top:9px;color:#8f8b84}
+.kt-q .res{position:absolute;top:40px;left:0;right:0;padding:6px}
+.kt-q .res button{display:block;width:100%;text-align:left;padding:7px 10px;border-radius:10px;font-size:12.5px}
+.kt-q .res button:hover{background:#fff}
+/* --- maslahat --- */
+.kt-hint{left:50%;top:80px;transform:translateX(-50%);padding:9px 16px;border-radius:999px;font-size:13px;max-width:min(560px,calc(100vw - 760px));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kt-hint b{color:rgb(var(--kt))}
+/* --- pastki dok --- */
+.kt-dock{left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px}
+.kt-tools{display:flex;gap:6px;padding:6px;border-radius:22px}
+.kt-tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:78px;height:60px;border-radius:16px;font-size:12px;font-weight:600;color:#3a3936;position:relative}
+.kt-tool:hover{background:rgba(255,255,255,.75)}
+.kt-tool svg{width:22px;height:22px}
+.kt-tool .k{position:absolute;top:5px;right:8px;font:500 10px "IBM Plex Mono",monospace;color:#a29e96}
+.kt-tool.on{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+.kt-tool.on .k{color:rgb(var(--kt));opacity:.6}
+.kt-sep{width:1px;margin:10px 2px;background:#e2dfd8}
+.kt-tray{max-width:min(1100px,calc(100vw - 32px));padding:8px;border-radius:20px;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 32px);overflow-x:auto;scrollbar-width:none}
+.kt-tray::-webkit-scrollbar{display:none}
+.kt-tray .tx{padding:0 8px;font-size:12.5px;color:#3a3936;white-space:nowrap}
+.kt-prof{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 8px;border-radius:14px;width:108px;font-size:11.5px;font-weight:600;color:#3a3936;line-height:14px;text-align:center}
+.kt-prof .nm{width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kt-prof .mt{font:500 10.5px 'IBM Plex Mono',monospace;color:#8f8b84;white-space:nowrap}
+.kt-prof:hover{background:#fff}
+.kt-prof.on{background:rgb(var(--kp));color:rgb(var(--kt));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+.kt-prof svg{display:block;border-radius:6px}
+.kt-more{height:44px;border-radius:12px;background:#fff;box-shadow:0 2px 0 #e2dfd8;border:0;padding:0 10px;font:600 12px Archivo,sans-serif;max-width:170px}
+/* --- tanlangan narsa kartasi --- */
+.kt-card{width:300px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.kt-card .eb{font-size:11px;font-weight:600;letter-spacing:.08em;color:rgb(var(--kt))}
+.kt-card .ti{font-size:17px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.kt-card .x{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#8f8b84}
+.kt-card .x:hover{background:#fff;color:#141414}
+.kt-card select{height:36px;border-radius:12px;border:0;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8;font:600 13px Archivo,sans-serif;padding:0 10px;width:100%}
+.kt-card .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.kt-card .lbl{font-size:11px;font-weight:600;color:#6b6965;margin-bottom:-4px}
+.kt-arm{display:flex;align-items:center;gap:6px}
+.kt-arm>span{flex:1;font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kt-pri{width:34px;height:30px;border-radius:10px;display:grid;place-items:center;background:#fff;box-shadow:0 2px 0 #e2dfd8}
+.kt-pri.on{background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+.kt-note{font-size:11.5px;line-height:16px;color:#6b6965}
+/* xaritadagi imtiyoz belgisi */
+.kt-sign{transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.1),0 2px 6px rgba(0,0,0,.2);cursor:pointer}
+.kt-sign:hover{box-shadow:0 0 0 2px rgb(76,91,212),0 2px 6px rgba(0,0,0,.2)}
+@media (max-width:980px){.kt-hint{display:none}.kt-q input{width:150px}.kt-tool{width:62px}}
+@media (prefers-reduced-motion:reduce){.kt-ui *{transition:none!important}}

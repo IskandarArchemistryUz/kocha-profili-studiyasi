@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tarmoq — Koʻchasoz · Archemistry Lab</title>
+<script src="js/fikr.js?v=1"></script>
+<script src="js/cdn.js?v=1"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" onerror="KLIB.css(this)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css?v=37">
+<link rel="stylesheet" href="css/ks2.css?v=1">
+<link rel="stylesheet" href="css/kt.css?v=1">
+<script>if(!/^#(design)?$/.test(location.hash)||!location.hash)history.replaceState(null,"",location.pathname+location.search+"#design");</script>
+<script src="js/icons.js?v=2"></script>
+</head>
+<body class="kt">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-select" viewBox="0 0 24 24"><path d="M5 4l13 6-5.5 1.8L10.5 17z"/></symbol>
+    <symbol id="i-street" viewBox="0 0 24 24"><path d="M5 21 9 3M19 21 15 3"/><path d="M12 5v2M12 11v2M12 17v2"/></symbol>
+    <symbol id="i-cross" viewBox="0 0 24 24"><path d="M3 7h18M3 17h18"/><path d="M6 9.5v5M10 9.5v5M14 9.5v5M18 9.5v5"/></symbol>
+    <symbol id="i-round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/></symbol>
+    <symbol id="i-obj" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M12 14v7M9 21h6"/></symbol>
+    <symbol id="i-shape" viewBox="0 0 24 24"><path d="M4 16c3-8 6 2 9-6s5 2 7 4"/></symbol>
+    <symbol id="i-line" viewBox="0 0 24 24"><path d="M4 20 20 4" stroke-dasharray="3 3"/></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24"><path d="M12 4l7 12H5z"/><path d="M12 16v5"/></symbol>
+    <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M3 9v6M21 9v6"/><path d="M8 11v2M13 11v2M18 11v2"/></symbol>
+    <symbol id="i-area" viewBox="0 0 24 24"><path d="M5 6l12-2 2 13-13 3z"/><path d="M8 15l6-8M11 18l6-8"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M6 8v8M18 8v8"/><path d="M10 10h4v4h-4z"/></symbol>
+    <symbol id="i-pick" viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-10.5a6 6 0 0 1 12 0C18 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.2"/></symbol>
+    <symbol id="i-conn" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M6 15.5C6 10 12 8 15.6 7"/></symbol>
+    <symbol id="i-sim" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.9v.5"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4 3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+    <symbol id="i-rect" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14"/></symbol>
+    <symbol id="i-poly" viewBox="0 0 24 24"><path d="M5 8l9-4 6 7-4 9-11-3z"/></symbol>
+    <symbol id="i-city" viewBox="0 0 24 24"><path d="M4 21V10l4-2v13M8 21V5l6-2v18M14 21V9l6 3v9M2 21h20"/></symbol>
+    <symbol id="i-models" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></symbol>
+    <symbol id="i-view" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div id="frameWarn" class="framewarn" hidden><b>Bu oynada xarita ishlamaydi.</b> Claude oynasi tashqi xarita va OSM maʼlumotlarini bloklaydi. Sahifani oddiy brauzerda (Chrome/Edge) oching — GitHub Pages havolasi yoki index.html fayli.</div>
+
+  <header class="topbar">
+    <a class="brand" href="./" title="Bosh sahifa" style="color:inherit;text-decoration:none">
+      <svg class="logo" viewBox="0 0 103.45 100" aria-hidden="true"><path d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z" fill="#696969" fill-rule="evenodd"/></svg>
+      <div><h1>Archemistry<i>Lab</i></h1><span class="ver num">v36 · Transport infratuzilmasi · <b style="background:#4c5bd4;color:#fff;border-radius:4px;padding:0 5px;font-weight:600">BETA</b></span></div>
+    </a>
+    <span class="ks-badge" style="display:none;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;font-size:12.5px;font-weight:600;color:#4c5bd4;background:rgba(76,91,212,.1);box-shadow:inset 0 0 0 1px rgba(76,91,212,.45);white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#4c5bd4;box-shadow:0 0 8px #4c5bd4"></span>Koʻchasoz</span>
+    <nav id="labModes" aria-label="Koʻchasoz rejimlari">
+      <span class="on" aria-current="page"><span class="mono">A</span>Tarmoq<span class="tag">beta</span></span>
+      <a href="app/kochasoz.html#/b" title="Koʻcha kesimi"><span class="mono">B</span>Kesim</a>
+      <a href="app/kochasoz.html#/c" title="Chorraha"><span class="mono">C</span>Chorraha<span class="tag">beta</span></a>
+    </nav>
+    <div class="appseg" id="appTabs" role="group" aria-label="Boʻlim">
+      <button data-app="area" aria-pressed="true">Hudud tahlili</button>
+      <button data-app="prof" aria-pressed="false">Koʻcha profili</button>
+      <button data-app="design" aria-pressed="false">Loyiha chizish</button>
+    </div>
+    <form class="search" id="searchForm" autocomplete="off">
+      <svg class="ic"><use href="#i-search"/></svg>
+      <input id="q" type="search" placeholder="Xaritada joy: manzil yoki koordinata (41.3111, 69.2797)">
+      <div class="results" id="results" hidden></div>
+    </form>
+    <div class="topacts" id="topActs">
+      <button class="tbtn" id="tUndo" title="Orqaga (Ctrl+Z)" aria-label="Orqaga"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button class="tbtn" id="tRedo" title="Oldinga (Ctrl+Y)" aria-label="Oldinga"><svg class="ic"><use href="#i-redo"/></svg></button>
+      <button class="tbtn wide" id="t3d" title="3D koʻrinish"><svg class="ic"><use href="#i-cube"/></svg><span>3D</span></button>
+    </div>
+    <button class="tbtn" id="helpBtn" title="Qoʻllanma va tugmalar" aria-label="Qoʻllanma"><svg class="ic"><use href="#i-help"/></svg></button>
+  </header>
+
+  <div class="work">
+    <nav class="rail" id="rail" aria-label="Asboblar">
+      <div id="railTools"></div>
+      <div class="modes railgroup" id="profModes" role="group" aria-label="Xarita rejimi" hidden>
+        <button class="rbtn" data-mode="pick" aria-pressed="true" data-tip="Koʻchani tanlash"><svg class="ic"><use href="#i-pick"/></svg></button>
+        <button class="rbtn" data-mode="measure" aria-pressed="false" data-tip="Qizil chiziqlar orasini oʻlchash"><svg class="ic"><use href="#i-ruler"/></svg></button>
+        <button class="rbtn" data-mode="draw" aria-pressed="false" data-tip="Koʻcha oʻqini qoʻlda chizish"><svg class="ic"><use href="#i-street"/></svg></button>
+      </div>
+      <div class="rail-sep"></div>
+      <div class="mbar railgroup" role="group" aria-label="Oʻlchash">
+        <button class="rbtn" data-m="dist" aria-pressed="false" data-tip="Lineyka — masofa (M)"><svg class="ic"><use href="#i-ruler"/></svg></button>
+        <button class="rbtn" data-m="area" aria-pressed="false" data-tip="Maydon oʻlchash"><svg class="ic"><use href="#i-area"/></svg></button>
+        <button class="rbtn" data-m="cut" aria-pressed="false" data-tip="Kesim → mavjud profil"><svg class="ic"><use href="#i-cut"/></svg></button>
+      </div>
+    </nav>
+
+    <main class="mapwrap">
+      <div id="map"></div>
+      <div class="ctx" id="ctx" hidden></div>
+      <div class="hint" id="hint"></div>
+      <div class="viewtog" id="profView" role="group" aria-label="Planda koʻrsatish" hidden>
+        <button data-view="ex" aria-pressed="false">Mavjud</button>
+        <button data-view="pr" aria-pressed="true">Loyiha</button>
+        <button data-view="none" aria-pressed="false">Yashirish</button>
+      </div>
+      <div class="viewtog" id="areaView" role="group" aria-label="Tasnif qatlami">
+        <label for="opac">Tasnif qatlami</label>
+        <input id="opac" type="range" min="0" max="1" step="0.05" value="0.65">
+      </div>
+      <div class="basemap"><svg class="ic"><use href="#i-layers"/></svg>
+        <select id="baseSel" aria-label="Asosiy xarita"><optgroup label="Minimalistik"><option value="v_line">Chizma</option><option value="v_fig">Figura-fon</option><option value="v_dark">Grafit</option><option value="v_pastel">Pastel</option></optgroup><optgroup label="Tasvir va standart"><option value="img">Sunʼiy yoʻldosh (Esri)</option><option value="imgl">Sunʼiy yoʻldosh + OSM nomlar va chegaralar</option><option value="osm">OpenStreetMap (standart)</option><option value="carto">OSM — Voyager (toza)</option><option value="google">Google sunʼiy yoʻldosh (API kalit)</option><option value="street">Esri koʻcha xaritasi</option></optgroup></select>
+        <button class="b3d" id="map3d" type="button" data-tip="3D shahar: OSM binolari hajmda, sunʼiy yoʻldosh va loyiha">3D shahar</button>
+      </div>
+      <div class="mtool" id="mtool"><div id="mlist"></div></div>
+    </main>
+
+    <aside class="side" id="side">
+      <div id="areaPanel" class="apanel"></div>
+      <div id="designPanel" class="apanel" hidden></div>
+      <div id="profPanel" class="apanel" hidden>
+        <div class="site" id="site"></div>
+        <div class="fields">
+          <div class="field"><label for="row">Qizil chiziqlar orasi, m</label><input id="row" type="number" step="0.1" min="3" class="num"></div>
+          <div class="field"><label for="len">Uchastka uzunligi, m</label><input id="len" type="number" step="5" min="10" class="num"></div>
+        </div>
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="ex" aria-selected="false">Mavjud holat</button>
+          <button role="tab" data-tab="pr" aria-selected="true">Loyiha</button>
+        </div>
+        <div id="editor" class="stack"></div>
+      </div>
+      <section class="compare" id="compare" hidden>
+        <div class="card">
+          <h3>Koʻndalang kesim</h3>
+          <p class="sub">Ikkala profil bir xil masshtabda, oʻq yoʻnalishiga qarab chapdan oʻngga.</p>
+          <div class="seclabel"><b>Mavjud holat</b><span class="num" id="exSum"></span></div>
+          <div class="secwrap" id="secEx"></div>
+          <div class="seclabel"><b>Loyiha</b><span class="num" id="prSum"></span></div>
+          <div class="secwrap" id="secPr"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+        <div class="card">
+          <h3>Farqlar</h3>
+          <p class="sub" id="lenNote"></p>
+          <div class="shares" id="shares"></div>
+          <div class="tscroll"><table id="mt"></table></div>
+          <p class="small">Oʻtkazuvchanlik — indikativ diapazonlar (NACTO, <i>Transit Street Design Guide</i>, 2016).</p>
+        </div>
+        <div class="card">
+          <h3>Tekshiruvlar</h3>
+          <p class="sub">Chegaralar normativ emas — ShNQ bandi yoki TZ boʻyicha kiriting.</p>
+          <div class="checks" id="checks"></div>
+          <div class="thr" id="thr"></div>
+        </div>
+        <div class="card">
+          <h3>Saqlash va yuklab olish</h3>
+          <div class="tools">
+            <button class="btn primary" id="expJson">Loyiha (.json)</button>
+            <button class="btn" id="expCsv">Farqlar (.csv)</button>
+            <button class="btn" id="expSvg">Kesimlar (.svg)</button>
+            <label class="btn" for="imp">Faylni ochish…</label>
+            <input id="imp" type="file" accept=".json" hidden>
+            <button class="btn" id="resetAll">Namunaga qaytarish</button>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <footer class="statusbar">
+    <span id="stMode" class="st-mode"></span>
+    <span class="st-grow"></span>
+    <span class="num" id="coords">—</span>
+    <button class="sbtn" id="copyC" title="Oxirgi bosilgan nuqta koordinatasini nusxalash">Nusxa</button>
+    <span class="num" id="stZoom"></span>
+    <button class="sbtn" id="bigMap" title="Oʻng panelni yashirish / koʻrsatish"><svg class="ic"><use href="#i-panel"/></svg></button>
+  </footer>
+</div>
+
+<div class="modal" id="helpModal" hidden><div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal-head"><h2 id="helpTitle">Qoʻllanma</h2><button class="tbtn dark" id="helpClose" aria-label="Yopish"><i data-i="x"></i></button></div>
+  <div class="modal-body" id="helpBody"></div>
+</div></div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>KLIB.need('leaflet')</script>
+<script src="js/basemap.js?v=1"></script>
+<script src="js/layerbus.js?v=1"></script>
+<script>KLIB.need('leaflet',['js/app.js?v=71','js/studio-mrsync.js?v=1','js/kssim-ui.js?v=17','js/ks-tarmoq.js?v=1'])</script>
+<script src="js/i18n.js?v=20261028"></script>
+</body>
+</html>
