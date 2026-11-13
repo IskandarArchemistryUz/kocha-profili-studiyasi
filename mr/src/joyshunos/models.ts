@@ -14,10 +14,41 @@ import { buildNet, snap, WALKABLE, type Net } from '../core/services';
 
 export const WALK = 83;   // m/daq ≈ 5 km/soat
 
-export interface Road { cls: string; pts: XY[] }
+export interface Road { cls: string; pts: XY[]; /** poi.ts roadFlags: b — koʻprik/tunnel, n — piyodaga taqiq, s — trotuar alohida/yoʻq */ f?: string }
 
-/** Piyoda tarmogʻi (avtomagistrallarsiz) */
-export function walkNet(roads: Road[]): Net { return buildNet(roads.filter(r => WALKABLE(r.cls)).map(r => r.pts)); }
+/** Piyoda tarmogʻi (avtomagistrallarsiz, foot=no yoʻllarsiz) */
+export function walkNet(roads: Road[]): Net { return buildNet(roads.filter(r => WALKABLE(r.cls) && !r.f?.includes('n')).map(r => r.pts)); }
+
+/** 13.11: bola, qariya, aravacha, homilador uchun yurib boʻlmaydigan yoʻl — trassa (trunk), magistral estakada/tunnel,
+ *  trotuari alohida chizilgan katta koʻcha qatnov qismi (u holda piyoda alohida chizilgan trotuardan yuradi) */
+export function hardRoad(r: Road): boolean {
+  if (r.cls === 'trunk') return true;
+  if (!/^(primary|secondary|trunk)(_link)?$/.test(r.cls)) return false;
+  return !!r.f && (r.f.includes('b') || r.f.includes('s'));
+}
+/** Qattiq tarmoq: asosiy tarmoqning oʻzi (bir xil tugun/qirra raqamlari), lekin «qattiq» qirralar oʻchirilgan (adj, grid, off) */
+export function strictNet(net: Net, roads: Road[]): Net {
+  const hard = roads.filter(r => WALKABLE(r.cls) && hardRoad(r)), off = new Uint8Array(net.segs.length);
+  if (!hard.length) return { ...net, off };
+  const C = 50, g = new Map<string, [XY, XY][]>();
+  for (const r of hard) for (let i = 1; i < r.pts.length; i++) {
+    const a = r.pts[i - 1], b = r.pts[i];
+    for (let x = Math.floor(Math.min(a[0], b[0]) / C); x <= Math.floor(Math.max(a[0], b[0]) / C); x++) for (let y = Math.floor(Math.min(a[1], b[1]) / C); y <= Math.floor(Math.max(a[1], b[1]) / C); y++) { const k = `${x},${y}`; (g.get(k) || g.set(k, []).get(k)!).push([a, b]); }
+  }
+  const onHard = (p: XY) => {
+    for (const [a, b] of g.get(`${Math.floor(p[0] / C)},${Math.floor(p[1] / C)}`) ?? []) {
+      const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy; if (L2 < 1e-6) continue;
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2));
+      if (Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]) < 0.6) return true;
+    }
+    return false;
+  };
+  const cut = new Set<number>();
+  net.segs.forEach(([a, b], s) => { const pa = net.xy[a], pb = net.xy[b]; if (onHard([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2])) { off[s] = 1; cut.add(a * net.xy.length + b); cut.add(b * net.xy.length + a); } });
+  const N = net.xy.length, adj = net.adj.map((es, i) => es.filter(e => !cut.has(i * N + e.to)));
+  const grid = new Map<string, number[]>(); for (const [k, v] of net.grid) { const f = v.filter(s => !off[s]); if (f.length) grid.set(k, f); }
+  return { ...net, adj, grid, off };
+}
 
 /* ---------------- Dijkstra (oʻtmishdosh bilan) ---------------- */
 export function sssp(net: Net, src: XY[], limit: number): { D: Float64Array; P: Int32Array } {
@@ -47,6 +78,7 @@ export function reach(net: Net, mins = [5, 10, 15], cell = 20, buf = 40): Reach 
   const mark = (x: number, y: number, b: number) => { const r = Math.ceil(buf / cell), ci = Math.round(x / cell), cj = Math.round(y / cell); for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) { if ((i * i + j * j) * cell * cell > buf * buf) continue; const a = ci + i + K, c = cj + j + K; for (let q = b; q < mins.length; q++) cells[q].add(a * 100000 + c); } };
   let farSum = 0, farStraight = 0;
   net.segs.forEach(([a, b], s) => {
+    if (net.off?.[s]) return;
     const d = Math.max(D[a], D[b]); if (!Number.isFinite(d)) return;
     const band = mins.findIndex(m => d <= m * WALK); if (band < 0) return; seg[s] = band;
     const pa = net.xy[a], pb = net.xy[b], L = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
@@ -61,15 +93,18 @@ export function reach(net: Net, mins = [5, 10, 15], cell = 20, buf = 40): Reach 
 /* ---------------- odamlar oqimi (model) ---------------- */
 export interface Attr { p: XY; w: number }
 /** Qirralar oqim indeksi 0..1 (95-persentilga nisbatan). n — boshlangʻich nuqtalar soni, lim — yoʻl uzunligi chegarasi */
-export function flow(net: Net, R: number, attrs: Attr[], n = 140, lim = 800, seed = 7): Float32Array {
+/** ow — boshlangʻich nuqta vazni (13.11: aholi zichligi / qavat maydoni); boʻlmasa — tugunlar teng ehtimolli */
+export function flow(net: Net, R: number, attrs: Attr[], n = 140, lim = 800, seed = 7, ow?: (p: XY) => number): Float32Array {
   const N = net.xy.length, W = new Float32Array(N).fill(1);
   for (const a of attrs) { const s = snap(net, a.p, 120); if (!s) continue; const [u, v] = net.segs[s.seg]; W[u] += a.w / 2; W[v] += a.w / 2; }
   const inR = [] as number[]; net.xy.forEach((p, i) => { if (p[0] * p[0] + p[1] * p[1] <= R * R) inR.push(i); });
   let x = seed; const rnd = () => { x = (x * 16807) % 2147483647; return x / 2147483647; };
   const segOf = new Map<number, number>(); net.segs.forEach(([a, b], s) => { segOf.set(a * N + b, s); segOf.set(b * N + a, s); });
   const F = new Float32Array(net.segs.length);
-  for (let k = 0; k < Math.min(n, inR.length); k++) {
-    const o = inR[Math.floor(rnd() * inR.length)], { D, P } = sssp(net, [net.xy[o]], lim);
+  const cum: number[] = []; let tot = 0; for (const i of inR) { tot += ow ? Math.max(0, ow(net.xy[i])) : 1; cum.push(tot); }
+  const pick = () => { const r = rnd() * tot; let lo = 0, hi = cum.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] < r) lo = mid + 1; else hi = mid; } return inR[lo]; };
+  for (let k = 0; k < Math.min(n, inR.length) && tot > 0; k++) {
+    const o = pick(), { D, P } = sssp(net, [net.xy[o]], lim);
     const reached: number[] = []; for (let i = 0; i < N; i++) if (D[i] <= lim) reached.push(i);
     reached.sort((a, b) => D[b] - D[a]);
     const sub = new Float32Array(N); for (const i of reached) sub[i] += W[i];

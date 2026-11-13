@@ -26,7 +26,7 @@ import { ContextManager } from '../context/manager';
 import type { PoiBundle } from '../context/poi';
 import { frame as geoFrame } from '../core/geo';
 import { distAt, type Net } from '../core/services';
-import { walkNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
+import { walkNet, strictNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
 import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
 import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, bilinear, type LstGrid, type Px } from './heat';
@@ -115,19 +115,20 @@ const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: Te
 let KAD: Ld<KadGrid> = { st: 'idle' };
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
-type NetM = { pers?: string; key: string; net: Net; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
+type NetM = { pers?: string; key: string; net: Net; strict: Net; flowSrc?: string; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
 let NM: NetM | null = null, nmBusy = false;
 function netModels(): NetM | null {
   const pb = D.poi.v; if (!pb) return null;
   const key = `${S.c.join()}|${S.r}`;
   if (NM?.key.startsWith(S.c.join() + '|')) { if (NM.key !== key) { NM.key = key; NM.flow = undefined; NM.noise = undefined; } }
-  else { const fr = geoFrame(S.c); NM = { key, fr, net: walkNet(pb.roads.map(r => ({ cls: r.cls, pts: r.pts.map(p => fr.toLocal(p)) }))) }; }
+  else { const fr = geoFrame(S.c), rs = pb.roads.map(r => ({ cls: r.cls, f: r.f, pts: r.pts.map(p => fr.toLocal(p)) })), net = walkNet(rs); NM = { key, fr, net, strict: strictNet(net, rs) }; }
   return NM;
 }
 /** Ogʻir hisoblar navbat bilan (UI qotmasin) */
 function computeNet(): void {
   const m = netModels(); if (!m || nmBusy) return;
   if (m.reach && m.pers !== V('piyoda').st) m.reach = undefined;
+  if (m.flow && m.flowSrc !== flowSrc()) m.flow = undefined;   // aholi/bino maʼlumoti keyin kelsa — oqim qayta
   const job = isOn('piyoda') && !m.reach ? 'reach' : isOn('oqim') && !m.flow ? 'flow' : isOn('shovqin') && !m.noise ? 'noise' : null; if (!job) return;
   nmBusy = true;
   setTimeout(() => {
@@ -135,15 +136,22 @@ function computeNet(): void {
       const pb = D.poi.v!;
       if (job === 'reach') {
         const st = V('piyoda').st, f = PERSONA[st]?.v / 5 || 1;
-        if (st === 'hammasi') { m.reach = reach(m.net, PERSONA_ALL.map(p => 10 * p.v / 5)); m.reach.mins = PERSONA_ALL.map(() => 10); }   // har band — bitta persona guruhi, 10 daqiqa
-        else { m.reach = reach(m.net, [5, 10, 15].map(x => x * f)); m.reach.mins = [5, 10, 15]; }
+        if (st === 'hammasi') {   // har band — bitta persona guruhi, 10 daqiqa; sekin guruhlar trassa/estakadadan yurmaydi (qattiq tarmoq)
+          const mins = PERSONA_ALL.map(p => 10 * p.v / 5), N = reach(m.net, mins), Sr = reach(m.strict, mins), nS = PERSONA_ALL.findIndex(p => !p.ids.some(i => STRICT.has(i)));
+          for (let s2 = 0; s2 < N.seg.length; s2++) { const b = Sr.seg[s2]; N.seg[s2] = b >= 0 && b < nS ? b : N.seg[s2] >= 0 ? Math.max(N.seg[s2], nS) : -1; }
+          for (let i = 0; i < nS; i++) { N.area[i] = Sr.area[i]; N.km[i] = Sr.km[i]; }
+          m.reach = N; m.reach.mins = PERSONA_ALL.map(() => 10);
+        } else { m.reach = reach(STRICT.has(st) ? m.strict : m.net, [5, 10, 15].map(x => x * f)); m.reach.mins = [5, 10, 15]; }
+        const rn = st !== 'hammasi' && STRICT.has(st) ? m.strict : m.net;
         m.pers = st;
         const near: Partial<Record<Svc, number>> = {};
-        for (const k of ['bekat', 'metro', 'maktab', 'mtm', 'dorixona', 'savdo'] as Svc[]) { let best = Infinity; for (const p of normPois(pb.pois, S.added ?? [])) if (p.kind === k) best = Math.min(best, distAt(m.net, m.reach.D, m.fr.toLocal(p.at))); if (Number.isFinite(best)) near[k] = best; }   // E2: hisobga kiritilgan qoʻshilganlar ham
+        for (const k of ['bekat', 'metro', 'maktab', 'mtm', 'dorixona', 'savdo'] as Svc[]) { let best = Infinity; for (const p of normPois(pb.pois, S.added ?? [])) if (p.kind === k) best = Math.min(best, distAt(rn, m.reach.D, m.fr.toLocal(p.at))); if (Number.isFinite(best)) near[k] = best; }   // E2: hisobga kiritilgan qoʻshilganlar ham
         m.near = near;
       } else if (job === 'flow') {
-        const W: Partial<Record<Svc, number>> = { metro: 14, bekat: 6, savdo: 3, maktab: 3, poliklinika: 2, mtm: 1.5, dorixona: 1.5, sport: 1.5, mahalla: 1 };
-        m.flow = flow(m.net, Math.max(S.r, 500) * 1.2, pb.pois.map(p => ({ p: m.fr.toLocal(p.at), w: W[p.kind] ?? 1 })));
+        // 13.11: metro, savdo markazi, bozor, ovqatlanish joylari kuchliroq tortadi; boshlangʻich nuqtalar — aholi/qavat maydoni zich joydan
+        const W: Partial<Record<Svc, number>> = { metro: 24, bekat: 6, savdo: 4, maktab: 3, poliklinika: 2, mtm: 1.5, dorixona: 1.5, sport: 1.5, mahalla: 1 };
+        const at = [...pb.pois.map(p => ({ p: m.fr.toLocal(p.at), w: W[p.kind] ?? 1 })), ...(pb.attr ?? []).map(a => ({ p: m.fr.toLocal(a.at), w: a.w }))];
+        m.flowSrc = flowSrc(); m.flow = flow(m.net, Math.max(S.r, 500) * 1.2, at, 180, 800, 7, originW(m.fr));
       } else {
         const R = S.r, roads = pb.roads.map(r => ({ cls: r.cls, pts: r.pts.map(p => m.fr.toLocal(p)) }));
         m.noise = { ...noiseGrid(roads, R, Math.max(8, R / 55)), R };
@@ -151,6 +159,18 @@ function computeNet(): void {
     } catch (e) { console.warn('Joyshunos model', e); }
     nmBusy = false; renderRight(); paint(); computeNet();
   }, 30);
+}
+/** Qattiq tarmoq bilan yuradigan personalar (13.11): trassa va estakadadan yurmaydi */
+const STRICT = new Set(['bola', 'qariya', 'arava', 'homilador']);
+const flowSrc = () => `${KAD.v ? 'k' : ''}${axBundle ? 'b' + axBundle.key : ''}`;
+/** Oqim boshlanadigan joy vazni: Toshkentda — kadastr aholisi (50 m katak), boshqa joyda — atrofdagi binolar qavat maydoni (OSM), boʻlmasa — teng */
+function originW(fr: ReturnType<typeof geoFrame>): ((p: XY) => number) | undefined {
+  const g = KAD.v;
+  if (g && kadCovers(g, S.c[0], S.c[1])) return p => { const [lon, lat] = fr.toGeo(p), o = kadCell(g, lon, lat); return 0.15 + (o >= 0 ? g.aholi[o] / 60 : 0); };
+  const bs = axBundle?.b.osm.buildings; if (!bs?.length) return undefined;
+  const C = 60, cell = new Map<string, number>();
+  for (const b of bs) { const r = b.rings[0]; if (!r || r.length < 3) continue; const L = r.map(q => fr.toLocal(q)); let a = 0, cx = 0, cy = 0; for (let i = 0, j = L.length - 1; i < L.length; j = i++) a += L[j][0] * L[i][1] - L[i][0] * L[j][1]; for (const q of L) { cx += q[0]; cy += q[1]; } const k = `${Math.floor(cx / L.length / C)},${Math.floor(cy / L.length / C)}`; cell.set(k, (cell.get(k) ?? 0) + Math.abs(a / 2) * Math.max(1, Math.round((b.h || 6) / 3))); }
+  return p => { let v = 0; const ci = Math.floor(p[0] / C), cj = Math.floor(p[1] / C); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) v += cell.get(`${ci + i},${cj + j}`) ?? 0; return 0.15 + v / 20000; };
 }
 /* ---------- ijtimoiy skaner (12.11): har bino uchun xizmatlarga piyoda yetish bali — skaner.ts ---------- */
 let SK: { key: string; res: SkResult; rings: LngLat[][]; area: number[]; h: number[] } | null = null, skBusy = false, skSel: number | null = null;
@@ -258,7 +278,7 @@ async function needCtx(): Promise<void> {
   catch (e) { axMsg = `${tr('Kontekst yuklanmadi')}: ${(e as Error).message}`; }
   axBusy = false;
   if (my !== seq) { void needCtx(); return; }
-  computeSun(); renderRight(); paint();
+  computeSun(); computeNet(); renderRight(); paint();
   if (mode === 'axo') { axBuild(); renderAxo(); }
 }
 let climate: Climate | null = null;
@@ -783,12 +803,12 @@ function ensure(): void {
     if (!g) throw new Error(tr('relyef plitkalari ochilmadi')); return { g, s: terrainStats(g, r) };
   });
   if ((isOn('xizmat') || isOn('piyoda') || isOn('skaner') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
-  if (isOn('skaner') && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();
+  if ((isOn('skaner') || isOn('oqim')) && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();   // oqim: binolar — boshlangʻich nuqta vazni
   loadPv();
   computeNet();
   if (isOn('issiqlik') && D.lst.st === 'idle') run('lst', () => lstJob(c));
   // uy narxlari — butun shahar uchun bitta fayl (nuqtaga bogʻliq emas, seq bilan bekor qilinmaydi)
-  if (isOn('uylar') && KAD.st === 'idle') { KAD = { st: 'load' }; loadKadastr(fetch.bind(globalThis)).then(v => { KAD = { st: 'ok', v }; renderRight(); paint(); }, e => { KAD = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
+  if (isOn('uylar') && KAD.st === 'idle') { KAD = { st: 'load' }; loadKadastr(fetch.bind(globalThis)).then(v => { KAD = { st: 'ok', v }; computeNet(); renderRight(); paint(); }, e => { KAD = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
   if (isOn('narx') && D.narx.st === 'idle') { D.narx = { st: 'load' }; loadNarx().then(v => { D.narx = { st: 'ok', v }; renderRight(); paint(); }, e => { D.narx = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
   if (isOn('quyosh')) { if (axBundle?.key === `${c.join()}|${r + 100}`) computeSun(); else void needCtx(); }
   if (isOn('raqobat') && D.comp.st === 'idle') run('comp', async () => {
@@ -974,7 +994,7 @@ function addOverlays(): void {
   m.addSource('joy-gips', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-gips', type: 'raster', source: 'joy-gips', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
   m.addSource('joy-slope', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
-  m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0 } } as never, before);
+  m.addLayer({ id: 'joy-slope', type: 'raster', source: 'joy-slope', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
   // uy narxlari — soti (olti burchakli katakchalar): qimmat — toʻq, arzon — och, maʼlumot yoʻq — oq
   m.addSource('joy-narx', { type: 'geojson', data: fc([]) as never }); narxKey = '';
   m.addLayer({ id: 'joy-narx-f', type: 'fill', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.75 } } as never, before);
@@ -999,7 +1019,7 @@ function addOverlays(): void {
   for (const id of ['joy-topo', 'joy-iso', 'joy-arr', 'joy-wind']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   m.addSource('joy-windf', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-windf', type: 'raster', source: 'joy-windf', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.92, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never);
-  m.addLayer({ id: 'joy-wind', type: 'line', source: 'joy-wind', layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['get', 'w'], 'line-opacity': 0.85 } } as never);
+  m.addLayer({ id: 'joy-wind', type: 'line', source: 'joy-wind', layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['get', 'w'], 'line-opacity': ['coalesce', ['get', 'o'], 0.85] } } as never);
   m.addLayer({ id: 'joy-topo', type: 'line', source: 'joy-topo', layout: { visibility: 'none', 'line-join': 'round' }, paint: { 'line-color': isDark() ? '#d8c6aa' : '#6e4f33', 'line-width': ['case', ['get', 'mj'], 1.4, 0.6], 'line-opacity': 0.8 } } as never);
   m.addLayer({ id: 'joy-topo-l', type: 'symbol', source: 'joy-topo', filter: ['get', 'mj'], layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 320, 'text-field': ['get', 'lb'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-keep-upright': true }, paint: { 'text-color': isDark() ? '#e8dcc6' : '#5a3f28', 'text-halo-color': isDark() ? '#16171a' : '#ffffff', 'text-halo-width': 1.6 } } as never);
   m.addLayer({ id: 'joy-iso', type: 'line', source: 'joy-iso', layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['case', ['get', 'mj'], 2.4, 1.2], 'line-opacity': 0.9 } } as never);
@@ -1186,7 +1206,8 @@ function paintIso(m: MLMap): void {
   if (topoOn && t) {
     const g = t.g, rng = g.max - g.min, st = [0.5, 1, 2, 5, 10, 20].find(v => rng / v <= 28) ?? 20, lv: number[] = [];
     for (let v = Math.ceil(g.min / st) * st; v <= g.max; v += st) lv.push(v);
-    for (const L of isolines(g.h, g.n, g.step, lv, S.r * 1.15)) for (const line of joinSegs(L.segs)) if (line.length > 2) topo.push({ type: 'Feature', properties: { mj: Math.round(L.lv / st) % 5 === 0, lb: `${Math.round(L.lv)} m` }, geometry: { type: 'LineString', coordinates: line.map(geo(g.center)) } });
+    const off = ctrOff(g.center);
+    for (const L of isolines(g.h, g.n, g.step, lv, S.r * 1.15)) for (const line of joinSegs(L.segs)) if (line.length > 2) for (const part of clipAt(line, off, S.r)) topo.push({ type: 'Feature', properties: { mj: Math.round(L.lv / st) % 5 === 0, lb: `${Math.round(L.lv)} m` }, geometry: { type: 'LineString', coordinates: part.map(geo(g.center)) } });
   }
   if (arrOn && t) {
     const g = t.g, n = g.n, sp = Math.max(1, Math.round((S.r / 9) / g.step)), R0 = (n - 1) / 2 * g.step;
@@ -1200,9 +1221,9 @@ function paintIso(m: MLMap): void {
   if (heatIso && lg0) {
     const mu = lstMean(lg0); let lo = Infinity, hi = -Infinity; for (const v of lg0.v) if (!Number.isNaN(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
     const lv: number[] = []; for (let v = Math.ceil((lo - mu) * 2) / 2; v <= hi - mu; v += 0.5) lv.push(mu + v);
-    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, S.r)) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
+    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, S.r)) for (const line of joinSegs(L.segs)) for (const part of clipLine(line, S.r)) iso.push({ type: 'Feature', properties: { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: part.map(geo(S.c)) } });
   }
-  if (noiseIso && nz) for (const L of isolines(nz.v, nz.n, nz.step, [50, 55, 60, 65, 70, 75])) for (const line of joinSegs(L.segs)) iso.push({ type: 'Feature', properties: { c: noiseCol(L.lv + 0.1), mj: L.lv === 65 }, geometry: { type: 'LineString', coordinates: line.map(geo(S.c)) } });
+  if (noiseIso && nz) for (const L of isolines(nz.v, nz.n, nz.step, [50, 55, 60, 65, 70, 75])) for (const line of joinSegs(L.segs)) for (const part of clipLine(line, S.r)) iso.push({ type: 'Feature', properties: { c: noiseCol(L.lv + 0.1), mj: L.lv === 65 }, geometry: { type: 'LineString', coordinates: part.map(geo(S.c)) } });
   (m.getSource('joy-topo') as GeoJSONSource).setData(fc(topo) as never);
   (m.getSource('joy-arr') as GeoJSONSource).setData(fc(arr) as never);
   (m.getSource('joy-iso') as GeoJSONSource).setData(fc(iso) as never);
@@ -1213,7 +1234,7 @@ function paintWind(m: MLMap): void {
   const w = windV(), vw = V('shamol'), fld = vw.st === 'maydon', on = isOn('shamol') && !!w && (vw.st === 'oqim' || fld);
   for (const id of ['joy-wind', 'joy-wind-a']) if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
   if (m.getLayer('joy-windf')) m.setLayoutProperty('joy-windf', 'visibility', on && fld ? 'visible' : 'none');
-  windAnim(m, on);
+  windAnim(m, false);
   if (!on || !w) return;
   if (!axBundle && !axBusy) void needCtx();
   const key = [S.c.join(), S.r, w.w.k, axBundle?.key ?? '-', vw.p, vw.k.toFixed(1), vw.st].join('|');
@@ -1221,11 +1242,18 @@ function paintWind(m: MLMap): void {
   const fr = geoFrame(S.c), R = S.r * 1.05, blds: [number, number][][] = [];
   for (const b of axBundle?.b.osm.buildings ?? []) { const r = b.rings[0]; if (!r?.length) continue; const L = r.map(p => fr.toLocal(p) as [number, number]); if (L.some(([x, y]) => Math.abs(x) < R && Math.abs(y) < R)) blds.push(L); }
   const pal = VIEW.shamol.pals![vw.p][1], lines = windFlow(blds, w.w.k * 22.5, R, 0.25 + 0.6 * vw.k), feats: unknown[] = [];
-  for (const L of lines) for (let i = 0; i < L.pts.length - 1; i += 5) {
-    const seg = L.pts.slice(i, i + 6), vv = L.v.slice(i, i + 6).reduce((a, b) => a + b, 0) / Math.min(6, L.v.length - i);
-    if (seg.length < 2) continue;
-    for (const part of clipLine(seg, S.r)) feats.push({ type: 'Feature', properties: fld ? { c: '#ffffff', w: 0.7 + 0.6 * vv, h: false } : { c: rampColor(pal, 0.25 + 0.75 * vv), w: 0.8 + 2.6 * vv * (0.5 + vw.k), h: i % 40 === 0 && part.length === seg.length }, geometry: { type: 'LineString', coordinates: part.map(p => fr.toGeo(p)) } });
-  }
+  // 13.11: «kometa» izlari — har oqim chizigʻi boʻylab uchi qalin, dumi ingichka va shaffof qisqa izlar (punktir oʻrniga)
+  const CL = 18, GAP = 9, PC = 6;
+  lines.forEach((L, li) => {
+    for (let i = (li * 7) % (CL + GAP); i < L.pts.length - 2; i += CL + GAP) {
+      const end = Math.min(L.pts.length, i + CL + 1);
+      for (let q = 0; q < PC; q++) {
+        const a = i + Math.floor((end - i - 1) * q / PC), b = i + Math.floor((end - i - 1) * (q + 1) / PC) + 1; if (b - a < 2) continue;
+        const seg = L.pts.slice(a, b), vv = L.v.slice(a, b).reduce((x, y) => x + y, 0) / (b - a), t = (q + 1) / PC;
+        for (const part of clipLine(seg, S.r)) feats.push({ type: 'Feature', properties: fld ? { c: '#ffffff', w: (0.3 + 1.1 * t) * (0.7 + 0.6 * vv), o: 0.15 + 0.8 * t, h: false } : { c: rampColor(pal, 0.3 + 0.7 * vv), w: (0.35 + 1.6 * t) * (0.6 + 0.9 * vv) * (0.6 + 0.6 * vw.k), o: 0.12 + 0.83 * t, h: false }, geometry: { type: 'LineString', coordinates: part.map(p => fr.toGeo(p)) } });
+      }
+    }
+  });
   (m.getSource('joy-wind') as GeoJSONSource).setData(fc(feats) as never);
   if (fld) { const g = windSpeedGrid(blds, w.w.k * 22.5, R, 140), im = smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? '#070c1c' : rampColor(WIND_FIELD_PAL, Math.min(1, v * (0.5 + 0.4 * vw.k))), 245); (m.getSource('joy-windf') as unknown as { updateImage: (o: unknown) => void }).updateImage({ url: im.url, coordinates: im.coords }); }
 }
@@ -1542,13 +1570,18 @@ function gridImage(vals: Float32Array, n: number, step: number, R: number, col: 
   return { url: cv.toDataURL(), coords: [[S.c[0] - H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] + H / ky], [S.c[0] + H / kx, S.c[1] - H / ky], [S.c[0] - H / kx, S.c[1] - H / ky]] };
 }
 /** Silliq sirt (12.11): toʻr bilinear oʻqiladi, rasm faqat tahlil doirasi (clip) ichida — tashqarida hech narsa chizilmaydi; cheti 1 px yumshoq */
-function smoothImage(vals: Float32Array, n: number, step: number, clip: number, col: (v: number) => string | null, alpha = 200, px = 384): { url: string; coords: [number, number][] } {
+/** Tahlil markazi (S.c) setka markaziga nisbatan qayerda (m) — setka boshqa markazda olingan boʻlsa ham doira aniq S.c atrofida kesiladi */
+function ctrOff(c: [number, number]): [number, number] { const kx = 111_320 * Math.cos(c[1] * Math.PI / 180); return [(S.c[0] - c[0]) * kx, (S.c[1] - c[1]) * 111_132]; }
+function clipAt(line: [number, number][], off: [number, number], r: number): [number, number][][] {
+  return clipLine(line.map(([x, y]) => [x - off[0], y - off[1]] as [number, number]), r).map(L => L.map(([x, y]) => [x + off[0], y + off[1]] as [number, number]));
+}
+function smoothImage(vals: Float32Array, n: number, step: number, clip: number, col: (v: number) => string | null, alpha: number | ((v: number) => number) = 200, px = 384, off: [number, number] = [0, 0]): { url: string; coords: [number, number][] } {
   const cv = document.createElement('canvas'); cv.width = cv.height = px;
   const cx = cv.getContext('2d')!, img = cx.createImageData(px, px), k = 2 * clip / px;
   for (let r = 0; r < px; r++) for (let q = 0; q < px; q++) {
     const x = -clip + (q + 0.5) * k, y = clip - (r + 0.5) * k, d = Math.hypot(x, y); if (d > clip) continue;
-    const c = col(bilinear(vals, n, step, x, y)); if (!c) continue; const o = (r * px + q) * 4, edge = Math.min(1, (clip - d) / k);
-    img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = Math.round(alpha * edge);
+    const v = bilinear(vals, n, step, x + off[0], y + off[1]), c = col(v); if (!c) continue; const o = (r * px + q) * 4, edge = Math.min(1, (clip - d) / k);
+    img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = Math.round((typeof alpha === 'number' ? alpha : alpha(v)) * edge);
   }
   cx.putImageData(img, 0, 0);
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132, H = clip;
@@ -1616,19 +1649,15 @@ function gipsImage(g: TerrainGrid, r: number, pal: string[]): { url: string; coo
   const W = g.center[0] - R / kx, E = g.center[0] + R / kx, N = g.center[1] + R / ky, So = g.center[1] - R / ky;
   return { url: cv.toDataURL(), coords: [[W, N], [E, N], [E, So], [W, So]] };
 }
+/** Nishab (13.11): 3×3 tekislangan qiyalik + bilinear interpolatsiya — piksellar koʻrinmaydi, doira bilan aniq kesiladi */
 function slopeImage(g: TerrainGrid, r: number): { url: string; coords: [number, number][] } {
-  const sl = slopeGrid(g), n = g.n, cv = document.createElement('canvas'); cv.width = cv.height = n;
-  const cx = cv.getContext('2d')!, img = cx.createImageData(n, n);
+  const sl = slopeGrid(g), n = g.n, b = new Float32Array(n * n);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const x = -g.radius + i * g.step, y = -g.radius + j * g.step, o = ((n - 1 - j) * n + i) * 4;   // rasm — yuqoridan pastga (shimol tepada)
-    if (x * x + y * y > r * r) continue;
-    const c = slopeColor(sl[j * n + i]);
-    img.data[o] = parseInt(c.slice(1, 3), 16); img.data[o + 1] = parseInt(c.slice(3, 5), 16); img.data[o + 2] = parseInt(c.slice(5, 7), 16); img.data[o + 3] = sl[j * n + i] <= 2 ? 70 : 215;
+    let s = 0, w = 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue; const wt = di === 0 && dj === 0 ? 4 : di === 0 || dj === 0 ? 2 : 1; s += sl[jj * n + ii] * wt; w += wt; }
+    b[j * n + i] = s / w;
   }
-  cx.putImageData(img, 0, 0);
-  const kx = 111_320 * Math.cos(g.center[1] * Math.PI / 180), ky = 111_132, R = g.radius + g.step / 2;
-  const W = g.center[0] - R / kx, E = g.center[0] + R / kx, N = g.center[1] + R / ky, So = g.center[1] - R / ky;
-  return { url: cv.toDataURL(), coords: [[W, N], [E, N], [E, So], [W, So]] };
+  return smoothImage(b, n, g.step, Math.min(r, g.radius), v => Number.isNaN(v) ? null : slopeColor(v), v => v <= 2 ? 70 : v <= 3 ? 70 + (v - 2) * 145 : 215, 512, ctrOff(g.center));
 }
 function roseSvg(p: number[]): string {
   const mx = Math.max(...p, 1e-6), R = 78, c = 90;
