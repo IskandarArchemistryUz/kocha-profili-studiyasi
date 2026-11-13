@@ -2166,7 +2166,10 @@ export class Editor {
   /** quiet — faqat hisob (sahna va panel yangilanmaydi): albom va varaqlar uchun (02.11) */
   private runServices(quiet = false): void {
     const doc = this.store.doc, fr = frame(doc.origin), t0 = performance.now();
-    const roads = this.svc.poi?.roads ?? (this.ctxRoads()).map(r => ({ cls: r.cls, pts: r.pts }));
+    // 14.11 (egasi xabari): loyihada olib tashlangan va koʻchaga aylantirilgan OSM yoʻllari piyoda tarmogʻiga kirmaydi —
+    // aks holda uchastka ichida loyiha koʻchasi ostidan eski yoʻl izi ham chiziladi va masofani qisqartiradi
+    const gone = new Set<number>([...(doc.removedRoads ?? []), ...doc.streets.flatMap(s => (s.osm != null ? [s.osm] : []))]);
+    const roads = (this.svc.poi?.roads ?? this.ctxRoads().map(r => ({ cls: r.cls, pts: r.pts, id: r.id }))).filter(r => r.id == null || !gone.has(r.id));
     const lines = roads.filter(r => WALKABLE(r.cls)).map(r => r.pts.map(fr.toLocal));
     const net = buildNet(lines, doc.streets.map(st => st.axis.map(fr.toLocal)));
     const demand: Demand[] = doc.buildings.filter(b => useDef(b.use).res > 0 && b.gen?.kind !== 'stilobat' && b.floors > b.nonRes).map(b => {

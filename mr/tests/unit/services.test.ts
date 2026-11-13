@@ -59,5 +59,6 @@ describe('Xizmatlar: piyoda tarmogʻi', () => {
     const j: Parameters<typeof parsePoi>[0] = { elements: [{ type: 'node', id: 1, lat: 41.3, lon: 69.2, tags: { amenity: 'pharmacy' } }, { type: 'way', id: 2, center: { lat: 41.31, lon: 69.21 }, tags: { amenity: 'school', name: '110-maktab' } }, { type: 'way', id: 3, tags: { highway: 'residential' }, geometry: [{ lat: 41.3, lon: 69.2 }, { lat: 41.301, lon: 69.2 }] }] };
     expect(parsePoi(j).map(p => p.kind)).toEqual(['dorixona', 'maktab']);
     expect(parseRoads(j)).toHaveLength(1);
+    expect(parseRoads(j)[0].id).toBe(3);   // 14.11: loyihada olib tashlangan yoʻlni piyoda tarmogʻidan chiqarish uchun
   });
 });
