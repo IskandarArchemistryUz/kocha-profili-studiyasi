@@ -143,7 +143,8 @@ test('Master reja koʻchasi → Koʻchasoz oynasi → «Toʻliq oyna» → B kes
   await page.click('#stKs');
   await expect(page.locator('#ksWin')).toBeVisible();
   await page.click('#kswFull');
-  await expect(page).toHaveURL(/kochasoz\.html#\/b$/);
+  // 14.11 (3-PR): toʻliq oyna shu loyiha ichida ochiladi — ?p=<loyiha>
+  await expect(page).toHaveURL(/kochasoz\.html\?p=p_\w+#\/b$/);
   await expect(page.locator('.ws-b aside').first()).toContainText(name);
   expect(errs).toEqual([]);
 });
