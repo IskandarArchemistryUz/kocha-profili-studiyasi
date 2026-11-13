@@ -1,0 +1,1 @@
+export{o as toUpload}from"./api-DtwFtvP6.js";

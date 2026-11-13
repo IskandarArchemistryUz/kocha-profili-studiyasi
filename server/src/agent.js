@@ -21,7 +21,9 @@ const FALLBACK_PRICE = { in: 5, out: 25, cr: 0.5, cw: 6.25 }; // nomaʼlum model
 export const AGENT_DEFAULTS = Object.freeze({
   base: 'https://api.anthropic.com',
   models: { short: 'claude-haiku-5-5', long: 'claude-sonnet-5-5' },
-  maxTokens: { short: 1024, long: 2500 },
+  // Haiku/Sonnet 5.5 da moslashuvchan fikrlash sukut boʻyicha yoqiq va fikrlash tokenlari max_tokens ga kiradi —
+  // 1024 da javob yarmida uzilardi (13.11 jonli sinov: stop_reason=max_tokens, 244 belgi)
+  maxTokens: { short: 4096, long: 8000 },
   services: ['mr'],
   freeDailyUsd: 2,     // bepul savollar uchun kunlik umumiy byudjet
   dailyUsd: 20,        // hamma agent chaqiruvlari uchun kunlik qatʼiy chegara (kalitni himoyalash)

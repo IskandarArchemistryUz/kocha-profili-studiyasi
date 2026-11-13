@@ -154,6 +154,7 @@ export class AgentPanel {
       this.log.append(r.text ? renderAnswer(r.text) : h('div', { class: 't-small' }, tr('Javob boʻsh qaytdi.')));
       if (r.status === 'limit') this.note(tr('Bu savol yakunlandi: bitta savolda 10 qadamgacha ishlanadi. Davom etish uchun yangi savol bering.'));
       if (r.status === 'stopped') this.note(tr('Toʻxtatildi.'));
+      if (r.cut) this.note(tr('Javob uzunlik chegarasida uzilib qoldi — savolni toraytirib qayta bering.'));
       if (r.unsourced?.length) this.log.append(h('div', { class: 't-small ag-src ag-warn' }, tf('Bu raqamlar Lab hisobida topilmadi — tekshiring: ${list}', { list: r.unsourced.join(', ') })));
       else this.log.append(h('div', { class: 't-small ag-src' }, tr('Raqamlar — Lab hisobidan, shu brauzerda.')));
       if (r.text) this.hist.push({ q: question, a: r.text.slice(0, 4000) });
