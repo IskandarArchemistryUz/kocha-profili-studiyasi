@@ -126,7 +126,9 @@ export interface SheetOpts {
   /** shtamp */
   stamp?: { sheet?: string; author?: string; num?: string; index?: number; total?: number };
   /** rejim (MR-Varaqlar): reja · qavat rejalari · aksonometriya; oxirgi ikkisida chizma maydoniga tayyor mazmun qoʻyiladi */
-  mode?: 'reja' | 'qavat' | 'akso' | 'uy' | 'kesim' | 'fazalar' | 'siluet';
+  mode?: 'reja' | 'qavat' | 'akso' | 'uy' | 'kesim' | 'fazalar' | 'siluet' | 'shaxmatka';
+  /** 13.11: shaxmatka varagʻi (core/shaxmatka): bino yoki loyiha, katak uslubi, insolyatsiya rejimi */
+  shx?: { scope?: 'bino' | 'loyiha'; bi?: number; cell?: 'toliq' | 'ixcham' | 'maydon'; insol?: boolean };
   /** 12.11: «Koʻcha profili» varagʻi — kesim id si (doc.cuts) */
   cut?: string;
   /** 13.11: «Kesim va fasad» varagʻi — doc.sections id si */

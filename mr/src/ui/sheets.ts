@@ -15,6 +15,7 @@ import { uid } from '../core/doc';
 import { planApartments } from '../core/apartments';
 import { floorGroups, groupName } from '../core/floorplan';
 import { aptSheet, sheetGroup } from '../core/aptsheet';
+import { shxSheet } from '../core/shaxmatka';
 import { aptPicks, houseTypes } from '../core/albumset';
 import { SERVICES } from '../core/services';
 import { housePlan, housePlanSvg } from '../core/lowplan';
@@ -114,7 +115,9 @@ function defaultSheets(doc: Project): SheetDoc[] {
     mk({ kind: 'issiq', scale: 0 }), mk({ kind: 'hand', scale: 0 }), mk({ kind: 'twi', scale: 0 }),   // 06.11: tahlil — yer sathi xaritalari
   ];
   for (const sv of ['mtm', 'maktab', 'poliklinika', 'bekat']) out.push(mk({ kind: 'xizmat', svc: sv, scale: 0 }));   // 02.11: tahlil — xizmat radiuslari (editor SVC_ON)
-  for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
+  const PA = planApartments(doc);
+  for (const p of aptPicks(PA)) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
+  if (PA.length) out.push(mk({ mode: 'shaxmatka', shx: { scope: 'loyiha' } }));   // 13.11: loyiha shaxmatkasi
   houseTypes(doc).forEach((t, i) => { for (let f = 1; f <= t.floors; f++) out.push(mk({ mode: 'uy', plan: { floor: i + 1, grp: f } })); });
   for (const c of doc.cuts ?? []) out.push(mk({ mode: 'kesim', cut: c.id }));
   for (const c of doc.sections ?? []) out.push(mk({ mode: 'siluet', sec: c.id }));
@@ -143,7 +146,7 @@ function syncStageSheet(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
 function upgradeSheets(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
   const k = `mr-sheets-v${SET_V}:${doc.id}`;
   try { if (localStorage.getItem(k)) return sheets; localStorage.setItem(k, '1'); } catch { return sheets; }
-  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'siluet' ? x.sec : x.mode === 'kesim' ? x.cut : x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}|${x.svc ?? ''}`}`; };
+  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'siluet' ? x.sec : x.mode === 'kesim' ? x.cut : x.mode === 'shaxmatka' ? `${x.shx?.scope ?? 'bino'}:${x.shx?.bi ?? 0}:${x.shx?.insol ? 1 : 0}` : x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}|${x.svc ?? ''}`}`; };
   const have = new Set(sheets.map(s => sig(s.opts)));
   return [...sheets, ...defaultSheets(doc).filter(s => !have.has(sig(s.opts)))];
 }
@@ -169,13 +172,15 @@ export function openGraphics(host: SheetsHost): void {
   /** c77: muharrirda tanlangan bino (faqat panel holati) va sahnadagi qatlamlar */
   let axSel: string | null = null;
   const axLayers = new Set<AxoLayerId>(host.axoLayers?.() ?? AXO_LAYER_IDS);
+  const planOpt = (pl: (typeof plans)[number]) => { const bb = doc.buildings.find(b => b.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? areaOf(bb.footprint.map(frameOf(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; };
   const innerOf = (o: SheetOpts): SheetInner | undefined => {
     if (o.mode === 'qavat') {
       if (!plans.length) return { label: 'M —', body: (vx, vy, vw, vh) => `<text x="${vx + vw / 2}" y="${vy + vh / 2}" font-size="5" text-anchor="middle" fill="#6b6965">${tr('Turar joy seksiyalari yoʻq')}</text>` };
       // 20-band: bitta qavat rejasi + navigatsiya sxemalari + eksplikatsiya (ish chizmalaridagidek)
       const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1));
-      return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, pl => { const bb = doc.buildings.find(b => b.id === pl.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? areaOf(bb.footprint.map(frameOf(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: bb?.bal ?? null }; });
+      return aptSheet(doc, plans, bi, o.plan?.grp, o.plan?.look ?? 'rang', tr, planOpt);
     }
+    if (o.mode === 'shaxmatka') return shxSheet(doc, plans, { scope: o.shx?.scope ?? 'bino', bi: o.shx?.bi ?? 0, cell: o.shx?.cell ?? 'toliq', insol: false }, tr, null, planOpt);
     if (o.mode === 'uy') {
       // 02.11: past qavatli uy rejasi (core/lowplan) — tur va qavat; katakka sigʻdiriladi
       const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))];
@@ -308,7 +313,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'fazalar') return tr('Qurilish navbatlari ketma-ketligi'); if (o.mode === 'kesim') { const c = doc.cuts?.find(x => x.id === o.cut) ?? doc.cuts?.[0]; return `${tr('Koʻcha profili')} ${c ? `${c.label}–${c.label}` : '—'}`; } if (o.mode === 'siluet') { if (o.sec === '*') return `${tr('Kesim va fasad')} · ${tr('barcha kesimlar')}`; const c = doc.sections?.find(x => x.id === o.sec) ?? doc.sections?.[0]; return `${tr('Kesim va fasad')} ${c ? `${c.label}–${c.label}` : '—'}`; } if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'fazalar') return tr('Qurilish navbatlari ketma-ketligi'); if (o.mode === 'kesim') { const c = doc.cuts?.find(x => x.id === o.cut) ?? doc.cuts?.[0]; return `${tr('Koʻcha profili')} ${c ? `${c.label}–${c.label}` : '—'}`; } if (o.mode === 'siluet') { if (o.sec === '*') return `${tr('Kesim va fasad')} · ${tr('barcha kesimlar')}`; const c = doc.sections?.find(x => x.id === o.sec) ?? doc.sections?.[0]; return `${tr('Kesim va fasad')} ${c ? `${c.label}–${c.label}` : '—'}`; } if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'shaxmatka') { if (o.shx?.scope === 'loyiha') return tr('Loyiha shaxmatkasi'); const bi = Math.max(0, Math.min(plans.length - 1, o.shx?.bi ?? 0)); return `${tr(`${bi + 1}-bino`)} · ${tr('shaxmatka')}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -489,7 +494,7 @@ export function openGraphics(host: SheetsHost): void {
         h('h2', { class: 't-title' }, tr('Varaqlar')),
         h('p', { class: 't-small' }, tr('Masshtabli chizma: namunani tanlang, varaqni sozlang, yuklab oling yoki Chizmadonga yuboring.'))),
       h('div', { class: 'sh-scroll' },
-        h('div', { class: 'seg', id: 'shMode', role: 'tablist' }, ...([['reja', 'Reja'], ['qavat', 'Qavatlar'], ...(houses.length || o.mode === 'uy' ? [['uy', 'Uylar'] as const] : []), ['akso', 'Akso'], ...(multiStage(doc) || o.mode === 'fazalar' ? [['fazalar', 'Navbatlar'] as const] : []), ...(doc.cuts?.length || o.mode === 'kesim' ? [['kesim', 'Kesim'] as const] : []), ...(doc.sections?.length || o.mode === 'siluet' ? [['siluet', 'Fasad'] as const] : [])] as const).map(([k, t]) => h('button', { role: 'tab', 'data-mode': k, 'aria-pressed': (o.mode ?? 'reja') === k, onclick: () => set({ mode: k }) }, tr(t)))),
+        h('div', { class: 'seg seg-wrap', id: 'shMode', role: 'tablist' }, ...([['reja', 'Reja'], ['qavat', 'Qavatlar'], ...(plans.length || o.mode === 'shaxmatka' ? [['shaxmatka', 'Shaxmatka'] as const] : []), ...(houses.length || o.mode === 'uy' ? [['uy', 'Uylar'] as const] : []), ['akso', 'Akso'], ...(multiStage(doc) || o.mode === 'fazalar' ? [['fazalar', 'Navbatlar'] as const] : []), ...(doc.cuts?.length || o.mode === 'kesim' ? [['kesim', 'Kesim'] as const] : []), ...(doc.sections?.length || o.mode === 'siluet' ? [['siluet', 'Fasad'] as const] : [])] as const).map(([k, t]) => h('button', { role: 'tab', 'data-mode': k, 'aria-pressed': (o.mode ?? 'reja') === k, onclick: () => set({ mode: k }) }, tr(t)))),
         ...(o.mode === 'qavat' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['rang', 'Xonadonlar rangda', 'turi boʻyicha'], ['bir', 'Bir rang', 'oq-qora']] as const).map(([k, t, n]) => tile({ 'data-plook': k, 'aria-pressed': (o.plan?.look ?? 'rang') === k, onclick: () => set({ plan: { ...(o.plan ?? {}), look: k } }) }, tr(t), tr(n)))),
@@ -501,6 +506,17 @@ export function openGraphics(host: SheetsHost): void {
                 const add: SheetDoc[] = []; plans.forEach((p2, bi) => floorGroups(p2).forEach((_, gi) => { if (bi === Math.max(0, (o.plan?.floor ?? 1) - 1) && gi === cur0) return; add.push({ id: uid('sh_'), opts: { ...o, plan: { ...(o.plan ?? {}), floor: bi + 1, grp: gi }, stamp: { ...(o.stamp ?? {}), num: '', sheet: '' } } as unknown as Record<string, unknown> }); }));
                 sheets.splice(cur + 1, 0, ...add); persist(); render(); toast(tf('${n} ta varaq qoʻshildi', { n: add.length })); } }, tr('Barcha binolar va qavatlar — varaqlar'))]; })() : []),
           h('span', { class: 't-small' }, tr('Varaqda: qavat rejasi nomi va masshtabi bilan (kvartiralar raqamli), vaziyat sxemasi (uchastka, blok, seksiya), oʻng ustunda kvartiralar eksplikatsiyasi. Tahrir — Qavat rejalari oynasida (9-qadam).'))] : []),
+        ...(o.mode === 'shaxmatka' ? (() => {
+          // 13.11: shaxmatka — bino (qavat × seksiya) yoki butun loyiha; katak uslubi (kanvas S-00: A, B, C)
+          const S = o.shx ?? {}, setS = (p: Partial<NonNullable<SheetOpts['shx']>>) => set({ shx: { ...S, ...p } }), sc = S.scope ?? 'bino';
+          return [h('div', { class: 'glabel' }, h('span', {}, tr('Shaxmatka'))),
+            h('div', { class: 'seg sm', id: 'shShxScope', role: 'group', 'aria-label': tr('Shaxmatka') }, ...([['bino', 'Bitta bino'], ['loyiha', 'Butun loyiha']] as const).map(([k, t]) => h('button', { 'data-scope': k, 'aria-pressed': sc === k, onclick: () => setS({ scope: k }) }, tr(t)))),
+            ...(sc === 'bino' && plans.length ? [h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Bino'), h('span', { class: 'sub' }, `1–${plans.length}`)), stepper({ id: 'shShxBld', label: tr('Bino'), min: 1, max: plans.length, step: 1, value: Math.min(plans.length, (S.bi ?? 0) + 1), onchange: v => setS({ bi: v - 1 }) }))] : []),
+            ...(sc === 'bino' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Katak'))),
+              h('div', { class: 'tiles c3', id: 'shShxCell' }, ...([['toliq', 'Toʻliq', 'raqam, xonalar, maydon'], ['ixcham', 'Ixcham', 'faqat raqam'], ['maydon', 'Maydon', 'rang — maydon boʻyicha']] as const).map(([k, t, n]) => tile({ 'data-cell': k, 'aria-pressed': (S.cell ?? 'toliq') === k, onclick: () => setS({ cell: k }) }, tr(t), tr(n))))] : []),
+            plans.length ? '' : h('div', { class: 'note' }, tr('Turar joy seksiyalari yoʻq')),
+            h('span', { class: 't-small' }, tr(sc === 'bino' ? 'Qavatlar (pastdan) × seksiyalar; kvartiralar seksiya → qavat → chapdan oʻngga raqamlanadi. Oʻng ustunda tarkib jadvali, keng varaqda — tipik qavat rejasi.' : 'Har bino — kichik toʻr (qavatlar × kvartiralar); oʻng ustunda loyiha tarkibi va miks: maqsad va amalda.'))];
+        })() : []),
         ...(o.mode === 'uy' ? (() => {
           // 02.11: past qavatli uy rejalari — tur (oʻlchami, qavati) va qavat
           const ti = Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1)), T = houses[ti];
@@ -596,7 +612,7 @@ export function openGraphics(host: SheetsHost): void {
     const s = view.querySelector('svg')!; s.removeAttribute('width'); s.removeAttribute('height');
     lens.replaceChildren(h('div', { class: 'sh-lensin', html: last.svg.replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%" height="100%"') }));
     const o = O();
-    info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · ${o.mode === 'qavat' || o.mode === 'akso' || o.mode === 'uy' ? (innerLabel.get(last) ?? '') : `M 1:${last.scale}`}${host.ctx || o.mode === 'qavat' || o.mode === 'uy' ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
+    info.replaceChildren(h('span', {}, `${o.paper === 'fit' ? tr('Moslash') : o.paper} · ${fmt(last.widthMm, 0)} × ${fmt(last.heightMm, 0)} mm · ${o.mode === 'qavat' || o.mode === 'akso' || o.mode === 'uy' || o.mode === 'shaxmatka' ? (innerLabel.get(last) ?? '') : `M 1:${last.scale}`}${host.ctx || o.mode === 'qavat' || o.mode === 'uy' || o.mode === 'shaxmatka' ? '' : ` · ${tr('atrof yuklanmagan')}`}`));
     const n = sheetChecks(last, o, tr).filter(c => !c.ok).length;
     checksBtn.className = `chip ${n ? 'warn' : 'ok'} sh-checks`; checksBtn.replaceChildren(h('i'), n ? tf('${n} ta eslatma', { n }) : tr('Eslatma yoʻq'));
     renderList(); renderSide(); applyZoom(); drawSel();
