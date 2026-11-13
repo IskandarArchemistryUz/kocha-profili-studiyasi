@@ -1159,7 +1159,7 @@ function pvPanel(): HTMLElement {
 let repOpen = false;
 /** Pastki qator: joy pasporti (manzil, koordinata, radius, uchastka) va «Hisobot» menyusi */
 function renderPass(addr: string): void {
-  const item = (id: string, name: string, sub: string, on: () => void, title?: string) => h('button', { type: 'button', role: 'menuitem', id, disabled: repBusy, title: title ?? null, onclick: () => { repOpen = false; on(); } }, h('b', {}, name), h('span', {}, sub));
+  const item = (id: string, name: string, sub: string, on: () => void, title?: string) => h('button', { type: 'button', role: 'menuitem', id, disabled: repBusy, title: title ?? null, onclick: () => { repOpen = false; document.getElementById('repMenu')?.remove(); document.getElementById('repBtn')?.setAttribute('aria-expanded', 'false'); on(); } }, h('b', {}, name), h('span', {}, sub));
   pass.replaceChildren(...[
     h('div', { class: 'pp' }, h('div', { class: 't-small' }, tr('Joy pasporti')), h('h1', { class: 'ttl', title: addr }, addr, h('span', { class: 'r' }, ` · ${S.r} m`))),
     h('span', { class: 'chip mono' }, `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`),
@@ -2286,7 +2286,7 @@ let axColOpen = false;
 function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook, col: axCol, lbl: axo.labelMode })); } catch { /* */ } }
 function renderMode(): void {
   modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
-    ...([['map', 'Xarita'], ['axo', 'Aksonometriya']] as const).map(([k, n]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, onclick: () => setMode(k) }, tr(n)))));
+    ...([['map', 'Xarita', 'Xarita'], ['axo', 'Aksonometriya', 'Akson.']] as const).map(([k, n, s]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, title: tr(n), onclick: () => setMode(k) }, h('span', { class: 'l' }, tr(n)), h('span', { class: 's', 'aria-hidden': 'true' }, tr(s))))));
   root.classList.toggle('mode-axo', mode === 'axo'); axoEl.hidden = mode !== 'axo';
 }
 function setMode(m: Mode): void {
