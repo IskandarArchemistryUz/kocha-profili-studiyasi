@@ -45,7 +45,7 @@ export interface AptInterior {
 export interface DoorHandle { key: [number, number]; o: XY; t: XY; s: number; w: number; len: number; side: number; hinge: number }
 /** Sudraladigan devor: key — mv yozuvi (asl koordinata bilan), p–q — dunyoda, n — +d yoʻnalishi; min/max — ruxsat etilgan siljish (joriy holatdan), snap — tortiladigan qiymatlar (joriy holatdan siljish), bad — deraza ichiga tushadigan oraliqlar */
 export interface WallHandle { key: [number, number, number, number]; d0: number; p: XY; q: XY; n: XY; min: number; max: number; snap: number[]; bad: [number, number][]; gapA: number; gapB: number }
-export type FurnKind = 'bed' | 'bed1' | 'sofa' | 'table' | 'tub' | 'shower' | 'wc' | 'sink' | 'washer' | 'shelf' | 'counter';
+export type FurnKind = 'bed' | 'bed1' | 'sofa' | 'table' | 'tub' | 'shower' | 'wc' | 'sink' | 'washer' | 'shelf' | 'counter' | 'wardrobe';
 export interface Furn { k: FurnKind; ring: XY[] }
 
 export const IN_LABEL: Record<InKind, string> = { umumiy: 'oshxona-mehmonxona', xona: 'xona', oshxona: 'oshxona', yotoq: 'yotoqxona', master: 'asosiy yotoqxona', prixojaya: 'dahliz', xoll: 'yoʻlak', sanuzel: 'sanitariya xonasi', vanna: 'vannaxona', hx: 'h/x', garderob: 'kiyimxona', kir: 'kir yuvish xonasi' };
@@ -670,6 +670,7 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = [], aring?: XY[]
       else fixed([[x0, y0 + 0.6], [x1, y0 + 0.6], [x1, y0], [x0, y0]]);
     } else fixed([[x0 + 0.6, y0], [x0 + 0.6, y1], [x0, y1], [x0, y0]]);
   }
+  const small = L.rooms.filter(q => ['master', 'yotoq', 'xona'].includes(q.kind)).length <= 1 && L.rooms.reduce((s, q) => s + (q.r[2] - q.r[0]) * (q.r[3] - q.r[1]), 0) < 45;
   for (const q of L.rooms) {
     const r = q.r, W = r[2] - r[0], H = r[3] - r[1], P = q.poly;
     switch (q.kind) {
@@ -684,11 +685,12 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = [], aring?: XY[]
       case 'umumiy': {
         tryAll(r, P, ['u0', 'u1'], 2.2, 0.9, 'sofa') || tryAll(r, P, ['v1', 'v0'], 2.2, 0.9, 'sofa') || tryAll(r, P, ['u0', 'u1', 'v1', 'v0'], 1.8, 0.85, 'sofa');   // 01.11: qiya (ponasimon) kvartirada qiya devor tomonida divan sigʻmaydi — boshqa devorlar, kichikroq divan
         // stol: oshxona qatori va divan orasida, xona oʻrtasida
-        const cx = (r[0] + r[2]) / 2, cy = r[1] + H * 0.68, b: [number, number, number, number] = [cx - 0.7, cy - 0.4, cx + 0.7, cy + 0.4];
-        if (W >= 3.2 && !hit(b) && !boxes.some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1])) { boxes.push(b); fboxes.push(b); out.push({ k: 'table', ring: [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] }); }
+        // 13.11 (egasi): studiya va kichik (< 45 m²) bir xonali kvartirada — dumaloq stol 4 stul bilan (#416, 1,0 × 1,0 m), aks holda 1,4 × 0,8 m (#422)
+        const cx = (r[0] + r[2]) / 2, cy = r[1] + H * 0.68, hw = small ? 0.5 : 0.7, hd = small ? 0.5 : 0.4, b: [number, number, number, number] = [cx - hw, cy - hd, cx + hw, cy + hd];
+        if (W >= (small ? 2.8 : 3.2) && !hit(b) && !boxes.some(x => b[0] < x[2] && b[2] > x[0] && b[1] < x[3] && b[3] > x[1])) { boxes.push(b); fboxes.push(b); out.push({ k: 'table', ring: [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] }); }
         break;
       }
-      case 'oshxona': tryAll(r, P, ['v1', 'u0', 'u1'], Math.min(3.0, Math.max(W, H) - 0.6), 0.6, 'counter'); tryAll(r, P, ['v0'], 1.2, 0.8, 'table'); break;
+      case 'oshxona': tryAll(r, P, ['v1', 'u0', 'u1'], Math.min(3.0, Math.max(W, H) - 0.6), 0.6, 'counter'); if (small) tryAll(r, P, ['v0', 'u0', 'u1'], 1.8, 1.8, 'table'); else tryAll(r, P, ['v0'], 1.2, 0.8, 'table'); break;
       case 'vanna': if (!tryAll(r, P, ['u0', 'u1', 'v0', 'v1'], 1.7, 0.75, 'tub')) tryAll(r, P, ['u0', 'u1', 'v0', 'v1'], 0.9, 0.9, 'shower'); tryAll(r, P, ['v0', 'u1', 'u0', 'v1'], 0.5, 0.45, 'sink'); break;
       case 'sanuzel':
         // kichik (< 4 m²) — dush, kattasi — vanna; keyin unitaz va rakovina sigʻishi shart
@@ -696,7 +698,8 @@ function furnish(L: Local, doors: InDoor[], walls: [XY, XY][] = [], aring?: XY[]
         wc(r, P); tryAll(r, P, ['u1', 'v0', 'u0', 'v1'], 0.5, 0.45, 'sink'); break;
       case 'hx': wc(r, P); break;
       case 'kir': tryAll(r, P, ['v0', 'u1', 'u0', 'v1'], 0.6, 0.6, 'washer'); tryAll(r, P, ['v0', 'u1', 'u0', 'v1'], 0.6, 0.6, 'washer'); break;
-      case 'garderob': tryAll(r, P, ['u0', 'u1', 'v0', 'v1'], Math.max(W, H) - 0.4, 0.5, 'shelf'); break;
+      // 13.11 (egasi): garderob xonasida — garderob shkafi (#562, 0,6 m chuqur); sigʻmasa — eski 0,5 m javon
+      case 'garderob': tryAll(r, P, ['u0', 'u1', 'v0', 'v1'], Math.max(W, H) - 0.4, 0.6, 'wardrobe') || tryAll(r, P, ['u0', 'u1', 'v0', 'v1'], Math.max(W, H) - 0.4, 0.5, 'shelf'); break;
       case 'prixojaya': tryAll(r, P, ['u0', 'u1', 'v0'], 1.0, 0.35, 'shelf'); break;
     }
   }
@@ -739,7 +742,7 @@ function prune(L: Local, walls: [XY, XY][], F: Furn[]): Furn[] {
   let cur = F, b0 = furnBlocked(LL, walls, cur);
   if (!b0) return cur;
   const roomOf = (f: Furn) => { const c: XY = [f.ring.reduce((t, p) => t + p[0], 0) / f.ring.length, f.ring.reduce((t, p) => t + p[1], 0) / f.ring.length]; return L.rooms.find(q => c[0] > q.r[0] && c[0] < q.r[2] && c[1] > q.r[1] && c[1] < q.r[3])?.kind; };
-  const rank = (f: Furn) => f.k === 'shelf' && ['prixojaya', 'xoll'].includes(roomOf(f) ?? '') ? 0 : f.k === 'shelf' ? 1 : f.k === 'table' ? 2 : f.k === 'washer' ? 3 : f.k === 'sofa' && roomOf(f) === 'xona' ? 4 : 9;
+  const rank = (f: Furn) => f.k === 'shelf' && ['prixojaya', 'xoll'].includes(roomOf(f) ?? '') ? 0 : f.k === 'shelf' || f.k === 'wardrobe' ? 1 : f.k === 'table' ? 2 : f.k === 'washer' ? 3 : f.k === 'sofa' && roomOf(f) === 'xona' ? 4 : 9;
   for (const f of [...F].filter(f => rank(f) < 9).sort((a, b) => rank(a) - rank(b))) {
     const next = cur.filter(x => x !== f), b1 = furnBlocked(LL, walls, next);
     if (b1 < b0) { cur = next; b0 = b1; if (!b0) break; }
