@@ -1651,8 +1651,8 @@ function buildShapes0(){
   });
   // boʻlak ulagichlari (koʻrinish: Belgilar → «Boʻlak ulagichlari»); tarmoq JNET ga — harakat modeli shundan oladi
   JNET.clear();
-  ds.nodes.forEach(n=>{const k=nodeKind(n);if(k!=='x'&&k!=='sig')return;const A2=arms[n.id]||[];if(A2.length<2)return;
-    const E=A2.map((a,ai)=>{const cc=cumLen(a.xy),T=cc[cc.length-1],lay=a.lay,cw=(a.atA?a.sg.cwA:a.sg.cwB)!==false&&lay.road.some(x=>!isPk(x.k)),z=cw?.5+cwW:1;
+  ds.nodes.forEach(n=>{const k=nodeKind(n);if(k!=='x'&&k!=='sig'&&k!=='round')return;const A2=arms[n.id]||[];if(A2.length<2)return;
+    const E=A2.map((a,ai)=>{const cc=cumLen(a.xy),T=cc[cc.length-1],lay=a.lay,cw=(a.atA?a.sg.cwA:a.sg.cwB)!==false&&lay.road.some(x=>!isPk(x.k)),z0=k==='round'?5:.5,z=cw?z0+cwW:z0+.5;
       const fr=s=>frameAt(a.xy,cc,a.atA?s:T-s),fS=fr(z+1),fE=fr(z),out=a.atA?fS.t:[-fS.t[0],-fS.t[1]],hin=[-out[0],-out[1]];
       const pt=(f,d)=>[f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],lv=[-out[1],out[0]],outDir=a.atA?1:-1;
       /* boʻlak oʻqi: chorrahadan sMax gacha (kiruvchi — uzoqdan toʻxtash chizigʻiga, chiquvchi — teskari) */
@@ -1660,11 +1660,12 @@ function buildShapes0(){
       const exits=lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===outDir).map(x=>({x,P:pt(fE,x.mid),pts:axis(x.mid,z)}))
         .sort((p,q)=>((q.P[0]-fE.p[0])*lv[0]+(q.P[1]-fE.p[1])*lv[1])-((p.P[0]-fE.p[0])*lv[0]+(p.P[1]-fE.p[1])*lv[1]));
       const lanes=arrowPlan(a.sg,!a.atA).map(pl=>({x:pl.x,code:pl.code||'',P:pt(fS,pl.x.mid),pts:axis(pl.x.mid,z+1).reverse()}));
-      const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(.5+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
+      const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(z0+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
       return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||''};});
     const C=laneConnections(E);C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
-    JNET.set(n.id,{E,C,o,sig:k==='sig'});
-    if(ds.conn)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
+    const ring=k==='round'?{c:toXY(n.ll,o),r:(n.ri||12)+(n.rw||6)/2}:null;
+    JNET.set(n.id,{E,C,o,sig:k==='sig',ring});
+    if(ds.conn&&!ring)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
   });
   freeShapes(ds,o,poly,line,mark);
   return {sh,marks};
@@ -2582,7 +2583,7 @@ function openNodeMenu(pt,n){const ds=DS(),k=nodeKind(n),set=f=>()=>{f();ds.sel={
     {row:[['Avto',set(()=>n.type='auto'),n.type==='auto'],['Tartibga solinmagan',set(()=>n.type='x'),n.type==='x'],['Svetoforli',set(()=>n.type='sig'),n.type==='sig']]},
     {h:'Aylanma halqa'},{row:Object.entries(RTYPES).map(([rk,r])=>[r.n.replace(/ \(.+\)/,''),set(()=>{n.type='round';n.rtype=rk;n.ri=r.ri;n.rw=r.rw;n.lanes=r.lanes;}),n.type==='round'&&n.rtype===rk])},
     (k==='x'||k==='sig')?{h:'Bordyur radiusi'}:null,(k==='x'||k==='sig')?{row:[3,6,10,15,20].map(r=>[r+' m',set(()=>n.kr=r),(n.kr??6)===r])}:null,
-    (k==='x'||k==='sig')&&typeof openSim==='function'?{t:'Harakatni sinash (simulyatsiya)<span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span>',f:()=>openSim(n.id)}:null,
+    (k==='x'||k==='sig'||k==='round')&&typeof openSim==='function'?{t:'Harakatni sinash (simulyatsiya)<span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span>',f:()=>openSim(n.id)}:null,
     '-',{t:'Tanlash va xususiyatlar',f:set(()=>{})},{t:'Tugunni oʻchirish (ulangan koʻchalar bilan)',danger:1,f:()=>{ds.sel={t:'node',id:n.id};delSel();}},
     ...tail(L.latLng(n.ll[0],n.ll[1]))]);}
 function openVertexMenu(e,sg,vi){stopE(e);const ds=DS(),cur=sg.rad&&sg.rad[vi]!=null?sg.rad[vi]:0;

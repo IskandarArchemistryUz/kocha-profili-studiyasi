@@ -10,14 +10,15 @@ const MCOL={L:'#4c5bd4',S:'#1c2628',R:'#c0643a'};
 const DIRS=['sharqdan','shimoli-sharqdan','shimoldan','shimoli-gʻarbdan','gʻarbdan','janubi-gʻarbdan','janubdan','janubi-sharqdan'];
 const armName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.PI/4))%8)+8)%8;return (e.name?e.name+' · ':'')+DIRS[k];};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=5',document.baseURI).href);return mod;}
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=6',document.baseURI).href);return mod;}
 
 /* JNET → model tarmogʻi */
 function buildNet(J,cycle){
   const arms=J.E.map(e=>({id:'q'+e.ai,hin:e.hin,cross:e.cross||undefined,
-    lanes:e.lanes.map((l,i)=>({id:`q${e.ai}i${i}`,pts:l.pts,codes:l.code,bus:l.x.k==='bus'})),
+    lanes:e.lanes.map((l,i)=>({id:`q${e.ai}i${i}`,pts:l.pts,codes:J.ring&&l.x.k!=='bus'?'LSR':l.code,bus:l.x.k==='bus'})),
     exits:e.exits.map((x,i)=>({id:`q${e.ai}o${i}`,pts:x.pts,bus:x.x.k==='bus'}))}));
   const conns=J.C.map((c,k)=>({id:'c'+k,from:`q${c.from.ai}i${c.from.lanes.indexOf(c.s)}`,to:`q${c.to.ai}o${c.to.exits.indexOf(c.d)}`,m:c.m,pts:c.pts}));
+  if(J.ring)return {arms,conns:mod.ringConnect(arms,J.ring,true),ring:J.ring,signal:null};
   return {arms,conns,signal:J.sig?{cycle,phases:mod.autoPhases(arms)}:null};}
 
 function close(){cancelAnimationFrame(raf);raf=0;if(box)box.remove();if(cv)cv.remove();box=cv=st=null;map.off('move zoom resize',draw);}
@@ -30,7 +31,7 @@ window.openSim=async function(nodeId){
   box=document.createElement('div');box.className='kssim';
   box.style.cssText='position:absolute;left:12px;top:12px;z-index:650;width:min(430px,calc(100% - 24px));max-height:70%;overflow:auto;background:#fff;border:1px solid #d8d5ce;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:12px 14px;font:13px/1.4 Archivo,system-ui,sans-serif;color:#141414';
   const rows=J.E.filter(e=>e.lanes.length).map(e=>`<tr><td>${esc(armName(e))}</td><td><input type="number" data-q="${e.ai}" min="0" max="3000" step="50" value="500" style="width:72px"> <span class="small">avt/soat</span></td></tr>`).join('');
-  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>Harakatni sinash · ${J.sig?'svetoforli':'tartibga solinmagan'} chorraha</b><span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span><button data-x style="border:0;background:none;font-size:18px;cursor:pointer">×</button></div>
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>Harakatni sinash · ${J.ring?'aylanma halqa':J.sig?'svetoforli chorraha':'tartibga solinmagan chorraha'}</b><span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em;vertical-align:middle">BETA</span><button data-x style="border:0;background:none;font-size:18px;cursor:pointer">×</button></div>
     <table style="width:100%;border-collapse:collapse"><tbody>${rows}</tbody></table>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center">
       <span class="small">Ulush, %:</span> ↰ <input type="number" data-s="L" value="20" min="0" max="100" style="width:48px"> ↑ <input type="number" data-s="S" value="65" min="0" max="100" style="width:48px"> ↱ <input type="number" data-s="R" value="15" min="0" max="100" style="width:48px">
