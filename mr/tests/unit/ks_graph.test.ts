@@ -21,7 +21,7 @@ const minGap = (sim: GraphSim) => { const S = sim.snapshot(); let g = 1e9; for (
 describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
   it('4 qoʻlli svetoforli: fazalar qarama-qarshi juftlar, mashinalar oʻtadi', () => {
     const N = net([0, 90, 180, 270], true);
-    expect(autoPhases(N.arms).map((p) => p.length)).toEqual([2, 2]);
+    expect(autoPhases(N.arms).map((p) => (Array.isArray(p) ? p : p.arms).length)).toEqual([2, 2]);
     const sim = new GraphSim(N, { demand: { a0: 500, a1: 500, a2: 500, a3: 500 }, seed: 3 }).run(900);
     const r = sim.result(120);
     expect(r.total.flow).toBeGreaterThan(1500);
@@ -101,4 +101,22 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     expect(r.juncs.A.los).not.toBe('F');
     expect(r.total.flow).toBeGreaterThan(1800);
   }, 60_000);
+});
+
+describe('svetofor: Webster va himoyalangan chap', () => {
+  it('Webster sikli talab oshganda uzayadi, split yigʻindisi 1', async () => {
+    const M = await import('../../../js/kssim-graph.js');
+    const W = 3.5, arms = [0, 90, 180, 270].map((deg, i) => { const a = deg * Math.PI / 180, u = [Math.cos(a), Math.sin(a)], r = [u[1], -u[0]], P = (s: number, o: number) => [u[0] * s + r[0] * o, u[1] * s + r[1] * o];
+      return { id: 'a' + i, hin: [-u[0], -u[1]], lanes: ['L', 'S', 'SR'].map((c, k) => ({ id: `a${i}i${k}`, pts: [P(160, W / 2 + W * k), P(16, W / 2 + W * k)], codes: c })), exits: [0, 1].map(k => ({ id: `a${i}o${k}`, pts: [P(16, -(W / 2 + W * k)), P(160, -(W / 2 + W * k))] })) }; }) as any;
+    const sh = { L: .2, S: .65, R: .15 }, ph = M.autoPhases(arms), f = (q: number) => ({ a0: q, a1: q, a2: q, a3: q });
+    const lo = M.webster(arms, ph, f(300), sh), hi = M.webster(arms, ph, f(900), sh);
+    expect(hi.cycle).toBeGreaterThan(lo.cycle);
+    expect(hi.split.reduce((s: number, x: number) => s + x, 0)).toBeCloseTo(1, 5);
+    const pp = M.autoPhases(arms, { protLeft: true });
+    expect(pp.length).toBe(4);
+    const sim = new M.GraphSim({ arms, conns: M.autoConnect(arms, false), yUp: false, signal: { cycle: 90, phases: pp } } as any, { demand: f(400) });
+    const lp = (sim as any).plan[0];
+    expect(sim.light('a0', lp.t0 + 1, 'L')).toBe('G');
+    expect(sim.light('a0', lp.t0 + 1, 'S')).toBe('R');
+  });
 });

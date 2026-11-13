@@ -6,7 +6,7 @@
 (function(){
 'use strict';
 if(typeof JNET==='undefined'||typeof map==='undefined')return;
-let mod=null,box=null,cv=null,raf=0,st=null,res=null;
+let mod=null,box=null,cv=null,raf=0,st=null,res=null,WK=null;
 /* talab darajasi: bitta umumiy boʻlakka avt/soat (yaqinlashish) */
 const LV=[['past','Past (tun, dam olish)',150],['orta','Oʻrtacha (kunduz)',300],['tigiz','Tigʻiz soat',450],['eng','Eng tigʻiz',600]];
 const LCOL={A:'#2b7449',B:'#2b7449',C:'#95620f',D:'#95620f',E:'#b23a2e',F:'#b23a2e'};
@@ -15,7 +15,8 @@ const DIRS=['sharqdan','shimoli-sharqdan','shimoldan','shimoli-gʻarbdan','gʻar
 const dirName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.PI/4))%8)+8)%8;return DIRS[k];};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const KT=J=>J.ring?'halqa':J.sig?'svetofor':'belgisiz';
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=8',document.baseURI).href);return mod;}
+let plan=null;
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=11',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=2',document.baseURI).href);return mod;}
 
 /* tugundan boshlab koʻcha orqali bogʻlangan chorrahalar (JNET) */
 function component(nodeId){const all=[...JNET.values()],byReal=new Map();
@@ -43,7 +44,7 @@ function buildNet(C,cycle){const arms=[],conns=[],juncs=[],links=[],names={},bou
     juncs.push({id:jid,ring:J.ring||null,signal:J.ring||!J.sig?null:{cycle,phases:mod.autoPhases(A),offset:0}});});
   return {net:{arms,conns,juncs,links,yUp:true},names,bound};}
 
-function close(){cancelAnimationFrame(raf);raf=0;if(box)box.remove();if(cv)cv.remove();box=cv=st=res=null;map.off('move zoom resize',draw);}
+function close(){cancelAnimationFrame(raf);raf=0;if(WK){WK.terminate();WK=null;}if(box)box.remove();if(cv)cv.remove();box=cv=st=res=null;map.off('move zoom resize',draw);}
 
 window.openSim=async function(nodeId){
   close();await loadMod();
@@ -69,7 +70,8 @@ window.openSim=async function(nodeId){
       <span class="small">Ulush, %:</span> ↰ <input type="number" data-s="L" value="20" min="0" max="100" style="width:48px"> ↑ <input type="number" data-s="S" value="65" min="0" max="100" style="width:48px"> ↱ <input type="number" data-s="R" value="15" min="0" max="100" style="width:48px">
       <span class="small">Avtobus, avt/soat</span> <input type="number" data-b value="0" min="0" max="200" step="5" style="width:52px" title="Avtobus boʻlagi bor kirishlarga, boʻlmasa — hammasiga">
       <span class="small">Piyoda, kishi/soat</span> <input type="number" data-p value="100" min="0" max="2000" step="50" style="width:60px">
-      ${anySig?`<span class="small">Sikl</span> <input type="number" data-c value="90" min="40" max="180" step="5" style="width:56px"> <span class="small">s</span>`:''}
+      ${anySig?`<span class="small">Sikl</span> <select data-cm title="Webster (1958): C=(1,5L+5)/(1−Y), yashil talabga mutanosib"><option value="a" selected>Avto (Webster)</option><option value="m">Qoʻlda</option></select> <input type="number" data-c value="90" min="40" max="180" step="5" style="width:56px" disabled> <span class="small">s</span>
+      <span class="small">Chap faza</span> <select data-pl title="Avto: oddiy 2 fazali sxema toʻyinsa (Y>0,85) va alohida chap faza yengilroq boʻlsa"><option value="a" selected>Avto</option><option value="y">Har doim alohida</option><option value="n">Yoʻq (ruxsat etilgan)</option></select>`:''}
       ${anySig&&multi?`<span class="small">Yashil toʻlqin, s</span> <input type="number" data-o value="0" min="0" max="180" step="5" style="width:56px" title="Har keyingi svetoforning siljishi (offset)">`:''}
     </div></details>
     <div data-out class="small" style="color:#555">Vaqtni tanlang va «Hisoblash»ni bosing — natija xaritada rang bilan chiqadi. Beta: natijalar taxminiy, loyiha qarori uchun tasdiqlangan model emas. Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (YHQ: chapga buriluvchi qarshidagiga, svetoforsizda oʻngdan kelayotganga, halqada — aylanayotganlarga), burilishda piyodaga yoʻl berish.</div>`;
@@ -78,18 +80,35 @@ window.openSim=async function(nodeId){
   box.querySelector('[data-x]').onclick=close;
   const lvSel=box.querySelector('[data-lv]'),lvH=()=>{const v=LV[+lvSel.value][2];box.querySelector('[data-lvh]').textContent=`≈ ${v} avt/soat toʻgʻri boʻlakka (burilish choʻntagi — yarmi); kirishlar boʻlak soniga qarab (qoʻlda oʻzgartirish — «Batafsil»da).`;};
   box.querySelectorAll('[data-q]').forEach(i=>i.addEventListener('input',()=>i.dataset.man='1'));
+  box.addEventListener('change',()=>{chosen=null;});box.addEventListener('input',()=>{chosen=null;});
   lvSel.onchange=()=>{const v=LV[+lvSel.value][2];box.querySelectorAll('[data-q]').forEach(i=>{if(!i.dataset.man)i.value=Math.round(nLanes(i.dataset.q)*v/50)*50;});lvH();};lvH();
   const num=(sel,d)=>{const i=box.querySelector(sel);return i?Math.max(0,+i.value||0):d;};
   const opts=()=>{const demand={},sh={};box.querySelectorAll('[data-q]').forEach(i=>demand[i.dataset.q]=Math.max(0,+i.value||0));
     box.querySelectorAll('[data-s]').forEach(i=>sh[i.dataset.s]=Math.max(0,+i.value||0)/100);
-    return {demand,shares:sh,cycle:Math.max(40,num('[data-c]',90)||90),ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
-  const mk=seed=>{const o=opts(),B=buildNet(C,o.cycle),N=B.net;let k=0;N.juncs.forEach(j=>{if(j.signal){j.signal.offset=(o.off*k)%o.cycle;k++;}});
-    const hasBL=N.arms.some(a=>B.bound.includes(a.id)&&a.lanes.some(l=>l.bus)),bus={};
-    B.bound.forEach(id=>{const a=N.arms.find(x=>x.id===id);if(!hasBL||a.lanes.some(l=>l.bus))bus[id]=o.bus;});
-    return new mod.GraphSim(N,{demand:o.demand,shares:o.shares,seed,ped:o.ped,bus});};
+    const cm=box.querySelector('[data-cm]'),pl=box.querySelector('[data-pl]');
+    return {demand,shares:sh,cycle:Math.max(40,num('[data-c]',90)||90),auto:!cm||cm.value==='a',pl:pl?pl.value:'a',ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
+  if(box.querySelector('[data-cm]'))box.querySelector('[data-cm]').onchange=e=>{box.querySelector('[data-c]').disabled=e.target.value==='a';};
+  /* svetofor rejasi: chap faza qarori (koʻpaytma mezoni) + Webster sikli; koridorda umumiy sikl (yashil toʻlqin uchun) */
+
+  /* svetofor rejasi. ch={prot:bool, cycle:son|null(Webster)}; yashil boʻlinishi — Webster (talabga mutanosib); koridorda umumiy sikl */
+  /* hisob asosi (JSON): tarmoq, chetki qoʻllar, talab, ekvivalent boʻlaklar — worker'ga ham shu yuboriladi */
+  let chosen=null,sigInfo=[],tried=[],job=0;
+  const baseOf=()=>{const o=opts(),B=buildNet(C,o.cycle),N=B.net,nl={},bus={};N.arms.forEach(a=>nl[a.id]=nLanes(a.id));
+    const hasBL=N.arms.some(a=>B.bound.includes(a.id)&&a.lanes.some(l=>l.bus));B.bound.forEach(id=>{const a=N.arms.find(x=>x.id===id);if(!hasBL||a.lanes.some(l=>l.bus))bus[id]=o.bus;});
+    return {N,bound:B.bound,o,nl,bus,anySig};};
+  const mk=seed=>{const b=baseOf(),sim=plan.makeSim(b,chosen||plan.defaultCh(b),seed);sigInfo=sim.info;return sim;};
+  const runJob=(base,onP)=>new Promise((ok,bad)=>{
+    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=2',document.baseURI),{type:'module'});}}catch(e){WK=null;}
+    if(!WK){setTimeout(()=>{try{ok(plan.evaluate(base,onP));}catch(e){bad(e);}},20);return;}
+    const id=++job;WK.onmessage=e=>{const d=e.data;if(d.id!==job)return;if(d.p!=null)onP(d.p);if(d.done)ok(d.done);if(d.err)bad(new Error(d.err));};
+    WK.onerror=e=>{WK.terminate();WK=null;try{ok(plan.evaluate(base,onP));}catch(x){bad(x);}};WK.postMessage({id,base});});
   box.querySelector('[data-run]').onclick=()=>{cancelAnimationFrame(raf);raf=0;st=null;res=null;draw();
-    const out=box.querySelector('[data-out]');out.textContent='Hisoblanmoqda…';box.querySelector('[data-play]').textContent='▶ Koʻrsatish';
-    setTimeout(()=>{const R=[1,2,3].map(s=>mk(s).run(1020,.1).result(120));show(R);},20);};
+    const out=box.querySelector('[data-out]'),btn=box.querySelector('[data-run]'),auto=anySig&&opts().auto;box.querySelector('[data-play]').textContent='▶ Koʻrsatish';
+    out.innerHTML=`<div class="small" style="color:#555">${auto?'Svetofor rejalari sinalmoqda va hisoblanmoqda':'Hisoblanmoqda'}… <span data-pc>0</span>%</div><div style="height:4px;background:#eee;border-radius:2px;margin-top:4px"><div data-pb style="height:4px;width:0;background:#4c5bd4;border-radius:2px;transition:width .2s"></div></div>`;
+    btn.disabled=true;const t0=performance.now();
+    const base=baseOf();window.__ksLastBase=base;runJob(base,p=>{const pc=Math.round(p*100);const a=out.querySelector('[data-pc]'),b=out.querySelector('[data-pb]');if(a)a.textContent=pc;if(b)b.style.width=pc+'%';})
+      .then(r=>{btn.disabled=false;chosen=r.ch;tried=r.tried;sigInfo=r.info;show(r.R);})
+      .catch(e=>{btn.disabled=false;out.textContent='Xato: '+(e&&e.message||e);console.error(e);});};
   box.querySelector('[data-play]').onclick=()=>{const b=box.querySelector('[data-play]');
     if(raf){cancelAnimationFrame(raf);raf=0;b.textContent='▶ Koʻrsatish';return;}
     if(!st)st={sim:mk(1),C,last:performance.now()};res=null;b.textContent='⏸ Toʻxtatish';st.last=performance.now();loop();};
@@ -114,8 +133,10 @@ window.openSim=async function(nodeId){
     res={C,A,J:Jr};draw();
     const worst=Object.entries(A).sort((x,y)=>y[1].d-x[1].d)[0],T=avg(r=>r.total.delay),TF=R.filter(r=>r.total.los==='F').length>=2,TL=los(T,!multi&&C.list[0].sig&&!C.list[0].ring,TF);
     const nm=id=>probe.names[id].replace(/^\d+-tugun · /,''),good='AB'.includes(TL),bad='EF'.includes(TL);
-    const verdict=`<div style="padding:8px 10px;border-radius:8px;margin-bottom:8px;background:${good?'#e8f2ec':bad?'#f6e6e3':'#f6efe2'};color:#141414"><b style="color:${LCOL[TL]};font-size:16px">${TL}</b> · ${multi?'Tarmoq':'Chorraha'} ${good?'bemalol ishlaydi':bad?'yuklamani koʻtarmaydi':'ishlaydi, lekin navbat bor'} (oʻrtacha ${T.toFixed(0)} s).${worst&&worst[1].d>T+3?` Eng qiyini — ${esc(nm(worst[0]))}: ${worst[1].los}, ${worst[1].d.toFixed(0)} s, navbat ~${Math.round(worst[1].q)} mashina.`:''}${bad?(anySig?' Svetoforda koʻpincha sabab — chapga buriluvchilar qarshi oqimni kutib boʻlakni band qiladi: «Batafsil»da chap ulushini kamaytirib yoki siklni oʻzgartirib solishtiring.':' Svetofor, halqa yoki qoʻshimcha boʻlakni sinab koʻring.'):''}</div>`;
-    box.querySelector('[data-out]').innerHTML=verdict+`<table style="width:100%;border-collapse:collapse;color:#141414"><thead><tr style="text-align:left;color:#777"><th></th><th>Talab</th><th>Oʻtdi</th><th>Kechikish, s</th><th>LOS</th></tr></thead><tbody>${body}</tbody></table>
+    const verdict=`<div style="padding:8px 10px;border-radius:8px;margin-bottom:8px;background:${good?'#e8f2ec':bad?'#f6e6e3':'#f6efe2'};color:#141414"><b style="color:${LCOL[TL]};font-size:16px">${TL}</b> · ${multi?'Tarmoq':'Chorraha'} ${good?'bemalol ishlaydi':bad?'yuklamani koʻtarmaydi':'ishlaydi, lekin navbat bor'} (oʻrtacha ${T.toFixed(0)} s).${worst&&worst[1].d>T+3?` Eng qiyini — ${esc(nm(worst[0]))}: ${worst[1].los}, ${worst[1].d.toFixed(0)} s, navbat ~${Math.round(worst[1].q)} mashina.`:''}${bad?(anySig?' Svetofor rejasi eng yaxshisi tanlangan — demak geometriya yetmaydi: boʻlak/choʻntak qoʻshish, chap burilishni cheklash yoki halqa bilan solishtiring.':' Svetofor, halqa yoki qoʻshimcha boʻlakni sinab koʻring.'):''}</div>`;
+    const dn=id=>{const n=probe.names[id]||id;return esc(n.replace(/^\d+-tugun · /,'').split(' · ').pop());};
+    const sigTxt=sigInfo.length?`<div class="small" style="color:#555;margin:-2px 0 8px">Svetofor: sikl <b>${sigInfo[0].C} s</b>${opts().auto?` (avto, ${tried.length} reja sinaldi${tried.some(t=>t.full!=null)?': '+tried.filter(t=>t.full!=null).map(t=>(t.prot?'↰+':'')+t.C+' s'+(t.eq?' teng':'')+' → '+t.full.toFixed(0)+' s').join(', '):''})`:' (qoʻlda)'}${sigInfo.map(x=>' · '+(sigInfo.length>1?x.j.replace(/^n/,'#')+': ':'')+x.ph.map(p=>(p.left?'↰ ':'')+p.arms.map(dn).join('–')+' '+p.g+' s').join(', ')).join('')}</div>`:'';
+    box.querySelector('[data-out]').innerHTML=verdict+sigTxt+`<table style="width:100%;border-collapse:collapse;color:#141414"><thead><tr style="text-align:left;color:#777"><th></th><th>Talab</th><th>Oʻtdi</th><th>Kechikish, s</th><th>LOS</th></tr></thead><tbody>${body}</tbody></table>
       <div style="margin-top:6px">3 ta tasodifiy takror × 15 daq. (birinchi 2 daq. — isinish). Kechikish — erkin harakatga nisbatan, navbatda qolganlar ham hisobga olingan${multi?'; tugun boʻyicha — shu chorrahaga yaqinlashish va undan oʻtish, jami — butun sayohat':''}. LOS — HCM (svetoforli: 10/20/35/55/80 s, svetoforsiz va halqa: 10/15/25/35/50 s); talab bajarilmasa — F.</div>`;}
   function loop(){raf=requestAnimationFrame(loop);const now=performance.now(),dt=Math.min(.1,(now-st.last)/1000)*4;st.last=now;
     for(let k=0;k<Math.max(1,Math.round(dt/.1));k++)st.sim.step(Math.min(.1,dt));draw();
