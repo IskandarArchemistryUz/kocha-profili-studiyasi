@@ -76,7 +76,7 @@ const LAYERS: LayerDef[] = [
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
   { id: 'izovist', g: 'shahar', name: 'Koʻrinadigan joy', src: 'OSM', color: '#e08600', ready: true, beta: true },
-  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr · GHS-POP', color: '#d94801', ready: true, beta: true },
+  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'GHS-POP', color: '#d94801', ready: true, beta: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
   { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true, tash: true },
@@ -1438,7 +1438,7 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-kad', type: 'raster', source: 'joy-kad', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
   m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
   m.addSource('joy-heat-l', { type: 'geojson', data: fc([]) as never });
-  m.addLayer({ id: 'joy-heat-l', type: 'symbol', source: 'joy-heat-l', layout: { visibility: 'none', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 13, 'text-allow-overlap': true, 'text-anchor': 'center' }, paint: { 'text-color': ['get', 'c'], 'text-halo-color': ['get', 'hc'], 'text-halo-width': 1.6 } } as never);
+  m.addLayer({ id: 'joy-heat-l', type: 'symbol', source: 'joy-heat-l', layout: { visibility: 'none', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 15, 'text-allow-overlap': true, 'text-anchor': 'center' }, paint: { 'text-color': ['get', 'c'], 'text-halo-color': ['get', 'hc'], 'text-halo-width': 2.2 } } as never);
   m.addLayer({ id: 'joy-sun', type: 'raster', source: 'joy-sun', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } } as never, before);
   m.addLayer({ id: 'joy-shadow', type: 'raster', source: 'joy-shadow', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.4, 'raster-fade-duration': 0 } } as never, before);
   heatKey = sunKey = shadowKey = '';
@@ -1594,6 +1594,8 @@ function paintH(): void {
     if (vec && !ok) void needCtx();
     const k = `${S.c.join()}|${S.r}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}|${ok ? axBundle?.key : '-'}|${isDark()}`; if (k !== heatKey) { heatKey = k; upd('joy-heat', heatImage(lg0, vh.st, ok)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
+  // 13.11 (haqiqiy maʼlumot): binolarni oʻzi chizadigan uslublarda xarita binolari (bld) ustidan yopib qoʻymasin
+  if (m.getLayer('bld')) { const own = (isOn('issiqlik') && !!lg0 && /^(binolar|kochalar)$/.test(V('issiqlik').st)) || isOn('yuza') || (isOn('shovqin') && V('shovqin').st === 'nyc') || (isOn('narx') && V('narx').st.split('|')[3] === 'plakat'); m.setLayoutProperty('bld', 'visibility', own ? 'none' : 'visible'); }
   { const vh = V('issiqlik'), on = isOn('issiqlik') && !!lg0 && (vh.st === 'jurnal' || vh.st === 'doglar');
     if (m.getLayer('joy-heat-l')) m.setLayoutProperty('joy-heat-l', 'visibility', on ? 'visible' : 'none');
     if (on) { const k = `${heatKey}|l`; if (k !== heatLKey) { heatLKey = k; const mu = lstMean(lg0!), fr = geoFrame(S.c), dg = vh.st === 'doglar', sp = heatSpots(lg0!.v, lg0!.n, lg0!.step, mu, S.r, dg ? 2 : 3), num = ['①', '②', '③', '④', '⑤', '⑥'];
@@ -1697,7 +1699,7 @@ function heatImage(g: LstGrid, st: string, vecOk: boolean): { url: string; coord
   const mu = lstMean(g), dAt = (x: number, y: number) => bilinear(g.v, g.n, g.step, x, y) - mu;
   if (st === 'geks') return hexImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, S.r);
   if (st === 'jurnal') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) || Math.abs(v - mu) < 0.5 ? null : heatCol(v - mu), 220);
-  if (st === 'doglar') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : Math.abs(v - mu) < 1 ? '#0d1627' : heatCol(v - mu), v => Math.abs(v - mu) < 1 ? 235 : 250);
+  if (st === 'doglar') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : v - mu < 1 ? '#0d1627' : rampColor(['#f6b27c', '#e8743b', '#c4381f', '#7a160c'], Math.min(1, (v - mu - 1) / 3)), 245);   // 13.11 (haqiqiy maʼlumot): faqat issiq dogʻlar uzluksiz rangda; salqin — konturlar
   if ((st !== 'binolar' && st !== 'kochalar') || !vecOk || !axBundle) return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210);
   const px = 768, clip = S.r, k = px / (2 * clip), cv = document.createElement('canvas'); cv.width = cv.height = px;
   const cx = cv.getContext('2d')!, fr = geoFrame(S.c), P = (q: LngLat): [number, number] => { const [x, y] = fr.toLocal(q); return [(x + clip) * k, (clip - y) * k]; };
@@ -1716,7 +1718,7 @@ function heatImage(g: LstGrid, st: string, vecOk: boolean): { url: string; coord
     }
   }
   cx.strokeStyle = isDark() ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.7)'; cx.lineWidth = 0.6;
-  for (const b of o.buildings) { const r = b.rings[0]; if (!r || r.length < 3) continue; const [x, y] = ctr(r), d = dAt(x, y); if (Number.isNaN(d)) continue; cx.fillStyle = heatCol(d); cx.beginPath(); for (const rr of b.rings) ring(rr); cx.fill('evenodd'); cx.stroke(); }
+  for (const b of o.buildings) { const r = b.rings[0]; if (!r || r.length < 3) continue; const [x, y] = ctr(r), d = dAt(x, y); if (Number.isNaN(d)) continue; cx.fillStyle = Math.abs(d) < 0.5 ? (isDark() ? '#4a4740' : '#cdc4b5') : heatCol(d); /* fonga teng — neytral, lekin koʻrinadi */ cx.beginPath(); for (const rr of b.rings) ring(rr); cx.fill('evenodd'); cx.stroke(); }
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
   return { url: cv.toDataURL(), coords: [[S.c[0] - clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] - clip / ky], [S.c[0] - clip / kx, S.c[1] - clip / ky]] };
 }
@@ -1840,7 +1842,7 @@ function focusMap(m: MLMap): void {
   set('joy-topo', 'line-opacity', q('relyef', 0.35, 1)); set('joy-topo-l', 'text-opacity', k('relyef'));
   set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95));
   set('joy-windf', 'raster-opacity', q('shamol', 0.55, 0.92)); set('joy-yuza', 'raster-opacity', q('yuza', 0.45, 0.9));   // 13.11: faol boʻlmaganda xira (fokus)
-  set('joy-narx-f', 'fill-opacity', q('narx', 0.35, 0.9)); set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
+  set('joy-narx-f', 'fill-opacity', V('narx').st.split('|')[3] === 'plakat' ? Math.max(0.6, q('narx', 0.7, 0.96)) : q('narx', 0.35, 0.9));   // plakat — xarita deyarli yopiladi (tungi fon) set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
   set('joy-kad', 'raster-opacity', q('uylar', 0.35, 0.88) * (isOn('uylar') && kadOwnerFeats() ? 0.35 : 1));
   set('joy-kadb', 'fill-opacity', q('uylar', 0.4, 0.92));
   set('joy-heat', 'raster-opacity', V('issiqlik').st === 'doglar' ? Math.min(1, q('issiqlik', 0.6, 1)) : q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : /^(binolar|kochalar)$/.test(V('issiqlik').st) ? 1.15 : 1));
