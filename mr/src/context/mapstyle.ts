@@ -26,13 +26,13 @@ export const palOf = (k: string): Palette => (k.startsWith('gs:') ? gsMapPalette
 
 /** portal boʻylab umumiy tanlov (eski sahifalar ham shu kalitni oʻqiydi) */
 /** Qoʻlda tanlangan ranglar (palitra ustidan): fon, binolar, koʻchalar, yashil, suv */
-export type CustomKey = 'bg' | 'bld' | 'road' | 'park' | 'water';
+export type CustomKey = 'bg' | 'bld' | 'road' | 'park' | 'water' | 'bl' | 'label';   // bl — bino konturi, label — yozuv rangi (13.11: Maslahatchi namuna boʻyicha)
 export type Custom = Partial<Record<CustomKey, string>>;
 const HEX = /^#[0-9a-f]{6}$/i;
 export function basePrefs(): { pal: string; labels: boolean; custom: Custom } {
   try {
     const b = JSON.parse(localStorage.getItem('kps_base') || '{}'), c: Custom = {};
-    for (const k of ['bg', 'bld', 'road', 'park', 'water'] as CustomKey[]) if (typeof b.custom?.[k] === 'string' && HEX.test(b.custom[k])) c[k] = b.custom[k];
+    for (const k of ['bg', 'bld', 'road', 'park', 'water', 'bl', 'label'] as CustomKey[]) if (typeof b.custom?.[k] === 'string' && HEX.test(b.custom[k])) c[k] = b.custom[k];
     return { pal: PALETTES[b.pal] ? b.pal : 'arch', labels: b.labels !== false, custom: c };
   } catch { return { pal: 'arch', labels: true, custom: {} }; }
 }

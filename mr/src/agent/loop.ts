@@ -16,6 +16,8 @@ export interface LoopEvents {
 }
 export interface LoopOpts {
   api: AgentApi; scenario: string; question: string; lang: string; tools: Tools;
+  /** savolga ilova rasm (masalan, namuna xarita) — JPEG base64, faqat shu savolda */
+  image?: string | null;
   project?: string | null; areaHa?: number;
   /** oldingi savol-javoblar (faqat matn) — kontekst uchun */
   history?: { q: string; a: string }[];
@@ -36,7 +38,7 @@ export async function runAgent(o: LoopOpts): Promise<LoopRes> {
   o.ev?.onRun?.(run);
   const msgs: Msg[] = [];
   for (const h of (o.history ?? []).slice(-2)) { msgs.push({ role: 'user', content: h.q }); msgs.push({ role: 'assistant', content: h.a }); }
-  msgs.push({ role: 'user', content: o.question });
+  msgs.push({ role: 'user', content: o.image ? [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: o.image } }, { type: 'text', text: o.question }] : o.question });
   const used: string[] = [];
   let text = '';
   for (;;) {

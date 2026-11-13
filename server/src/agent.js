@@ -52,10 +52,17 @@ class AgentError extends Error {
 }
 
 const MAX_BODY_CHARS = 120_000;
+const IMG_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_IMAGES = 2, MAX_IMAGE_CHARS = 1_400_000; // base64 ≈ 1 MB
+
 /** Suhbatni tozalash: faqat ruxsat etilgan bloklar va maydonlar; buyruq nomi — shu xizmat roʻyxatidan */
 export function sanitizeMessages(messages, toolNames) {
   if (!Array.isArray(messages) || !messages.length || messages.length > 60) throw new AgentError(400, 'bad_messages', 'suhbat notoʻgʻri');
-  if (JSON.stringify(messages).length > MAX_BODY_CHARS) throw new AgentError(413, 'too_long', 'suhbat juda uzun');
+  // rasm (namuna xarita va h.k.) — base64; matn hajmi rasmsiz hisoblanadi, rasmlar alohida cheklanadi
+  let imgs = 0;
+  const noImg = JSON.stringify(messages, (k, v) => (v && typeof v === 'object' && v.type === 'image' ? (imgs++, { type: 'image' }) : v));
+  if (noImg.length > MAX_BODY_CHARS) throw new AgentError(413, 'too_long', 'suhbat juda uzun');
+  if (imgs > MAX_IMAGES) throw new AgentError(413, 'too_many_images', `bitta savolda ${MAX_IMAGES} tadan koʻp rasm`);
   const text = (t, max = 20_000) => {
     if (typeof t !== 'string' || !t.trim() || t.length > max) throw new AgentError(400, 'bad_messages', 'matn notoʻgʻri');
     return t;
@@ -69,6 +76,12 @@ export function sanitizeMessages(messages, toolNames) {
       role: m.role,
       content: m.content.map((b) => {
         if (b?.type === 'text') return { type: 'text', text: text(b.text) };
+        if (b?.type === 'image' && m.role === 'user') {
+          const src = b.source ?? {};
+          if (src.type !== 'base64' || !IMG_TYPES.has(src.media_type) || typeof src.data !== 'string' || !src.data.length || src.data.length > MAX_IMAGE_CHARS || !/^[A-Za-z0-9+/=]+$/.test(src.data.slice(0, 2000)))
+            throw new AgentError(400, 'bad_image', 'rasm notoʻgʻri yoki juda katta (JPEG/PNG/WebP, ≤ 1 MB)');
+          return { type: 'image', source: { type: 'base64', media_type: src.media_type, data: src.data } };
+        }
         if (b?.type === 'tool_use' && m.role === 'assistant') {
           if (!toolNames.has(b.name)) throw new AgentError(400, 'bad_tool', `nomaʼlum buyruq: ${b.name}`);
           if (typeof b.id !== 'string' || !b.input || typeof b.input !== 'object' || Array.isArray(b.input)) throw new AgentError(400, 'bad_messages', 'tool_use notoʻgʻri');
@@ -174,7 +187,7 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
   });
 
   /** Bitta model qadami */
-  app.post('/agent/step', { bodyLimit: 124 * 1024 }, async (req, reply) => {
+  app.post('/agent/step', { bodyLimit: 2 * 1024 * 1024 }, async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
     try {
       if (!c) throw new AgentError(503, 'agent_off', 'agent hozircha yoqilmagan');

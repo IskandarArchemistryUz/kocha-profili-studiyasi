@@ -690,6 +690,7 @@ const AGENT_QUICK: Quick[] = [
   { id: 'pass', label: 'Hudud pasporti', scenario: 'joy.passport', prompt: 'Shu hudud uchun qisqa pasport matnini tuzing: yoqilgan qatlamlardagi asosiy raqamlar, kuchli va zaif tomonlar, meʼyorlar bilan solishtirish.' },
   { id: 'svc', label: 'Xizmatlar yetadimi?', scenario: 'joy.ask', prompt: 'Maktab, bogʻcha, poliklinika va bekat meʼyoriy radiusda bormi? Har biri uchun masofa va manba.' },
   { id: 'risk', label: 'Asosiy xavflar', scenario: 'joy.ask', prompt: 'Bu hududning eng muhim 3 ta muammosi nima (issiqlik, yashillik, nishablik, shovqin va boshqalar)? Raqamlar bilan.' },
+  { id: 'style', label: 'Namuna uslubida', scenario: 'joy.style', fill: true, hint: 'Namuna xarita rasmini qoʻshing (qisqich tugmasi yoki Ctrl+V) va yuboring', prompt: 'Xaritani shu rasm uslubida bezang.' },
   { id: 'narx', label: 'Narxlar', scenario: 'joy.ask', prompt: 'Bu katakdagi uy narxi shahar medianasiga nisbatan qanday? Eʼlonlar soni va sana bilan.' },
 ];
 let agent: AgentPanel | null = null, agentBtnEl: HTMLButtonElement | null = null;
@@ -713,12 +714,28 @@ function joyHost(): JoyHost {
         city_median: city ? city[1] : null, city_listings: city ? city[0] : null, unit: isIjara(k) ? 'USD/m² per month' : 'USD/m²', cell_m: narxSize(k) };
     },
     clause: (doc, c) => agentApi.clause(doc, c),
+    setMapStyle: (p) => {
+      const b = basePrefs(), prev = { palette: b.pal, labels: b.labels, ...b.custom }, prevS = S.base;
+      const custom = { ...(p.palette && p.palette !== b.pal ? {} : b.custom), ...Object.fromEntries((['bg', 'bld', 'bl', 'road', 'park', 'water', 'label'] as const).filter(k => p[k]).map(k => [k, p[k]!])) };
+      setBasePrefs({ ...(p.palette ? { pal: p.palette } : {}), ...(p.labels != null ? { labels: p.labels } : {}), custom });
+      S.base = 'stil'; save(); renderBase(); restyle();
+      styleUndo(() => { setBasePrefs({ pal: b.pal, labels: b.labels, custom: b.custom }); S.base = prevS; save(); renderBase(); restyle(); });
+      return { applied: p, previous: prev };
+    },
   };
+}
+/** «Xarita uslubi oʻzgardi · Bekor qilish» — 20 s koʻrinadi */
+function styleUndo(undo: () => void): void {
+  document.getElementById('agUndo')?.remove();
+  const el = h('div', { class: 'ag-undo', id: 'agUndo', role: 'status' }, tr('Maslahatchi xarita uslubini oʻzgartirdi'),
+    h('button', { type: 'button', class: 'btn btn-sm', id: 'agUndoBtn', onclick: () => { undo(); el.remove(); } }, tr('Bekor qilish')));
+  document.body.append(el);
+  setTimeout(() => el.remove(), 20_000);
 }
 function agentPanel(): AgentPanel {
   if (!agent) {
     agent = new AgentPanel({
-      svc: 'joy', quick: AGENT_QUICK, tools: () => joyTools(joyHost()), placeholder: 'Hudud haqida savol bering…',
+      svc: 'joy', quick: AGENT_QUICK, tools: () => joyTools(joyHost()), placeholder: 'Hudud haqida savol bering…', images: true,
       project: () => null, areaHa: () => Math.round(Math.PI * S.r * S.r / 1e4 * 10) / 10,
       onClose: () => agentBtnEl?.setAttribute('aria-pressed', 'false'),
     });

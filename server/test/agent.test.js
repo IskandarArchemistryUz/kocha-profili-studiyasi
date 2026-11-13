@@ -270,6 +270,18 @@ describe('agent — yordamchilar', () => {
     expect(costMicro('claude-sonnet-5-5', { input_tokens: 1e6 })).toBe(2e6);
     expect(costMicro('nomaʼlum', { output_tokens: 1e6 })).toBe(25e6);
   });
+  it('rasm: JPEG/PNG/WebP base64, ≤ 2 ta; matn chegarasiga kirmaydi', () => {
+    const names = new Set(['get_tep']);
+    const img = (data, media_type = 'image/jpeg') => ({ type: 'image', source: { type: 'base64', media_type, data } });
+    const big = 'A'.repeat(600_000);
+    const ok = sanitizeMessages([{ role: 'user', content: [img(big), { type: 'text', text: 'shu uslubda' }] }], names);
+    expect(ok[0].content[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: big } });
+    expect(() => sanitizeMessages([{ role: 'user', content: [img('AAAA', 'image/gif'), { type: 'text', text: 'x' }] }], names)).toThrow();
+    expect(() => sanitizeMessages([{ role: 'user', content: [img('<script>'), { type: 'text', text: 'x' }] }], names)).toThrow();
+    expect(() => sanitizeMessages([{ role: 'user', content: [img('A'.repeat(1_500_000)), { type: 'text', text: 'x' }] }], names)).toThrow();
+    expect(() => sanitizeMessages([{ role: 'user', content: [img('AA'), img('AA'), img('AA'), { type: 'text', text: 'x' }] }], names)).toThrow();
+    expect(() => sanitizeMessages([{ role: 'user', content: 'x' }, { role: 'assistant', content: [img('AA')] }, { role: 'user', content: 'y' }], names)).toThrow();
+  });
   it('suhbat: oxirgi xabar foydalanuvchidan; matn uzunligi cheklangan', () => {
     const names = new Set(['get_tep']);
     expect(() => sanitizeMessages([{ role: 'assistant', content: 'x' }], names)).toThrow();

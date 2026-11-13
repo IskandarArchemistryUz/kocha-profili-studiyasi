@@ -84,3 +84,12 @@
 .agentp .ag-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 /* ixcham sarlavha (Joyshunos): faqat belgi */
 .agbtn.icon-btn .ag-dot{position:absolute;top:3px;right:3px}
+/* ilova rasm (namuna xarita) */
+.ag-img{position:relative;display:inline-flex;align-self:flex-start;margin:6px 6px 0}
+.ag-img img{max-height:72px;max-width:140px;border-radius:8px;display:block;border:.5px solid var(--hairline)}
+.ag-img .ag-x{position:absolute;top:-8px;right:-8px;width:22px;height:22px;background:var(--surface);box-shadow:var(--sh-float)}
+.ag-img .ag-x svg{width:12px;height:12px}
+.ag-qimg{display:block;max-width:100%;max-height:140px;border-radius:8px;margin-bottom:6px}
+.ag-clip{margin-right:auto}
+.ag-undo{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 14px;border-radius:12px;background:var(--ink);color:var(--surface);box-shadow:var(--sh-float);font-size:13px}
+.ag-undo .btn{background:var(--surface);color:var(--ink)}
