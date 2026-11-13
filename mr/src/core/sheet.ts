@@ -126,9 +126,11 @@ export interface SheetOpts {
   /** shtamp */
   stamp?: { sheet?: string; author?: string; num?: string; index?: number; total?: number };
   /** rejim (MR-Varaqlar): reja · qavat rejalari · aksonometriya; oxirgi ikkisida chizma maydoniga tayyor mazmun qoʻyiladi */
-  mode?: 'reja' | 'qavat' | 'akso' | 'uy' | 'kesim' | 'fazalar';
+  mode?: 'reja' | 'qavat' | 'akso' | 'uy' | 'kesim' | 'fazalar' | 'siluet';
   /** 12.11: «Koʻcha profili» varagʻi — kesim id si (doc.cuts) */
   cut?: string;
+  /** 13.11: «Kesim va fasad» varagʻi — doc.sections id si */
+  sec?: string;
   /** qavat rejalari: namuna va qavat; aksonometriya: namuna va saqlangan koʻrinish */
   /** qavat rejasi varagʻi: floor — bino raqami (1 dan; tarixiy nom), grp — qavatlar guruhi (boʻlmasa — turar qavat) */
   /** qavat: floor — bino (1 dan), grp — qavat guruhi; uy (02.11): floor — uy turi (1 dan), grp — uy qavati (1 dan) */
