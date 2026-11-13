@@ -55,7 +55,7 @@ async function open(page: Page, errs: string[], hash = ''): Promise<void> {
 test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', async ({ page }) => {
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('.eko .svc a.on')).toHaveText(/Joyshunos/);
-  await expect(page.locator('.joy-l')).toHaveCount(13);
+  await expect(page.locator('.joy-l')).toHaveCount(14);
   await expect(page.locator('.joy-l .switch')).toHaveCount(12);
   await expect(page.locator('.joy-l em.soon')).toHaveCount(1);
   // pasport: manzil, relyef, shamol, xizmatlar, raqobatchilar

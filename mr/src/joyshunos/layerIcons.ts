@@ -15,6 +15,7 @@ export const LAYER_ICON: Record<string, string> = {
   skaner: '<rect x="3" y="8" width="8" height="13" rx="1"/><path d="M6 12h2M6 16h2"/><circle cx="16.5" cy="8.5" r="4"/><path d="M19.5 11.5l2.5 2.5"/>',
   oqim: '<path d="M3 7c4 0 6 4 9 4s5-4 9-4"/><path d="M3 13c4 0 6 4 9 4s5-4 9-4"/><path d="M18 5l3 2-3 2M18 11l3 2-3 2"/>',
   raqobat: '<circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/>',
+  uylar: '<path d="M3 21V10l5-3 5 3v11"/><path d="M13 21V6h8v15"/><path d="M6 13h1M6 17h1M16 9h2M16 13h2M16 17h2"/>',
   narx: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M12 13v5M10.5 14.2c0-.8.7-1.2 1.5-1.2s1.5.4 1.5 1.1c0 1.5-3 .9-3 2.4 0 .7.7 1.1 1.5 1.1s1.5-.4 1.5-1.2"/>',
 };
 /** Guruh ranglari: Yer, Iqlim, Shahar, Biznes */

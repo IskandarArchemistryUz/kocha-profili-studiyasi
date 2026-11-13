@@ -19,6 +19,7 @@ export const VIEW: Record<string, ViewDef> = {
   shamol: { styles: [['oqim', 'Oqim chiziqlari'], ['maydon', 'Tezlik'], ['roza', 'Faqat shamol guli']], pals: [['Yashil', ['#bfe3cf', '#5fb38a', '#2f8a66', '#145c40']], ['Moviy', ['#cfe3f5', '#7fb3e0', '#3a7fc2', '#16467e']], ['Toʻq sariq', ['#fde2bf', '#f6ad5f', '#e0782a', '#9c4512']]], k: true },
   xizmat: { styles: [['ikonka', 'Ikonkalar'], ['nuqta', 'Nuqtalar'], ['pufak', 'Pufakchalar'], ['qamrov', 'Qamrov radiusi']] },
   raqobat: { styles: [['nuqta', 'Nuqtalar'], ['zichlik', 'Zichlik'], ['ikonka', 'Ikonkalar']], k: true },
+  uylar: { stLabel: 'Koʻrsatish', styles: [['aholi', 'Aholi zichligi'], ['yosh', 'Uylar yoshi'], ['seysmik', 'Seysmik eʼtibor']], k: true },
   narx: { axes: [['Bitim', [['sotuv', 'Sotuv'], ['ijara', 'Ijara']]], ['Turi', [['kvartira', 'Kvartira'], ['hovli', 'Hovli uy'], ['hammasi', 'Hammasi']]],
     ['Bozor', [['hammasi', 'Hammasi'], ['yangi', 'Yangi bino'], ['ikkilamchi', 'Ikkilamchi uy']]]], k: true },
   quyosh: { styles: [['quyosh', 'Quyosh soatlari'], ['soya', 'Soya soatlari']], k: true },
