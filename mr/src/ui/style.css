@@ -347,6 +347,7 @@ body{background:var(--bg)}
 .pname:hover{background:var(--fill)}.pname:focus{background:var(--surface);box-shadow:0 0 0 2px var(--sel);outline:none}
 .save{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--ok-soft);color:var(--ok)}
 .save i{width:6px;height:6px;border-radius:3px;background:currentColor}
+.save>span{max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .save[data-s=pending]{background:var(--warn-soft);color:var(--warn)}.save[data-s=error]{background:var(--bad-soft);color:var(--bad)}
 .top .seg{width:auto;grid-auto-columns:auto}.top .seg button{padding:0 12px}
 .top .btn{height:var(--h-md)}

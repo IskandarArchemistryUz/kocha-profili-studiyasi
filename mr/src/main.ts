@@ -6,9 +6,11 @@ import './ui/style.css';
 import './ui/theme';
 import { blankProject, uid } from './core/doc';
 import { listProjects, getProject, putProject, deleteProject, importJSON, importJSONWithLayers, putLayerData, type ProjectMeta } from './storage/db';
+import * as cloud from './storage/cloud';
+import { check } from './ui/controls';
 import { Editor } from './ui/editor';
 import { h, toast, icl, IC, svgIcon } from './ui/dom';
-import { tr, autoTranslate } from './i18n';
+import { tr, tf, autoTranslate } from './i18n';
 import { initTips } from './ui/tips';   // tugma izohlari (tanishtiruv, A qism)
 import { initTour, tourText } from './ui/tour';   // yoʻlboshlovchi tur (tanishtiruv, B qism)
 import { initStats } from './core/stats';
@@ -62,6 +64,8 @@ async function route(): Promise<void> {
   if (m) {
     let doc = null;
     try { doc = await getProject(m[1]); } catch (e) { console.error(e); toast('Loyihani ochib boʻlmadi: ' + (e as Error).message); }
+    // boshqa qurilmada: brauzerda yoʻq — bulutdan (hisobga kirilgan boʻlsa)
+    if (!doc && (currentUser() ?? await checkAuth().catch(() => null))) { try { toast(tr('Bulutdan yuklanmoqda…')); doc = await cloud.download(m[1]); } catch { /* bulutda ham yoʻq */ } }
     if (!doc) { toast('Loyiha topilmadi'); location.hash = '#/'; return; }
     document.title = `${doc.name} — Archemistry Lab · Master reja`;
     editor = new Editor(root, doc, () => { location.hash = '#/'; });
@@ -103,9 +107,37 @@ function homeAcct(): HTMLElement {
   return box;
 }
 
+/** Bulut (14.11): brauzerdagi loyihalarning bogʻlanishi, bulutdagi (shu brauzerda yoʻq) loyihalar, tanlab koʻchirish */
+const picked = new Set<string>();
+async function cloudState(list: ProjectMeta[]): Promise<{ on: boolean; links: Map<string, cloud.CloudLink>; remote: cloud.CloudItem[]; usage: cloud.CloudUsage | null }> {
+  const links = new Map<string, cloud.CloudLink>();
+  for (const p of list) { const l = await cloud.getLink(p.id); if (l) links.set(p.id, l); }
+  if (!(currentUser() ?? await checkAuth().catch(() => null))) return { on: false, links, remote: [], usage: null };
+  try {
+    const r = await cloud.list('master');
+    const local = new Set(list.map(p => p.id));
+    return { on: true, links, remote: r.items.filter(x => !local.has(x.id)), usage: r.usage };
+  } catch { return { on: false, links, remote: [], usage: null }; }
+}
+async function moveSelected(btn: HTMLButtonElement): Promise<void> {
+  const ids = [...picked]; if (!ids.length) return;
+  btn.disabled = true; let ok = 0;
+  for (const id of ids) {
+    btn.textContent = tf('Koʻchirilmoqda… ${i}/${n}', { i: ok + 1, n: ids.length });
+    try { await cloud.moveToCloud(id); ok++; picked.delete(id); }
+    catch (e) { toast((e as Error).message); break; }
+  }
+  if (ok) toast(tf('${n} ta loyiha bulutga koʻchirildi', { n: ok }));
+  void home();
+}
+
 async function home(): Promise<void> {
   let list: ProjectMeta[] = [];
   try { list = await listProjects(); } catch (e) { toast('Saqlash ishlamayapti: ' + (e as Error).message); }
+  const cs = await cloudState(list);
+  for (const id of [...picked]) if (!list.some(p => p.id === id) || cs.links.has(id)) picked.delete(id);
+  const moveBtn = h('button', { class: 'btn btn-primary btn-sm', id: 'cloudMove', disabled: !picked.size, onclick: (e: Event) => void moveSelected(e.currentTarget as HTMLButtonElement) }, picked.size ? tf('Tanlanganlarni bulutga koʻchirish (${n})', { n: picked.size }) : tr('Tanlanganlarni bulutga koʻchirish')) as HTMLButtonElement;
+  const mb = (b: number) => (b / 2 ** 20).toFixed(1).replace('.', ',');
   const file = h('input', { type: 'file', accept: '.json,application/json', hidden: true, id: 'file' }) as HTMLInputElement;
   file.onchange = async () => {
     const f = file.files?.[0]; if (!f) return;
@@ -128,16 +160,38 @@ async function home(): Promise<void> {
       h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
       h('a', { class: 'btn btn-lg', id: 'sampleP', href: '#/namuna', style: 'text-decoration:none' }, ...icl(OPEN, tourText('Namuna loyihani ochish'))),
       h('button', { class: 'btn btn-lg', id: 'openFile', onclick: () => file.click() }, ...icl(OPEN, tr('Fayldan ochish'))), file),
+    cs.on ? h('div', { class: 'row', id: 'cloudBar', style: 'gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px' },
+      h('span', { class: 't-small' }, cs.usage ? tf('Bulutda: ${n} ta loyiha · ${u} MB', { n: cs.usage.count, u: mb(cs.usage.bytes) }) + (cs.usage.quota ? tf(' / ${q} MB', { q: mb(cs.usage.quota) }) : '') : ''),
+      list.some(p => !cs.links.has(p.id)) ? moveBtn : '') : '',
     list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id },
       h('b', {}, p.name),
+      cs.links.has(p.id) ? h('span', { class: 't-small', 'data-cloud': 'on', style: 'color:var(--ok)' }, tr('bulutda'))
+        : cs.on ? (() => {
+          const c = check(tr('bulutga koʻchirish uchun tanlash'), { 'data-pick': p.id, checked: picked.has(p.id), onchange: (v: boolean) => {
+            if (v) picked.add(p.id); else picked.delete(p.id);
+            moveBtn.disabled = !picked.size; moveBtn.textContent = picked.size ? tf('Tanlanganlarni bulutga koʻchirish (${n})', { n: picked.size }) : tr('Tanlanganlarni bulutga koʻchirish');
+          } });
+          c.classList.add('t-small');
+          // kartochka — havola: belgilash bosilganda loyiha ochilmasin
+          c.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); const i = c.querySelector('input')!; i.checked = !i.checked; i.dispatchEvent(new Event('change')); });
+          return c;
+        })() : '',
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr(p.hasSite ? 'uchastka bor' : 'uchastka yoʻq')} · ${p.buildings} ${tr('bino')}`),
       h('button', { class: 'btn btn-danger btn-sm', 'data-del': p.id, onclick: async (e: Event) => {
         e.preventDefault(); e.stopPropagation();
-        if (!confirm(`«${p.name}» oʻchirilsinmi? Buni qaytarib boʻlmaydi.`)) return;
+        const inCloud = cs.links.has(p.id);
+        if (!confirm(inCloud ? tf('«${n}» oʻchirilsinmi? Bulutdagi nusxa 30 kun savatda turadi.', { n: p.name }) : `«${p.name}» oʻchirilsinmi? Buni qaytarib boʻlmaydi.`)) return;
+        if (inCloud) { try { await cloud.remove(p.id); await cloud.dropLink(p.id); } catch (er) { toast((er as Error).message); return; } }
         await deleteProject(p.id); home();
       } }, ...icl(TRASH, tr('Oʻchirish'))))))
       : h('div', { class: 'empty', style: 'margin-top:16px' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.'))),
-    h('p', { class: 't-small', style: 'margin-top:24px' }, tr('Loyihalar shu brauzerda saqlanadi; muhim loyihani «Taqdimot va eksport» qadamida faylga saqlang.'))));
+    cs.remote.length ? h('h2', { class: 't-title', style: 'margin-top:28px' }, tr('Bulutda, shu brauzerda yoʻq')) : '',
+    cs.remote.length ? h('div', { class: 'row3 cards', id: 'cloudCards' }, ...cs.remote.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-cid': p.id },
+      h('b', {}, p.name),
+      h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr('bulutda')}`)))) : '',
+    h('p', { class: 't-small', style: 'margin-top:24px' }, cs.on
+      ? tr('Bulutga koʻchirilgan loyihalar hisobingizda saqlanadi va istalgan qurilmadan ochiladi; qolganlari faqat shu brauzerda.')
+      : tr('Loyihalar shu brauzerda saqlanadi; muhim loyihani «Taqdimot va eksport» qadamida faylga saqlang.'))));
 }
 
 window.addEventListener('hashchange', route);
