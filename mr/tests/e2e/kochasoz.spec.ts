@@ -49,9 +49,10 @@ test('B kesim: zona tanlash, eni, qoʻshish, saqlanadi; rejimlar va tekshiruv', 
 test('saytda: Kesim (Kesim, Reja, Aksonometriya koʻrinishlari), Chorraha (beta) va Varaq; qolganlari «Tez orada», Grafika yashirin', async ({ page }) => {
   await open(page, 'e');
   await expect(page).toHaveURL(/#\/b$/);                                   // tayyor boʻlmagan rejim → B
-  // 13.11: Chorraha harakat modeli bilan saytda — «beta»; Tarmoq va Koʻcha muhiti — «Tez orada»
+  // 13.11: Chorraha harakat modeli bilan saytda — «beta»; Koʻcha muhiti — «Tez orada»
   await expect(page.locator('.ws-b .mtab', { hasText: 'Chorraha' })).toContainText('beta');
-  await expect(page.locator('.ws-b .mtab', { hasText: 'Tarmoq' })).toHaveAttribute('aria-disabled', 'true');
+  // 14.11: Tarmoq — xaritada chizish (studiya), «beta»
+  await expect(page.locator('.ws-b .mtab', { hasText: 'Tarmoq' })).toContainText('beta');
   await expect(page.locator('.ws-b .mtab', { hasText: 'Mikromodel' })).toHaveCount(0);       // butunlay yashirin
   await expect(page.locator('.ws-b main .seg').first().locator('button')).toHaveText(['Kesim', 'Reja', 'Aksonometriya']);
   await expect(page.locator('#ksGrafika')).toHaveCount(0);
