@@ -8,6 +8,7 @@ import type { Result } from '../norms/rules';
 import type { TepRow } from '../core/tep';
 import { frame, ringLocal, area } from '../core/geo';
 import type { Tools } from './loop';
+import type { ClauseRes } from './api';
 
 export interface MrHost {
   doc(): Project;
@@ -19,6 +20,8 @@ export interface MrHost {
   step(): string;
   /** sahnada belgilash; nechta obyekt topilgani */
   highlight(ids: string[]): number;
+  /** band matni (server kutubxonasi) */
+  clause?(doc: string, clause: string): Promise<ClauseRes>;
   /** narx (server /quote) */
   quote?(action: string): Promise<{ coins: number; k: number }>;
 }
@@ -61,16 +64,23 @@ export function mrTools(H: MrHost): Tools {
       const rs = H.rules().filter(r => r.status !== 'na' && (want === 'ALL' || r.status.toUpperCase() === want));
       return { norm_set: H.normSet(), items: rs.map(ruleOut), total: rs.length, computed_at: now(), source: 'Meʼyorlar dvigateli (norms/rules.ts)' };
     },
-    get_norm_clause: (i) => {
+    get_norm_clause: async (i) => {
       const doc = S(i.doc), want = tokens(String(i.clause ?? ''));
-      const hit = H.rules().filter(r => (!doc || S(r.source.doc).includes(doc) || doc.includes(S(r.source.doc)))
-        && want.length && want.every(t => tokens(r.source.clause).includes(t)));
-      if (!hit.length) return { found: false, doc: i.doc ?? null, clause: i.clause ?? null, message: 'No Lab rule is linked to this clause; its text is not in the Lab library. Do not quote it.' };
-      const s = hit[0].source;
+      const rules = H.rules().filter(r => (!doc || S(r.source.doc).includes(doc) || doc.includes(S(r.source.doc)))
+        && want.length && want.every(t => tokens(r.source.clause).includes(t)))
+        .map(r => ({ id: r.id, title: r.title, required: r.limit ?? null, unit: r.unit ?? null, status: r.status.toUpperCase(), note: r.note ?? null }));
+      // 1) soʻzma-soʻz matn — server kutubxonasidan (yoʻq boʻlsa iqtibos keltirilmaydi)
+      let lib: ClauseRes | null = null;
+      try { lib = H.clause ? await H.clause(String(i.doc ?? ''), String(i.clause ?? '')) : null; } catch { lib = null; }
+      if (lib?.found) return {
+        found: true, doc: lib.doc, clause: lib.clause, edition: lib.edition, source: lib.source, verbatim_text: lib.text, amendments: lib.amend ?? [],
+        text_note: 'Quote verbatim_text exactly (you may shorten with …). Cite doc, clause and edition.', rules,
+      };
+      const r0 = H.rules().find(r => rules.some(x => x.id === r.id));
+      if (!rules.length) return { found: false, doc: i.doc ?? null, clause: i.clause ?? null, library_coverage: lib?.coverage ?? null, message: 'This clause is not in the Lab library and no Lab rule is linked to it. Do not quote it.' };
       return {
-        found: true, doc: s.doc, clause: s.clause, edition: s.edition, source_verified: s.verified,
-        verbatim_text: null, text_note: 'Verbatim clause text is not yet in the Lab library: do not quote; state the clause number and the requirement from the rule data below.',
-        rules: hit.map(r => ({ id: r.id, title: r.title, required: r.limit ?? null, unit: r.unit ?? null, status: r.status.toUpperCase(), note: r.note ?? null })),
+        found: true, doc: r0!.source.doc, clause: r0!.source.clause, edition: r0!.source.edition, source_verified: r0!.source.verified,
+        verbatim_text: null, text_note: 'Verbatim clause text is not in the Lab library: do not quote; state the clause number and the requirement from the rule data below.', rules,
       };
     },
     list_objects: (i) => {

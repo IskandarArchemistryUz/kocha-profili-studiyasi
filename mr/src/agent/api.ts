@@ -29,16 +29,21 @@ async function call<T>(path: string, body?: unknown, signal?: AbortSignal): Prom
   return j as T;
 }
 
+export interface ClauseRes { found: boolean; reason?: string; doc?: string; title?: string; edition?: string; source?: string; coverage?: string; clause?: string; text?: string; amend?: string[]; library?: string[] }
+
 export interface AgentApi {
   config(): Promise<AgentCfg>;
   run(scenario: string, project?: string | null, areaHa?: number): Promise<RunRes>;
   step(run: string, messages: Msg[], lang: string, signal?: AbortSignal): Promise<StepRes>;
+  /** band matni (server kutubxonasi, soʻzma-soʻz) */
+  clause(doc: string, clause: string): Promise<ClauseRes>;
 }
 
 export const agentApi: AgentApi = {
   config: () => call<AgentCfg>('/agent/config'),
   run: (scenario, project, areaHa = 0) => call<RunRes>('/agent/run', { scenario, project: project ?? undefined, areaHa }),
   step: (run, messages, lang, signal) => call<StepRes>('/agent/step', { run, messages, lang }, signal),
+  clause: (doc, clause) => call<ClauseRes>(`/agent/clause?doc=${encodeURIComponent(doc)}&clause=${encodeURIComponent(clause)}`),
 };
 
 /** Sozlama bir marta soʻraladi (sahifa davomida); xato — agent oʻchiq deb hisoblanadi */
