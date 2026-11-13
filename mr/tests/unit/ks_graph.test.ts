@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GraphSim, autoPhases, autoConnect, type Net, type Arm, type Conn, type XY } from '../../../js/kssim-graph.js';
+import { GraphSim, autoPhases, autoConnect, ringConnect, type Net, type Arm, type Conn, type XY } from '../../../js/kssim-graph.js';
 
 /* Sinov tarmogʻi: n qoʻlli chorraha, har qoʻlda 2 kiruvchi + 2 chiquvchi boʻlak (oʻng tomonda harakat; y pastga — SVG/maket kabi). */
 function net(angles: number[], sig: boolean): Net {
@@ -56,5 +56,27 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     const r = new GraphSim(net([0, 90, 180, 270], false), { demand: { a0: 200, a1: 200, a2: 200, a3: 200 }, seed: 1 }).run(1020).result(120);
     expect(r.total.flow).toBeGreaterThan(700);
     expect(r.total.los).not.toBe('F');
+  }, 60_000);
+  it('avtobus: avtobus boʻlagi avtobus boʻlagiga ulanadi, umumiy boʻlak unga tushmaydi; odam-kechikish hisoblanadi', () => {
+    const N = net([0, 90, 180, 270], true);
+    const A = N.arms.map((a) => ({ ...a, lanes: [...a.lanes, { id: a.id + 'b', mid: 8.75, bus: true, codes: 'S', pts: a.lanes[1].pts.map((p) => [p[0] + (a.lanes[1].pts[0][0] - a.lanes[0].pts[0][0]) * 2, p[1] + (a.lanes[1].pts[0][1] - a.lanes[0].pts[0][1]) * 2] as XY) }],
+      exits: [...a.exits, { id: a.id + 'B', mid: 8.75, bus: true, pts: a.exits[1].pts.map((p) => [p[0] + (a.exits[1].pts[0][0] - a.exits[0].pts[0][0]) * 2, p[1] + (a.exits[1].pts[0][1] - a.exits[0].pts[0][1]) * 2] as XY) }] }));
+    const C = autoConnect(A, false);
+    expect(C.filter((c) => c.from.endsWith('b')).every((c) => c.to.endsWith('B') && c.m === 'S')).toBe(true);
+    expect(C.filter((c) => !c.from.endsWith('b')).some((c) => c.to.endsWith('B'))).toBe(false);
+    const r = new GraphSim({ ...N, arms: A, conns: C }, { demand: { a0: 400, a1: 400, a2: 400, a3: 400 }, bus: { a0: 40, a2: 40 }, seed: 2 }).run(1020).result(120);
+    expect(r.bus.n).toBeGreaterThan(10);
+    expect(r.person).toBeGreaterThan(0);
+  }, 60_000);
+  it('aylanma halqa: kiruvchi halqadagilarga yoʻl beradi; 4×250 — talab bajariladi, ustma-ust tushmaydi', () => {
+    const N = net([0, 90, 180, 270], false), ring = { c: [0, 0] as XY, r: 9 };
+    const arms = N.arms.map((a) => ({ ...a, lanes: [{ ...a.lanes[0], codes: 'LSR' }], exits: [a.exits[0]] }));
+    const sim = new GraphSim({ arms, conns: ringConnect(arms, ring, false), yUp: false, ring }, { demand: { a0: 250, a1: 250, a2: 250, a3: 250 }, seed: 4 });
+    let g = 1e9;
+    for (let k = 0; k < 10200; k++) { sim.step(0.1); if (k % 5 === 0) g = Math.min(g, minGap(sim)); }
+    const r = sim.result(120);
+    expect(r.total.flow).toBeGreaterThan(850);
+    expect(r.total.los).not.toBe('F');
+    expect(g).toBeGreaterThan(0.6);
   }, 60_000);
 });
