@@ -6,7 +6,7 @@
  */
 import type { Project, SheetDoc } from '../core/doc';
 import { cutSheet } from '../core/streetcutsvg';
-import { silSheet } from '../core/siluetsvg';
+import { silSheet, SIL_STYLES } from '../core/siluetsvg';
 import { stageSheet } from '../core/stagesheet';
 import { parseTrees } from '../core/trees';
 import { bLevels, hasAntresol, ANTRESOL_SHARE } from '../core/levels';
@@ -187,7 +187,7 @@ export function openGraphics(host: SheetsHost): void {
       return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'kesim') { const L = sheetLayout(o); return cutSheet(doc, o.cut, tr, L.vw, L.vh); }
-    if (o.mode === 'siluet') { const L = sheetLayout(o); return silSheet(doc, host.ctx, o.sec, tr, L.vw, L.vh); }
+    if (o.mode === 'siluet') { const L = sheetLayout(o); return silSheet(doc, host.ctx, o.sec, tr, L.vw, L.vh, o.silStyle ?? 'kesim'); }
     if (o.mode === 'fazalar') return stageSheet(doc, tr);
     if (o.mode === 'akso') {
       const L = sheetLayout(o), key = axoKey(o), ed = normAxoEdit(o.axo?.edit);
@@ -516,7 +516,9 @@ export function openGraphics(host: SheetsHost): void {
         ...(o.mode === 'siluet' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Kesim va fasad'))),
           (doc.sections ?? []).length ? h('div', { class: 'tiles c2' }, ...(doc.sections ?? []).map((c, i) => tile({ 'data-sec': c.id, 'aria-pressed': (o.sec ?? doc.sections![0].id) === c.id || (!doc.sections!.some(x => x.id === o.sec) && i === 0), onclick: () => set({ sec: c.id }) }, `${c.label}–${c.label}`, `${tr('chuqurlik')} ${c.depth} m`)))
-            : h('p', { class: 't-small' }, tr('Kesim chizigʻi yoʻq: Hajmlar → «Kesim va fasad» → «Chiziq chizish»'))] : []),
+            : h('p', { class: 't-small' }, tr('Kesim chizigʻi yoʻq: Hajmlar → «Kesim va fasad» → «Chiziq chizish»')),
+          h('div', { class: 'glabel' }, h('span', {}, tr('Uslub')), h('span', {}, `${SIL_STYLES.length}`)),
+          h('div', { class: 'tiles c2', id: 'shSilStyle', role: 'radiogroup', 'aria-label': tr('Uslub') }, ...SIL_STYLES.map(x => tile({ 'data-silstyle': x.id, role: 'radio', 'aria-pressed': (o.silStyle ?? 'kesim') === x.id, onclick: () => set({ silStyle: x.id }) }, tr(x.name), tr(x.sub))))] : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama'], ['qavatlilik', 'Qavatlilik'], ['kontekst', 'Loyiha va kontekst'], ['demontaj', 'Saqlanadi va buziladi']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),
