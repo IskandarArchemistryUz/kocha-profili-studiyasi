@@ -278,7 +278,7 @@ export class Editor {
   /** Saqlash holati: brauzer + bulut (cloudui.saveText) */
   private paintSave(): void {
     const { s, t } = saveText(this.localSave, this.cloud?.state ?? 'local');
-    this.el.save.dataset.s = s; this.el.saveT.textContent = t;
+    this.el.save.dataset.s = s; this.el.saveT.textContent = t; this.el.save.title = t;
     this.el.save.style.cursor = this.cloud?.state === 'conflict' ? 'pointer' : '';
   }
   private conflictOpen = false;

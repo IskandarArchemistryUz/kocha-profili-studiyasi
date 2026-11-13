@@ -50,5 +50,5 @@ export function saveText(local: 'saved' | 'pending' | 'error', cloud: SyncState)
   if (cloud === 'offline') return { s: 'pending', t: tr('saqlandi · internet yoʻq, keyin yuklanadi') };
   if (cloud === 'conflict') return { s: 'error', t: tr('boshqa qurilmada oʻzgargan — bosing') };
   if (cloud === 'error') return { s: 'error', t: tr('saqlandi · bulutga yuklanmadi') };
-  return { s: 'saved', t: tr('saqlandi · shu brauzerda') };
+  return { s: 'saved', t: tr('saqlandi') };   // bulutga koʻchirilmagan — avvalgidek qisqa (yuqori panel sigʻishi uchun)
 }
