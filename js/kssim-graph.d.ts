@@ -2,7 +2,7 @@ export type XY = [number, number];
 export interface Arm { id: string; j?: string; sig?: boolean; hin: XY; cross?: [XY, XY]; lanes: { id: string; pts: XY[]; codes: string; mid?: number; bus?: boolean }[]; exits: { id: string; pts: XY[]; mid?: number; bus?: boolean }[] }
 export interface Conn { id: string; from: string; to: string; m: 'L' | 'S' | 'R'; pts: XY[] }
 export interface Net { ring?: { c: XY; r: number } | null; juncs?: { id: string; signal?: { cycle: number; phases: string[][]; offset?: number } | null; ring?: { c: XY; r: number } | null; main?: string[] }[]; links?: { from: string; to: string[] }[]; arms: Arm[]; conns: Conn[]; signal?: { cycle: number; phases: string[][] } | null; main?: string[]; yUp?: boolean }
-export interface ArmRes { n: number; flow: number; delay: number; los: string; queue: number }
+export interface ArmRes { q95: number; n: number; flow: number; delay: number; los: string; queue: number }
 export function autoConnect(arms: Arm[], yUp?: boolean): Conn[];
 export function connPath(A: XY, ha: XY, B: XY, hb: XY): XY[];
 export function ringConnect(arms: Arm[], ring: { c: XY; r: number }, yUp?: boolean): Conn[];

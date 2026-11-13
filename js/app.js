@@ -2368,6 +2368,7 @@ function xwHTML(sel){const sg=segById(sel.id);if(!sg||!sg.xw||!sg.xw[sel.i])retu
 function nodeHTML(n){const k=nodeKind(n),rt=RTYPES[n.rtype||'r2'];
   return `<div class="card" style="padding:10px"><h3>Tugun · ${{end:'uch',join:'burilish/ulanish',x:'tartibga solinmagan chorraha',sig:'svetoforli chorraha',round:'aylanma halqa'}[k]} (${degree(n)} yoʻl)</h3>
   <div class="selbox"><select id="dNT">${[['auto','Avto (yoʻllar soniga koʻra)'],['x','Tartibga solinmagan chorraha'],['sig','Svetoforli chorraha'],['round','Aylanma halqa']].map(([v,t])=>`<option value="${v}" ${n.type===v?'selected':''}>${t}</option>`).join('')}</select>
+  ${(k==='x'||k==='sig'||k==='round')&&typeof openSim==='function'?`<button id="dSim" class="btn" style="flex-basis:100%;justify-content:center">▶ Harakatni sinash <span style="margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace">BETA</span></button>`:''}
   ${k==='x'||k==='sig'?`<label class="small">Bordyur radiusi, m <input id="dKr" type="number" min="1" step="1" value="${n.kr??6}" style="width:60px"></label>`:''}
   ${n.type==='round'?`<select id="dRt">${Object.entries(RTYPES).map(([kk,r])=>`<option value="${kk}" ${(n.rtype||'r2')===kk?'selected':''}>${r.n}</option>`).join('')}</select>
     <label class="small">Orol r, m <input id="dRi" type="number" step="0.5" min="1" value="${n.ri}" style="width:58px"></label><label class="small">Halqa eni, m <input id="dRw" type="number" step="0.5" min="4" value="${n.rw}" style="width:58px"></label>
@@ -2385,6 +2386,7 @@ function bindDesignExtras(el,q,num){const ds=DS(),sel=ds.sel;
   if(sel&&sel.t==='xw'){const sg=segById(sel.id),x=sg&&sg.xw&&sg.xw[sel.i];if(x&&q('#xwT')){q('#xwT').onchange=e=>{x.type=e.target.value;afterDesign();};num('#xwW',v=>x.w=v);}}
   if(sel&&sel.t==='node'){const n=nodeById(sel.id);if(n&&q('#dNT')){
     q('#dNT').onchange=e=>{n.type=e.target.value;if(n.type==='round'&&!n.rtype)n.rtype='r2';if(n.type==='round'){const r=RTYPES[n.rtype];n.ri=n.ri||r.ri;n.rw=n.rw||r.rw;}afterDesign();};
+    if(q('#dSim'))q('#dSim').onclick=()=>openSim(n.id);
     num('#dKr',v=>n.kr=v);num('#dRi',v=>n.ri=v);num('#dRw',v=>n.rw=v);num('#dLn',v=>n.lanes=Math.round(v));
     if(q('#dRt'))q('#dRt').onchange=e=>{n.rtype=e.target.value;const r=RTYPES[n.rtype];n.ri=r.ri;n.rw=r.rw;n.lanes=r.lanes;afterDesign();};
     if(q('#dRot')){q('#dRot').oninput=e=>{n.rot=+e.target.value;renderDesignCore();};q('#dRot').onchange=()=>afterDesign();}}}
