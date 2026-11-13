@@ -6,6 +6,7 @@
  */
 import type { Project, SheetDoc } from '../core/doc';
 import { cutSheet } from '../core/streetcutsvg';
+import { silSheet } from '../core/siluetsvg';
 import { stageSheet } from '../core/stagesheet';
 import { parseTrees } from '../core/trees';
 import { bLevels, hasAntresol, ANTRESOL_SHARE } from '../core/levels';
@@ -116,6 +117,7 @@ function defaultSheets(doc: Project): SheetDoc[] {
   for (const p of aptPicks(planApartments(doc))) out.push(mk({ mode: 'qavat', plan: { look: 'rang', floor: p.bi + 1, grp: p.gi } }));
   houseTypes(doc).forEach((t, i) => { for (let f = 1; f <= t.floors; f++) out.push(mk({ mode: 'uy', plan: { floor: i + 1, grp: f } })); });
   for (const c of doc.cuts ?? []) out.push(mk({ mode: 'kesim', cut: c.id }));
+  for (const c of doc.sections ?? []) out.push(mk({ mode: 'siluet', sec: c.id }));
   if (multiStage(doc)) out.push(mk({ mode: 'fazalar' }));
   return out;
 }
@@ -123,6 +125,12 @@ function defaultSheets(doc: Project): SheetDoc[] {
 function syncCutSheets(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
   const have = new Set(sheets.map(s => (s.opts as Partial<SheetOpts>).mode === 'kesim' ? (s.opts as Partial<SheetOpts>).cut : null));
   const base = lastOpts(), add = (doc.cuts ?? []).filter(c => !have.has(c.id)).map(c => ({ id: uid('sh_'), opts: { ...base, mode: 'kesim', cut: c.id, title: '', stamp: {}, scale: 0 } as unknown as Record<string, unknown> }));
+  return add.length ? [...sheets, ...add] : sheets;
+}
+/** 13.11: har «Kesim va fasad» chizigʻiga varaq (yangisi qoʻyilsa oʻzi qoʻshiladi) */
+function syncSecSheets(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
+  const have = new Set(sheets.map(s => (s.opts as Partial<SheetOpts>).mode === 'siluet' ? (s.opts as Partial<SheetOpts>).sec : null));
+  const base = lastOpts(), add = (doc.sections ?? []).filter(c => !have.has(c.id)).map(c => ({ id: uid('sh_'), opts: { ...base, mode: 'siluet', sec: c.id, landscape: true, title: '', stamp: {}, scale: 0 } as unknown as Record<string, unknown> }));
   return add.length ? [...sheets, ...add] : sheets;
 }
 /** 12.11: binolar bir nechta navbatga boʻlingan — albomga «Qurilish navbatlari ketma-ketligi» varagʻi (bitta, bor boʻlsa qoʻshilmaydi) */
@@ -135,7 +143,7 @@ function syncStageSheet(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
 function upgradeSheets(doc: Project, sheets: SheetDoc[]): SheetDoc[] {
   const k = `mr-sheets-v${SET_V}:${doc.id}`;
   try { if (localStorage.getItem(k)) return sheets; localStorage.setItem(k, '1'); } catch { return sheets; }
-  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'kesim' ? x.cut : x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}|${x.svc ?? ''}`}`; };
+  const sig = (o: Record<string, unknown>) => { const x = o as Partial<SheetOpts>; return `${x.mode ?? 'reja'}|${x.mode === 'siluet' ? x.sec : x.mode === 'kesim' ? x.cut : x.mode === 'qavat' || x.mode === 'uy' ? `${x.plan?.floor ?? 1}:${x.plan?.grp ?? ''}` : `${x.kind}|${x.stamp?.sheet ?? ''}|${x.svc ?? ''}`}`; };
   const have = new Set(sheets.map(s => sig(s.opts)));
   return [...sheets, ...defaultSheets(doc).filter(s => !have.has(sig(s.opts)))];
 }
@@ -147,7 +155,7 @@ export function downloadIllustrator(doc: Project, ctx: SheetCtx | null, o: Sheet
 
 export function openGraphics(host: SheetsHost): void {
   let doc = host.doc;
-  let sheets: SheetDoc[] = syncStageSheet(doc, syncCutSheets(doc, doc.sheets?.length ? upgradeSheets(doc, doc.sheets.map(s => ({ id: s.id, opts: s.opts }))) : defaultSheets(doc)));
+  let sheets: SheetDoc[] = syncStageSheet(doc, syncSecSheets(doc, syncCutSheets(doc, doc.sheets?.length ? upgradeSheets(doc, doc.sheets.map(s => ({ id: s.id, opts: s.opts }))) : defaultSheets(doc))));
   try { localStorage.setItem(`mr-sheets-v${SET_V}:${doc.id}`, '1'); } catch { /* */ }
   let styles = [...(doc.sheetStyles ?? [])];
   let cur = Math.max(0, Math.min(sheets.length - 1, host.start ?? 0));
@@ -179,6 +187,7 @@ export function openGraphics(host: SheetsHost): void {
       return { label: `${T.n} ${tr('uy')}`, name, body: (vx, vy, vw, vh) => `<svg x="${vx}" y="${vy}" width="${vw}" height="${vh}" viewBox="0 0 ${r.widthMm.toFixed(1)} ${r.heightMm.toFixed(1)}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
     }
     if (o.mode === 'kesim') { const L = sheetLayout(o); return cutSheet(doc, o.cut, tr, L.vw, L.vh); }
+    if (o.mode === 'siluet') { const L = sheetLayout(o); return silSheet(doc, host.ctx, o.sec, tr, L.vw, L.vh); }
     if (o.mode === 'fazalar') return stageSheet(doc, tr);
     if (o.mode === 'akso') {
       const L = sheetLayout(o), key = axoKey(o), ed = normAxoEdit(o.axo?.edit);
@@ -299,7 +308,7 @@ export function openGraphics(host: SheetsHost): void {
     h('span', { class: 'sh-name' }, `${doc.name} · ${tr('Varaqlar')}`), h('span', { class: 'spacer' }),
     checksBtn, h('button', { class: 'btn btn-ghost', id: 'gxClose', onclick: close }, tr('Yopish (Esc)')));
 
-  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'fazalar') return tr('Qurilish navbatlari ketma-ketligi'); if (o.mode === 'kesim') { const c = doc.cuts?.find(x => x.id === o.cut) ?? doc.cuts?.[0]; return `${tr('Koʻcha profili')} ${c ? `${c.label}–${c.label}` : '—'}`; } if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
+  const sheetName = (i: number) => { const o = norm(sheets[i].opts); if (o.stamp?.sheet) return tr(o.stamp.sheet); if (o.mode === 'fazalar') return tr('Qurilish navbatlari ketma-ketligi'); if (o.mode === 'kesim') { const c = doc.cuts?.find(x => x.id === o.cut) ?? doc.cuts?.[0]; return `${tr('Koʻcha profili')} ${c ? `${c.label}–${c.label}` : '—'}`; } if (o.mode === 'siluet') { const c = doc.sections?.find(x => x.id === o.sec) ?? doc.sections?.[0]; return `${tr('Kesim va fasad')} ${c ? `${c.label}–${c.label}` : '—'}`; } if ((o.mode ?? 'reja') === 'reja' && o.kind === 'xizmat') return `${tr('Xizmat radiusi')} · ${tr(SERVICES.find(x => x.id === (o.svc ?? 'mtm'))?.name ?? '')}`; if (o.mode === 'uy' && houses.length) { const T = houses[Math.max(0, Math.min(houses.length - 1, (o.plan?.floor ?? 1) - 1))]; return `${tr(T.name)} · ${tf('${n}-qavat', { n: Math.max(1, Math.min(T.floors, o.plan?.grp ?? 1)) })}`; } if (o.mode === 'qavat' && plans.length) { const bi = Math.max(0, Math.min(plans.length - 1, (o.plan?.floor ?? 1) - 1)), g = sheetGroup(plans[bi], o.plan?.grp); return `${tr(`${bi + 1}-bino`)} · ${tr(groupName(g))}`; } return tr(SHEET_KINDS.find(k => k.id === o.kind)!.name); };
 
   /* ---------- menyular ---------- */
   function popMenu(anchor: HTMLElement, items: (HTMLElement | string)[]): void {
@@ -480,7 +489,7 @@ export function openGraphics(host: SheetsHost): void {
         h('h2', { class: 't-title' }, tr('Varaqlar')),
         h('p', { class: 't-small' }, tr('Masshtabli chizma: namunani tanlang, varaqni sozlang, yuklab oling yoki Chizmadonga yuboring.'))),
       h('div', { class: 'sh-scroll' },
-        h('div', { class: 'seg', id: 'shMode', role: 'tablist' }, ...([['reja', 'Reja'], ['qavat', 'Qavatlar'], ...(houses.length || o.mode === 'uy' ? [['uy', 'Uylar'] as const] : []), ['akso', 'Akso'], ...(multiStage(doc) || o.mode === 'fazalar' ? [['fazalar', 'Navbatlar'] as const] : []), ...(doc.cuts?.length || o.mode === 'kesim' ? [['kesim', 'Kesim'] as const] : [])] as const).map(([k, t]) => h('button', { role: 'tab', 'data-mode': k, 'aria-pressed': (o.mode ?? 'reja') === k, onclick: () => set({ mode: k }) }, tr(t)))),
+        h('div', { class: 'seg', id: 'shMode', role: 'tablist' }, ...([['reja', 'Reja'], ['qavat', 'Qavatlar'], ...(houses.length || o.mode === 'uy' ? [['uy', 'Uylar'] as const] : []), ['akso', 'Akso'], ...(multiStage(doc) || o.mode === 'fazalar' ? [['fazalar', 'Navbatlar'] as const] : []), ...(doc.cuts?.length || o.mode === 'kesim' ? [['kesim', 'Kesim'] as const] : []), ...(doc.sections?.length || o.mode === 'siluet' ? [['siluet', 'Fasad'] as const] : [])] as const).map(([k, t]) => h('button', { role: 'tab', 'data-mode': k, 'aria-pressed': (o.mode ?? 'reja') === k, onclick: () => set({ mode: k }) }, tr(t)))),
         ...(o.mode === 'qavat' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['rang', 'Xonadonlar rangda', 'turi boʻyicha'], ['bir', 'Bir rang', 'oq-qora']] as const).map(([k, t, n]) => tile({ 'data-plook': k, 'aria-pressed': (o.plan?.look ?? 'rang') === k, onclick: () => set({ plan: { ...(o.plan ?? {}), look: k } }) }, tr(t), tr(n)))),
@@ -504,6 +513,10 @@ export function openGraphics(host: SheetsHost): void {
           h('div', { class: 'glabel' }, h('span', {}, tr('Kesim chizigʻi'))),
           (doc.cuts ?? []).length ? h('div', { class: 'tiles c2' }, ...(doc.cuts ?? []).map((c, i) => tile({ 'data-cut': c.id, 'aria-pressed': (o.cut ?? doc.cuts![0].id) === c.id || (!doc.cuts!.some(x => x.id === o.cut) && i === 0), onclick: () => set({ cut: c.id }) }, `${c.label}–${c.label}`, `${tr('Koʻcha')} ${doc.streets.findIndex(x => x.id === c.street) + 1}`)))
             : h('p', { class: 't-small' }, tr('Kesim chizigʻi yoʻq: Koʻchalar → koʻchani tanlang → «Kesim chizigʻini qoʻyish»'))] : []),
+        ...(o.mode === 'siluet' ? [
+          h('div', { class: 'glabel' }, h('span', {}, tr('Kesim va fasad'))),
+          (doc.sections ?? []).length ? h('div', { class: 'tiles c2' }, ...(doc.sections ?? []).map((c, i) => tile({ 'data-sec': c.id, 'aria-pressed': (o.sec ?? doc.sections![0].id) === c.id || (!doc.sections!.some(x => x.id === o.sec) && i === 0), onclick: () => set({ sec: c.id }) }, `${c.label}–${c.label}`, `${tr('chuqurlik')} ${c.depth} m`)))
+            : h('p', { class: 't-small' }, tr('Kesim chizigʻi yoʻq: Hajmlar → «Kesim va fasad» → «Chiziq chizish»'))] : []),
         ...(o.mode === 'akso' ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Namuna'))),
           h('div', { class: 'tiles c2' }, ...([['oq', 'Oq maket'], ['funksiya', 'Funksiya ranglari'], ['fasad', 'Fasadlar'], ['figura', 'Figura-fon'], ['qoralama', 'Qoralama'], ['qavatlilik', 'Qavatlilik'], ['kontekst', 'Loyiha va kontekst'], ['demontaj', 'Saqlanadi va buziladi']] as const).map(([k, t]) => tile({ 'data-alook': k, 'aria-pressed': (o.axo?.look ?? 'oq') === k, onclick: () => set({ axo: { ...(o.axo ?? {}), look: k } }) }, tr(t), ''))),

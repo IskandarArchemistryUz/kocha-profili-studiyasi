@@ -3,7 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
-import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type StreetCut, type Round, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
+import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type StreetCut, type SiteSection, type Round, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
 import type { Limit } from './limits';
@@ -35,6 +35,7 @@ export type Command =
   | { type: 'setRounds'; rounds: Round[] }
   | { type: 'setRoadEdit'; id: number; parts: LngLat[][] | null }
   | { type: 'setCuts'; cuts: StreetCut[] }
+  | { type: 'setSections'; sections: SiteSection[] }
   | { type: 'applyProfile'; profile: Profile; streets: string[] }
   | { type: 'setTreeInv'; trees: NonNullable<Project['treeInv']> }
   | { type: 'updateStreets'; patches: { id: string; patch: Partial<Omit<Street, 'id'>> }[] }
@@ -91,6 +92,7 @@ export function label(c: Command): string {
     case 'setRoadEdit': return 'Mavjud yoʻl tahriri';
     case 'updateStreets': return 'Koʻchalar oʻzgardi';
     case 'setCuts': return 'Kesim chizigʻi';
+    case 'setSections': return 'Kesim va fasad';
     case 'applyProfile': return 'Koʻcha profili (Koʻchasoz)';
     case 'setTreeInv': return 'Daraxtlar inventarizatsiyasi';
     case 'removeStreet': return 'Koʻcha oʻchirildi';
@@ -216,6 +218,7 @@ function apply0(doc: Project, c: Command, now: Date): Project {
     }
     case 'setRounds': { if (c.rounds.length) d.rounds = c.rounds.map(r => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind ? { kind: r.kind } : {}) })); else delete d.rounds; return d; }
     case 'setCuts': { if (c.cuts.length) d.cuts = c.cuts.map(x => ({ ...x })); else delete d.cuts; return d; }
+    case 'setSections': { if (c.sections.length) d.sections = c.sections.map(x => ({ ...x, a: [x.a[0], x.a[1]], b: [x.b[0], x.b[1]] })); else delete d.sections; return d; }
     case 'applyProfile': {   // Koʻchasozdan: profil loyihaga yoziladi (bor boʻlsa almashtiriladi) va koʻrsatilgan koʻchalarga beriladi — bitta qadam
       const list = (doc.profiles ?? []).filter(p => p.id !== c.profile.id); list.push(c.profile); d.profiles = list;
       const ids = new Set(c.streets); d.streets = doc.streets.map(s => (ids.has(s.id) ? { ...s, profile: c.profile.id } : s)); return d;

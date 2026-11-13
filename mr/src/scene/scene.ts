@@ -1291,6 +1291,19 @@ export class Scene3D {
       (siteR ? sg.red.flatMap(r => clipLineToRings(r, siteR)) : sg.red).forEach(r => { const l = line(densify(r, 6), C.siteLine, 0.5, false, 9.5, this.H); (l.material as THREE.LineBasicMaterial).dispose(); l.material = new THREE.LineDashedMaterial({ color: C.siteLine, dashSize: 3, gapSize: 2 }); l.computeLineDistances(); l.userData.redLine = true; this.world.add(l); });
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
       // 12.11: koʻcha kesimlari A–A — chiziq (shtrix-punktir), uchlarida qalin tirnoq va harf (core/streetcut)
+      // 13.11: «Kesim va fasad» chiziqlari (core/siluet) — shtrix chiziq, uchlarida koʻrish tomoniga tirnoq va raqam
+      for (const c of doc.sections ?? []) {
+        const fr = frame(doc.origin), a = fr.toLocal(c.a) as XY, b = fr.toLocal(c.b) as XY, Lc = Math.hypot(b[0] - a[0], b[1] - a[1]); if (Lc < 5) continue;
+        const ux = (b[0] - a[0]) / Lc, uy = (b[1] - a[1]) / Lc, nx = -uy * c.look, ny = ux * c.look, w = 0.35, quads: XY[][] = [];
+        const quad = (p0: XY, p1: XY, hw: number) => { const qx = -(p1[1] - p0[1]), qy = p1[0] - p0[0], l = Math.hypot(qx, qy) || 1; quads.push([[p0[0] + qx / l * hw, p0[1] + qy / l * hw], [p1[0] + qx / l * hw, p1[1] + qy / l * hw], [p1[0] - qx / l * hw, p1[1] - qy / l * hw], [p0[0] - qx / l * hw, p0[1] - qy / l * hw]]); };
+        for (let s0 = 0; s0 < Lc; s0 += 6) { const s1 = Math.min(Lc, s0 + 4); quad([a[0] + ux * s0, a[1] + uy * s0], [a[0] + ux * s1, a[1] + uy * s1], w); }
+        for (const p of [a, b]) quad(p, [p[0] + nx * 6, p[1] + ny * 6], w * 1.6);
+        const arr: number[] = [];
+        for (const q of quads) for (const i of [0, 1, 2, 0, 2, 3]) { const v = q[i]; arr.push(v[0], this.H(v[0], v[1]) + 0.9, -v[1]); }
+        const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+        const cm = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: 0x8f2f22, depthTest: false, side: THREE.DoubleSide })); cm.renderOrder = 46; cm.userData.sec = c.id; this.world.add(cm);
+        for (const p of [a, b]) { const sp = labelSprite(c.label, true), q: XY = [p[0] + nx * 9, p[1] + ny * 9]; sp.position.set(q[0], this.H(q[0], q[1]) + 1, -q[1]); sp.center.set(0.5, 0.5); (sp.material as THREE.SpriteMaterial).depthTest = false; sp.renderOrder = 47; sp.userData.secLbl = c.label; this.world.add(sp); }
+      }
       for (const c of doc.cuts ?? []) {
         const g = cutGeom(doc, c); if (!g) continue;
         // chiziq — 0,5 m enli shtrixlar (WebGL chizigʻi 1 px — xaritada koʻrinmaydi), uchlarida koʻrish yoʻnalishi tirnogʻi

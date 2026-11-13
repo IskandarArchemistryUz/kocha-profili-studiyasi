@@ -7,7 +7,7 @@ import polygonClipping from 'polygon-clipping';
 import { repairGen } from '../core/normfix';
 import { langMenu } from './langmenu';
 import { bLevels, levelZ, floorAt, groundH, antresolSplit, hasAntresol, ANTRESOL_SHARE, ANTRESOL_MIN_H } from '../core/levels';
-import type { LngLat, Project, Garage, Street } from '../core/doc';
+import type { LngLat, Project, Garage, Street, SiteSection } from '../core/doc';
 import { Store } from '../core/store';
 import { CommandError, apply as applyCmd } from '../core/commands';
 import { frame, type XY } from '../core/geo';
@@ -117,6 +117,7 @@ import { LiveBase, liveSize } from '../context/basemap';
 import { logoSvg } from './logo';
 import { openKsWindow } from './kswin';
 import { project, nextCutLabel } from '../core/streetcut';
+import { nextSecLabel } from '../core/siluet';
 import { PALETTES, palOf, basePrefs, setBasePrefs } from '../context/mapstyle';
 import { projectStreetsGeo, CURB_R, CURB_R_RECON } from '../scene/streets3d';
 import { openGraphics, downloadIllustrator } from './graphics';
@@ -2994,6 +2995,7 @@ export class Editor {
             opt('avtoturargoh', 'Avtoturargoh / garaj', tr('TALQIN: 14-band — xavflilik sinfi past obyekt; ShNQ 2.07.01-23, 362-band (temir yoʻl SMZ i) — oʻxshash. Turar uygacha masofa — 3-ilova')),
             opt('logistika', 'Ombor', tr('TALQIN: 14-band — xavflilik sinfi past obyekt; oziq-ovqat ombori taqiq (12-band). Ombor oʻzi ham SMZ hosil qiladi (1-ilova) — qoʻshni turar joy qisqarishi mumkin'))),
           h('span', { class: 't-small' }, tr('Garaj va ombor — TALQIN (normada nomma-nom sanalmagan): sanitariya nazorati bilan kelishiladi.')))); } }
+      if (doc.buildings.length) this.secCard(body);
     }
     // binolar soni va tanlangan seksiya
     const sel = doc.buildings.find(b => b.id === this.sel), gens = doc.buildings.filter(b => b.gen).length;
@@ -3926,6 +3928,8 @@ export class Editor {
             this.regenAfterStreets(prev); this.renderPanel();
             toast(tf('${n} ta yoʻl davom ettirildi · Ctrl+Z — qaytarish', { n: st.length }));
           } }, tr('Davom ettirish'))))); } }
+    // 13.11 (egasi: «koʻcha kesimini 2-boʻlimda yoʻqmi?»): kesim kartochkasi faqat koʻcha tanlanganda chiqardi — endi koʻcha tanlanmagan boʻlsa ham har yorliqda
+    if (doc.streets.length && !(this.kochaTab === 'chiz' && this.selStreet && doc.streets.some(x => x.id === this.selStreet))) this.cutCard(body, null);
     if (this.kochaTab == null) this.kochaTab = doc.streets.length ? 'chiz' : 'tor';
     if (drawing && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
     if (this.osmPick && this.kochaTab !== 'chiz') this.kochaTab = 'chiz';
@@ -4075,8 +4079,28 @@ export class Editor {
   }
 
   /** 12.11: koʻcha kesimlari (A–A …): roʻyxat, qoʻyish (sahnada koʻcha ustini bosish), oʻchirish — «Koʻcha profili» varaqlari shulardan */
-  private cutCard(body: HTMLElement, sid: string): void {
-    const doc = this.store.doc, cuts = doc.cuts ?? [], mine = cuts.filter(c => c.street === sid), sn = doc.streets.findIndex(x => x.id === sid) + 1;
+  /** 13.11 (egasi): master reja kesimi va fasadi atrof bilan — chiziq A→B (koʻrinadigan tomon — chapda), varaq oʻzi qoʻshiladi */
+  private addSection(a: XY, b: XY): void {
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 10) { toast(tr('Chiziq juda qisqa — kamida 10 m')); return; }
+    const d = this.store.doc, fr = frame(d.origin), label = nextSecLabel(d);
+    this.run(() => this.store.dispatch({ type: 'setSections', sections: [...(d.sections ?? []), { id: uid('sec_'), a: fr.toGeo(a), b: fr.toGeo(b), label, look: 1, depth: 200 }] }));
+    this.renderPanel(); toast(tf('Kesim ${l}–${l} qoʻyildi — Varaqlarda «Kesim va fasad ${l}–${l}»', { l: label }));
+  }
+  private secCard(body: HTMLElement): void {
+    const doc = this.store.doc, list = doc.sections ?? [], fr = frame(doc.origin);
+    const upd = (id: string, patch: Partial<SiteSection>) => this.run(() => this.store.dispatch({ type: 'setSections', sections: list.map(x => x.id === id ? { ...x, ...patch } : x) }));
+    const draw = () => this.setTool(new SectionLineTool(this.scene, (a, b) => { this.setTool(null); this.addSection(a, b); }));
+    body.append(h('div', { class: 'group', id: 'secCard' },
+      h('div', { class: 'li' }, h('span', { class: 'k' }, h('b', {}, tr('Kesim va fasad (atrof bilan)')), h('span', { class: 'sub' }, tr('Chiziq istalgan joydan: kesilgan binolar — qora, ortidagi loyiha va atrof binolari — fasad. Koʻcha boʻylab qoʻysangiz — koʻcha fasadi.')))),
+      ...list.map(c => { const L = Math.hypot(...(([p, q]) => [q[0] - p[0], q[1] - p[1]] as [number, number])([fr.toLocal(c.a), fr.toLocal(c.b)]));
+        return h('div', { class: 'li', 'data-sec': c.id, style: 'flex-wrap:wrap;gap:6px' }, h('span', { class: 'cutlbl' }, c.label), h('span', { class: 'k' }, `${c.label}–${c.label} · ${fmt(L, 0)} m`),
+          h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fasad chuqurligi') }, ...[100, 200, 400].map(v => h('button', { 'data-secdepth': v, 'aria-pressed': c.depth === v, onclick: () => upd(c.id, { depth: v }) }, `${v} m`))),
+          h('button', { class: 'btn icon-btn btn-sm btn-ghost', 'data-secflip': c.id, 'aria-label': tr('Koʻrish tomonini almashtirish'), title: tr('Koʻrish tomonini almashtirish'), onclick: () => upd(c.id, { look: c.look === 1 ? -1 : 1 }) }, svgIcon('<path d="M7 7h11l-3-3M17 17H6l3 3"/>')),
+          h('button', { class: 'btn icon-btn btn-sm btn-ghost', 'aria-label': tr('Kesimni oʻchirish'), title: tr('Oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'setSections', sections: list.filter(x => x.id !== c.id) })) }, svgIcon(IC.x))); }),
+      h('div', { class: 'li' }, h('button', { class: 'btn btn-block', id: 'secAdd', onclick: draw }, tr('Chiziq chizish')))));
+  }
+  private cutCard(body: HTMLElement, sid: string | null): void {
+    const doc = this.store.doc, cuts = doc.cuts ?? [], mine = sid ? cuts.filter(c => c.street === sid) : cuts, sno = (id: string) => doc.streets.findIndex(x => x.id === id) + 1;
     const place = () => this.setTool(new ClickTool(tr('Koʻcha ustini bosing — kesim chizigʻi shu joyga qoʻyiladi · Esc — bekor'), xy => {
       const d = this.store.doc, fr = frame(d.origin);
       // avval tanlangan koʻcha, boʻlmasa — eng yaqini (qizil chiziqlar ichida)
@@ -4090,7 +4114,7 @@ export class Editor {
     }));
     body.append(h('div', { class: 'note', id: 'cutCard' },
       h('b', {}, tr('Kesim chizigʻi')),
-      ...mine.map(c => h('div', { class: 'li', 'data-cut': c.id }, h('span', { class: 'cutlbl' }, c.label), h('span', { class: 'k' }, `${c.label}–${c.label} · ${tr('Koʻcha')} ${sn}, ${fmt(c.t, 0)} m`),
+      ...mine.map(c => h('div', { class: 'li', 'data-cut': c.id }, h('span', { class: 'cutlbl' }, c.label), h('span', { class: 'k' }, `${c.label}–${c.label} · ${tr('Koʻcha')} ${sno(c.street)}, ${fmt(c.t, 0)} m`),
         h('button', { class: 'btn icon-btn btn-sm btn-ghost', 'aria-label': tr('Kesimni oʻchirish'), title: tr('Oʻchirish'), onclick: () => this.run(() => this.store.dispatch({ type: 'setCuts', cuts: cuts.filter(x => x.id !== c.id) })) }, svgIcon(IC.x)))),
       h('button', { class: 'btn btn-block', id: 'cutAdd', onclick: place }, tr('Kesim chizigʻini qoʻyish')),
       h('span', { class: 't-small' }, tr('Sahnada koʻcha ustini bosing — Varaqlarda «Koʻcha profili A–A» paydo boʻladi.'))));
@@ -4488,6 +4512,7 @@ export class Editor {
         h('button', { 'aria-pressed': S?.kind === 'h', id: 'secH', onclick: () => { this.setTool(null); this.scene.setSection({ kind: 'h', z: z0 }); this.renderToolPanel(); } }, tr('Gorizontal')),
         h('button', { 'aria-pressed': S?.kind === 'v', id: 'secV', onclick: () => { this.setTool(new SectionLineTool(this.scene, (a, b) => { this.scene.setSection({ kind: 'v', a, b }); this.setTool(null); this.renderToolPanel(); })); } }, tr('Vertikal (chizish)'))),
       S?.kind === 'h' ? h('div', { style: 'width:160px' }, zIn) : '', S?.kind === 'h' ? zT : '',
+      S?.kind === 'v' ? h('button', { class: 'btn btn-sm', id: 'secSave', title: tr('Varaqlarda «Kesim va fasad» — atrof bilan'), onclick: () => this.addSection(S.a, S.b) }, tr('Varaqqa')) : '',
       h('button', { class: 'btn btn-sm', id: 'secOff', disabled: !S, onclick: () => { this.scene.setSection(null); this.renderToolPanel(); } }, tr('Olib tashlash')));
   }
   /** pipetka: namuna → boshqa binolarga */
