@@ -6,13 +6,15 @@ type E = [string, number, Record<string, unknown>];
 const els: E[] = [['front', 3, {}], ['piy', 4, {}], ['yash', 4, {}], ['qat', 3.5, {}], ['qat', 3.5, {}], ['yash', 4, {}], ['piy', 4, {}], ['front', 3, {}]];
 
 describe('Kiosk joylari (Dizayn-kod 2-ilova P2.2 11.4, P2.3 4.4)', () => {
-  it('U1: faqat B2 (yashil bufer) — yoʻl chetidan 1,5 m chekinish; har tomonda bittadan (oraliq 50 m)', () => {
+  it('U1: faqat B2 (yashil bufer) — yoʻl chetidan 1,5 m chekinish; 60 m da har tomonda ikkitadan (oraliq 30 m, P2.3 4.4.1 — egasi 14.11)', () => {
     const add = kioskPropose(els, [], 'U1', 60);
-    expect(add.map(a => a.z).sort()).toEqual([2, 5]);
+    expect(add.map(a => a.z).sort()).toEqual([2, 2, 5, 5]);
+    for (const z of [2, 5]) { const q = add.filter(a => a.z === z).sort((a, b) => a.y - b.y); expect(q[1].y - (q[0].y + q[0].l)).toBeGreaterThanOrEqual(30 - 1e-6); }
+    expect(kioskPropose(els, [], 'U1', 30).map(a => a.z).sort()).toEqual([2, 5]);
     expect(add.every(a => a.t === 'kiosk' && a.l === 3)).toBe(true);
   });
   it('U3: B3 fasad oldida; U5: oraliq 5 m — koʻp joy', () => {
-    expect(kioskPropose(els, [], 'U3', 60).map(a => a.z).sort()).toEqual([0, 7]);
+    expect(kioskPropose(els, [], 'U3', 60).map(a => a.z).sort()).toEqual([0, 0, 7, 7]);
     const u5 = [['yash', 6, {}], ['piy', 6, {}], ['med', 6, {}], ['piy', 6, {}], ['yash', 6, {}]] as E[];
     // chap yashil zona fasaddan 5 m talabida sigʻmaydi; oʻngda alleya (ajratuvchi 6 m ≥ 5 m, 110-band) — 5 m oraliq bilan
     const p5 = kioskPropose(u5, [], 'U5', 60);
@@ -22,7 +24,7 @@ describe('Kiosk joylari (Dizayn-kod 2-ilova P2.2 11.4, P2.3 4.4)', () => {
     const narrow = els.map(e => (e[0] === 'yash' ? ['yash', 2.5, {}] : e)) as E[];
     expect(kioskPropose(narrow, [], 'U1', 60)).toEqual([]);
   });
-  it('tekshiruv: U1 da pavilyon taqiqlangan, oraliq 50 m dan kam — bad; piyodalar zonasi 4 m', () => {
+  it('tekshiruv: U1 da pavilyon taqiqlangan, oraliq 30 m dan kam — bad; piyodalar zonasi 4 m', () => {
     const pl = [{ t: 'pavilyon', z: 2, y: 5, l: 6.6 }, { t: 'kiosk', z: 2, y: 20, l: 3 }];
     const r = kioskChecks(els, pl, 'U1', 3, 4);
     expect(r.find(x => x.n.startsWith('Pavilyon'))!.st).toBe('bad');
@@ -33,6 +35,6 @@ describe('Kiosk joylari (Dizayn-kod 2-ilova P2.2 11.4, P2.3 4.4)', () => {
     const pl = [{ t: 'peshtaxta', z: 0, y: 5, l: 2.1 }];
     expect(kioskChecks(els, pl, 'U2', 3, 4)[0].st).toBe('bad');
     expect(kioskChecks(els, pl, 'U4', 3, 4)[0].st).toBe('warn');
-    expect(KIOSK_NOTE('U1')).toContain('P2.2 11.4.1');
+    expect(KIOSK_NOTE('U1')).toContain('P2.2 11.4.1'); expect(KIOSK_NOTE('U1')).toContain('oraliq ≥ 30 m (P2.3 4.4.1)'); expect(KIOSK_NOTE('U5')).toContain('oraliq ≥ 5 m');
   });
 });
