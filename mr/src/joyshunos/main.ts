@@ -642,6 +642,8 @@ const ICON = {
   ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
   ruler: '<path d="M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/>',
   area: '<path d="M4 7l6-3 10 4-2 11-12 1z"/>',
+  /** maydonni oʻlchash — uchastka belgisidan farqli (14.11: egasi ikkalasini adashtirdi) */
+  areaM: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path d="M9 15l6-6"/>',
   cut: '<path d="M3 12h18M7 8v8M17 8v8"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
@@ -812,7 +814,7 @@ function renderTools(): void {
     measure ? h('div', { class: 'note', id: 'joyMeasure' }, measure) : null,
     h('div', { class: 'tb glass' },
       tb('tRuler', ICON.ruler, tr('Masofani oʻlchash: nuqtalarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('ruler'), drawing?.kind === 'ruler'),
-      tb('tArea', ICON.area, tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('area'), drawing?.kind === 'area'),
+      tb('tArea', ICON.areaM, tr('Maydonni oʻlchash: burchaklarni bosing, ikki marta bosish yoki Enter — tugatish'), () => startDraw('area'), drawing?.kind === 'area'),
       tb(null, ICON.cut, `${tr('Kesim')} — ${tr('Tez orada')}`, () => { /* */ }, undefined, true),
       h('span', { class: 'vr' }), ...zoom),
   ].filter((x): x is NonNullable<typeof x> => !!x));
