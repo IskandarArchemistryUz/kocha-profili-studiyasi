@@ -235,9 +235,13 @@ function drawRes(g,P,ppm){
     L.forEach(l=>{if(qm<1)return;const s=along(l.pts,0,qm).map(P);g.beginPath();s.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.stroke();});g.globalAlpha=1;
     const m=x.e.lanes.reduce((s,l)=>[s[0]+l.P[0]/x.e.lanes.length,s[1]+l.P[1]/x.e.lanes.length],[0,0]),c=P([m[0]+x.e.out[0]*14,m[1]+x.e.out[1]*14]);
     /* belgi: LOS + navbat (mashina) — toʻxtash chizigʻidan 14 m orqada */
-    const txt=`${x.los} · ${Math.round(x.d)} s · navbat ${Math.round(x.q)}`;g.font='600 12px Archivo,system-ui,sans-serif';const w=g.measureText(txt).width+14;
-    g.fillStyle='#fff';g.beginPath();g.roundRect(c[0]-w/2-2,c[1]-12,w+4,24,12);g.fill();g.fillStyle=LCOL[x.los]||'#555';g.beginPath();g.roundRect(c[0]-w/2,c[1]-10,w,20,10);g.fill();
-    g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,c[0],c[1]+.5);});
+    /* 14.11 yagona uslub: och pill, chapda LOS doirachasi, toʻq matn */
+    const txt=`${Math.round(x.d)} s · navbat ${Math.round(x.q)}`;g.font='600 12px Archivo,system-ui,sans-serif';const tw=g.measureText(txt).width,w=tw+40,x0=c[0]-w/2;
+    g.save();g.shadowColor='rgba(0,0,0,.18)';g.shadowBlur=10;g.shadowOffsetY=2;g.fillStyle='rgba(250,249,246,.97)';g.beginPath();g.roundRect(x0,c[1]-13,w,26,13);g.fill();g.restore();
+    g.fillStyle='#dcd9d2';g.beginPath();g.roundRect(x0,c[1]+11,w,2,1);g.fill();
+    g.fillStyle=LCOL[x.los]||'#555';g.beginPath();g.arc(x0+13,c[1],9,0,7);g.fill();
+    g.fillStyle='#fff';g.font='700 11px Archivo,system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(x.los,x0+13,c[1]+.5);
+    g.fillStyle='#141414';g.font='600 12px Archivo,system-ui,sans-serif';g.textAlign='left';g.fillText(txt,x0+28,c[1]+.5);});
   res.C.list.forEach(J=>{const r=res.J[J.id];if(!r)return;const all=J.E.flatMap(e=>e.lanes.map(l=>l.P)),c=J.ring?J.ring.c:all.reduce((s,p)=>[s[0]+p[0]/all.length,s[1]+p[1]/all.length],[0,0]);
     badge(P(c),r.los,LCOL[r.los]||'#555',15);});
 }

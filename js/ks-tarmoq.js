@@ -34,7 +34,7 @@ const top=el(`<div class="kt-ui kt-pn kt-top"><a class="lg" href="app/" title="A
 const acts=el(`<div class="kt-ui kt-pn kt-acts"><span class="kt-q-slot"></span>
   <button class="kt-btn ic" data-a="undo" title="Orqaga (Ctrl+Z)" aria-label="Orqaga">${IC.undo}</button><button class="kt-btn ic" data-a="redo" title="Oldinga (Ctrl+Y)" aria-label="Oldinga">${IC.redo}</button>
   <div class="kt-seg" role="group" aria-label="Fon"><button data-b="stil">Xarita</button><button data-b="img">Sunʼiy yoʻldosh</button></div>
-  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="3d">3D</button></div>`);
+  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
 const hint=el(`<div class="kt-ui kt-pn kt-hint" role="status"></div>`);
 const dock=el(`<div class="kt-ui kt-dock"><div class="kt-pn kt-tray" hidden></div><div class="kt-pn kt-tools" role="toolbar" aria-label="Asboblar">${TOOLS.map(([k,n,key],i)=>`${i===1?'<span class="kt-sep"></span>':''}<button class="kt-tool" data-t="${k}" title="${n} (${key})">${IC[k]}${n}<span class="k">${key}</span></button>`).join('')}</div></div>`);
 const card=el(`<div class="kt-ui kt-pn kt-card" hidden></div>`);
@@ -45,11 +45,22 @@ const tray=dock.querySelector('.kt-tray');
 
 /* --- amallar --- */
 acts.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();
-  else if(b.dataset.a==='fun'){toggleDSty();refresh();}
+  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();
+  else if(b.dataset.a==='fun'){toggleDSty();try{localStorage.setItem('kt-dsty','1');}catch(e){}refresh();}
   else if(b.dataset.b){setBase(b.dataset.b);refresh();}});
 dock.querySelector('.kt-tools').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const k=b.dataset.t;
   if(k==='sim'){simTool();}else pickTool(k);refresh();});
+/* qoʻllanma (?) — faqat shu sahifa uchun */
+window.openHelp=function(){const m=document.getElementById('helpModal'),b=document.getElementById('helpBody');if(!m||!b)return;
+  const K=(k,t)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0eee9"><span>${t}</span><kbd style="padding:1px 7px">${k}</kbd></div>`;
+  b.innerHTML=`<div class="card" style="padding:14px"><b style="font-size:15px">Besh tugma</b><ol style="margin:8px 0 0;padding-left:18px;line-height:1.7">
+    <li><b>Koʻcha</b> — pastdagi modulni tanlang, xaritada nuqtalarni bosing. Mavjud koʻcha yoki chorrahaga bossangiz — ulanadi.</li>
+    <li><b>Polosa</b> — koʻcha boʻylab sudrang: oʻsha qismga polosa (karman) qoʻshiladi; Alt bilan — olib tashlanadi.</li>
+    <li><b>Ulash</b> — kiruvchi polosa (●) → chiquvchi (○): ulagich qoʻshiladi yoki olib tashlanadi.</li>
+    <li><b>Tanlash</b> — koʻcha yoki chorrahani bosing: sozlamalar yonidagi kartada (modul, turi, imtiyoz belgilari).</li>
+    <li><b>Sinash</b> — harakat modeli: talab, svetofor, kechikish va navbat.</li></ol></div>
+  <div class="card" style="padding:14px"><b style="font-size:15px">Tugmalar</b><div style="margin-top:6px">${K('V','Tanlash')}${K('S','Koʻcha')}${K('K','Polosa')}${K('J','Ulash')}${K('H','Sinash')}${K('Enter','Koʻchani tugatish')}${K('Esc','Bekor qilish')}${K('Delete','Tanlanganni oʻchirish')}${K('Ctrl+Z / Ctrl+Y','Orqaga / oldinga')}${K('U','Funksional ranglar')}</div></div>`;
+  const h=document.getElementById('helpTitle');if(h)h.textContent='Tarmoq — qoʻllanma';m.hidden=false;};
 /* eski oʻng tugma menyusi — yangi sahifada yoʻq (hamma narsa karta orqali) */
 window.openMenu=function(){};
 
@@ -147,6 +158,8 @@ function refresh(){const ds=DS(),t=ds.tool||'select';
 /* dvigatel chizgandan keyin — yangilaymiz (studiya funksiyalari global) */
 {const rd=window.renderDesign;window.renderDesign=function(){const r=rd.apply(this,arguments);try{refresh();}catch(e){console.error(e);}return r;};
  const rh=window.renderHint;window.renderHint=function(){const r=rh.apply(this,arguments);try{hint.innerHTML=hintText(DS().tool||'select');}catch(e){}return r;};}
+/* andoza chizma uslubi — funksional (och ranglar, B4); foydalanuvchi oʻzgartirsa — eslab qolinadi */
+try{if(!localStorage.getItem('kt-dsty')){S.dsty='line';save();localStorage.setItem('kt-dsty','1');}}catch(e){}
 if(S.app!=='design')setApp('design');
 if(!DS().tool)DS().tool='select';
 renderDesign();
