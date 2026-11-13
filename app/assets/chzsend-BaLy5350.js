@@ -1,1 +1,0 @@
-export{s as sendSheet}from"./chzsend-BOp8tAjn.js";

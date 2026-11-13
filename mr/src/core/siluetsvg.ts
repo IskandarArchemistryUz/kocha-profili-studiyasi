@@ -217,18 +217,9 @@ function reliefSheet(g: SilGeom, tr: (s: string) => string, name: string, N: num
   return { label: `M 1:${N} · ×${vex}`, name: `${name} · ${tr('relyef')}`, legend, body };
 }
 
-/** 13.11 (kanvas K-06, K-07): relyef boʻrttirish va tahlil qatlami; shamol — 6-qadamdagi stansiya (boʻlmasa null) */
-export interface SilExtra { vex?: number; tahlil?: boolean; wind?: { dir: number; prevailing: string; mean: number } | null }
-
-export function silSheet(doc: Project, ctx: SheetCtx | null, secId: string | undefined, tr: (s: string) => string, vw0: number, vh0: number, style: SilStyle = 'kesim', ex: SilExtra = {}): SheetInner {
-  const sec = (doc.sections ?? []).find(c => c.id === secId) ?? doc.sections?.[0];
-  const g = sec ? silhouette(doc, ctx, sec) : null;
-  if (!g) return { label: 'M —', name: 'Kesim va fasad', body: (vx, vy, vw, vh) => `<text x="${n2(vx + vw / 2)}" y="${n2(vy + vh / 2)}" font-size="5" text-anchor="middle" fill="#6b6965">${esc(tr('Kesim chizigʻi yoʻq: Hajmlar → «Kesim va fasad» → «Chiziq chizish»'))}</text>` };
-  const two = style === 'juft', vex = Math.max(1, Math.min(10, Math.round(ex.vex ?? 1))), relief = vex > 1;
-  const zr = Math.max(1, ...g.ground.map(p => p[1]), ...g.horizon.map(p => p[1]));
-  const N = relief ? (SCALES.find(N => g.L * 1000 / N <= vw0 * 0.96 && (zr * vex + 14) * 1000 / N + 40 <= vh0 * 0.86) ?? 10000) : silScale(g, vw0, two ? vh0 / 2 : vh0), k = 1000 / N, Lb = g.sec.label, H = top(g);
-  const name = `${tr('Kesim va fasad')} ${Lb}–${Lb}`;
-  const LG: Record<SilStyle, LegendItem[]> = {
+/** Uslub boʻyicha shartli belgilar */
+function legendOf(tr: (s: string) => string): Record<SilStyle, LegendItem[]> {
+  return {
     kesim: [{ type: 'fill', fill: '#ffffff', stroke: K.ink, label: tr('Loyiha — kesim') }, { type: 'fill', fill: K.vis, stroke: K.visLine, label: tr('Loyiha — fasad') },
       { type: 'fill', fill: '#f4f3ef', stroke: '#5d5a53', label: tr('Atrof — kesim') }, { type: 'fill', fill: '#e4e4e2', stroke: '#c9c9c9', label: tr('Atrof — fasad') }],
     siluet: [{ type: 'fill', fill: '#ffffff', stroke: '#111111', label: tr('Loyiha') }, { type: 'fill', fill: '#333333', label: tr('Atrof (yaqin — toʻq, uzoq — och)') }],
@@ -237,6 +228,83 @@ export function silSheet(doc: Project, ctx: SheetCtx | null, secId: string | und
     aksent: [{ type: 'fill', fill: '#ffffff', stroke: '#6d6d6d', label: tr('Kesilgan bino') }, { type: 'fill', fill: '#ffffff', stroke: '#bdbdbd', label: tr('Koʻrinadigan bino') }, { type: 'fill', fill: ACC, label: tr('Daraxtlar va odamlar') }],
     shahar: [{ type: 'fill', fill: ACC2, label: tr('Loyiha') }, { type: 'fill', fill: '#666666', label: tr('Atrof (yaqin — toʻq, uzoq — och)') }, { type: 'fill', fill: '#cfccc6', label: tr('Yer') }],
   };
+}
+
+/** 13.11: barcha kesim chiziqlari bitta varaqda, bir xil masshtabda ustma-ust (kanvas K-01: 4 fasad razvertkasi) */
+function multiSheet(doc: Project, ctx: SheetCtx | null, tr: (s: string) => string, vw0: number, vh0: number, style: Exclude<SilStyle, 'juft'>): SheetInner {
+  const gs = (doc.sections ?? []).map(sc => silhouette(doc, ctx, sc)).filter((g): g is SilGeom => !!g);
+  const Hs = gs.map(top), Lmax = Math.max(...gs.map(g => g.L));
+  // 1 yoki 2 ustun — qaysi biri yirikroq masshtab bersa (balandlik cheklasa, ikki ustun)
+  const fit = (cols: number) => { const rows = Math.ceil(gs.length / cols), rowH = (N: number) => Array.from({ length: rows }, (_, r) => Math.max(...Hs.slice(r * cols, r * cols + cols)) * 1000 / N + 19).reduce((a, b) => a + b, 14);
+    return SCALES.find(N => Lmax * 1000 / N <= (vw0 * 0.92 - (cols - 1) * 12) / cols && rowH(N) <= vh0 * 0.98) ?? 10000; };
+  const n1 = fit(1), n2c = gs.length > 1 ? fit(2) : Infinity, cols = n2c < n1 ? 2 : 1, N = Math.min(n1, n2c), k = 1000 / N;
+  const name = `${tr('Kesim va fasad')} · ${tr('barcha kesimlar')}`;
+  const legend: LegendItem[] = [...legendOf(tr)[style], { type: 'fill', fill: K.back, label: tr('Orqa relyef (koʻrinadigan yer)') }, ...(style === 'aksent' ? [] : [{ type: 'fill' as const, fill: K.tree, label: tr('Daraxtlar') }]), { type: 'dash', stroke: '#c0392b', label: tr('Uchastka chegarasi') }];
+  const body = (vx: number, vy: number, vw: number, vh: number): string => {
+    const o: string[] = [];
+    o.push(`<text x="${n2(vx + 2)}" y="${n2(vy + 6)}" font-size="4.2" font-weight="700" fill="#1d1d1b">${esc(name)}</text>`,
+      `<text x="${n2(vx + 2)}" y="${n2(vy + 11)}" font-size="2.5" fill="#55524b">${esc(`${gs.length} ${tr('kesim')} · M 1:${N} · ${tr(SIL_STYLES.find(x => x.id === style)!.name)}`)}</text>`);
+    const rows = Math.ceil(gs.length / cols), rH = Array.from({ length: rows }, (_, r) => Math.max(...Hs.slice(r * cols, r * cols + cols)) * k + 19);
+    const total = rH.reduce((a, b) => a + b, 0), colW = (vw - 14 - (cols - 1) * 12) / cols, top0 = vy + 14 + Math.max(0, (vh - 16 - total) / 2);
+    let y = top0;
+    gs.forEach((g, i) => {
+      const r = Math.floor(i / cols), c = i % cols, ox = vx + 14 + c * (colW + 12), rowTop = top0 + rH.slice(0, r).reduce((a, b) => a + b, 0);
+      const H = Math.max(...Hs.slice(r * cols, r * cols + cols)), gy = rowTop + H * k, X = (s: number) => ox + s * k, Y = (z: number) => gy - z * k, hid = `silH${g.sec.label}`;
+      o.push(`<g data-sil-lane="${esc(g.sec.label)}"><defs><pattern id="${hid}" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#f2f0eb"/><line x1="0" y1="0" x2="0" y2="1.6" stroke="#9b968c" stroke-width="0.18"/></pattern></defs>`);
+      o.push(strip(g, style, X, Y, k, gy, hid), annot(g, style, X, Y, k, gy, H, tr));
+      o.push(`<text x="${n2(X(0))}" y="${n2(gy + 12.5)}" font-size="3" font-weight="600" letter-spacing="0.3" fill="#1d1d1b">${esc(`${tr('Kesim')} ${g.sec.label}–${g.sec.label}`.toUpperCase())}</text>`,
+        `<text x="${n2(X(0))}" y="${n2(gy + 16)}" font-size="2.2" fill="#55524b">${esc(`${tr('uzunligi')} ${Math.round(g.L)} m · ${tr('fasad chuqurligi')} ${Math.round(g.depth)} m`)}</text>`);
+      // kesim belgisi (raqam) lentaning oʻng uchida
+      o.push(`<g transform="translate(${n2(X(g.L) + 3)} ${n2(gy - 8)})"><circle cx="4" cy="4" r="3.4" fill="#1d1d1b"/><text x="4" y="5.3" font-size="3.6" font-weight="700" text-anchor="middle" fill="#ffffff">${esc(g.sec.label)}</text></g></g>`);
+      y = Math.max(y, gy + 19);
+    });
+    // umumiy masofa shkalasi (pastda, chapda)
+    const ds = [10, 20, 50, 100, 200, 500].find(v => v * k >= 14) ?? 1000, yb = vy + vh - 4, sx0 = vx + vw - ds * 2 * k - 16;
+    o.push(`<path d="M${n2(sx0)} ${n2(yb)}h${n2(ds * 2 * k)}" stroke="#1d1d1b" stroke-width="0.6"/><path d="M${n2(sx0 + ds * k)} ${n2(yb)}h${n2(ds * k)}" stroke="#ffffff" stroke-width="0.35"/><text x="${n2(sx0 + ds * 2 * k + 2)}" y="${n2(yb + 0.9)}" font-size="2.2" fill="#55524b">${ds * 2} m</text>`);
+    return o.join('');
+  };
+  return { label: `M 1:${N}`, name, legend, body };
+}
+
+/** Lenta izohlari: qavat soni, dominantalar, uchastka chegarasi, balandlik shkalasi */
+function annot(g: SilGeom, m: Mode, X: (s: number) => number, Y: (z: number) => number, k: number, gy: number, H: number, tr: (s: string) => string): string {
+  const o: string[] = [], ln = { m };
+  // kesilgan loyiha binolari ustida qavat soni
+  if (ln.m === 'kesim' || ln.m === 'aksent') { const seen = new Set<string>(); for (const it of g.items) if (it.kind === 'loyiha' && it.cut && !seen.has(it.id) && (it.s1 - it.s0) * k > 3) { seen.add(it.id); o.push(`<text x="${n2(X((it.s0 + it.s1) / 2))}" y="${n2(Y(it.z0 + it.h) - 1.4)}" font-size="2.3" text-anchor="middle" fill="#1d1d1b">${esc(`${it.floors} ${tr('q.')}`)}</text>`); } }
+  // shahar silueti: dominantalar (≥ 12 m, bir-biridan ≥ 18 mm)
+  if (ln.m === 'shahar') {
+    const used: number[] = [];
+    for (const it of g.items.filter(i => i.kind === 'atrof' && !i.cut && i.h >= 12).sort((a, b) => b.h - a.h)) {
+      const x = X((it.s0 + it.s1) / 2); if (used.some(u => Math.abs(u - x) < 18)) continue; used.push(x);
+      const y = Y(it.z0 + it.h);
+      o.push(`<path data-sil="dominanta" d="M${n2(x)} ${n2(y - 1)}V${n2(y - 9)}" stroke="#555" stroke-width="0.15"/><text x="${n2(x)}" y="${n2(y - 10)}" font-size="2.2" text-anchor="middle" fill="#333">${f1(it.h)} m</text>`);
+      if (used.length >= 6) break;
+    }
+  }
+  // uchastka chegarasi
+  for (const s of g.site) o.push(`<path data-sil-site="1" d="M${n2(X(s))} ${n2(gy + 6)}V${n2(Y(H - 2))}" stroke="#c0392b" stroke-width="0.3" stroke-dasharray="3 1.2 0.6 1.2"/>`);
+  if (g.site.length >= 2) { const a = X(g.site[0]), b = X(g.site[g.site.length - 1]); o.push(`<path d="M${n2(a)} ${n2(gy + 8)}H${n2(b)}" stroke="#c0392b" stroke-width="0.3"/><text x="${n2((a + b) / 2)}" y="${n2(gy + 7)}" font-size="2.4" text-anchor="middle" fill="#c0392b">${esc(tr('Uchastka'))}</text>`); }
+  // balandlik shkalasi (chapda)
+  const hs = H > 120 ? 20 : 10, xl = X(0) - 3;
+  let sc = `M${n2(xl)} ${n2(gy)}V${n2(Y(Math.floor((H - 2) / hs) * hs))}`;
+  for (let z = 0; z <= H - 2; z += hs) { sc += `M${n2(xl - 1)} ${n2(Y(z))}h1`; o.push(`<text x="${n2(xl - 1.6)}" y="${n2(Y(z) + 0.8)}" font-size="2.2" text-anchor="end" fill="#55524b">${z}</text>`); }
+  o.push(`<path d="${sc}" stroke="#1d1d1b" stroke-width="0.2" fill="none"/>`);
+  return o.join('');
+}
+
+/** 13.11 (kanvas K-06, K-07): relyef boʻrttirish va tahlil qatlami; shamol — 6-qadamdagi stansiya (boʻlmasa null) */
+export interface SilExtra { vex?: number; tahlil?: boolean; wind?: { dir: number; prevailing: string; mean: number } | null }
+
+export function silSheet(doc: Project, ctx: SheetCtx | null, secId: string | undefined, tr: (s: string) => string, vw0: number, vh0: number, style: SilStyle = 'kesim', ex: SilExtra = {}): SheetInner {
+  if (secId === '*' && (doc.sections?.length ?? 0) > 1) return multiSheet(doc, ctx, tr, vw0, vh0, style === 'juft' ? 'kesim' : style);
+  const sec = (doc.sections ?? []).find(c => c.id === secId) ?? doc.sections?.[0];
+  const g = sec ? silhouette(doc, ctx, sec) : null;
+  if (!g) return { label: 'M —', name: 'Kesim va fasad', body: (vx, vy, vw, vh) => `<text x="${n2(vx + vw / 2)}" y="${n2(vy + vh / 2)}" font-size="5" text-anchor="middle" fill="#6b6965">${esc(tr('Kesim chizigʻi yoʻq: Hajmlar → «Kesim va fasad» → «Chiziq chizish»'))}</text>` };
+  const two = style === 'juft', vex = Math.max(1, Math.min(10, Math.round(ex.vex ?? 1))), relief = vex > 1;
+  const zr = Math.max(1, ...g.ground.map(p => p[1]), ...g.horizon.map(p => p[1]));
+  const N = relief ? (SCALES.find(N => g.L * 1000 / N <= vw0 * 0.96 && (zr * vex + 14) * 1000 / N + 40 <= vh0 * 0.86) ?? 10000) : silScale(g, vw0, two ? vh0 / 2 : vh0), k = 1000 / N, Lb = g.sec.label, H = top(g);
+  const name = `${tr('Kesim va fasad')} ${Lb}–${Lb}`;
+  const LG = legendOf(tr);
  const TL: LegendItem[] = ex.tahlil && !relief ? [{ type: 'dash', stroke: '#e07b00', label: tr('Quyosh nuri (tush): 21.06, 21.03, 22.12') }, { type: 'fill', fill: '#c0392b', label: tr('Qishki soya (22.12)') }, { type: 'dash', stroke: '#2f6f9f', label: tr('Shamol va yer usti suvi yoʻnalishi') }] : [];
   const RL: LegendItem[] = [{ type: 'fill', fill: '#d9cfa6', stroke: '#5b4a2b', label: tr('Yer massasi (gipsometrik)') }, { type: 'fill', fill: ACC2, label: tr('Loyiha binosi izi') }, { type: 'fill', fill: '#6f6a60', label: tr('Atrof binosi izi') }, { type: 'dash', stroke: '#2f6f9f', label: tr('Ariq, suv') }, { type: 'dash', stroke: '#c0392b', label: tr('Uchastka chegarasi') }];
   if (relief) return reliefSheet(g, tr, name, N, vex, RL, zr);
@@ -256,26 +324,7 @@ export function silSheet(doc: Project, ctx: SheetCtx | null, secId: string | und
       const gy = ln.gy, Y = (z: number) => gy - z * k;
       o.push(strip(g, ln.m, X, Y, k, gy, hid));
       if (ln.title) o.push(`<text x="${n2(X(0))}" y="${n2(gy + 15)}" font-size="3" font-weight="600" letter-spacing="0.3" fill="#1d1d1b">${esc(ln.title.toUpperCase())}</text>`);
-      // kesilgan loyiha binolari ustida qavat soni
-      if (ln.m === 'kesim' || ln.m === 'aksent') { const seen = new Set<string>(); for (const it of g.items) if (it.kind === 'loyiha' && it.cut && !seen.has(it.id) && (it.s1 - it.s0) * k > 3) { seen.add(it.id); o.push(`<text x="${n2(X((it.s0 + it.s1) / 2))}" y="${n2(Y(it.z0 + it.h) - 1.4)}" font-size="2.3" text-anchor="middle" fill="#1d1d1b">${esc(`${it.floors} ${tr('q.')}`)}</text>`); } }
-      // shahar silueti: dominantalar (≥ 12 m, bir-biridan ≥ 18 mm)
-      if (ln.m === 'shahar') {
-        const used: number[] = [];
-        for (const it of g.items.filter(i => i.kind === 'atrof' && !i.cut && i.h >= 12).sort((a, b) => b.h - a.h)) {
-          const x = X((it.s0 + it.s1) / 2); if (used.some(u => Math.abs(u - x) < 18)) continue; used.push(x);
-          const y = Y(it.z0 + it.h);
-          o.push(`<path data-sil="dominanta" d="M${n2(x)} ${n2(y - 1)}V${n2(y - 9)}" stroke="#555" stroke-width="0.15"/><text x="${n2(x)}" y="${n2(y - 10)}" font-size="2.2" text-anchor="middle" fill="#333">${f1(it.h)} m</text>`);
-          if (used.length >= 6) break;
-        }
-      }
-      // uchastka chegarasi
-      for (const s of g.site) o.push(`<path data-sil-site="1" d="M${n2(X(s))} ${n2(gy + 6)}V${n2(Y(H - 2))}" stroke="#c0392b" stroke-width="0.3" stroke-dasharray="3 1.2 0.6 1.2"/>`);
-      if (g.site.length >= 2) { const a = X(g.site[0]), b = X(g.site[g.site.length - 1]); o.push(`<path d="M${n2(a)} ${n2(gy + 8)}H${n2(b)}" stroke="#c0392b" stroke-width="0.3"/><text x="${n2((a + b) / 2)}" y="${n2(gy + 7)}" font-size="2.4" text-anchor="middle" fill="#c0392b">${esc(tr('Uchastka'))}</text>`); }
-      // balandlik shkalasi (chapda)
-      const hs = H > 120 ? 20 : 10, xl = X(0) - 3;
-      let sc = `M${n2(xl)} ${n2(gy)}V${n2(Y(Math.floor((H - 2) / hs) * hs))}`;
-      for (let z = 0; z <= H - 2; z += hs) { sc += `M${n2(xl - 1)} ${n2(Y(z))}h1`; o.push(`<text x="${n2(xl - 1.6)}" y="${n2(Y(z) + 0.8)}" font-size="2.2" text-anchor="end" fill="#55524b">${z}</text>`); }
-      o.push(`<path d="${sc}" stroke="#1d1d1b" stroke-width="0.2" fill="none"/>`);
+      o.push(annot(g, ln.m, X, Y, k, gy, H, tr));
       // masofa shkalasi (pastda) — juft uslubda faqat pastki lentada
       if (ln === lanes[lanes.length - 1]) {
         const ds = [10, 20, 50, 100, 200, 500].find(v => v * k >= 14) ?? 1000, yb = gy + (two ? 22 : 13);
