@@ -56,8 +56,8 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   const errs: string[] = []; await open(page, errs);
   await expect(page.locator('.eko .svc a.on')).toHaveText(/Joyshunos/);
   await expect(page.locator('.joy-l')).toHaveCount(15);
-  await expect(page.locator('.joy-l .switch')).toHaveCount(14);
-  await expect(page.locator('.joy-l em.soon')).toHaveCount(1);
+  await expect(page.locator('.joy-l .switch')).toHaveCount(15);
+  await expect(page.locator('.joy-l em.soon')).toHaveCount(0);
   // pasport: manzil, relyef, shamol, xizmatlar, raqobatchilar
   await expect(page.locator('.joy-card.head .ttl')).toContainText('Amir Temur shoh koʻchasi, 21');
   await expect(page.locator('[data-card=relyef] .big')).toHaveText(/\d+–\d+ m/);

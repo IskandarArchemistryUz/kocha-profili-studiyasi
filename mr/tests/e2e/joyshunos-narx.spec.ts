@@ -175,3 +175,40 @@ test('aholi zichligi Toshkentdan tashqarida — GHS-POP', async ({ page }) => {
   expect(full).toBe(0);
   expect(errs).toEqual([]);
 });
+
+/** 13.11 (kanvas 7b): uy narxi — tungi plakat: toʻq kataklar, oltin chaqiriqlar (median, shahar medianasidan farq, eʼlonlar) */
+test('uy narxi — tungi plakat', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [];
+  await page.route(/raw\.githubusercontent\.com\/.*toshkent_hex\.json/, r => r.fulfill({ path: NARX, contentType: 'application/json' }));
+  await open(page, errs);
+  await moveTo(page, [69.29507, 41.32561]);
+  await joyClick(page, 'narx', '.switch');
+  await expect(page.locator('[data-card=narx] .big')).toHaveText(/\$\/m²/, { timeout: 20_000 });
+  if ((await page.locator('.jv-btn').getAttribute('aria-expanded')) !== 'true') await page.locator('.jv-btn').click();
+  await page.locator('.jv-st[data-axis="3"] button', { hasText: 'Tungi plakat' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-narx-t', 'visibility'))).toBe('visible');
+  await expect.poll(() => page.evaluate(() => ((window as any).joyMap.getSource('joy-narx-t')._data?.features ?? []).map((f: any) => f.properties.t).join(' / '))).toMatch(/\$\/m²\n[+−]\d+ % · \d+ eʼlon/);
+  expect(await page.evaluate(() => (window as any).joyMap.getPaintProperty('joy-narx-f', 'fill-color'))).toEqual(['get', 'ncol']);
+  if (process.env.SHOT) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOT }); }
+  await page.locator('.jv-st[data-axis="3"] button', { hasText: 'Kataklar' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-narx-t', 'visibility'))).toBe('none');
+  expect(errs).toEqual([]);
+});
+
+/** 13.11 (kanvas 15): yuza tasnifi — OSM binolar, yoʻllar, yashil, suv; doira ichidagi ulushlar */
+test('yuza tasnifi (OSM)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [];
+  await open(page, errs);
+  await joyClick(page, 'yuza', '.switch');
+  const card = page.locator('[data-card=yuza]');
+  await expect(card.locator('.big')).toHaveText(/\d+ % qattiq yuza/, { timeout: 60_000 });
+  await expect(card.locator('.joy-norm li')).toHaveCount(5);
+  const sum = await card.locator('.joy-norm li b').allTextContents();
+  const tot = sum.map(t => parseFloat(t)).reduce((a, b) => a + b, 0); expect(tot).toBeGreaterThan(97); expect(tot).toBeLessThan(103);
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-yuza', 'visibility'))).toBe('visible');
+  await expect(page.locator('.joy-legend')).toContainText('Yuza tasnifi');
+  if (process.env.SHOT) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOT }); }
+  expect(errs).toEqual([]);
+});
