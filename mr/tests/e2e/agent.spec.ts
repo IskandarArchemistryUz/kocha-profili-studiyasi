@@ -16,6 +16,7 @@ async function mockApi(page: Page, enabled: boolean) {
     if (u.pathname === '/agent/step') {
       const b = r.request().postDataJSON(); hits.step.push(b);
       if (hits.step.length === 1) return json(200, { content: [{ type: 'tool_use', id: 't1', name: 'run_norm_check', input: { status: 'ALL' } }], stop: 'tool_use', status: 'open', stepsLeft: 9 });
+      if (JSON.stringify(b.messages).includes('Aholi qancha?')) return json(200, { content: [{ type: 'text', text: 'Taxminan 1 234 kishi.' }], stop: 'end_turn', status: 'done', stepsLeft: 9, unsourced: ['1 234'] });
       return json(200, { content: [{ type: 'text', text: 'Hozircha **buzilish yoʻq**.\n\n- uchastka chizilmagan' }], stop: 'end_turn', status: 'done', stepsLeft: 8 });
     }
     return json(404, {});
@@ -81,4 +82,15 @@ test('agent: xulosa (3 tanga) — tasdiqsiz boshlanmaydi', async ({ page }) => {
   await page.click('#agYes');
   await expect(page.locator('#agentPanel .ag-ans')).toBeVisible();
   expect(hits.run).toHaveLength(1);
+});
+
+test('agent: server manbasiz raqamni belgilasa — ogohlantirish', async ({ page }) => {
+  await mockApi(page, true);
+  await page.addInitScript(() => localStorage.setItem('mr-agent-intro', '1'));
+  await page.goto('./#/yangi');
+  await page.click('#agentBtn');
+  await page.fill('#agIn', 'Aholi qancha?');
+  await page.click('#agSend');
+  await expect(page.locator('#agentPanel .ag-warn')).toContainText('1 234');
+  await expect(page.locator('#agentPanel .ag-src:not(.ag-warn)')).toHaveCount(0);
 });

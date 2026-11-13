@@ -21,7 +21,7 @@ export interface LoopOpts {
   history?: { q: string; a: string }[];
   signal?: AbortSignal; ev?: LoopEvents;
 }
-export interface LoopRes { text: string; tools: string[]; status: 'done' | 'limit' | 'stopped'; run: RunRes }
+export interface LoopRes { text: string; tools: string[]; status: 'done' | 'limit' | 'stopped'; run: RunRes; unsourced?: string[] }
 
 /** Buyruq natijasi modelga: JSON, 30 000 belgigacha */
 export const MAX_RESULT = 30_000;
@@ -47,7 +47,7 @@ export async function runAgent(o: LoopOpts): Promise<LoopRes> {
     const t = r.content.filter((b): b is Extract<Block, { type: 'text' }> => b.type === 'text').map(b => b.text).join('\n\n').trim();
     if (t) text = t;
     const calls = r.content.filter((b): b is Extract<Block, { type: 'tool_use' }> => b.type === 'tool_use');
-    if (r.stop !== 'tool_use' || !calls.length) return { text, tools: used, status: 'done', run };
+    if (r.stop !== 'tool_use' || !calls.length) return { text, tools: used, status: 'done', run, ...(r.unsourced?.length ? { unsourced: r.unsourced } : {}) };
     if (r.status !== 'open' || r.stepsLeft <= 0) return { text, tools: used, status: 'limit', run };
     const results: Block[] = [];
     for (const c of calls) {

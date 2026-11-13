@@ -224,6 +224,33 @@ describe('agent — qadam', () => {
     expect(r.json().error).toBe('agent_interrupted');
     expect((await get('/agent/config', ck)).json().freeLeft).toBe(2);
   });
+  it('manbasiz raqam: model bir marta tuzatishga soʻraladi', async () => {
+    const ck = await login();
+    const { run } = (await post('/agent/run', { scenario: 'mr.ask' }, ck)).json();
+    const msgs = [
+      { role: 'user', content: 'Zichlik qancha?' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'get_tep', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: JSON.stringify({ density: 499.4412, limit: 400 }) }] },
+    ];
+    upstream.push({ status: 200, body: { content: [{ type: 'text', text: 'Zichlik 499,44 kishi/ga (84-band), talab 400; maktab 777 oʻrin yetmaydi.' }], stop_reason: 'end_turn', usage: { input_tokens: 100, output_tokens: 20 } } });
+    upstream.push({ status: 200, body: { content: [{ type: 'text', text: 'Zichlik 499,44 kishi/ga (84-band), talab 400 — ogʻish 24,9 %.' }], stop_reason: 'end_turn', usage: { input_tokens: 120, output_tokens: 20 } } });
+    const r = await post('/agent/step', { run, messages: msgs, lang: 'uz' }, ck);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().content[0].text).toContain('24,9');
+    expect(r.json().unsourced).toBeUndefined();
+    expect(calls.length).toBe(2);
+    const fix = calls[1].body.messages.at(-1).content[0].text;
+    expect(fix).toContain('777');
+    expect(calls[1].body.messages.at(-2).role).toBe('assistant');
+  });
+  it('tuzatishdan keyin ham manbasiz raqam qolsa — brauzerga roʻyxat', async () => {
+    const ck = await login();
+    const { run } = (await post('/agent/run', { scenario: 'mr.ask' }, ck)).json();
+    upstream.push({ status: 200, body: { content: [{ type: 'text', text: 'Taxminan 1 234 kishi yashaydi.' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } } });
+    upstream.push({ status: 200, body: { content: [{ type: 'text', text: 'Taxminan 1 234 kishi.' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } } });
+    const r = await ask(run, ck);
+    expect(r.json().unsourced).toEqual(['1 234']);
+  });
 });
 
 describe('agent — band matni', () => {

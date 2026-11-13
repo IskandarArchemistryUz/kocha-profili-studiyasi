@@ -1,0 +1,1 @@
+export{o as toUpload}from"./api-2srxVLaN.js";

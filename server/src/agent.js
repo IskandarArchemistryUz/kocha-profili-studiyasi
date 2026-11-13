@@ -4,6 +4,7 @@
    Pul: yurish boshida (/agent/run) tanga OLDINDAN yechiladi yoki haftalik bepul savol ishlatiladi; keyingi
    qadamlar shu yurish ichida bepul, lekin qadam va token chegarasi bor. Birinchi qadam model xatosi bilan
    tugasa — tanga qaytariladi. Savol matni va loyiha mazmuni bazaga yozilmaydi, faqat hisob (token, $, tanga). */
+import { sourceNumbers, unsourced } from './numcheck.js';
 import { randomUUID } from 'node:crypto';
 import { SERVICES, SCENARIOS, SYSTEM_RULES, systemFor, LANGS } from './agent-tools.js';
 import { AGENT_COINS, AGENT_FREE_PER_WEEK } from './prices.js';
@@ -196,33 +197,37 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
       const step = st.rows[0].steps;
       const model = c.models[run.tier];
 
-      const body = JSON.stringify({
-        model, max_tokens: c.maxTokens?.[run.tier] ?? AGENT_DEFAULTS.maxTokens[run.tier],
-        system: [{ type: 'text', text: SYSTEM_RULES, cache_control: { type: 'ephemeral' } }, { type: 'text', text: systemFor(run.svc, lang) }],
-        tools: toolsOf.get(run.svc),
-        messages,
-      });
-      // Tarmoq uzilishi (masalan, eskirgan keep-alive ulanish) va 429/529/5xx — qisqa kutib qayta urinish
-      const waits = c.retryMs ?? AGENT_DEFAULTS.retryMs;
-      let res, data, cause;
-      for (let a = 0; ; a++) {
-        try {
-          res = await fetchImpl(`${c.base}/v1/messages`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', 'x-api-key': c.apiKey, 'anthropic-version': '2023-06-01' },
-            body,
-            signal: AbortSignal.timeout(c.timeoutMs),
-          });
-          data = await res.json().catch(() => null);
-        } catch (e) {
-          res = null; cause = e?.cause?.code ?? e?.code ?? e?.name;
-          data = { error: { type: e?.name === 'TimeoutError' ? 'timeout' : 'network' } };
+      // bitta model chaqiruvi: tarmoq uzilishi (eskirgan keep-alive) va 429/529/5xx da qisqa kutib qayta urinish
+      const call = async (msgs) => {
+        const body = JSON.stringify({
+          model, max_tokens: c.maxTokens?.[run.tier] ?? AGENT_DEFAULTS.maxTokens[run.tier],
+          system: [{ type: 'text', text: SYSTEM_RULES, cache_control: { type: 'ephemeral' } }, { type: 'text', text: systemFor(run.svc, lang) }],
+          tools: toolsOf.get(run.svc),
+          messages: msgs,
+        });
+        const waits = c.retryMs ?? AGENT_DEFAULTS.retryMs;
+        let res, data, cause;
+        for (let a = 0; ; a++) {
+          try {
+            res = await fetchImpl(`${c.base}/v1/messages`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-api-key': c.apiKey, 'anthropic-version': '2023-06-01' },
+              body,
+              signal: AbortSignal.timeout(c.timeoutMs),
+            });
+            data = await res.json().catch(() => null);
+          } catch (e) {
+            res = null; cause = e?.cause?.code ?? e?.code ?? e?.name;
+            data = { error: { type: e?.name === 'TimeoutError' ? 'timeout' : 'network' } };
+          }
+          const retry = data?.error?.type === 'network' || (res && (res.status === 429 || res.status === 529 || res.status >= 500));
+          if (!retry || a >= waits.length) break;
+          req.log.info({ agent: { run: id, step, attempt: a + 1, status: res?.status, cause } }, 'agent: qayta urinish');
+          await new Promise((r) => setTimeout(r, waits[a]));
         }
-        const retry = data?.error?.type === 'network' || (res && (res.status === 429 || res.status === 529 || res.status >= 500));
-        if (!retry || a >= waits.length) break;
-        req.log.info({ agent: { run: id, step, attempt: a + 1, status: res?.status, cause } }, 'agent: qayta urinish');
-        await new Promise((r) => setTimeout(r, waits[a]));
-      }
+        return { res, data, cause };
+      };
+      let { res, data, cause } = await call(messages);
 
       if (!res?.ok || !data?.content) {
         const kind = data?.error?.type ?? `http_${res?.status ?? 0}`;
@@ -239,18 +244,39 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
         throw new AgentError(busy || !res ? 503 : 502, busy || !res ? 'agent_busy' : 'agent_upstream', 'model javob bermadi — birozdan keyin urinib koʻring');
       }
 
-      const usage = data.usage ?? {};
-      const inTok = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0);
+      const tok = (u) => (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0);
+      let inTok = tok(data.usage), outTok = data.usage?.output_tokens ?? 0, cost = costMicro(model, data.usage ?? {}, c.prices);
+      // «Manbasiz raqam» filtri: yakuniy javobdagi raqam buyruq natijalarida yoki savolda boʻlishi kerak.
+      // Topilmasa — model bir marta tuzatishga soʻraladi; baribir qolsa, brauzer ularni belgilaydi.
+      const textOf = (d) => d.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+      let bad = [];
+      if (data.stop_reason !== 'tool_use' && c.numCheck !== false) {
+        const src = sourceNumbers(messages);
+        bad = unsourced(textOf(data), src);
+        if (bad.length) {
+          req.log.info({ agent: { run: id, step, unsourced: bad.slice(0, 10) } }, 'agent: manbasiz raqam');
+          const fix = [...messages,
+            { role: 'assistant', content: data.content.filter((b) => b.type === 'text').map((b) => ({ type: 'text', text: b.text })) },
+            { role: 'user', content: [{ type: 'text', text: `Tizim tekshiruvi: javobdagi bu raqamlar buyruq natijalarida yoʻq: ${bad.slice(0, 20).join('; ')}. Javobni qayta yozing: faqat buyruq natijalaridagi raqamlarni keltiring yoki kerakli buyruqni chaqiring; manbasi yoʻq raqamni olib tashlang. Bu xabarni javobda tilga olmang.` }] }];
+          const r2 = await call(fix);
+          if (r2.res?.ok && r2.data?.content) {
+            inTok += tok(r2.data.usage); outTok += r2.data.usage?.output_tokens ?? 0; cost += costMicro(model, r2.data.usage ?? {}, c.prices);
+            // tuzatishda model buyruq chaqirsa ham, matnli javob bersa ham — yangisi olinadi
+            data = r2.data;
+            bad = data.stop_reason === 'tool_use' ? [] : unsourced(textOf(data), src);
+          }
+        }
+      }
       const done = data.stop_reason !== 'tool_use';
       const upd = await db.query(
         `UPDATE agent_runs SET in_tok = in_tok + $2, out_tok = out_tok + $3, cost_micro = cost_micro + $4,
            status = CASE WHEN $5 THEN 'done' WHEN in_tok + $2 >= $6 THEN 'limit' ELSE status END
          WHERE id = $1 RETURNING status, steps`,
-        [id, inTok, usage.output_tokens ?? 0, costMicro(model, usage, c.prices), done, c.maxInTok]);
+        [id, inTok, outTok, cost, done, c.maxInTok]);
       const status = upd.rows[0].status;
       // matn va buyruq chaqiruvlaridan boshqa bloklar (masalan, fikrlash) brauzerga yuborilmaydi
       const content = data.content.filter((b) => b.type === 'text' || b.type === 'tool_use').map((b) => (b.type === 'text' ? { type: 'text', text: b.text } : { type: 'tool_use', id: b.id, name: b.name, input: b.input }));
-      return { content, stop: data.stop_reason, status, stepsLeft: Math.max(0, c.maxSteps - upd.rows[0].steps) };
+      return { content, stop: data.stop_reason, status, stepsLeft: Math.max(0, c.maxSteps - upd.rows[0].steps), ...(bad.length ? { unsourced: bad.slice(0, 20) } : {}) };
     } catch (e) {
       if (e instanceof AgentError) return fail(reply, e);
       throw e;

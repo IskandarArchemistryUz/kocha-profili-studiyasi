@@ -30,6 +30,7 @@
 .ag-ans ul,.ag-ans ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .ag-ans .mono{font-size:12.5px}
 .ag-src{color:var(--muted);font-size:11px}
+.ag-warn{color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 8px}
 .ag-note{background:var(--grouped);border-radius:var(--r-tile);padding:10px 12px;font-size:12.5px;line-height:18px;color:var(--ink-2);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .ag-note.warn{background:var(--warn-soft)}
 .ag-note b{color:var(--ink)}
