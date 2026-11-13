@@ -57,7 +57,7 @@ initStats('joy');
 /* ---------------- qatlamlar ---------------- */
 type Group = 'yer' | 'iqlim' | 'shahar' | 'biznes';
 type LayerId = 'relyef' | 'nishab' | 'yuza' | 'issiqlik' | 'quyosh' | 'shamol' | 'shovqin' | 'xizmat' | 'piyoda' | 'skaner' | 'uylar' | 'oqim' | 'raqobat' | 'narx';
-interface LayerDef { id: LayerId; g: Group; name: string; src: string; color: string; ready: boolean; beta?: boolean }
+interface LayerDef { id: LayerId; g: Group; name: string; src: string; color: string; ready: boolean; beta?: boolean; /** 13.11: maʼlumot faqat Toshkent shahri uchun — qamrovdan tashqarida qatlam oʻchiq */ tash?: boolean }
 const LAYERS: LayerDef[] = [
   { id: 'relyef', g: 'yer', name: 'Relyef', src: 'AWS Terrain', color: '#8b7a6a', ready: true },
   { id: 'nishab', g: 'yer', name: 'Nishab', src: 'relyefdan', color: '#eaa56b', ready: true },
@@ -69,10 +69,10 @@ const LAYERS: LayerDef[] = [
   { id: 'xizmat', g: 'shahar', name: 'Xizmatlar', src: 'OSM', color: '#2a9d8f', ready: true },
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
-  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr 2023', color: '#d94801', ready: true, beta: true },
+  { id: 'uylar', g: 'shahar', name: 'Uylar va aholi', src: 'kadastr 2023', color: '#d94801', ready: true, beta: true, tash: true },
   { id: 'oqim', g: 'biznes', name: 'Odamlar oqimi', src: 'model', color: '#4c5bd4', ready: true, beta: true },
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
-  { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true },
+  { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true, tash: true },
 ];
 const GROUPS: [Group, string][] = [['yer', 'Yer'], ['iqlim', 'Iqlim'], ['shahar', 'Shahar'], ['biznes', 'Biznes']];
 const SVC_KINDS: Svc[] = ['maktab', 'mtm', 'poliklinika', 'dorixona', 'savdo', 'sport', 'bekat', 'metro'];
@@ -91,7 +91,12 @@ const S: State = (() => {
   return { ...DEF };
 })();
 const save = () => { try { localStorage.setItem('joy-state', JSON.stringify(S)); } catch { /* */ } };
-const isOn = (id: LayerId) => S.on.includes(id);
+/** Toshkent shahri (kadastr va uybor.uz qamrovi) */
+const TASH_BBOX = [69.12, 41.16, 69.48, 41.42] as const;
+const inTash = (c: LngLat) => c[0] >= TASH_BBOX[0] && c[0] <= TASH_BBOX[2] && c[1] >= TASH_BBOX[1] && c[1] <= TASH_BBOX[3];
+/** Qatlam shu nuqtada ishlaydimi: tayyor va (Toshkentga bogʻliq boʻlsa) nuqta Toshkentda */
+const here = (l: LayerDef) => l.ready && (!l.tash || inTash(S.c));
+const isOn = (id: LayerId) => S.on.includes(id) && here(LAYERS.find(l => l.id === id)!);   // yoqilgan, lekin qamrovdan tashqarida — oʻchiq hisoblanadi (holat saqlanadi)
 /** Faol qatlam: tanlangani yoqilgan boʻlsa — u, aks holda oxirgi yoqilgani */
 const actId = (): LayerId | undefined => (S.act && isOn(S.act) ? S.act : [...S.on].reverse().find(id => LAYERS.some(l => l.id === id && l.ready)));
 const FOCUS_DIM = 0.3;
@@ -402,7 +407,7 @@ function renderLeftH(): void {
   const res = found.length ? h('div', { class: 'joy-res', role: 'listbox' }, ...found.map(p => h('button', { type: 'button', role: 'option', onclick: () => { found = []; qText = p.name; pick(p.at, true); } }, h('b', {}, p.name), h('span', {}, p.detail)))) : null;
   const railBtn = (k: Fly, name: string, mark: Node, cnt: string) => h('button', { type: 'button', class: 'jr', 'data-g': k, 'aria-pressed': fly === k, title: tr(name), onclick: () => setFly(k) }, mark, h('b', {}, tr(name)), cnt ? h('span', { class: 'n' }, cnt) : null);
   const rail = h('nav', { class: 'joy-rail', 'aria-label': tr('Qatlamlar') },
-    ...GROUPS.map(([g, gn]) => { const ls = LAYERS.filter(l => l.g === g && l.ready); return railBtn(g, gn, h('i', { style: `background:${GROUP_COL[g]}` }), `${ls.filter(l => isOn(l.id)).length}/${ls.length}`); }),
+    ...GROUPS.map(([g, gn]) => { const ls = LAYERS.filter(l => l.g === g && here(l)); return railBtn(g, gn, h('i', { style: `background:${GROUP_COL[g]}` }), `${ls.filter(l => isOn(l.id)).length}/${ls.length}`); }),
     h('span', { class: 'sep' }),
     railBtn('joy', 'Uchastka', ic(ICON.area), S.site ? '✓' : ''));
   const fl = h('div', { class: 'joy-fly' }, ...[
@@ -411,11 +416,11 @@ function renderLeftH(): void {
     res,
     h('div', { class: 'joy-groups' }, ...GROUPS.map(([g, gn]) => h('section', { class: 'joy-g', 'data-g': g, hidden: fly !== g },
       h('div', { class: 'joy-gl' }, h('i', { style: `background:${GROUP_COL[g]}` }), tr(gn)),
-      ...LAYERS.filter(l => l.g === g).map(l => h('div', { class: `joy-l${l.ready ? '' : ' soon'}${isOn(l.id) ? ' on' : ''}${actId() === l.id ? ' act' : ''}`, 'data-layer': l.id, style: `--lc:${l.color}` },
-        h('button', { type: 'button', class: 'lt', disabled: !l.ready, 'aria-label': tf('${n} — faol qatlam', { n: tr(l.name) }), 'aria-pressed': actId() === l.id, onclick: () => setAct(l.id) }, layerIcon(l.id)),
-        h('span', { class: 'nm', onclick: l.ready ? () => setAct(l.id) : undefined }, tr(l.name)),
+      ...LAYERS.filter(l => l.g === g).map(l => h('div', { class: `joy-l${here(l) ? '' : ' soon'}${isOn(l.id) ? ' on' : ''}${actId() === l.id ? ' act' : ''}`, 'data-layer': l.id, style: `--lc:${l.color}` },
+        h('button', { type: 'button', class: 'lt', disabled: !here(l), 'aria-label': tf('${n} — faol qatlam', { n: tr(l.name) }), 'aria-pressed': actId() === l.id, onclick: () => setAct(l.id) }, layerIcon(l.id)),
+        h('span', { class: 'nm', onclick: here(l) ? () => setAct(l.id) : undefined }, tr(l.name)),
         h('span', { class: 'src' }, tr(l.src), l.beta ? h('em', { class: 'beta' }, 'beta') : null),
-        l.ready ? sw(isOn(l.id), tr(l.name), () => toggle(l.id)) : h('em', { class: 'soon', title: tr('Manba ulanmoqda — keyingi bosqichda') }, tr('Tez orada')),
+        here(l) ? sw(isOn(l.id), tr(l.name), () => toggle(l.id)) : l.ready ? h('em', { class: 'soon', title: tr('Bu qatlam maʼlumoti hozircha faqat Toshkent shahri uchun bor') }, tr('Faqat Toshkent')) : h('em', { class: 'soon', title: tr('Manba ulanmoqda — keyingi bosqichda') }, tr('Tez orada')),
       )),
     ))),
     fly !== 'joy' && S.on.length > 1 ? h('div', { class: 't-small joy-fhint' }, tr('Faol qatlam rangda, qolganlari xira. Belgini bosib almashtiring.')) : null,
