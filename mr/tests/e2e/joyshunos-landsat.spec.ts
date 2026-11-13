@@ -100,3 +100,32 @@ test('issiqlik: Landsat arxivi — yil tanlash (13.11)', async ({ page }) => {
   await expect(card).toContainText('18');
   expect(errs).toEqual([]);
 });
+
+/** 13.11 (kanvas 1–4): Jurnal, Binolar, Issiq dogʻlar, Koʻchalar va tomlar — doira ichida; Jurnal/dogʻlarda yorliqlar */
+test('issiqlik: kanvas uslublari (13.11)', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errs: string[] = []; await open(page, errs, true);
+  await joyClick(page, 'issiqlik', '.lt');
+  await expect(page.locator('[data-card=issiqlik] .big')).toHaveText(/°C/, { timeout: 60_000 });
+  if ((await page.locator('.jv-btn').getAttribute('aria-expanded')) !== 'true') await page.locator('.jv-btn').click();
+  const corner = () => page.evaluate(async () => {
+    const s = (window as any).joyMap.getSource('joy-heat'), im = new Image(); im.src = s.url; await im.decode();
+    const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const cx = cv.getContext('2d')!; cx.drawImage(im, 0, 0);
+    return cx.getImageData(2, 2, 1, 1).data[3] + cx.getImageData(im.width - 3, im.height - 3, 1, 1).data[3];
+  });
+  const labels = () => page.evaluate(() => (window as any).joyMap.getSource('joy-heat-l')?._data?.features?.length ?? 0);
+  const vis = (id: string) => page.evaluate(i => (window as any).joyMap.getLayoutProperty(i, 'visibility'), id);
+  for (const [nm, lab] of [['Jurnal', true], ['Binolar', false], ['Issiq dogʻlar', true], ['Koʻchalar va tomlar', false]] as const) {
+    await page.locator('.jv-st button', { hasText: nm }).click();
+    await expect(page.locator('.jv-st button', { hasText: nm })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => vis('joy-heat')).toBe('visible');
+    await expect.poll(() => vis('joy-heat-l')).toBe(lab ? 'visible' : 'none');
+    if (lab) await expect.poll(labels).toBeGreaterThan(0);
+    expect(await corner()).toBe(0);
+  }
+  await expect(page.locator('.joy-legend')).toContainText('100 m katak');
+  await page.locator('.jv-st button', { hasText: 'Issiq dogʻlar' }).click();
+  await expect.poll(() => vis('joy-iso')).toBe('visible');
+  await expect(page.locator('.joy-legend')).toContainText('±1 °C');
+  expect(errs).toEqual([]);
+});
