@@ -160,6 +160,7 @@ describe('haftalik sinovlar', () => {
     expect((await post('/trial', { kind: 'flats' }, c)).statusCode).toBe(402);
     await app.wallet.credit(uid, 20, 'gift', 't1');
     expect((await post('/trial', { kind: 'wind', areaHa: 12 }, c)).json()).toMatchObject({ free: false, charged: 10, balance: 10 });   // 5 × 2
+    expect((await post('/trial', { kind: 'view', areaHa: 12 }, c)).json()).toMatchObject({ free: false, charged: 4, balance: 6 });    // koʻrinish: 2 × 2
     clock = new Date('2026-10-26T01:00:00Z');
     expect((await get('/me', c)).json().trialsLeft).toBe(1);
   });

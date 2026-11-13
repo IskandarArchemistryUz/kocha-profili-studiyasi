@@ -47,6 +47,7 @@ export const TRIALS = Object.freeze({
   'flats': { coins: 6, mr: true },  // xonadonlar hisobi
   'area':  { coins: 1, mr: false }, // yangi hudud (Joyshunos)
   'gen':   { coins: 1, mr: true },  // «Variant taklif qil»
+  'view':  { coins: 2, mr: true },  // koʻrinish tekshiruvi — hozir ↔ loyiha (VGA), 13.11
 });
 export const TRIALS_PER_WEEK = 1;
 export const GEN_FREE = 3;

@@ -176,8 +176,8 @@ async function gate(o: { name: string; item?: string; sample: string | Blob; pai
 }
 
 /* ---------- 2) ogʻir hisoblar va generatsiya ---------- */
-export type Heavy = 'wind' | 'sun' | 'flats' | 'area' | 'gen';
-const TRIAL_NAME: Record<Heavy, string> = { wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Variant taklif qil' };
+export type Heavy = 'wind' | 'sun' | 'flats' | 'area' | 'gen' | 'view';
+const TRIAL_NAME: Record<Heavy, string> = { wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Variant taklif qil', view: 'Koʻrinish tekshiruvi' };
 /**
  * Ogʻir hisobdan oldin chaqiriladi. true — davom etish mumkin.
  * Bepul (haftalik sinov / loyihadagi bepul generatsiya / shift toʻlgan) — darhol. Pullik — narx koʻrsatilib tasdiq soʻraladi;
