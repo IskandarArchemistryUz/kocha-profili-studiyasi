@@ -145,7 +145,7 @@ import { isLinkOwner, setExportArea, setExportProject } from '../core/wm';
 import { buyDialog } from '../account/buy';
 // 13.11: agent «Maslahatchi» (faqat oʻqiydi) — agent/*, server/src/agent.js
 import { AgentPanel, agentIntro, agentSeen, markAgentSeen, type Quick } from '../agent/panel';
-import { agentConfig } from '../agent/api';
+import { agentConfig, agentApi } from '../agent/api';
 import { mrTools, type MrHost } from '../agent/tools-mr';
 import { quote as quoteApi } from '../account/session';
 import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
@@ -491,6 +491,7 @@ export class Editor {
       normSet: () => String(this.normSet()), step: () => this.step.id,
       highlight: (ids) => { const bids = ids.filter(id => this.store.doc.buildings.some(b => b.id === id)); this.scene.setIssues(this.store.doc, bids.length ? { bids } : null); return bids.length; },
       quote: (action) => quoteApi([action], this.last?.d.siteHa ?? 0),
+      clause: (doc, clause) => agentApi.clause(doc, clause),
     };
   }
 

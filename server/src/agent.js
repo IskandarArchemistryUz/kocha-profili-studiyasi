@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { SERVICES, SCENARIOS, SYSTEM_RULES, systemFor, LANGS } from './agent-tools.js';
 import { AGENT_COINS, AGENT_FREE_PER_WEEK } from './prices.js';
 import { weekKey } from './wallet.js';
+import { lookup } from './normlib.js';
 
 /** $ / 1 mln token (in, out, kesh oʻqish, kesh yozish). Tekshirilmagan — rasmiy narxlar sahifasi bilan solishtiring; .env da AGENT_PRICES bilan almashtiriladi. */
 export const DEFAULT_PRICES = Object.freeze({
@@ -120,6 +121,13 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
     let u = null;
     try { u = await optionalUser(req); } catch { /* kirmagan */ }
     return u ? { ...base, freeLeft: await freeLeft(u.id), owner: isOwner(u) } : base;
+  });
+
+  /** Band matni (kutubxonadan, soʻzma-soʻz) — ochiq qonun matni; kirish talab qilinmaydi, IP boʻyicha cheklov */
+  app.get('/agent/clause', async (req, reply) => {
+    if (limited(`clause:${req.ip}`, 60)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    reply.header('cache-control', 'public, max-age=3600');
+    return lookup(req.query?.doc, req.query?.clause);
   });
 
   /** Yurish boshlash: tanga yoki bepul savol shu yerda hal boʻladi */

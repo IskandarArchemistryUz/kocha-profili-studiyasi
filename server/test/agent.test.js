@@ -200,6 +200,14 @@ describe('agent — qadam', () => {
   });
 });
 
+describe('agent — band matni', () => {
+  it('/agent/clause — kirishsiz, soʻzma-soʻz', async () => {
+    const r = (await get('/agent/clause?doc=ShNQ%202.07.01-23&clause=86')).json();
+    expect(r).toMatchObject({ found: true, clause: '86-band', doc: 'ShNQ 2.07.01-23' });
+    expect(r.text).toContain('30 foizdan');
+  });
+});
+
 describe('agent — yordamchilar', () => {
   it('Toshkent kuni boshi', () => {
     expect(dayStart(new Date('2026-11-13T20:30:00Z')).toISOString()).toBe('2026-11-13T19:00:00.000Z');

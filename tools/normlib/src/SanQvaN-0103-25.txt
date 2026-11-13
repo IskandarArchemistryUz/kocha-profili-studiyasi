@@ -1,0 +1,74 @@
+1-ILOVA
+1-bob. Umumiy qoidalar
+1. Mazkur sanitariya qoidalarida quyidagi asosiy tushunchalar qoʻllaniladi:
+ruxsat etilgan miqdor (bundan buyon matnda REM deb yuritiladi) — aholi turar joylarida atmosfera havosini ifloslantiruvchi kimyoviy va biologik omillarning ruxsat etilgan miqdori;
+ruxsat etilgan shovqin darajasi — odam organizmining shovqinga sezgir boʻlgan funksional tizimlari va analizatorlari oʻzgarishiga olib kelmaydigan shovqin darajasi;
+sanitariya-muhofaza zonasi (bundan buyon matnda SMZ deb yuritiladi) — atmosfera havosini ifloslantiruvchi moddalar va fizikaviy omillarning aholi turar joylari uchun belgilangan REMgacha kamaytirilishi zarur boʻlgan hudud.
+2-bob. Atmosfera havosini ifloslantiruvchi moddalar va fizikaviy omillardan muhofaza qilishga oid talablar
+2. Obyektlarni loyihalashtirish, qurish, rekonstruksiya qilish va foydalanishga qabul qilishda sanitariya-muhofaza zonasining belgilanishi aholi turar joylarida:
+atmosfera havosini ifloslantiruvchi moddalar Aholi yashash punktlarining atmosfera havosidagi zararli va zaharli moddalar, produtsent mikroorganizmlar, bakterial preparatlar va aeroionlarning ruxsat etilgan gigiyenik meʼyorlarida (0053-23-son SanQvaN) (hisob raqami 205, 2023-yil 8-sentabr) belgilangan bir martalik, oʻrtacha sutkalik va yillik REMdan yuqori boʻlmasligini;
+ruxsat etilgan shovqin darajasi Turar joylarda, jamoat binolarida, aholi yashash hududlarida va dam olish zonalarida ruxsat etilgan shovqin darajasining sanitariya qoidalari va meʼyorlaridan (0008-20-son SanQvaN) (hisob raqami 5, 2020-yil 29-dekabr) yuqori boʻlmasligini taʼminlashi lozim.
+3. Aholi turar joylarining atmosfera havosida ifloslantiruvchi moddalar va fizikaviy omillarning bir nechtasi bir vaqtda mavjud boʻlganda ularning birgalikdagi REM yigʻindisi 0,8 dan oshmasligi kerak.
+Bunda, ifloslantiruvchi moddalar va fizikaviy omillarning bir nechtasi bir vaqtda mavjud boʻlganda ularning birgalikdagi REM quyidagi formula boʻyicha hisoblanadi:
+Bu yerda:
+S1 — kimyoviy omilning laboratoriya tahlili koʻrsatkichi;
+S2 — biologik omilning laboratoriya tahlili koʻrsatkichi;
+S3 — fizikaviy omilning laboratoriya tahlili koʻrsatkichi;
+REM1 — kimyoviy omilning ruxsat etilgan miqdori;
+REM2 — biologik omilning ruxsat etilgan miqdori;
+REM3 — fizikaviy omilning ruxsat etilgan miqdori.
+4. Obyektlarni loyihalashtirish, qurish, rekonstruksiya qilish uchun tegishli maydonni tanlashda ushbu hududdagi havo oqimi va ob-havo sharoitlarining obyektga taʼsiri hisobga olinishi lozim.
+Bunda, hududdagi havo oqimi va ob-havo sharoitlari (tumanli ob-havo) noqulay boʻlganda, mazkur hududda ushbu sanitariya qoidalarining 1-ilovasida keltirilgan 1 va 2-xavflilik sinflariga kiruvchi obyektlarni joylashtirishga yoʻl qoʻyilmaydi.
+5. SMZning masofasini aniqlashda quyidagilar inobatga olinishi lozim:
+atmosfera havosiga chiqariladigan ifloslantiruvchi moddalar va ularning atmosfera havosiga tarqalib ketishi natijasida havoning ifloslanishi;
+hududdagi atmosfera havosining ifloslanganligi darajasi boʻyicha oʻtkazilgan laboratoriya-instrumental tekshiruvlar natijalari.
+6. SMZning masofasi hududda ustunlik qiluvchi shamol yoʻnalishlarini hisobga olgan holda belgilanishi lozim.
+3-bob. Obyektlarning sanitariya tasnifi hamda ularning SMZ
+7. SMZning masofasi quyidagicha boʻlishi lozim:
+aholi turar joylari bilan mazkur sanitariya qoidalarining 1-ilovasi 1-sinfida keltirib oʻtilgan obyektlarning atmosfera havosini ifloslantiruvchi manbasi oʻrtasida masofa 1000 m;
+aholi turar joylari bilan mazkur sanitariya qoidalarining 1-ilovasi 2-sinfida keltirib oʻtilgan obyektlarning atmosfera havosini ifloslantiruvchi manbasi oʻrtasida masofa 500 m;
+aholi turar joylari bilan mazkur sanitariya qoidalarining 1-ilovasi 3-sinfida keltirib oʻtilgan obyektlarning atmosfera havosini ifloslantiruvchi manbasi oʻrtasida masofa 300 m;
+aholi turar joylari bilan mazkur sanitariya qoidalarining 1-ilovasi 4-sinfida keltirib oʻtilgan obyektlarning atmosfera havosini ifloslantiruvchi manbasi oʻrtasida masofa 100 m;
+aholi turar joylari bilan mazkur sanitariya qoidalarining 1-ilovasi 5-sinfida keltirib oʻtilgan obyektlarning atmosfera havosini ifloslantiruvchi manbasi oʻrtasida masofa 50 m.
+8. Obyektlarning ishlab chiqarish jarayonida atmosfera havosini ifloslantiruvchi omillar maxsus jihozlangan manbalar (quvur, gaz yoʻnaltiruvchi, ventilyatsiya shaxtasi) va bevosita chiqadigan manbalarga (deraza, tuynuk va boshqalar) ajratiladi.
+9. Agar aholi turar joylari hududida qoʻshimcha ishlab chiqarish obyektlari qurish zarur boʻlsa, ushbu obyektlardan chiqadigan ifloslantiruvchi moddalar miqdorini aniqlash uchun tadqiqot oʻtkazilishi shart.
+Bunda, ushbu tadqiqot natijalariga asosan SMZ kengaytirilishi yoki oʻzgartirishsiz qoldirilishi mumkin.
+10. Mazkur sanitariya qoidalarining 7-bandida keltirilgan SMZning masofasi qisqartirilishiga quyidagi holatlarda yoʻl qoʻyiladi:
+ifloslantiruvchi moddalar Aholi yashash punktlarining atmosfera havosidagi zararli va zaharli moddalar, produtsent mikroorganizmlar, bakterial preparatlar va aeroionlarning ruxsat etilgan gigiyenik meʼyorlarida (0053-23-son SanQvaN) (hisob raqami 205, 2023-yil 8-sentabr) belgilangan bir martalik, oʻrtacha sutkalik va yillik REMdan yuqori boʻlmasligi taʼminlanganda;
+mazkur sanitariya qoidalarining 1-ilovasidagi 1 va 2-sinflarga kiruvchi obyektlar tomonidan atmosfera havosini ifloslantiruvchi moddalar va fizikaviy omillar yuzasidan ellik kundan kam boʻlmagan muddatda, 3 — 5-sinflarga kiruvchi obyektlar tomonidan atmosfera havosini ifloslantiruvchi moddalar va fizikaviy omillar yuzasidan oʻttiz kundan kam boʻlmagan muddatda oʻtkazilgan laboratoriya-instrumental tahlillar natijasi Aholi yashash punktlarining atmosfera havosidagi zararli va zaharli moddalar, produtsent mikroorganizmlar, bakterial preparatlar va aeroionlarning ruxsat etilgan gigiyenik meʼyorlarida (0053-23-son SanQvaN) (hisob raqami 205, 2023-yil 8-sentabr) belgilangan bir martalik, oʻrtacha sutkalik va yillik REMdan hamda Turar joylarda, jamoat binolarida, aholi yashash hududlarida va dam olish zonalarida ruxsat etilgan shovqin darajasining sanitariya qoidalari va meʼyorlaridan (0008-20-son SanQvaN) (hisob raqami 5, 2020-yil 29-dekabr) yuqori boʻlmaganda;
+obyektlarning ixtisosligi va (yoki) tarkibi oʻzgartirilishi hamda ulardagi ishlab chiqarish quvvatining kamaytirilishi natijasida xavflilik sinfi oʻzgartirilganda;
+obyektdan chiquvchi ifloslantiruvchi moddalar va fizikaviy omillarni kamaytirishga va oldini olishga qaratilgan texnologik jarayonlar qoʻllanilganda.
+11. SMZni quyidagi hollarda 10 barobargacha kengaytirishga yoʻl qoʻyiladi:
+atmosfera havosi ifloslanishi mumkin boʻlgan hududda aholi turar joylarini obyektlarga nisbatan shamol yoʻnalishiga teskari tomonda joylashtirishning imkoni boʻlmaganda;
+Aholi yashash punktlarining atmosfera havosidagi zararli va zaharli moddalar, produtsent mikroorganizmlar, bakterial preparatlar va aeroionlarning ruxsat etilgan gigiyenik meʼyorlarida (0053-23-son SanQvaN) (hisob raqami 205, 2023-yil 8-sentabr) belgilangan bir martalik, oʻrtacha sutkalik va yillik REMdan hamda Turar joylarda, jamoat binolarida, aholi yashash hududlarida va dam olish zonalarida ruxsat etilgan shovqin darajasining sanitariya qoidalari va meʼyorlaridan (0008-20-son SanQvaN) (hisob raqami 5, 2020-yil 29-dekabr) oshib ketgan taqdirda;
+aholi salomatligiga xavfi yetarlicha oʻrganilmagan yangi turdagi ifloslantiruvchi moddalar boʻlgan ishlab chiqarish boshlanganda;
+obyekt hududida shamol orqali ifloslantiruvchi moddalarni atmosfera havosiga tezda tarqatib yuboradigan sharoit (tumanli ob-havo) mavjud boʻlganda;
+atmosfera havosiga chiqariladigan turli xil zararli moddalarni tozalash usullari mavjud boʻlmaganda yoki samarasiz boʻlganda.
+12. SMZda quyidagilarning joylashtirilishiga yoʻl qoʻyilmaydi:
+aholi turar joylari;
+oziq-ovqat ishlab chiqaruvchi korxonalar, oziq-ovqat mahsulotlar omborxonalari va ichimlik suvi inshootlari;
+ijtimoiy soha obyektlari, shu jumladan maktabgacha taʼlim tashkilotlari, taʼlim va sogʻliqni saqlash muassasalari, aholi dam olish joylari hamda sport inshootlari;
+atmosfera havosiga chiqaradigan ifloslantiruvchi moddalar va fizikaviy omillar boshqa obyektlarda mehnat faoliyati olib boradigan xodimlarning sogʻligʻiga zararli taʼsir koʻrsatadigan obyektlar.
+13. Obyektni qurish yoki rekonstruksiya qilish bilan bir vaqtda SMZni koʻkalamzorlashtirish va obodonlashtirish rejasi ishlab chiqilishi lozim.
+Bunda, mazkur sanitariya qoidalarining 1-ilovasida koʻrsatilgan xavflilik sinflari boʻyicha 1-sinfga kiruvchi obyektlar SMZning 40 foizi, 2 va 3-sinflarga kiruvchi obyektlar SMZning 50 foizi, 4 va 5-sinflarga kiruvchi obyektlar SMZning 60 foizi koʻkalamzorlashtirilishi va obodonlashtirilishi kerak.
+14. SMZga quyidagilarni joylashtirishga yoʻl qoʻyiladi:
+xavflilik sinfi past boʻlgan obyektlarni;
+obyekt tarkibiga kiruvchi oʻquv binolarini, ishlab chiqarishga taalluqli boʻlgan savdo, umumiy ovqatlanish shoxobchalari, poliklinika va ilmiy-tadqiqot laboratoriyalarini.
+15. Yuqori kuchlanishli elektr uzatish tarmoqlari (bundan buyon matnda ET deb yuritiladi) yaqinida yashovchi aholini elektr maydoni taʼsiridan muhofaza qilish maqsadida ETning radiusi boʻylab quyidagi oʻlchamlarda SMZ boʻlishi lozim:
+ET kuchlanishi 1 kV gacha boʻlsa 2 m;
+ET kuchlanishi 20 kV gacha boʻlsa 10 m;
+ET kuchlanishi 35 kV gacha boʻlsa 15 m;
+ET kuchlanishi 110 kV gacha boʻlsa 20 m;
+ET kuchlanishi 220 kV gacha boʻlsa 25 m;
+ET kuchlanishi 500 kV gacha boʻlsa 30 m;
+ET kuchlanishi 750 kV gacha boʻlsa 40 m;
+ET kuchlanishi 1150 kV gacha boʻlsa 55 m.
+16. ET kuchlanishi yuqori (500 kV gacha) boʻlganda, undan hosil boʻladigan elektr maydoni turar joy binolari ichida 0,5 kV/m, turar joy binolarining hududida 1 kV/m, avtomobil yoʻllarini kesib oʻtadigan joylarda 10 kV/m, aholi yashamaydigan hududlarda 20 kV/m, magnit maydon esa 80 A/mdan (100 mkTl) yuqori boʻlmasligi lozim.
+17. Hayvonlarni saqlash joylari bilan aholi turar joylari oraligʻidagi SMZ masofasi mazkur sanitariya qoidalarining 2-ilovasiga muvofiq, avtomobillarni ochiq turdagi saqlash joylari bilan aholi turar joylari oraligʻidagi SMZ masofasi ushbu sanitariya qoidalarining 3-ilovasiga muvofiq va oqova suvlarni tozalash qurilmalari bilan aholi turar joylari oraligʻidagi SMZ masofasi mazkur sanitariya qoidalarining 4-ilovasiga muvofiq boʻlishi lozim.
+3-ILOVA
+Avtomobillarni ochiq turdagi saqlash joylari bilan aholi turar joylari oraligʻidagi sanitariya-muhofaza zonasi masofasi
+T/r | Sanitariya-muhofaza zonasi belgilangan joylar | avtomobillar soni (ta): 10 tagacha | 11 tadan 50 tagacha | 51 tadan 100 tagacha | 101 tadan 300 tagacha | 300 dan ortiq
+1. | Aholi turar joy binosining derazasi boʻlgan tomoni | 10 m | 12 m | 15 m | 25 m | 35 m
+2. | Aholi turar joy binosining derazasi boʻlmagan tomoni | 10 m | 15 m | 25 m | 35 m | 50 m
+3. | Maktabgacha taʼlim tashkilotlari, taʼlim muassasalari, dam olish joylari va sport inshootlari | 15 m | 25 m | 25 m | 50 m | -
+4. | Statsionar tipdagi davolash-profilaktika muassasalari | 25 m | 50 m | - | - | -

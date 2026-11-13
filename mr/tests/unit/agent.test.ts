@@ -11,6 +11,7 @@ function fakeApi(steps: StepRes[]) {
   const api: AgentApi = {
     config: async () => ({ enabled: true, services: ['mr'], scenarios: {}, freePerWeek: 3, maxSteps: 10 }),
     run: async () => ({ run: '7', free: true, charged: 0, capped: false, balance: 5, freeLeft: 2, maxSteps: 10 }),
+    clause: async () => ({ found: false }),
     step: async (_run, msgs) => { sent.push(JSON.parse(JSON.stringify(msgs))); return steps.shift() ?? { content: [{ type: 'text', text: 'tamom' }], stop: 'end_turn', status: 'done', stepsLeft: 5 }; },
   };
   return { api, sent };
@@ -67,6 +68,11 @@ describe('agent sikli', () => {
 });
 
 describe('Master reja buyruqlari', () => {
+  it('meʼyor bandi: kutubxonada boʻlsa — soʻzma-soʻz matn', async () => {
+    const t = mrTools(host({ clause: async (d, c) => ({ found: true, doc: d, clause: `${c}-band`, edition: 'joriy', text: '86. … 30 foizdan kam boʻlmasligi kerak.', amend: ['01/2-15'] }) }));
+    const r = await t.get_norm_clause({ doc: 'ShNQ 2.07.01-23', clause: '86' }) as { verbatim_text: string; amendments: string[]; rules: { id: string }[] };
+    expect(r.verbatim_text).toContain('30 foizdan'); expect(r.amendments).toEqual(['01/2-15']); expect(r.rules.map(x => x.id)).toEqual(['green-86']);
+  });
   it('meʼyor bandi: qoida topiladi, matn yoʻqligi aytiladi', async () => {
     const t = mrTools(host());
     const r = await t.get_norm_clause({ doc: 'ShNQ 2.07.01-23', clause: '86' }) as { found: boolean; verbatim_text: null; rules: { id: string }[] };
