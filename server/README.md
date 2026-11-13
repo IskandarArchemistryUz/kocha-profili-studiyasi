@@ -43,6 +43,24 @@ tanga qaytadi. Egasi — tangasiz. Rasm VPS diskida saqlanmaydi.
 
 Xatolar: `401` — kirilmagan, `402` — tanga yetmaydi (`need`, `balance`), `429` — juda koʻp soʻrov.
 
+### Loyihalar bulutda (`src/projects.js`)
+
+Hujjat serverdan oʻtmaydi (nginx ≤ 128 KB): brauzer uni gzip qilib R2 ga presigned PUT bilan yuklaydi.
+
+| Soʻrov | Vazifasi |
+|---|---|
+| `GET /projects?type=master` · `?trash=1` | roʻyxat + `usage` (bytes, quota, count, max) |
+| `GET /projects/:id` · `?version=N` | tavsif + R2 dan yuklash havolasi (10 daqiqa) |
+| `GET /projects/:id/versions` | oxirgi 5 nusxa |
+| `POST /projects/:id/upload` `{type, bytes, base_version}` | presigned PUT (`application/gzip`, 5 daqiqa) |
+| `POST /projects/:id/commit` `{key, base_version, name, type, meta}` | tekshiradi va versiyani +1 qiladi |
+| `PATCH /projects/:id` `{name?, meta?}` | nom / meta (versiya oʻzgarmaydi) |
+| `DELETE /projects/:id` · `POST /projects/:id/restore` | savatga (30 kun) / tiklash |
+
+`base_version` mos kelmasa — `409 conflict` (boshqa qurilmada oʻzgargan; ustidan yozilmaydi).
+Chegaralar: bitta loyiha ≤ 30 MB (siqilgan), hisob ≤ `PROJECTS_QUOTA_MB` (500), ≤ 300 loyiha; egasiga chegara yoʻq.
+Turlar: master, kochasoz, joyshunos, chizmadon, render, dizaynkod, binokor, bogshunos.
+
 ## Qoidalar
 
 - Narx faqat serverda hisoblanadi (`src/prices.js`), brauzer yuborgan narxga ishonilmaydi.

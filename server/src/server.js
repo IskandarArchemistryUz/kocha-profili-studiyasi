@@ -32,7 +32,9 @@ const notifyOwner = async (subject, text) => {
   if (mailer && ownerMails.length) await mailer.sendMail({ from: env.MAIL_FROM || 'Archemistry Lab <kod@archemistry.uz>', to: ownerMails.join(','), subject: `Archemistry Lab — ${subject}`, text });
 };
 // Render: FAL_KEY va R2 toʻliq boʻlmasa — oʻchiq (/render/* → 503 «Render vaqtincha ishlamayapti»)
-const renderOn = !!(env.FAL_KEY && env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY);
+const r2On = !!(env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY);
+const r2 = r2On ? makeR2({ accountId: env.R2_ACCOUNT_ID.trim(), keyId: env.R2_ACCESS_KEY_ID.trim(), secret: env.R2_SECRET_ACCESS_KEY.trim(), bucket: (env.R2_BUCKET || 'archemistry-render').trim() }) : null;
+const renderOn = !!(env.FAL_KEY && r2On);
 if (!renderOn) console.warn('render: FAL_KEY yoki R2_* berilmagan — render oʻchiq');
 
 const app = await buildApp({
@@ -69,11 +71,13 @@ const app = await buildApp({
   } : null,
   render: renderOn ? {
     fal: makeFal({ key: env.FAL_KEY.trim() }),
-    r2: makeR2({ accountId: env.R2_ACCOUNT_ID.trim(), keyId: env.R2_ACCESS_KEY_ID.trim(), secret: env.R2_SECRET_ACCESS_KEY.trim(), bucket: (env.R2_BUCKET || 'archemistry-render').trim() }),
+    r2,
     hookUrl: `${(env.RENDER_HOOK_BASE || 'https://api.archemistry.uz').replace(/\/$/, '')}/render/hook`,
     dailyUsd: Number(env.RENDER_DAILY_USD_CAP || 20),
     notify: notifyOwner,
   } : null,
+  // loyihalar bulutda: R2 boʻlsa yoqiladi (projects/ prefiksi; render lifecycle faqat in/ ga tegadi)
+  projects: r2On ? { r2, ...(env.PROJECTS_QUOTA_MB ? { quotaBytes: Number(env.PROJECTS_QUOTA_MB) * 2 ** 20 } : {}) } : null,
   owners: (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   secure: env.COOKIE_SECURE !== '0',
   logger: true,
