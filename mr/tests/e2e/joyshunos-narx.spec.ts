@@ -195,3 +195,20 @@ test('uy narxi — tungi plakat', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-narx-t', 'visibility'))).toBe('none');
   expect(errs).toEqual([]);
 });
+
+/** 13.11 (kanvas 15): yuza tasnifi — OSM binolar, yoʻllar, yashil, suv; doira ichidagi ulushlar */
+test('yuza tasnifi (OSM)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [];
+  await open(page, errs);
+  await joyClick(page, 'yuza', '.switch');
+  const card = page.locator('[data-card=yuza]');
+  await expect(card.locator('.big')).toHaveText(/\d+ % qattiq yuza/, { timeout: 60_000 });
+  await expect(card.locator('.joy-norm li')).toHaveCount(5);
+  const sum = await card.locator('.joy-norm li b').allTextContents();
+  const tot = sum.map(t => parseFloat(t)).reduce((a, b) => a + b, 0); expect(tot).toBeGreaterThan(97); expect(tot).toBeLessThan(103);
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-yuza', 'visibility'))).toBe('visible');
+  await expect(page.locator('.joy-legend')).toContainText('Yuza tasnifi');
+  if (process.env.SHOT) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOT }); }
+  expect(errs).toEqual([]);
+});

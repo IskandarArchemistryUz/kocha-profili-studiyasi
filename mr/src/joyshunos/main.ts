@@ -63,7 +63,7 @@ interface LayerDef { id: LayerId; g: Group; name: string; src: string; color: st
 const LAYERS: LayerDef[] = [
   { id: 'relyef', g: 'yer', name: 'Relyef', src: 'AWS Terrain', color: '#8b7a6a', ready: true },
   { id: 'nishab', g: 'yer', name: 'Nishab', src: 'relyefdan', color: '#eaa56b', ready: true },
-  { id: 'yuza', g: 'yer', name: 'Yuza tasnifi', src: 'yoʻldosh', color: '#b9cfa6', ready: false },
+  { id: 'yuza', g: 'yer', name: 'Yuza tasnifi', src: 'OSM', color: '#b9cfa6', ready: true, beta: true },
   { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'yoʻldosh', color: '#d9503f', ready: true, beta: true },
   { id: 'quyosh', g: 'iqlim', name: 'Quyosh va soya', src: 'OSM', color: '#e8a317', ready: true },
   { id: 'shamol', g: 'iqlim', name: 'Shamol', src: 'EPW · ERA5', color: '#3f8f6b', ready: true },
@@ -780,6 +780,14 @@ function renderRightH(): void {
     el.querySelector('header')!.after(h('div', { class: 'joy-catw' }, pickBtn, menu));
     cards.push(el);
   }
+  if (isOn('yuza')) {   // 13.11 (kanvas 15): OSM dan yuza tasnifi — taxminiy
+    const y = yuzaNow(), sh = y?.share, P = (k: YuzaK) => fmt(Math.round((sh?.[k] ?? 0) * 100));
+    cards.push(card(L('yuza'), 'OSM', sh ? tf('${p} % qattiq yuza', { p: fmt(Math.round((sh.tom + sh.yol) * 100)) }) : '—',
+      sh ? [tr('Qattiq yuza — tom va yoʻl: issiqlik orolining asosiy manbai.'), h('br'),
+        h('ul', { class: 'joy-norm' }, ...YUZA_K.map(([k, c, n]) => h('li', {}, h('span', {}, h('i', { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${c}` }), tr(n)), h('b', {}, `${P(k)} %`), h('em', {}, tr('doiraning'))))),
+        h('span', { class: 'src' }, tr('OSM binolar, yoʻllar (kenglik — koʻcha toifasidan, taxminiy), yashil va suv maydonlari. «Qolgan» — hovli, ochiq joy va xaritalanmagan qism; OSM da yashillik kam chizilgan boʻlishi mumkin. Aniq tasnif — Sentinel-2 NDVI yoki aerofoto bilan.'))] : [],
+      null, sh ? undefined : { st: 'load' }));
+  }
   if (isOn('uylar') && !inTash(S.c)) {   // 13.11: Toshkentdan tashqarida — global aholi zichligi (GHS-POP)
     const pw = POP.key === popKey() ? POP.v : undefined, k = pw ? popStats(pw, S.c, S.r) : null, st = V('uylar').st;
     cards.push(card(L('uylar'), 'GHS-POP 2025', k ? tf('~${n} kishi', { n: fmt(Math.round(k.aholi / 100) * 100) }) : '—',
@@ -1029,6 +1037,7 @@ function ensure(): void {
   if (isOn('uylar') && inTash(S.c)) loadKad();
   if (isOn('uylar') || isOn('oqim')) loadPop();
   if (isOn('narx') && D.narx.st === 'idle') { D.narx = { st: 'load' }; loadNarx().then(v => { D.narx = { st: 'ok', v }; renderRight(); paint(); }, e => { D.narx = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); }); }
+  if (isOn('yuza') && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();
   if (isOn('quyosh')) { if (axBundle?.key === `${c.join()}|${r + 100}`) computeSun(); else void needCtx(); }
   if (isOn('raqobat') && D.comp.st === 'idle') run('comp', async () => {
     const cat = CATS.find(x => x.id === S.cat) ?? CATS[0], key = `joy-comp:${cat.id}:${c[0].toFixed(4)},${c[1].toFixed(4)}:${r}`;
@@ -1222,9 +1231,10 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-narx-l', type: 'line', source: 'joy-narx', layout: { visibility: 'none' }, paint: { 'line-color': ['case', ['==', ['get', 'm'], null], '#b9b5ad', '#ffffff'], 'line-width': 0.7, 'line-opacity': 0.8 } } as never, before);
   for (const id of ['joy-ring', 'joy-poi', 'joy-comp', 'joy-c', 'joy-draw', 'joy-site', 'joy-walk', 'joy-flow', 'joy-cov']) m.addSource(id, { type: 'geojson', data: fc([]) as never });
   kadKey = ''; kadbKey = '';
-  for (const id of ['joy-heat', 'joy-sun', 'joy-shadow', 'joy-kad']) m.addSource(id, { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
+  for (const id of ['joy-heat', 'joy-sun', 'joy-shadow', 'joy-kad', 'joy-yuza']) m.addSource(id, { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addSource('joy-kadb', { type: 'geojson', data: fc([]) as never });
   m.addLayer({ id: 'joy-kadb', type: 'fill', source: 'joy-kadb', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.9, 'fill-outline-color': '#ffffff' } } as never, before);
+  m.addLayer({ id: 'joy-yuza', type: 'raster', source: 'joy-yuza', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
   m.addLayer({ id: 'joy-kad', type: 'raster', source: 'joy-kad', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
   m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
   m.addSource('joy-heat-l', { type: 'geojson', data: fc([]) as never });
@@ -1291,8 +1301,8 @@ function addOverlays(): void {
 }
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
-let slopeKey = '', narxTKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
-const HUD_LAYERS = ['joy-narx-t', 'joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+let slopeKey = '', yuzaKey = '', narxTKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
+const HUD_LAYERS = ['joy-yuza', 'joy-narx-t', 'joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1373,6 +1383,7 @@ function paintH(): void {
   { const ob = isOn('uylar') ? kadOwnerFeats() : null;
     if (ob) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${V('uylar').p}|${PV?.key}|${PV?.d?.features.length}`; if (k !== kadbKey) { kadbKey = k; (m.getSource('joy-kadb') as GeoJSONSource).setData(ob.fc as never); } }
     if (m.getLayer('joy-kadb')) m.setLayoutProperty('joy-kadb', 'visibility', ob ? 'visible' : 'none'); }
+  { const y = isOn('yuza') ? yuzaNow() : null; if (y) { if (y.key !== yuzaKey) { yuzaKey = y.key; upd('joy-yuza', { url: y.url, coords: y.coords }); } m.setLayoutProperty('joy-yuza', 'visibility', 'visible'); } else if (m.getLayer('joy-yuza')) m.setLayoutProperty('joy-yuza', 'visibility', 'none'); }
   const pwG = isOn('uylar') && !inTash(S.c) && POP.key === popKey() ? POP.v : undefined;
   if (isOn('uylar') && (pwG || (inTash(S.c) && KAD.v))) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${V('uylar').p}|${pwG ? POP.key : 'kad'}`; if (k !== kadKey) { kadKey = k; upd('joy-kad', pwG ? popImage(pwG) : kadImage(KAD.v!, V('uylar').st)); } m.setLayoutProperty('joy-kad', 'visibility', 'visible'); }
   else if (m.getLayer('joy-kad')) m.setLayoutProperty('joy-kad', 'visibility', 'none');
@@ -1411,6 +1422,7 @@ function paintH(): void {
     : h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
   if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
+  if (isOn('yuza') && yuzaNow()) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Yuza tasnifi (OSM, taxminiy)')), ...YUZA_K.filter(([k]) => k !== 'qolgan').map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
   if (isOn('uylar') && !inTash(S.c) && POP.v) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (GHS-POP, 90 m)')), ...GHS_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === GHS_DENS.length - 1 ? `${t}+` : `${t}–${GHS_DENS[i + 1][0]}`))));
   else if (isOn('uylar') && KAD.v) { const st = V('uylar').st;
     lg.push(st === 'yosh' ? h('div', { class: 'lg' }, h('b', {}, tr('Uylar yoshi (koʻp kvartirali, median)')), ...KAD_ERA.map(([, , c, n], i) => h('span', {}, h('i', { style: `background:${V('uylar').p === 1 ? KAD_ERA_MONO[i] : c}` }), tr(n))))
@@ -1448,6 +1460,36 @@ function sunCol(hours: ArrayLike<number>): (x: number) => string | null {
 /** Issiqlik uslublari (13.11, kanvas 1–4): Jurnal (±0,5 °C rangsiz + yorliqlar), Binolar (har bino — u turgan katak rangi),
  *  Issiq dogʻlar (±1 °C ichi toʻq fon, konturlar), Koʻchalar va tomlar (koʻcha — issiq rang, toʻqligi katakka qarab; tomlar; bogʻlar yashil).
  *  Hammasi faqat tahlil doirasi ichida (canvas clip). Bino/koʻcha rangi — 100 m katak qiymati, alohida tom oʻlchovi emas. */
+/** Yuza tasnifi (13.11, kanvas 15): OSM binolar (tom), yoʻllar (toifa kengligi bilan), yashil, suv — doira ichida rasterlab ulush sanaladi */
+type YuzaK = 'tom' | 'yol' | 'yashil' | 'suv' | 'qolgan';
+const YUZA_K: [YuzaK, string, string][] = [['tom', '#5b5f6b', 'Bino tomlari'], ['yol', '#c9b38f', 'Yoʻl, trotuar'], ['yashil', '#7fb069', 'Yashil (OSM)'], ['suv', '#6fa8dc', 'Suv'], ['qolgan', '#efece6', 'Qolgan']];
+let YZ: { key: string; url: string; coords: [number, number][]; share: Record<YuzaK, number> } | null = null;
+function yuzaNow(): typeof YZ {
+  const key = `${S.c.join()}|${S.r}|${axBundle?.key}`; if (YZ?.key === key) return YZ;
+  if (!axBundle || axBundle.key !== `${S.c.join()}|${S.r + 100}`) return null;
+  const px = 640, clip = S.r, k = px / (2 * clip), cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const cx = cv.getContext('2d')!, fr = geoFrame(S.c), P = (q: LngLat): [number, number] => { const [x, y] = fr.toLocal(q); return [(x + clip) * k, (clip - y) * k]; };
+  const ring = (r: LngLat[]) => r.forEach((q, i) => { const [a, b] = P(q); if (i) cx.lineTo(a, b); else cx.moveTo(a, b); });
+  const col = Object.fromEntries(YUZA_K.map(([kk, c]) => [kk, c])) as Record<YuzaK, string>, o = axBundle.b.osm;
+  cx.save(); cx.beginPath(); cx.arc(px / 2, px / 2, clip * k, 0, 2 * Math.PI); cx.clip();
+  cx.fillStyle = col.yashil; for (const a of o.green) { cx.beginPath(); for (const r of a.rings) ring(r); cx.fill('evenodd'); }
+  cx.fillStyle = col.suv; for (const a of o.water) { cx.beginPath(); for (const r of a.rings) ring(r); cx.fill('evenodd'); }
+  cx.strokeStyle = col.yol; cx.lineCap = 'round'; cx.lineJoin = 'round';
+  for (const r of o.roads) { cx.lineWidth = Math.max(1, Math.min(30, r.w || 6) * k); cx.beginPath(); ring(r.pts); cx.stroke(); }
+  cx.fillStyle = col.tom; for (const b of o.buildings) { cx.beginPath(); for (const r of b.rings) ring(r); cx.fill('evenodd'); }
+  cx.restore();
+  const im = cx.getImageData(0, 0, px, px).data, rgb = YUZA_K.slice(0, 4).map(([kk, c]) => [kk, parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)] as const);
+  const cnt: Record<YuzaK, number> = { tom: 0, yol: 0, yashil: 0, suv: 0, qolgan: 0 }; let tot = 0;
+  for (let r = 0; r < px; r++) for (let q = 0; q < px; q++) {
+    if (Math.hypot(q + 0.5 - px / 2, r + 0.5 - px / 2) > clip * k) continue; tot++; const i = (r * px + q) * 4;
+    if (im[i + 3] < 128) { cnt.qolgan++; continue; }
+    let best: YuzaK = 'qolgan', bd = Infinity; for (const [kk, R, G, B] of rgb) { const d = (im[i] - R) ** 2 + (im[i + 1] - G) ** 2 + (im[i + 2] - B) ** 2; if (d < bd) { bd = d; best = kk; } } cnt[best]++;
+  }
+  const share = Object.fromEntries(Object.entries(cnt).map(([kk, v]) => [kk, tot ? v / tot : 0])) as Record<YuzaK, number>;
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  YZ = { key, url: cv.toDataURL(), coords: [[S.c[0] - clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] - clip / ky], [S.c[0] - clip / kx, S.c[1] - clip / ky]], share };
+  return YZ;
+}
 function heatImage(g: LstGrid, st: string, vecOk: boolean): { url: string; coords: [number, number][] } {
   const mu = lstMean(g), dAt = (x: number, y: number) => bilinear(g.v, g.n, g.step, x, y) - mu;
   if (st === 'geks') return hexImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, S.r);
@@ -1594,6 +1636,7 @@ function focusMap(m: MLMap): void {
   set('joy-hs', 'hillshade-exaggeration', q('relyef', 0.2, 1)); set('joy-gips', 'raster-opacity', q('relyef', 0.35, 0.85));
   set('joy-topo', 'line-opacity', q('relyef', 0.35, 1)); set('joy-topo-l', 'text-opacity', k('relyef'));
   set('joy-slope', 'raster-opacity', q('nishab', 0.35, 0.95));
+  set('joy-windf', 'raster-opacity', q('shamol', 0.55, 0.92)); set('joy-yuza', 'raster-opacity', q('yuza', 0.45, 0.9));   // 13.11: faol boʻlmaganda xira (fokus)
   set('joy-narx-f', 'fill-opacity', q('narx', 0.35, 0.9)); set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
   set('joy-kad', 'raster-opacity', q('uylar', 0.35, 0.88) * (isOn('uylar') && kadOwnerFeats() ? 0.35 : 1));
   set('joy-kadb', 'fill-opacity', q('uylar', 0.4, 0.92));
@@ -1760,6 +1803,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
         lines: [...near.values()].map(n => ({ pts: [[0, 0], n.xy] as XY[], w: 0.3, col: '#16171a', op: 0.55, dash: '1 1' })),
         labels: [...near.entries()].filter(([, n]) => n.d <= S.r * 1.1).map(([k, n]) => ({ x: n.xy[0], y: n.xy[1], t: `${tr(SVC_SHORT[k])} · ${fmt(n.d)} m`, col: SVC_COL[k] })) };
     }
+    case 'yuza': { const y = yuzaNow(); return y ? { quiet: true, rasters: [ras({ url: y.url, coords: y.coords }, 0.85)] } : {}; }
     case 'uylar': { if (!inTash(S.c)) { const pw = POP.key === popKey() ? POP.v : undefined; return pw ? { quiet: true, rasters: [ras(popImage(pw), 0.85)] } : {}; } const g = KAD.v; if (!g) return {}; return { quiet: true, rasters: [ras(kadImage(g, V('uylar').st), 0.85)] }; }
     case 'narx': {
       const d = D.narx.v; if (!d) return {};
