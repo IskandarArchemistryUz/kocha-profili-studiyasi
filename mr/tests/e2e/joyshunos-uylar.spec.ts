@@ -57,3 +57,25 @@ test('uylar va aholi: 50 m kadastr agregati, uch uslub, doira ichida', async ({ 
   await expect(card).toContainText('ekspertiza emas');
   expect(errs).toEqual([]);
 });
+
+test('uylar va aholi: egasi — bino darajasi (shaxsiy qatlam)', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const c = [69.2797, 41.3111], d = 0.0002;
+  const bld = { l: 1, p: { qavat: 9, xonadon: 60, yil: 1962, devor: 'Пишиқ ғишт' }, g: { type: 'Polygon', coordinates: [[[c[0] - d, c[1] - d], [c[0] + d, c[1] - d], [c[0] + d, c[1] + d], [c[0] - d, c[1] + d], [c[0] - d, c[1] - d]]] } };
+  await page.route(/api\.archemistry\.uz/, r => {
+    const u = r.request().url(), h = { 'access-control-allow-origin': r.request().headers().origin ?? 'http://127.0.0.1:4173', 'access-control-allow-credentials': 'true' };
+    if (u.includes('/private/features')) return r.fulfill({ contentType: 'application/json', headers: h, body: JSON.stringify({ layers: [{ id: 1, name: 'KKU', source: 'kadastr 2023' }], features: [bld] }) });
+    if (u.includes('/private/layers')) return r.fulfill({ contentType: 'application/json', headers: h, body: JSON.stringify({ layers: [{ id: 1, name: 'KKU', source: 'kadastr 2023', n: 1 }] }) });
+    return r.fulfill({ status: 401, contentType: 'application/json', headers: h, body: '{}' });
+  });
+  await page.addInitScript(() => { try { localStorage.setItem('kps_owner', '1'); } catch { /* */ } });
+  const errs: string[] = []; await open(page, errs);
+  await joyClick(page, 'uylar', '.switch');
+  const card = page.locator('[data-card=uylar]');
+  await expect(card).toContainText('Siz uchun — bino darajasida', { timeout: 60_000 });
+  await expect(card).toContainText('1 ta uy');
+  await expect.poll(() => page.evaluate(() => (window as any).joyMap.getLayoutProperty('joy-kadb', 'visibility'))).toBe('visible');
+  await expect(page.locator('.joy-legend')).toContainText('Uy aholisi, kishi (bino darajasi)');
+  expect(errs.filter(e => !/401|Unauthorized|CORS|api\.archemistry/.test(e))).toEqual([]);
+});

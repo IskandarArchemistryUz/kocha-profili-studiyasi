@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadKadastr, kadCell, kadStats, eraCol, seiCol, densCol, type KadIndex } from '../../src/joyshunos/kadastr';
+import { loadKadastr, kadCell, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, type KadIndex } from '../../src/joyshunos/kadastr';
 
 // 4 × 3 toʻr, 50 m atrofida
 const IX: KadIndex = { bbox: [69.0, 41.0 - 3 * 0.00045, 69.0 + 4 * 0.0006, 41.0], qadam: [0.0006, 0.00045], nx: 4, ny: 3 };
@@ -33,5 +33,11 @@ describe('kadastr 50 m toʻri', () => {
     expect(eraCol(0)).toBeNull(); expect(eraCol(1950)).toBe('#7a3b1c'); expect(eraCol(2020)).toBe('#2f6f8f');
     expect(seiCol(0)).toBeNull(); expect(seiCol(4)).toBe('#b2182b');
     expect(densCol(0)).toBeNull(); expect(densCol(700)).toBe('#7f2704'); expect(densCol(50)).toBe('#fff3e6');
+  });
+  it('bino darajasi: seysmik toifa va aholi rangi (egasi)', () => {
+    expect(seiCat(undefined, 'Бетон')).toBe(0); expect(seiCat(1960, 'Бетон')).toBe(4);
+    expect(seiCat(1975, 'Бетон')).toBe(2); expect(seiCat(1975, 'Темирбетонли (панелли)')).toBe(2); expect(seiCat(1975, 'Пишиқ ғишт')).toBe(3);
+    expect(seiCat(2005, 'Пишиқ ғишт')).toBe(1);
+    expect(bldCol(0)).toBeNull(); expect(bldCol(10)).toBe('#fdd0a2'); expect(bldCol(700)).toBe('#7f2704');
   });
 });

@@ -60,3 +60,17 @@ export function kadStats(g: KadGrid, c: [number, number], R: number): KadStats {
   const ha = Math.PI * R * R / 1e4;
   return { aholi: Math.round(aholi), zich: Math.round(aholi / ha), kku, yilMed: ys.length ? ys[ys.length >> 1] : null, era, sei, qavatMax, cells };
 }
+
+/** Bitta bino uchun seysmik toifa (kanvas 18; agregat bilan bir xil qoida): 1966 gacha — 4; 1966–1991 beton/panel — 2, boshqasi — 3; keyin — 1 */
+export function seiCat(yil?: number, devor?: string): number {
+  if (!yil || yil < 1800) return 0;
+  if (yil < 1966) return 4;
+  if (yil <= 1991) return /бетон|панел|beton|panel/i.test(devor ?? '') ? 2 : 3;
+  return 1;
+}
+/** Bino aholisi (kishi) boʻyicha rang — egasining bino darajasidagi koʻrinishi */
+export function bldCol(kishi: number): string | null {
+  if (kishi <= 0) return null;
+  const T: [number, string][] = [[0, '#fdd0a2'], [50, '#fd8d3c'], [150, '#d94801'], [300, '#a63603'], [600, '#7f2704']];
+  let c = T[0][1]; for (const [t, col] of T) if (kishi >= t) c = col; return c;
+}
