@@ -368,7 +368,7 @@ function guess(t){
 map.on('click',e=>{
   lastLL=e.latlng;
   if(M.tool){measClick(e.latlng);return;}
-  if(S.app==='design'){designClick(e.latlng);return;}
+  if(S.app==='design'){designClick(e.latlng,e.originalEvent);return;}
   if(S.app==='area'){areaClick(e.latlng);return;}
   if(S.mode==='pick') pickStreet(e.latlng);
   else if(S.mode==='measure'){
@@ -1692,10 +1692,47 @@ function renderDesign(){
 }
 function drawPreview(){previewL.clearLayers();if(S.app!=='design')return;
   freePreview();
-  if(D.start){const st=nodeById(D.start);if(!st)return;const pts=[st.ll,...D.pts,...(D.cur?[D.cur]:[])];L.polyline(pts,{pane:'designEdit',interactive:false,color:'#f4c542',weight:3,dashArray:'6 5'}).addTo(previewL);
-    if(D.cur)lab(D.cur,fmtD(lineLen(pts))).addTo(previewL);}
+  if(D.start){const st=nodeById(D.start);if(!st)return;const pts=[st.ll,...D.pts,...(D.cur?[D.cur]:[])];
+    /* tirik koʻrinish: koʻcha butun kengligi bilan (tanlangan profil), oʻq chizigʻi, yoʻnaltiruvchi va ulanish belgisi */
+    const ds=DS(),ppm=1/(156543.03392*Math.cos(pts[0][0]*Math.PI/180)/Math.pow(2,map.getZoom()));let half=6;try{half=layOf({id:-1,a:0,b:0,pts:[],p:ds.preset,rad:[]}).outer;}catch(e){}
+    if(pts.length>1){L.polyline(pts,{pane:'designEdit',interactive:false,color:'#7d8a99',opacity:.28,weight:Math.max(4,2*half*ppm),lineCap:'butt',lineJoin:'round'}).addTo(previewL);}
+    L.polyline(pts,{pane:'designEdit',interactive:false,color:'#f4c542',weight:3,dashArray:'6 5'}).addTo(previewL);
+    if(D.guide)L.polyline(D.guide,{pane:'designEdit',interactive:false,color:'#4c5bd4',weight:1.2,dashArray:'4 6',opacity:.9}).addTo(previewL);
+    if(D.hov)L.circleMarker(D.hov,{pane:'designEdit',interactive:false,radius:10,color:'#2b7449',weight:2.5,fill:false}).addTo(previewL);
+    if(D.cur){const a=pts[pts.length-2],b=D.cur,az=((Math.atan2((b[1]-a[1])*Math.cos(a[0]*Math.PI/180),b[0]-a[0])*180/Math.PI)+360)%360;
+      lab(D.cur,`${fmtD(lineLen(pts))} · ${Math.round(az)%360}°${D.snapTxt?' · <b>'+D.snapTxt+'</b>':''}${D.hov?' · <b style="color:#2b7449">ulanadi</b>':''}`).addTo(previewL);}}
+  /* tanlangan chorraha ustida tezkor panel: turini bir bosishda almashtirish va harakatni sinash */
+  const ds0=DS(),sl=ds0.sel;if(!D.start&&sl&&sl.t==='node'&&ds0.tool==='select'){const n=nodeById(sl.id),k=n&&nodeKind(n);
+    if(n&&(k==='x'||k==='sig'||k==='round')){const cur=n.type==='round'?'round':n.type==='sig'?'sig':n.type==='x'?'x':'auto',
+      B=(v,t,ttl)=>`<button data-nt="${v}" title="${ttl}" style="border:0;padding:5px 9px;border-radius:6px;cursor:pointer;font:600 12px Archivo,system-ui,sans-serif;background:${cur===v?'#141414':'transparent'};color:${cur===v?'#fff':'#141414'}">${t}</button>`;
+      const html=`<div class="ntq" style="display:inline-flex;gap:2px;padding:3px;background:#fff;border:1px solid #d8d5ce;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.16);white-space:nowrap;transform:translate(-50%,-100%)">${B('x','Belgisiz','Tartibga solinmagan chorraha')}${B('sig','Svetofor','Svetoforli chorraha')}${B('round','Halqa','Aylanma halqa')}${typeof openSim==='function'?`<span style="width:1px;background:#e4e1da;margin:3px 2px"></span><button data-sim style="border:0;padding:5px 9px;border-radius:6px;cursor:pointer;font:600 12px Archivo,system-ui,sans-serif;background:#4c5bd4;color:#fff">▶ Sinash</button>`:''}</div>`;
+      const mk=L.marker(n.ll,{pane:'designEdit',interactive:true,keyboard:false,zIndexOffset:2000,icon:L.divIcon({className:'',html,iconSize:null,iconAnchor:[0,26+(k==='round'?((n.ri||12)+(n.rw||6)+3):14)/(156543.03392*Math.cos(n.ll[0]*Math.PI/180)/Math.pow(2,map.getZoom()))]})}).addTo(previewL);
+      const el=mk.getElement();if(el){L.DomEvent.disableClickPropagation(el);L.DomEvent.disableScrollPropagation(el);
+        el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();
+          if(b.dataset.sim!=null){openSim(n.id);return;}
+          const v=b.dataset.nt;n.type=v;if(v==='round'){const rt=RTYPES[n.rtype||ds0.rtype||'r2'];n.rtype=n.rtype||ds0.rtype||'r2';n.ri=n.ri||rt.ri;n.rw=n.rw||rt.rw;n.lanes=n.lanes||rt.lanes;}afterDesign();});}}}
 }
 let pvRAF=0;const previewSoon=()=>{if(pvRAF)return;pvRAF=requestAnimationFrame(()=>{pvRAF=0;drawPreview();});};
+
+/* chizishda tekislash: oldingi boʻlakka nisbatan 0/30/45/60/90°, yaqin koʻchaga parallel yoki perpendikulyar (Alt — oʻchiradi) */
+function drawSnap(ll,ev){D.guide=null;D.snapTxt='';D.hov=null;const h=hitTest(ll);
+  if(h&&(h.t==='node'&&h.id!==D.start||h.t==='seg')){D.hov=h.t==='node'?nodeById(h.id).ll:[h.ll.lat,h.ll.lng];return D.hov;}
+  if(!D.start||(ev&&ev.altKey))return [ll.lat,ll.lng];
+  const st=nodeById(D.start),prev=D.pts.length?D.pts[D.pts.length-1]:st.ll,A=map.latLngToContainerPoint(prev),P=map.latLngToContainerPoint(ll),dx=P.x-A.x,dy=P.y-A.y,len=Math.hypot(dx,dy);
+  if(len<20)return [ll.lat,ll.lng];const ang=Math.atan2(dy,dx),cand=[];
+  /* oldingi yoʻnalish: D.pts dagi oxirgi boʻlak yoki boshlangʻich tugunga ulangan koʻcha */
+  let ref=null;if(D.pts.length){const q=map.latLngToContainerPoint(D.pts.length>1?D.pts[D.pts.length-2]:st.ll);ref=Math.atan2(A.y-q.y,A.x-q.x);}
+  else{const sg=DS().segs.find(x=>x.a===st.id||x.b===st.id);if(sg){const ll2=segLL(sg),o=sg.a===st.id?ll2[1]:ll2[ll2.length-2],q=map.latLngToContainerPoint(o);ref=Math.atan2(A.y-q.y,A.x-q.x);}}
+  if(ref!=null)[0,30,45,60,90,-30,-45,-60,-90].forEach(d=>cand.push([ref+d*Math.PI/180,d===0?'davomi':Math.abs(d)===90?'⊥ 90°':Math.abs(d)+'°']));
+  else for(let d=0;d<360;d+=45)cand.push([d*Math.PI/180,d%90?'45°':'tik']);
+  /* yaqin koʻcha (100 px): parallel / perpendikulyar */
+  let near=null;DS().segs.forEach(sg=>{const pp=segLL(sg).map(q=>map.latLngToContainerPoint(q));for(let i=0;i<pp.length-1;i++){const a=pp[i],b=pp[i+1],ex=b.x-a.x,ey=b.y-a.y,l2=ex*ex+ey*ey||1,t=Math.max(0,Math.min(1,((P.x-a.x)*ex+(P.y-a.y)*ey)/l2)),d=Math.hypot(a.x+t*ex-P.x,a.y+t*ey-P.y);
+    if(d<100&&(!near||d<near.d))near={d,ang:Math.atan2(ey,ex),a,b};}});
+  if(near){cand.push([near.ang,'∥ parallel'],[near.ang+Math.PI,'∥ parallel'],[near.ang+Math.PI/2,'⊥ perpendikulyar'],[near.ang-Math.PI/2,'⊥ perpendikulyar']);}
+  let best=null;cand.forEach(([a,t])=>{let d=Math.abs(((ang-a)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI);if(d<4*Math.PI/180&&(!best||d<best.d))best={d,a,t};});
+  if(!best)return [ll.lat,ll.lng];
+  const Q=L.point(A.x+Math.cos(best.a)*len,A.y+Math.sin(best.a)*len),g=map.containerPointToLatLng(Q),far=map.containerPointToLatLng(L.point(A.x+Math.cos(best.a)*(len+400),A.y+Math.sin(best.a)*(len+400)));
+  D.guide=[prev,[far.lat,far.lng]];D.snapTxt=best.t;return [g.lat,g.lng];}
 
 /* bosish, ulash (snap), boʻlish */
 function hitTest(ll){
@@ -1736,7 +1773,7 @@ function splitSegAt(sg,i,ll,node){
 }
 function splitSeg(h){const sg=segById(h.id),n=newNode([h.ll.lat,h.ll.lng]);splitSegAt(sg,h.i,[h.ll.lat,h.ll.lng],n);return n;}
 function resolve(ll,h){if(h&&h.t==='node')return nodeById(h.id);if(h&&h.t==='seg')return splitSeg(h);return newNode([ll.lat,ll.lng]);}
-function designClick(ll){
+function designClick(ll,ev){
   const ds=DS(),h=hitTest(ll);
   if(ds.tool==='select'){selectAt(ll,h);return;}
   if(ds.tool==='sign'){placeSign(ll);return;}
@@ -1746,7 +1783,7 @@ function designClick(ll){
   if(ds.tool==='round'){if(h&&h.t==='node'){const n=nodeById(h.id);if(n.type==='round')n.type='auto';else{const rt=RTYPES[ds.rtype||'r2'];n.type='round';n.rtype=ds.rtype||'r2';n.ri=rt.ri;n.rw=rt.rw;n.lanes=rt.lanes;}ds.sel={t:'node',id:n.id};afterDesign();}else toast('Halqa qoʻyish uchun tugun (nuqta)ni bosing.');return;}
   if(!D.start){const n=resolve(ll,h);D.start=n.id;D.pts=[];afterDesign();return;}
   if(h&&(h.t==='node'&&h.id!==D.start||h.t==='seg')){const n=resolve(ll,h);finishSeg(n);return;}
-  D.pts.push([ll.lat,ll.lng]);afterDesign();
+  const sp=drawSnap(ll,ev);D.pts.push(sp);D.guide=null;D.snapTxt='';afterDesign();
 }
 function finishSeg(endNode){
   if(!D.start)return;
@@ -1796,7 +1833,7 @@ function delSel(){const ds=DS(),s=ds.sel;if(!s)return;
   if(s.t==='node'){ds.segs=ds.segs.filter(x=>x.a!==s.id&&x.b!==s.id);ds.nodes=ds.nodes.filter(x=>x.id!==s.id);}
   ds.nodes=ds.nodes.filter(n=>degree(n)>0);ds.sel=null;afterDesign();}
 function afterDesign(){renderDesign();renderDesignPanel();renderHint();pushHist();save();}
-map.on('mousemove',e=>{if(S.app==='design'&&D.start&&!M.tool){D.cur=[e.latlng.lat,e.latlng.lng];previewSoon();}});
+map.on('mousemove',e=>{if(S.app==='design'&&D.start&&!M.tool){D.cur=drawSnap(e.latlng,e.originalEvent);previewSoon();}});
 map.on('dblclick',e=>{if(S.app==='design'&&D.start&&!M.tool){D.pts.pop();finishSeg(null);}});
 document.addEventListener('keydown',e=>{
   if(S.app!=='design'||M.tool||/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))return;
@@ -1808,7 +1845,7 @@ document.addEventListener('keydown',e=>{
 });
 function designHint(h){
   const t=DS().tool;
-  if(t==='draw')h.innerHTML=D.start?`<b>Koʻchani chizish</b> (radius ${DS().drawR||0} m). Burilish nuqtalarini bosing, qoʻyilganlarini sudrab tuzating. Boshqa koʻcha yoki tugunni bossangiz — ulanadi va chorraha hosil boʻladi.<div class="row"><button class="btn sm primary" id="dFin">Tugatish (Enter)</button><button class="btn sm" id="dEsc">Bekor (Esc)</button></div>`
+  if(t==='draw')h.innerHTML=D.start?`<b>Koʻchani chizish</b> (radius ${DS().drawR||0} m). Burilish nuqtalarini bosing, qoʻyilganlarini sudrab tuzating. Boshqa koʻcha yoki tugunni bossangiz — ulanadi va chorraha hosil boʻladi. Yoʻnalish 30/45/90° va yaqin koʻchaga parallel/perpendikulyar holatga oʻzi tushadi (koʻk chiziq); Alt — erkin.<div class="row"><button class="btn sm primary" id="dFin">Tugatish (Enter)</button><button class="btn sm" id="dEsc">Bekor (Esc)</button></div>`
     :`<b>Koʻchani chizish</b> (${PRESETS[DS().preset].n}). Boshlanish nuqtasini bosing. Mavjud koʻcha yoki tugun ustiga bossangiz, avtomatik ulanadi.`;
   if(t==='select')h.innerHTML=DS().sel?'':'<b>Tanlash.</b> Obyektni bosing, soʻng uni ushlab sudrang · Delete — oʻchirish · oʻng tugma — menyu';
   if(t==='sign')h.innerHTML='<b>Yoʻl belgilari.</b> Oʻng paneldan belgini tanlang va xaritaga bosing. Belgini sudrab koʻchiring, bosib — tahrirlang.';
