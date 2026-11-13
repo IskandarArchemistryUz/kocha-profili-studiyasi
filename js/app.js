@@ -868,6 +868,8 @@ function setApp(a){
   document.getElementById('profModes').hidden=!pr;document.getElementById('profView').hidden=!pr;document.getElementById('areaView').hidden=!ar;
   document.getElementById('areaPanel').hidden=!ar;document.getElementById('profPanel').hidden=!pr;document.getElementById('compare').hidden=!pr;
   document.getElementById('designPanel').hidden=!de;
+  /* 14.11: yangi Koʻchasoz qobigʻi — faqat «Loyiha chizish»da (Joyshunos ichidagi oyna bundan mustasno) */
+  {const k2=de&&!document.documentElement.classList.contains('kps-embed');if(document.body.classList.contains('ks2')!==k2){document.body.classList.toggle('ks2',k2);setTimeout(()=>map.invalidateSize(),60);}}
   [planL,measL,drawL].forEach(l=>pr?l.addTo(map):map.removeLayer(l)); ar?areaL.addTo(map):map.removeLayer(areaL);
   if(typeof designL!=='undefined'){de?designL.addTo(map):map.removeLayer(designL); de?map.doubleClickZoom.disable():(M.tool||map.doubleClickZoom.enable()); if(de){renderDesign();renderDesignPanel();}}
   map.getContainer().style.cursor=ar||de?'crosshair':(S.mode==='pick'?'pointer':'crosshair');
@@ -1760,6 +1762,10 @@ function drawPreview(){previewL.clearLayers();if(S.app!=='design')return;
         el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();
           if(b.dataset.sim!=null){openSim(n.id);return;}
           const v=b.dataset.nt;n.type=v;if(v==='round'){const rt=RTYPES[n.rtype||ds0.rtype||'r2'];n.rtype=n.rtype||ds0.rtype||'r2';n.ri=n.ri||rt.ri;n.rw=n.rw||rt.rw;n.lanes=n.lanes||rt.lanes;}afterDesign();});}}}
+  /* 14.11 (Iskandar: «Vissim uslublari qani?»): har chorraha va halqa ustida doimiy «▶» — bir bosishda harakat modeli */
+  if(!D.start&&typeof openSim==='function'&&(ds0.tool==='select'||ds0.tool==='sim'))ds0.nodes.forEach(n=>{const k=nodeKind(n);if(!(k==='x'||k==='sig'||k==='round'))return;if(sl&&sl.t==='node'&&sl.id===n.id&&ds0.tool==='select')return;
+    const hot=ds0.tool==='sim',mk=L.marker(n.ll,{pane:'designEdit',interactive:true,keyboard:false,zIndexOffset:1500,title:'Harakatni sinash',icon:L.divIcon({className:'',iconSize:null,html:`<button class="simpin" style="transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;height:${hot?28:22}px;padding:0 ${hot?10:7}px;border:2px solid #fff;border-radius:999px;background:#4c5bd4;color:#fff;font:600 ${hot?12:11}px Archivo,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;white-space:nowrap">▶${hot?' Sinash':''}</button>`})}).addTo(previewL);
+    const el=mk.getElement();if(el){L.DomEvent.disableClickPropagation(el);el.addEventListener('click',e=>{e.stopPropagation();openSim(n.id);});}});
 }
 /* ===== POLOSALARNI ULASH (J) — kiruvchi polosa ● → chiquvchi ○; tugundagi n.lc qoʻlda roʻyxat, n.lcArms — u qamragan kirishlar ===== */
 const CN={sel:null,selC:null};
@@ -1796,6 +1802,13 @@ function drawConnTool(){const ppm=1/(156543.03392*Math.cos(map.getCenter().lat*M
       const mk=L.marker(n.ll,{pane:'designEdit',interactive:true,keyboard:false,zIndexOffset:2000,icon:L.divIcon({className:'',html,iconSize:null,iconAnchor:[0,Math.round((rr+6)*ppm)+16]})}).addTo(previewL);
       const el=mk.getElement();if(el){L.DomEvent.disableClickPropagation(el);el.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;if(b.dataset.lcr!=null)lcReset(nid);else if(b.dataset.lcd!=null)lcDelSel();});}}
   });}
+/* «Harakat» asbobi (H): chorraha bitta boʻlsa — darhol model, bir nechta — «▶ Sinash» belgilaridan birini bosish */
+function simTool(){const ds=DS(),J=ds.nodes.filter(n=>['x','sig','round'].includes(nodeKind(n)));
+  if(typeof openSim!=='function'){toast('Harakat modeli hali yuklanmoqda — bir soniyadan soʻng qayta bosing.');return;}
+  if(!J.length){toast('Avval chorraha yoki halqa chizing: kamida uchta koʻcha bir tugunda uchrashsin.');return;}
+  const sl=ds.sel;if(sl&&sl.t==='node'&&J.some(n=>n.id===sl.id)){openSim(sl.id);return;}
+  if(J.length===1){openSim(J[0].id);return;}
+  pickTool('sim');toast(`${J.length} ta chorraha — sinash uchun «▶ Sinash» belgisini bosing.`);}
 let pvRAF=0;const previewSoon=()=>{if(pvRAF)return;pvRAF=requestAnimationFrame(()=>{pvRAF=0;drawPreview();});};
 
 /* chizishda tekislash: oldingi boʻlakka nisbatan 0/30/45/60/90°, yaqin koʻchaga parallel yoki perpendikulyar (Alt — oʻchiradi) */
@@ -1876,6 +1889,7 @@ function designClick(ll,ev){
   if(ds.tool==='select'){selectAt(ll,h);return;}
   if(ds.tool==='sign'){placeSign(ll);return;}
   if(ds.tool==='conn'){if(CN.sel||CN.selC){CN.sel=null;CN.selC=null;drawPreview();}return;}   // ulash — belgilar oʻzi ushlaydi
+  if(ds.tool==='sim'){const n=h&&h.t==='node'&&nodeById(h.id);if(n&&['x','sig','round'].includes(nodeKind(n))&&typeof openSim==='function')openSim(n.id);return;}
   if(ds.tool==='lane')return;                                                              // moʻyqalam — sudrash bilan ishlaydi
   if(ds.tool==='xwalk'){placeCrossing(ll,h);return;}
   if(ds.tool==='shape'||ds.tool==='line'){freeClick(ll);return;}
@@ -3135,6 +3149,7 @@ const TOOLS=[
   ['shape','Erkin shakl','i-shape','F','Sirt turini tanlang va chegarasini nuqtama-nuqta chizing.'],
   ['line','Yoʻl chizigʻi','i-line','L','Chiziq turini tanlang va nuqtalarni bosing.'],
   ['sign','Yoʻl belgisi','i-sign','B','Belgini tanlang va xaritaga bosing.'],
+  ['sim','Harakatni sinash','i-sim','H','Vissim uslubidagi model (BETA): chorraha yoki halqadagi «▶ Sinash» belgisini bosing — mashinalar, svetofor rejasi (Webster), navbat va kechikish, Hozir↔Loyiha.'],
 ];
 const SELNAME={seg:'Koʻcha',node:'Tugun / chorraha',sign:'Yoʻl belgisi',xw:'Piyoda oʻtish joyi',att:'Koʻcha obyekti',shape:'Erkin shakl',line:'Yoʻl chizigʻi'};
 const SELICON={seg:'i-street',node:'i-round',sign:'i-sign',xw:'i-cross',att:'i-obj',shape:'i-shape',line:'i-line'};
@@ -3143,7 +3158,7 @@ function renderRail(){
   const el=document.getElementById('railTools');if(!el)return;
   if(S.app==='design'){const ds=DS();
     el.innerHTML=TOOLS.map(([k,n,ic,key])=>`<button class="rbtn" data-dt="${k}" aria-pressed="${ds.tool===k}" data-tip="${n}" data-key="${key}" aria-label="${n}"><svg class="ic"><use href="#${ic}"/></svg><span class="k">${key}</span></button>`).join('');
-    el.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>pickTool(b.dataset.dt));}
+    el.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>b.dataset.dt==='sim'?simTool():pickTool(b.dataset.dt));}
   else if(S.app==='area'){
     el.innerHTML=[['rect','Toʻrtburchak hudud','i-rect'],['poly','Koʻpburchak hudud','i-poly'],['view','Ekrandagi hududni tahlil qilish','i-view']].map(([k,n,ic])=>`<button class="rbtn" data-at="${k}" aria-pressed="${k!=='view'&&A.tool===k}" data-tip="${n}" aria-label="${n}"><svg class="ic"><use href="#${ic}"/></svg></button>`).join('');
     el.querySelectorAll('[data-at]').forEach(b=>b.onclick=()=>{const k=b.dataset.at;
@@ -3165,7 +3180,7 @@ document.addEventListener('keydown',e=>{
   if(S.app!=='design')return;
   const k=e.key.toUpperCase(),t=TOOLS.find(x=>x[3]===k);
   if(k==='U'&&!e.ctrlKey&&!e.metaKey&&!D.start&&!F.pts.length){e.preventDefault();toggleDSty();return;}
-  if(t&&!D.start&&!F.pts.length){e.preventDefault();pickTool(t[0]);return;}
+  if(t&&!D.start&&!F.pts.length){e.preventDefault();t[0]==='sim'?simTool():pickTool(t[0]);return;}
   if(k==='M'){e.preventDefault();setTool('dist');}
   if(e.key==='Escape'&&DS().sel&&!D.start&&!F.pts.length){DS().sel=null;afterDesign();}
 });
@@ -3657,13 +3672,23 @@ async function openAssetManager(onChange){
 
 
 /* ===== ArchiCAD uslubidagi interfeys: yorliqli asboblar paneli + kontekst (Info Box) paneli ===== */
-const TGROUPS=[['Tanlash',['select']],['Loyihalash',['draw','lane','conn','xwalk','round','obj']],['Chizma',['shape','line','sign']]];
+const TGROUPS=[['Tanlash',['select']],['Loyihalash',['draw','lane','conn','xwalk','round','obj']],['Harakat',['sim']],['Chizma',['shape','line','sign']]];
 function railBtn(attrs,ic,label,key,on){return `<button class="rbtn" ${attrs} aria-pressed="${!!on}" data-tip="${label}" aria-label="${label}"><svg class="ic"><use href="#${ic}"/></svg><span class="lb">${label}</span>${key?`<span class="k">${key}</span>`:''}</button>`;}
+/* yangi qobiq: chap panel — 5 bosqich + tafsilot (faqat koʻcha dizayni va mikromodel uchun) */
+const KS_STEPS=[['draw','1','Koʻcha','Chizish, profil','S'],['lane','2','Polosa','Polosa, karman','K'],['conn','3','Ulash','Polosani polosaga','J'],['select','4','Chorraha','Tanlash, turi, svetofor','V'],['sim','5','Harakat','Mikromodel, sinash','H']];
+const KS_DET=[['xwalk','Oʻtish joyi','P'],['round','Aylanma halqa','R'],['obj','Bekat, parklet, velo','O'],['sign','Yoʻl belgisi','B'],['line','Yoʻl chizigʻi','L']];
+function renderRailKs(el){const ds=DS(),t=ds.tool;
+  el.innerHTML=`<span class="ks-eb">TARMOQ</span><div class="ks-title">Koʻcha tarmogʻi</div><div style="font-size:12px;color:#6b6965;margin:-6px 0 4px">${ds.segs.length} koʻcha · ${ds.nodes.filter(n=>['x','sig','round'].includes(nodeKind(n))).length} chorraha</div><div class="ks-lbl">Bosqichlar</div>`
+    +KS_STEPS.map(([k,n,ti,sub,key])=>`<button class="ks-st" data-dt="${k}" aria-pressed="${t===k}"><span class="ks-num">${n}</span><span><b>${ti}</b><small>${sub}</small></span><span class="ks-k">${key}</span></button>`).join('')
+    +`<div class="ks-lbl">Tafsilot</div>`+KS_DET.map(([k,n,key])=>`<button class="ks-row" data-dt="${k}" aria-pressed="${t===k}">${n}<span class="ks-k">${key}</span></button>`).join('')
+    +`<div class="ks-foot">Esc — bekor · Ctrl+Z — orqaga · ? — yordam</div>`;
+  el.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>b.dataset.dt==='sim'?simTool():pickTool(b.dataset.dt));}
 renderRail=function(){
   const el=document.getElementById('railTools');if(!el)return;
+  if(S.app==='design'&&document.body.classList.contains('ks2')){renderRailKs(el);renderInfoBox();return;}
   if(S.app==='design'){const ds=DS(),T=Object.fromEntries(TOOLS.map(t=>[t[0],t]));
     el.innerHTML=TGROUPS.map(([g,ks])=>`<div class="rg-h">${g}</div>`+ks.map(k=>{const [kk,n,ic,key]=T[k];return railBtn(`data-dt="${kk}"`,ic,({select:'Tanlash',xwalk:'Oʻtish joyi',round:'Aylanma halqa',obj:'Obyektlar',conn:'Polosa ulash'}[kk])||n,key,ds.tool===kk);}).join('')).join('');
-    el.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>pickTool(b.dataset.dt));}
+    el.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>b.dataset.dt==='sim'?simTool():pickTool(b.dataset.dt));}
   else if(S.app==='area'){
     const emb=document.documentElement.classList.contains('kps-embed')&&typeof window.kpsApplySite==='function';
     el.innerHTML='<div class="rg-h">Hudud</div>'+(emb?railBtn('data-at="site"','i-poly','1-qadam hududi','',!!S.fromSite):'')+[['rect','Toʻrtburchak','i-rect'],['poly','Koʻpburchak','i-poly'],['view','Ekrandagi hudud','i-view']].map(([k,n,ic])=>railBtn(`data-at="${k}"`,ic,n,'',!S.fromSite&&k!=='view'&&A.tool===k)).join('');

@@ -1,0 +1,74 @@
+/* =====================================================================
+   Koʻchasoz · yangi qobiq (14.11.2026, Iskandar: «eski interfeysni yangisiga oʻtkazaylik»)
+   Faqat «Loyiha chizish» (body.ks2) — UI-Koʻchasoz stili: suzuvchi yumaloq panellar,
+   xira loy tugmalar, Koʻchasoz koʻki, mayda yoʻl chiziqli fon. Xarita butun ekranda.
+   ===================================================================== */
+#labModes{display:none}
+body.ks2{--kc:76,91,212;--kp:201,207,246;--ke:160,170,232;--kt:37,47,140;--pn:rgba(250,249,246,.985)}
+body.ks2 .app{background:#f1f3f8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='96'%3E%3Cpath d='M0 0V96M70 0V96' stroke='%234c5bd4' stroke-width='.9' stroke-dasharray='7 9' opacity='.28'/%3E%3C/svg%3E");padding:12px;gap:12px}
+body.ks2 .ks-pn,body.ks2 .topbar,body.ks2 .rail,body.ks2 .side{background:var(--pn);border:0;border-radius:22px;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)}
+/* --- yuqori panel --- */
+body.ks2 .topbar{height:56px;padding:0 10px 0 14px;gap:12px}
+body.ks2 .brand .ver,body.ks2 #appTabs{display:none}
+body.ks2 .brand h1{font-size:14px;font-weight:600}
+body.ks2 .brand .logo{width:22px;height:22px}
+body.ks2 #labModes{display:flex;gap:4px;padding:4px;border-radius:999px;background:#d9d7d1;box-shadow:inset 0 1px 1px rgba(255,255,255,.65),0 3px 0 #c4c1ba;height:auto;margin-left:auto}
+body.ks2 #labModes a,body.ks2 #labModes span.on{height:28px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:600;color:#3a3936;display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}
+body.ks2 #labModes a:hover{color:#141414}
+body.ks2 #labModes span.on{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+body.ks2 #labModes .mono{font:600 11px "IBM Plex Mono",monospace}
+body.ks2 #labModes .tag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.7);color:#6b6965}
+body.ks2 .ks-badge{display:inline-flex!important}
+body.ks2 .search{max-width:300px;margin-left:auto}
+body.ks2 .search input{border-radius:999px;border:0;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8}
+body.ks2 .tbtn{border-radius:10px;background:#fff;border:0;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8}
+body.ks2 .tbtn:hover{transform:translateY(-1px);background:#fff}
+body.ks2 .tbtn.wide{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+/* --- ish maydoni: xarita butun ekranda, panellar ustida suzadi --- */
+body.ks2 .work,body.ks2.big .work,body.ks2.railc .work{display:block;position:relative;grid-template-columns:none}
+body.ks2 .mapwrap{position:absolute;inset:0;border-radius:22px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2}
+body.ks2 .statusbar,body.ks2 .rail-sep,body.ks2 .mbar,body.ks2 #profModes,body.ks2 #pmH,body.ks2 #railView,body.ks2 .rail-toggle,body.ks2 .rail>.rg-h{display:none!important}
+body.ks2 .rail{position:absolute;z-index:1000;left:12px;top:12px;bottom:12px;width:240px;padding:14px;align-items:stretch;gap:2px;overflow-y:auto}
+body.ks2 .side{position:absolute;z-index:1000;right:12px;top:12px;bottom:12px;width:340px;padding:6px 4px;overflow-y:auto}
+body.ks2.big .side{display:none}
+body.ks2 .infobox{left:264px;right:364px;top:12px;height:44px;border-radius:999px;border:0;background:var(--pn);box-shadow:0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 12px 24px -14px rgba(0,0,0,.25);padding:0 8px 0 14px}
+body.ks2.big .infobox{right:12px}
+body.ks2 .hint{border-radius:999px;background:var(--pn);color:#141414;box-shadow:0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 12px 24px -14px rgba(0,0,0,.3);font-size:13px}
+body.ks2 .hint b:first-child{color:rgb(var(--kt))}
+body.ks2 .leaflet-bottom.leaflet-right{right:352px}
+body.ks2.big .leaflet-bottom.leaflet-right{right:0}
+body.ks2 .leaflet-bottom.leaflet-left,body.ks2 .leaflet-top.leaflet-left{left:252px}
+/* --- chap panel: bosqichlar --- */
+body.ks2 .ks-eb{font-size:11px;font-weight:600;letter-spacing:.08em;color:rgb(var(--kt))}
+body.ks2 .ks-title{font-size:18px;font-weight:600;letter-spacing:-.02em;margin:2px 0 10px;line-height:1.2}
+body.ks2 .ks-lbl{font-size:11px;font-weight:600;color:#6b6965;margin:10px 4px 4px}
+body.ks2 .ks-st{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:14px;background:transparent;color:#141414;text-align:left;cursor:pointer;font:inherit}
+body.ks2 .ks-st:hover{background:rgba(255,255,255,.7)}
+body.ks2 .ks-st[aria-pressed="true"]{background:rgb(var(--kp));color:rgb(var(--kt));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+body.ks2 .ks-num{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:600 11px "IBM Plex Mono",monospace;background:#fff;box-shadow:0 1.5px 0 #e2dfd8;color:#3a3936}
+body.ks2 .ks-st b{display:block;font-size:13.5px;font-weight:600;line-height:16px}
+body.ks2 .ks-st small{display:block;font-size:11.5px;opacity:.72;line-height:15px}
+body.ks2 .ks-k{margin-left:auto;font:500 11px "IBM Plex Mono",monospace;color:#8f8b84}
+body.ks2 .ks-row{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border:0;border-radius:10px;background:transparent;font:inherit;font-size:13px;color:#141414;cursor:pointer;text-align:left}
+body.ks2 .ks-row:hover{background:rgba(255,255,255,.7)}
+body.ks2 .ks-row[aria-pressed="true"]{background:#fff;box-shadow:0 2px 0 #e2dfd8;font-weight:600}
+body.ks2 .ks-foot{margin-top:auto;padding:10px 4px 0;font-size:11.5px;line-height:17px;color:#6b6965}
+/* --- oʻng panel: xira loy tugmalar --- */
+body.ks2 .itabs{display:flex;gap:4px;margin:6px 8px 4px;padding:4px;border-radius:999px;background:#d9d7d1;box-shadow:inset 0 1px 1px rgba(255,255,255,.65),0 3px 0 #c4c1ba;border:0}
+body.ks2 .itabs button{flex:1;height:28px;border-radius:999px;border:0;font-size:12.5px;font-weight:600;color:#3a3936;background:transparent;padding:0 8px}
+body.ks2 .itabs button[aria-selected="true"]{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+body.ks2 .itabs button::after{display:none}
+body.ks2 .side .card{border:0;border-radius:14px;box-shadow:0 2px 0 #e2dfd8;background:#fff}
+body.ks2 .side .btn{border:0;border-radius:10px;background:#fff;box-shadow:inset 0 1px 1px #fff,0 2px 0 #e2dfd8;font-weight:600;font-size:13px}
+body.ks2 .side .btn:hover{transform:translateY(-1px)}
+body.ks2 .side .btn.primary{color:rgb(var(--kt));background:rgb(var(--kp));box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
+body.ks2 .side select,body.ks2 .side input[type=number],body.ks2 .side input[type=text]{border-radius:10px}
+@media (max-width:900px){
+  body.ks2 .rail{width:auto;right:12px;bottom:auto;max-height:40vh}
+  body.ks2 .side{top:auto;left:12px;width:auto;max-height:45vh}
+  body.ks2 .infobox{left:12px;right:12px;top:auto;bottom:calc(45vh + 24px)}
+}
+@media (prefers-reduced-motion:reduce){body.ks2 *{transition:none!important}}
+/* harakat modeli oynasi — chap panel yonida, oʻsha stilda */
+body.ks2 .kssim{left:264px!important;top:68px!important;max-height:calc(100% - 92px)!important;z-index:1001!important;border:0!important;border-radius:22px!important;background:rgba(250,249,246,.98)!important;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)!important;padding:14px 16px!important}
+body.ks2 .kssim button{border-radius:10px}
