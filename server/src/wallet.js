@@ -159,6 +159,37 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
     });
   }
 
+  /**
+   * Tanga ushlab turish (render): ledger ga darhol manfiy yozuv (balans kamayadi) + holds qatori 'held'.
+   * Loyiha shiftiga kirmaydi — har render real pul (fal.ai) turadi. q berilsa — chaqiruvchi tranzaksiyasida.
+   */
+  async function hold(userId, { coins, reason, ref, note }, q = null) {
+    if (!Number.isInteger(coins) || coins <= 0) throw new WalletError('bad_amount', 'miqdor notoʻgʻri');
+    if (typeof ref !== 'string' || !ref) throw new WalletError('bad_ref', 'ref kerak');
+    const run = async (t) => {
+      const bal = await debitIn(t, userId, coins, reason, ref, note);
+      await t.query(`INSERT INTO holds (ref, user_id, reason, coins, created_at) VALUES ($1, $2, $3, $4, $5)`, [ref, userId, reason, coins, now()]);
+      return { held: coins, balance: bal };
+    };
+    return q ? run(q) : db.tx(run);
+  }
+  /** Ushlangan tangani yakuniy yechish (natija bor). Takroriy chaqiruv — hech narsa qilmaydi. */
+  async function capture(ref) {
+    const r = await db.query(`UPDATE holds SET state = 'captured', settled_at = $2 WHERE ref = $1 AND state = 'held' RETURNING coins`, [ref, now()]);
+    return { captured: r.rows[0]?.coins ?? 0 };
+  }
+  /** Ushlangan tangani qaytarish (xato). Faqat 'held' holatidan; ikki marta qaytmaydi. */
+  async function release(ref, note) {
+    return db.tx(async (q) => {
+      const r = await q.query(`UPDATE holds SET state = 'released', settled_at = $2 WHERE ref = $1 AND state = 'held' RETURNING user_id, reason, coins`, [ref, now()]);
+      if (!r.rows.length) return { released: 0 };
+      const { user_id: u, reason, coins } = r.rows[0];
+      await q.query(`INSERT INTO ledger (user_id, delta, reason, ref, note) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (user_id, reason, ref) DO NOTHING`,
+        [u, coins, `${reason}_refund`, ref, note ?? null]);
+      return { released: coins, balance: await balance(u, q) };
+    });
+  }
+
   async function trialsLeft(userId) {
     const { rows } = await db.query(`SELECT used FROM trials WHERE user_id = $1 AND week = $2`, [userId, weekKey(now())]);
     return Math.max(0, TRIALS_PER_WEEK - (rows[0]?.used ?? 0));
@@ -170,5 +201,5 @@ export function makeWallet({ db, secret, now = () => new Date() }) {
     return rows;
   }
 
-  return { balance, credit, spend, exportTicket, verifyTicket, useTrial, trialsLeft, history, projectInfo };
+  return { balance, credit, spend, hold, capture, release, exportTicket, verifyTicket, useTrial, trialsLeft, history, projectInfo };
 }

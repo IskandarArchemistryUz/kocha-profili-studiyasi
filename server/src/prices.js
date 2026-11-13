@@ -96,3 +96,9 @@ export function priceOf(items, areaHa = 0) {
   const k = mr ? areaK(areaHa) : 1;
   return { items: uniq, k, coins: Math.round(mr * k) + rest };
 }
+
+/**
+ * Render (13.11.2026, project claude/render-lab-mexanizm-13-11.md): dvigatel → tanga. Koeffitsiyent k va loyiha shifti yoʻq —
+ * har render fal.ai da haqiqiy pul turadi. Tanga ushlanadi (hold), natija kelsa yechiladi, xatoda qaytadi.
+ */
+export const RENDER_COINS = Object.freeze({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4 });
