@@ -19,7 +19,7 @@ async function makeApp(agent) {
   return buildApp({
     db, pepper: 'p'.repeat(20), secret: 's'.repeat(40), secure: false,
     send: async (t, code) => { sent.push({ ...t, code }); }, origins: ['https://archemistry.uz'],
-    owners: ['boss@mail.uz'], now: () => clock, agent,
+    owners: ['boss@mail.uz'], now: () => clock, agent: agent && { retryMs: [], ...agent },
   });
 }
 
@@ -197,6 +197,32 @@ describe('agent — qadam', () => {
     const { run } = (await post('/agent/run', { scenario: 'mr.ask' }, ck)).json();
     expect((await ask(run, ck)).json().error).toBe('agent_busy');
     expect((await db.query(`SELECT status FROM agent_runs WHERE id = $1`, [run])).rows[0].status).toBe('failed');
+  });
+  it('tarmoq uzilishi va 529 — qayta urinib, javob beradi', async () => {
+    await app.close();
+    let n = 0;
+    app = await makeApp({ apiKey: 'k', services: ['mr'], retryMs: [0, 0], fetchImpl: async (url, init) => {
+      n++;
+      if (n === 1) { const e = new TypeError('fetch failed'); e.cause = { code: 'UND_ERR_SOCKET' }; throw e; }
+      return fakeFetch(url, init);
+    } });
+    const ck = await login();
+    const { run } = (await post('/agent/run', { scenario: 'mr.ask' }, ck)).json();
+    upstream.push({ status: 529, body: { error: { type: 'overloaded_error' } } });
+    const r = await ask(run, ck);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().content[0].text).toBe('javob');
+    expect(n).toBe(3);
+  });
+  it('2-qadamda uzilish — agent_interrupted, tanga qaytarilmaydi', async () => {
+    const ck = await login();
+    const { run } = (await post('/agent/run', { scenario: 'mr.ask' }, ck)).json();
+    upstream.push({ status: 200, body: { content: [{ type: 'tool_use', id: 't1', name: 'get_tep', input: {} }], stop_reason: 'tool_use', usage: { input_tokens: 10, output_tokens: 5 } } });
+    expect((await ask(run, ck)).statusCode).toBe(200);
+    upstream.push({ status: 500, body: {} });
+    const r = await ask(run, ck);
+    expect(r.json().error).toBe('agent_interrupted');
+    expect((await get('/agent/config', ck)).json().freeLeft).toBe(2);
   });
 });
 

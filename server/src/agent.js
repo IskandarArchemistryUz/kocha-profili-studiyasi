@@ -28,6 +28,7 @@ export const AGENT_DEFAULTS = Object.freeze({
   maxInTok: 200_000,
   runTtlMin: 30,
   timeoutMs: 60_000,
+  retryMs: [400, 1500], // tarmoq/429/5xx da qayta urinishlar orasidagi kutish
 });
 
 export const costMicro = (model, u = {}, prices = DEFAULT_PRICES) => {
@@ -195,25 +196,37 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
       const step = st.rows[0].steps;
       const model = c.models[run.tier];
 
-      let res, data;
-      try {
-        res = await fetchImpl(`${c.base}/v1/messages`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-api-key': c.apiKey, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({
-            model, max_tokens: c.maxTokens?.[run.tier] ?? AGENT_DEFAULTS.maxTokens[run.tier],
-            system: [{ type: 'text', text: SYSTEM_RULES, cache_control: { type: 'ephemeral' } }, { type: 'text', text: systemFor(run.svc, lang) }],
-            tools: toolsOf.get(run.svc),
-            messages,
-          }),
-          signal: AbortSignal.timeout(c.timeoutMs),
-        });
-        data = await res.json().catch(() => null);
-      } catch (e) { res = null; data = { error: { type: e?.name === 'TimeoutError' ? 'timeout' : 'network' } }; }
+      const body = JSON.stringify({
+        model, max_tokens: c.maxTokens?.[run.tier] ?? AGENT_DEFAULTS.maxTokens[run.tier],
+        system: [{ type: 'text', text: SYSTEM_RULES, cache_control: { type: 'ephemeral' } }, { type: 'text', text: systemFor(run.svc, lang) }],
+        tools: toolsOf.get(run.svc),
+        messages,
+      });
+      // Tarmoq uzilishi (masalan, eskirgan keep-alive ulanish) va 429/529/5xx — qisqa kutib qayta urinish
+      const waits = c.retryMs ?? AGENT_DEFAULTS.retryMs;
+      let res, data, cause;
+      for (let a = 0; ; a++) {
+        try {
+          res = await fetchImpl(`${c.base}/v1/messages`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-api-key': c.apiKey, 'anthropic-version': '2023-06-01' },
+            body,
+            signal: AbortSignal.timeout(c.timeoutMs),
+          });
+          data = await res.json().catch(() => null);
+        } catch (e) {
+          res = null; cause = e?.cause?.code ?? e?.code ?? e?.name;
+          data = { error: { type: e?.name === 'TimeoutError' ? 'timeout' : 'network' } };
+        }
+        const retry = data?.error?.type === 'network' || (res && (res.status === 429 || res.status === 529 || res.status >= 500));
+        if (!retry || a >= waits.length) break;
+        req.log.info({ agent: { run: id, step, attempt: a + 1, status: res?.status, cause } }, 'agent: qayta urinish');
+        await new Promise((r) => setTimeout(r, waits[a]));
+      }
 
       if (!res?.ok || !data?.content) {
         const kind = data?.error?.type ?? `http_${res?.status ?? 0}`;
-        req.log.warn({ agent: { run: id, step, status: res?.status, kind } }, 'agent: model xatosi');
+        req.log.warn({ agent: { run: id, step, status: res?.status, kind, cause } }, 'agent: model xatosi');
         if (step === 1) {
           // birinchi qadamda natija yoʻq — tanga va bepul savol qaytariladi
           await db.query(`UPDATE agent_runs SET status = 'failed', err = $2 WHERE id = $1`, [id, kind]);
@@ -221,6 +234,8 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
           if (run.free && !run.owner) await db.query(`UPDATE agent_free SET used = GREATEST(0, used - 1) WHERE user_id = $1 AND week = $2`, [u.id, weekKey(new Date(run.created_at))]);
         } else await db.query(`UPDATE agent_runs SET steps = steps - 1 WHERE id = $1`, [id]);
         const busy = res && (res.status === 429 || res.status === 529 || res.status >= 500);
+        // 1-qadamdan keyin tanga qaytarilmaydi (javobning bir qismi berilgan) — brauzer boshqa xabar koʻrsatadi
+        if (step > 1) throw new AgentError(503, 'agent_interrupted', 'model javobni yakunlay olmadi — qayta yuboring');
         throw new AgentError(busy || !res ? 503 : 502, busy || !res ? 'agent_busy' : 'agent_upstream', 'model javob bermadi — birozdan keyin urinib koʻring');
       }
 

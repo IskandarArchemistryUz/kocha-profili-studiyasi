@@ -10,10 +10,10 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`meʼyor ho
   await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');
   const st = page.locator('#kStat');
   await expect(st).toHaveAttribute('data-s', 'fail');
-  const n = Number(await st.textContent());
-  expect(n).toBeGreaterThan(0);
-  const fails = await page.evaluate(() => (window as any).__mr.last.results.filter((r: any) => r.status === 'fail').length);
-  expect(n).toBe(fails);
+  // 13.11: belgi reyestr va Maslahatchi bilan bir xil toʻplamni sanaydi (allRules; xonadon rejasi qoidalari — keshda boʻlsa)
+  const fails = await page.evaluate(() => (window as any).__mr.allRules(true).filter((r: any) => r.status === 'fail').length);
+  expect(fails).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await st.textContent())).toBe(fails);
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/holat_a_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#kMore');
   await expect(page.locator('.drawer')).toBeVisible();

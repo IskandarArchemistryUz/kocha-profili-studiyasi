@@ -1,1 +1,0 @@
-import"./chzsend-DaMiyw79.js";export{c as sendToChizmadon}from"./io-FWIqbb-V.js";
