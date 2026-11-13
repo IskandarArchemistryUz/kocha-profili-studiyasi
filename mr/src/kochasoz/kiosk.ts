@@ -4,7 +4,7 @@
  *
  * Manba — Toshkent Dizayn-kodi, Toshkent shahar Kengashining 17.02.2026 yildagi VII-19-17-14-0-K/26-son qarori, 2-ilova (asl PDF):
  *  - P2.2, 11.4.1–11.4.5 — koʻcha turi boʻyicha: ruxsat etilgan turlar, eng kichik oraliq, bufer zona, chekinish:
- *      U1: faqat kichik; oraliq ≥ 50 m; B2 da; yoʻl chetidan ≥ 1,5 m.
+ *      U1: faqat kichik; oraliq ≥ 50 m (P2.2; Koʻchasoz — 30 m, quyida); B2 da; yoʻl chetidan ≥ 1,5 m.
  *      U2: kichik va oʻrta; ≥ 50 m; B3 da; fasaddan ≥ 2 m.
  *      U3, U4, U7, M1–M5: kichik, oʻrta, norasmiy; ≥ 50 m; B3 da; fasaddan ≥ 1 m.
  *      U5, U6: kichik, oʻrta, norasmiy (bir uslubda); ≥ 5 m; faqat maxsus bufer zonada; fasaddan ≥ 5 m.
@@ -17,7 +17,7 @@
  *    4.4.5: ochiq peshtaxta — eni ≤ 2100 mm, balandligi ≤ 3000 mm.
  *  - ShNQ 2.07.06-24, 110-band: ajratuvchi tasma ≥ 5 m boʻlsa, xavfsizlikka aloqasi yoʻq inshootlar qoʻyish mumkin (alleya, bulvar).
  * ZIDDIYAT: P2.3 4.4.1 jadvalida U1–U2 uchun «joylashtirish bosqichi 30 (50) metrdan oshmaydi» deyilgan, P2.2 11.4 da esa
- * «eng kichik bosqich 50 m». Koʻchasoz P2.2 ni oladi (koʻcha elementlarini joylashtirish qoidasi); farq izohda koʻrsatiladi.
+ * «eng kichik bosqich 50 m». Egasi qarori (14.11.2026): oraliq 30 m (P2.3 4.4.1) — U1–U4, U7, M1–M5; U5, U6 — 5 m (P2.2 11.4.4).
  * TALQIN: kiosk joy olishi uchun eng kichik chuqurlik — kiosk 2,0 m, pavilyon 3,0 m, peshtaxta 1,2 m (DK faqat yuqori chegarani beradi).
  */
 type El = [string, number, Record<string, unknown>?];
@@ -30,12 +30,12 @@ export const KSZ: Record<string, [number, number, number]> = { kiosk: [3.0, 3.4,
 
 interface Rule { ok: string[]; zone: 'yash' | 'front' | 'any'; step: number; curb?: number; facade?: number; ped: number; ref: string; open: 'bad' | 'warn' | 'ok' }
 const R: Record<string, Rule> = {
-  U1: { ok: ['kiosk'], zone: 'yash', step: 50, curb: 1.5, ped: 4, ref: '11.4.1', open: 'bad' },
-  U2: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 50, facade: 2, ped: 4, ref: '11.4.2', open: 'bad' },
-  U3: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 50, facade: 1, ped: 2.5, ref: '11.4.3', open: 'warn' },
-  U4: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 50, facade: 1, ped: 2.5, ref: '11.4.3', open: 'warn' },
+  U1: { ok: ['kiosk'], zone: 'yash', step: 30, curb: 1.5, ped: 4, ref: '11.4.1', open: 'bad' },
+  U2: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 30, facade: 2, ped: 4, ref: '11.4.2', open: 'bad' },
+  U3: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 30, facade: 1, ped: 2.5, ref: '11.4.3', open: 'warn' },
+  U4: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 30, facade: 1, ped: 2.5, ref: '11.4.3', open: 'warn' },
   U5: { ok: ['kiosk', 'pavilyon'], zone: 'any', step: 5, facade: 5, ped: 6, ref: '11.4.4', open: 'bad' },
-  M1: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 50, facade: 1, ped: 2.5, ref: '11.4.3', open: 'warn' },
+  M1: { ok: ['kiosk', 'pavilyon'], zone: 'front', step: 30, facade: 1, ped: 2.5, ref: '11.4.3', open: 'warn' },
 };
 const ROAD = new Set(['qat', 'bus', 'tram', 'park', 'velo']);
 const BUF = new Set(['yash', 'front', 'med']);
@@ -46,7 +46,7 @@ export const kioskRule = (uk: string): Rule => R[uk] ?? R.U3;
 
 export function KIOSK_NOTE(uk: string): string {
   const r = kioskRule(uk), z = r.zone === 'yash' ? 'B2 (yashil bufer)' : r.zone === 'front' ? 'B3 (fasad oldi)' : 'maxsus bufer (alleya, yashil zona)';
-  return `${uk}: ${r.ok.map(t => NAME[t].toLowerCase()).join(', ')} · ${z} · oraliq ≥ ${r.step} m${r.curb ? ` · yoʻl chetidan ≥ ${fm(r.curb)} m` : ''}${r.facade ? ` · fasaddan ≥ ${fm(r.facade)} m` : ''} · piyodalar zonasi ≥ ${fm(r.ped)} m (Dizayn-kod 2-ilova, P2.2 ${r.ref}; P2.3 4.4.1)`;
+  return `${uk}: ${r.ok.map(t => NAME[t].toLowerCase()).join(', ')} · ${z} · oraliq ≥ ${r.step} m${r.step === 30 ? ' (P2.3 4.4.1)' : ''}${r.curb ? ` · yoʻl chetidan ≥ ${fm(r.curb)} m` : ''}${r.facade ? ` · fasaddan ≥ ${fm(r.facade)} m` : ''} · piyodalar zonasi ≥ ${fm(r.ped)} m (Dizayn-kod 2-ilova, P2.2 ${r.ref}; P2.3 4.4.1)`;
 }
 
 /** Zona qaysi tomonda (0 — chap, 1 — oʻng) va undan yoʻl chetiga / fasadga qadar boshqa zonalar eni */
@@ -114,7 +114,7 @@ export function kioskChecks(els: El[], PL: KPl[], uk: string, firstR: number, la
     const xs = ks.filter(p => geom(els, p.z, firstR, lastR).side === side).sort((p, q) => p.y - q.y);
     for (let i = 1; i < xs.length; i++) minGap = Math.min(minGap, xs[i].y - (xs[i - 1].y + xs[i - 1].l));
   }
-  if (Number.isFinite(minGap)) out.push({ st: minGap >= r.step - 1e-6 ? 'ok' : 'bad', n: `Kiosklar orasidagi masofa ≥ ${r.step} m`, src, v: fm(Math.max(0, minGap)) });
+  if (Number.isFinite(minGap)) out.push({ st: minGap >= r.step - 1e-6 ? 'ok' : 'bad', n: `Kiosklar orasidagi masofa ≥ ${r.step} m`, src: r.step === 30 ? `Dizayn-kod P2.3 4.4.1 · ${uk}` : src, v: fm(Math.max(0, minGap)) });
   // piyodalar zonasi eni (kiosk boʻlgan tomonda)
   const sides = [...new Set(ks.map(p => geom(els, p.z, firstR, lastR).side))];
   let pedMin = Infinity;
