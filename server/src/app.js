@@ -13,6 +13,7 @@ import { parseBatch, insertEvents, eventStats } from './events.js';
 import { makePrivate, parseBbox, PrivateError } from './private.js';
 import { registerAgent } from './agent.js';
 import { registerRender } from './render/routes.js';
+import { registerProjects } from './projects.js';
 import { RENDER_COINS, AGENT_COINS, AGENT_FREE_PER_WEEK, ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
@@ -34,7 +35,7 @@ export const COOKIE = 'ks_sess';
  * @param {object|null} [o.render] render navbati (render/routes.js: fal, r2, hookUrl, dailyUsd, notify …); null — «Render vaqtincha ishlamayapti»
  * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, projects = null, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -42,7 +43,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   await app.register(cookie);
   await app.register(formbody);   // Click soʻrovlari — application/x-www-form-urlencoded
-  await app.register(cors, { origin: origins, credentials: true, methods: ['GET', 'POST'] });
+  await app.register(cors, { origin: origins, credentials: true, methods: ['GET', 'POST', 'PATCH', 'DELETE'] });
 
   const setSession = (reply, token) => reply.setCookie(COOKIE, token, {
     httpOnly: true, secure, sameSite: 'lax', path: '/', domain: cookieDomain, maxAge: 60 * 864e2,
@@ -269,6 +270,9 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     db, wallet, requireUser, isOwner, limited, cfg: render, now: now ?? (() => new Date()),
     optionalUser: (req) => auth.userByToken(req.cookies[COOKIE]),
   });
+
+  /* ---------- Loyihalar bulutda (14.11): hujjat R2 da; R2 boʻlmasa /projects/* → 503 ---------- */
+  registerProjects(app, { db, requireUser, isOwner, limited, cfg: projects, now: now ?? (() => new Date()) });
 
   app.decorate('wallet', wallet);
   app.decorate('auth', auth);

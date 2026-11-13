@@ -257,3 +257,42 @@ CREATE TABLE IF NOT EXISTS render_assets (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS render_assets_job ON render_assets (job_id);
+
+-- Loyihalar bulutda (14.11.2026): hujjatning oʻzi R2 da (gzip JSON), bu yerda — tavsif va versiya.
+-- id — brauzer yaratadi (tarmoqsiz ham ishlash uchun); kalit (user_id, id) — boshqalarning loyihasiga tegib boʻlmaydi.
+CREATE TABLE IF NOT EXISTS projects (
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id          TEXT NOT NULL,
+  type        TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  meta        JSONB NOT NULL DEFAULT '{}',
+  version     INT NOT NULL,
+  r2_key      TEXT NOT NULL,
+  bytes       BIGINT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at  TIMESTAMPTZ,
+  PRIMARY KEY (user_id, id)
+);
+CREATE INDEX IF NOT EXISTS projects_list_idx ON projects (user_id, type, updated_at DESC);
+
+-- oxirgi bir necha nusxa (tiklash uchun)
+CREATE TABLE IF NOT EXISTS project_versions (
+  user_id     BIGINT NOT NULL,
+  id          TEXT NOT NULL,
+  version     INT NOT NULL,
+  r2_key      TEXT NOT NULL,
+  bytes       BIGINT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, id, version)
+);
+
+-- yuklanayotgan (hali tasdiqlanmagan) nusxalar; eskirganlari tozalanadi
+CREATE TABLE IF NOT EXISTS project_uploads (
+  r2_key       TEXT PRIMARY KEY,
+  user_id      BIGINT NOT NULL,
+  id           TEXT NOT NULL,
+  base_version INT NOT NULL,
+  bytes        BIGINT NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
