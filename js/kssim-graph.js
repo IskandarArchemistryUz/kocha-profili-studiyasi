@@ -54,11 +54,12 @@ export function webster(arms,phases,flows,shares,opt={}){const S0=opt.sat||1400,
   const gen=a=>a.lanes.filter(l=>!l.bus),has=(l,m)=>!l.codes||l.codes.includes(m);
   /* ruxsat etilgan chap: qarshi oqim Vo dagi boʻshliqlardan oʻtish sigʻimi (tc=4,5 s, tf=2,5 s), yashil soatiga */
   const capL=Vo=>{const v=Vo/3600;return v<1e-6?S0:Math.min(S0,3600*v*Math.exp(-v*4.5)/(1-Math.exp(-v*2.5)));};
-  const yOf=(p,id)=>{const a=byId[id];if(!a)return 0;const q=flows[id]||0,L=gen(a),mv=p.mv?p.mv[id]:null;
+  const shOf=id=>(opt.armShares&&opt.armShares[id])||shares;
+  const yOf=(p,id)=>{const a=byId[id];if(!a)return 0;const q=flows[id]||0,L=gen(a),mv=p.mv?p.mv[id]:null,shares=shOf(id);
     if(mv)return q*(shares.L||0)/(S0*.95*(L.filter(l=>has(l,'L')).length||1));                     // himoyalangan chap
     const qL=prot.has(id)?0:q*(shares.L||0),qT=q*((shares.S||0)+(shares.R||0));
     const opp=p.arms.filter(o=>o!==id).map(o=>byId[o]).find(o=>o&&o.hin[0]*a.hin[0]+o.hin[1]*a.hin[1]<-.6);
-    const Vo=opp?(flows[opp.id]||0)*((shares.S||0)+(shares.R||0)):0,cL=capL(Vo),dL=L.filter(l=>l.codes==='L'),oth=L.filter(l=>l.codes!=='L');
+    const so=shOf(opp?opp.id:id),Vo=opp?(flows[opp.id]||0)*((so.S||0)+(so.R||0)):0,cL=capL(Vo),dL=L.filter(l=>l.codes==='L'),oth=L.filter(l=>l.codes!=='L');
     if(dL.length&&oth.length)return Math.max(qL/(cL*dL.length),qT/(S0*oth.length));                  // alohida chap boʻlak
     return (qT+qL*S0/Math.max(60,cL))/(S0*(L.length||1));};                                       // umumiy boʻlak: chap ekvivalenti
   const ys=P.map(p=>Math.max(0,...p.arms.map(id=>yOf(p,id))));
@@ -178,8 +179,8 @@ export class GraphSim{
   light(arm,t=this.t,m){const J=this.jOf(arm);if(!J.sig)return 'G';const C=J.sig.cycle,tt=((t%C)+C)%C;
     for(const p of J.plan)if(p.arms.includes(arm)&&(!p.mv||!m||(p.mv[arm]||'').includes(m))){const d=((tt-p.t0)%C+C)%C;if(d<p.g)return 'G';if(d<p.g+AMBER)return 'A';}return 'R';}
   /* harakat tanlash (ulushlar boʻyicha) — berilgan boʻlaklar orasida */
-  pickMove(lanes){const avail=['L','S','R'].filter(m=>lanes.some(l=>(this.byFrom[l.id]||[]).some(c=>c.m===m)));if(!avail.length)return null;
-    const sh=this.o.shares,tot=avail.reduce((s,m)=>s+(sh[m]||0),0)||1;let r=this.rnd()*tot,m=avail[avail.length-1];for(const x of avail){r-=sh[x]||0;if(r<=0){m=x;break;}}return m;}
+  pickMove(lanes,arm){const avail=['L','S','R'].filter(m=>lanes.some(l=>(this.byFrom[l.id]||[]).some(c=>c.m===m)));if(!avail.length)return null;
+    const sh=(this.o.armShares&&this.o.armShares[arm])||this.o.shares,tot=avail.reduce((s,m)=>s+(sh[m]||0),0)||1;let r=this.rnd()*tot,m=avail[avail.length-1];for(const x of avail){r-=sh[x]||0;if(r<=0){m=x;break;}}return m;}
   pickConn(lane,m){const opts=(this.byFrom[lane.id]||[]).filter(c=>c.m===m);return opts[Math.floor(this.rnd()*opts.length)];}
   load(id){return this.V.filter(v=>v.route[v.li]===id).length;}
   /* yangi mashina (faqat chetki qoʻllarda) */
@@ -190,7 +191,7 @@ export class GraphSim{
       const lane=cands[0],opts=this.byFrom[lane.id].filter(c=>c.m==='S'),c=opts[opts.length-1];
       const route=[lane.id,c.id,c.to],ff=route.reduce((s,id,k)=>s+this.link[id].len/(k===1?Math.min(this.link[id].vmax,11):11),0);
       (this.pend[arm]=this.pend[arm]||[]).push({route,m:'S',arm,t0:this.t,ff,bus:1});return;}
-    const gen=A.lanes.filter(l=>!isB(l)),m=this.pickMove(gen);if(!m)return;
+    const gen=A.lanes.filter(l=>!isB(l)),m=this.pickMove(gen,arm);if(!m)return;
     const cands=gen.filter(l=>(this.byFrom[l.id]||[]).some(c=>c.m===m));cands.sort((p,q)=>this.load(p.id)-this.load(q.id));const lane=cands[0],c=this.pickConn(lane,m);
     const route=[lane.id,c.id,c.to],ff=this.link[lane.id].len/V0+this.link[c.id].len/this.link[c.id].vmax+this.link[c.to].len/V0;
     (this.pend[arm]=this.pend[arm]||[]).push({route,m,arm,t0:this.t,ff});}
@@ -198,7 +199,7 @@ export class GraphSim{
   extend(v){const last=v.route[v.route.length-1],trs=this.down[last];if(!trs||!trs.length||v.route.length>40)return;
     const lanes=trs.map(id=>this.link[this.link[id].to]).filter(l=>v.bus?true:!l.bus);if(!lanes.length)return;
     let m,ln;if(v.bus){m='S';const bl=lanes.filter(l=>l.bus&&(this.byFrom[l.id]||[]).some(c=>c.m==='S'));ln=bl[0]||lanes.filter(l=>(this.byFrom[l.id]||[]).some(c=>c.m==='S')).slice(-1)[0];if(!ln)return;}
-    else{m=this.pickMove(lanes);if(!m)return;const cands=lanes.filter(l=>(this.byFrom[l.id]||[]).some(c=>c.m===m));cands.sort((p,q)=>this.load(p.id)-this.load(q.id));ln=cands[0];}
+    else{m=this.pickMove(lanes,lanes[0].arm);if(!m)return;const cands=lanes.filter(l=>(this.byFrom[l.id]||[]).some(c=>c.m===m));cands.sort((p,q)=>this.load(p.id)-this.load(q.id));ln=cands[0];}
     const c=v.bus?(this.byFrom[ln.id].filter(x=>x.m==='S').slice(-1)[0]):this.pickConn(ln,m);if(!c)return;const tr=last+'>'+ln.id;
     v.route.push(tr,ln.id,c.id,c.to);v.ff+=this.link[tr].len/V0+ln.len/V0+this.link[c.id].len/this.link[c.id].vmax+this.link[c.to].len/V0;}
   /* kirish navbati: har boʻlak oʻz navbatida (avtobus boʻlagi umumiy boʻlak navbatini kutmaydi) */

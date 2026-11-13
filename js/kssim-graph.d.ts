@@ -13,7 +13,7 @@ export function opposingPairs(arms: Arm[]): [Arm, Arm][];
 export function webster(arms: Arm[], phases: Phase[], flows: Record<string, number>, shares: { L: number; S: number; R: number }, opt?: { sat?: number; min?: number; max?: number; minG?: number }): { cycle: number; split: number[]; Y: number };
 export function pointAt(pts: XY[], c: number[], s: number): number[];
 export class GraphSim {
-  constructor(net: Net, opt?: { demand?: Record<string, number>; shares?: { L: number; S: number; R: number }; seed?: number; ped?: number; bus?: Record<string, number>; busOcc?: number });
+  constructor(net: Net, opt?: { demand?: Record<string, number>; shares?: { L: number; S: number; R: number }; armShares?: Record<string, { L: number; S: number; R: number }>; seed?: number; ped?: number; bus?: Record<string, number>; busOcc?: number });
   peds(): { x: number; y: number; walk: number }[];
   t: number;
   V: { id: number; li: number; s: number; v: number; arm: string; m: string; route: string[] }[];

@@ -1,7 +1,7 @@
 /* Koʻchasoz — svetofor rejasi va hisob (asosiy oqimda ham, Web Worker'da ham ishlaydi).
  * base = {N: model tarmogʻi (JSON), bound: [chetki qoʻl id], o: {demand, shares, ped, bus, off, auto, pl, cycle}, nl: {armId: ekvivalent boʻlak}, bus: {armId: avt/soat}, anySig}
  * ch   = {prot: alohida chap faza, cycle: son | null (Webster), eq: fazalarga teng yashil, gw: '0'|'f'|'b' yashil toʻlqin yoʻnalishi} */
-import * as M from './kssim-graph.js?v=11';
+import * as M from './kssim-graph.js?v=12';
 
 const clone=x=>JSON.parse(JSON.stringify(x));
 /* chorraha markazi: kiruvchi boʻlaklar toʻxtash nuqtalarining oʻrtachasi */
@@ -16,16 +16,16 @@ export function planSignals(N,base,ch){const {bound,o,nl}=base,lanes=id=>nl[id]|
   const tot=bound.reduce((s,id)=>s+(o.demand[id]||0),0),eq=bound.reduce((s,id)=>s+lanes(id),0)||1,perL=tot/eq,flows={};
   N.arms.forEach(a=>flows[a.id]=bound.includes(a.id)?(o.demand[a.id]||0):perL*lanes(a.id));
   const sh=o.shares,info=[],W={};
-  N.juncs.forEach(j=>{if(!j.signal)return;const A=N.arms.filter(a=>a.j===j.id),ph=M.autoPhases(A,{protLeft:!!ch.prot});j.signal.phases=ph;W[j.id]=M.webster(A,ph,flows,sh);});
+  N.juncs.forEach(j=>{if(!j.signal)return;const A=N.arms.filter(a=>a.j===j.id),ph=M.autoPhases(A,{protLeft:!!ch.prot});j.signal.phases=ph;W[j.id]=M.webster(A,ph,flows,sh,{armShares:o.armShares});});
   const Cc=ch.cycle||Math.max(40,...Object.values(W).map(w=>w.cycle),40);let k=0;const wave=ch.gw&&ch.gw!=='0'?waveOffsets(N,Cc,ch.gw):null;
   N.juncs.forEach(j=>{if(!j.signal)return;const A=N.arms.filter(a=>a.j===j.id);j.signal.cycle=Cc;
-    j.signal.split=ch.eq?j.signal.phases.map(()=>1/j.signal.phases.length):M.webster(A,j.signal.phases,flows,sh,{min:Cc,max:Cc}).split;
+    j.signal.split=ch.eq?j.signal.phases.map(()=>1/j.signal.phases.length):M.webster(A,j.signal.phases,flows,sh,{min:Cc,max:Cc,armShares:o.armShares}).split;
     j.signal.offset=wave?Math.round(wave[j.id]||0):((o.off||0)*k)%Cc;k++;const G=Cc-j.signal.phases.length*5;
     info.push({j:j.id,C:Cc,Y:W[j.id].Y,off:j.signal.offset,gw:ch.gw||'0',ph:j.signal.phases.map((p,i)=>({left:!Array.isArray(p),arms:Array.isArray(p)?p:p.arms,g:Math.round(G*j.signal.split[i])}))});});
   return info;}
 
 export function makeSim(base,ch,seed){const N=clone(base.N),info=planSignals(N,base,ch),o=base.o;
-  const sim=new M.GraphSim(N,{demand:o.demand,shares:o.shares,seed,ped:o.ped,bus:base.bus});sim.info=info;return sim;}
+  const sim=new M.GraphSim(N,{demand:o.demand,shares:o.shares,armShares:o.armShares,seed,ped:o.ped,bus:base.bus});sim.info=info;return sim;}
 
 export function defaultCh(base){const o=base.o;return {prot:o.pl==='y',cycle:o.auto?null:o.cycle,eq:false};}
 
