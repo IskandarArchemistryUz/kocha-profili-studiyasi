@@ -27,15 +27,17 @@ export default class Component extends DCLogic {
   /* ===== Harakat modeli (BETA, 13.11): chorraha maketi → boʻlaklar va ulagichlar → js/kssim-graph.js =====
      Geometriya renderVals da this._geo ga yoziladi (metr, y pastga). */
   _simOpts() { var s = this.state, n = function (v, d, lo, hi) { v = +v; return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
-    return { qa: n(s.simQa, 600, 0, 3000), qb: n(s.simQb, 400, 0, 3000), L: n(s.simL, 20, 0, 100), S: n(s.simS, 65, 0, 100), R: n(s.simR, 15, 0, 100), cyc: n(s.simC, 90, 40, 180), ped: n(s.simP, 100, 0, 2000) }; }
+    return { qa: n(s.simQa, 600, 0, 3000), qb: n(s.simQb, 400, 0, 3000), L: n(s.simL, 20, 0, 100), S: n(s.simS, 65, 0, 100), R: n(s.simR, 15, 0, 100), cyc: n(s.simC, 90, 40, 180), ped: n(s.simP, 100, 0, 2000), bus: n(s.simB, 20, 0, 200) }; }
   async _simMake(seed) { var G = this._geo; if (!G || !G.arms.length) return null;
     var M = await import('../../../../js/kssim-graph.js'), o = this._simOpts();
-    var conns = M.autoConnect(G.arms, false), demand = {};
+    var ring = G.ctl === 2 ? { c: [0, 0], r: G.ringR } : null, conns = ring ? M.ringConnect(G.arms, ring, false) : M.autoConnect(G.arms, false), demand = {};
     G.arms.forEach(function (a) { demand[a.id] = a.main ? o.qa : o.qb; });
-    var net = { arms: G.arms, conns: conns, yUp: false, main: G.ctl === 1 ? G.arms.filter(function (a) { return a.main; }).map(function (a) { return a.id; }) : [],
+    var hasBL = G.arms.some(function (a) { return a.lanes.some(function (l) { return l.bus; }); }), busQ = {};
+    G.arms.forEach(function (a) { if (hasBL ? a.lanes.some(function (l) { return l.bus; }) : a.main) busQ[a.id] = o.bus; });
+    var net = { arms: G.arms, conns: conns, yUp: false, ring: ring, main: G.ctl === 1 ? G.arms.filter(function (a) { return a.main; }).map(function (a) { return a.id; }) : [],
       signal: G.ctl === 0 ? { cycle: o.cyc, phases: M.autoPhases(G.arms) } : null };
-    return new M.GraphSim(net, { demand: demand, shares: { L: o.L / 100, S: o.S / 100, R: o.R / 100 }, seed: seed, ped: o.ped }); }
-  async simRun() { this.simStop(); if (!this._geo || this._geo.ctl === 2) return; this.setState({ simBusy: 1, simRes: null });
+    return new M.GraphSim(net, { demand: demand, shares: { L: o.L / 100, S: o.S / 100, R: o.R / 100 }, seed: seed, ped: o.ped, bus: busQ }); }
+  async simRun() { this.simStop(); if (!this._geo) return; this.setState({ simBusy: 1, simRes: null });
     var R = [];
     for (var k = 1; k <= 3; k++) { var m = await this._simMake(k); if (!m) { this.setState({ simBusy: 0 }); return; } await new Promise(function (r) { setTimeout(r, 0); }); R.push(m.run(1020, 0.1).result(120)); }
     this.setState({ simBusy: 0, simRes: { R: R, key: this._geo.key, sig: this._geo.ctl === 0, names: this._geo.arms.map(function (a) { return [a.id, a.name]; }) } }); }
@@ -58,8 +60,8 @@ export default class Component extends DCLogic {
       a.lanes.forEach(function (ln) { var q = ln.pts[ln.pts.length - 1], p = P(q[0], q[1]); g.fillStyle = c; g.beginPath(); g.arc(p[0], p[1], Math.max(2.5, ppm * 0.9), 0, 7); g.fill(); }); });
     S.m.peds().forEach(function (p) { var c = P(p.x, p.y); g.fillStyle = p.walk ? '#95620f' : '#c9a35a'; g.beginPath(); g.arc(c[0], c[1], Math.max(1.8, ppm * 0.45), 0, 7); g.fill(); });
     var COL = { L: '#4c5bd4', S: '#2f2e2b', R: '#c0643a' }; g.lineCap = 'butt';
-    S.m.snapshot().forEach(function (v) { var c = P(v.x, v.y), f = P(v.x + Math.cos(v.h) * 2.3, v.y + Math.sin(v.h) * 2.3), r = [2 * c[0] - f[0], 2 * c[1] - f[1]];
-      g.strokeStyle = COL[v.m] || '#2f2e2b'; g.lineWidth = Math.max(2, ppm * 1.9); g.beginPath(); g.moveTo(r[0], r[1]); g.lineTo(f[0], f[1]); g.stroke(); }); }
+    S.m.snapshot().forEach(function (v) { var f = P(v.x, v.y), r = P(v.x - Math.cos(v.h) * v.len, v.y - Math.sin(v.h) * v.len);   // oldingi uchidan orqaga
+      g.strokeStyle = v.bus ? '#2a5a9a' : (COL[v.m] || '#2f2e2b'); g.lineWidth = Math.max(2, ppm * (v.bus ? 2.5 : 1.9)); g.beginPath(); g.moveTo(r[0], r[1]); g.lineTo(f[0], f[1]); g.stroke(); }); }
   renderVals() {
     var s = this.state, self = this;
 
@@ -555,13 +557,13 @@ export default class Component extends DCLogic {
     /* harakat modeli uchun geometriya (metr, y pastga): 4 tarmoq, faqat umumiy boʻlaklar (qat) */
     (function () {
       if (!hasCore) { self._geo = null; return; }
-      var Lm = 72, qat = function (Z, f) { return Z.z.filter(function (q) { return q.t === 'qat' && f(q); }).sort(function (p, q) { return Math.abs((p.a + p.b) / 2) - Math.abs((q.a + q.b) / 2); }); };
+      var Lm = 72, qat = function (Z, f) { return Z.z.filter(function (q) { return (q.t === 'qat' || q.t === 'bus') && f(q); }).sort(function (p, q) { return Math.abs((p.a + p.b) / 2) - Math.abs((q.a + q.b) / 2); }); };
       var codes = function (n) { return n >= 3 ? ['L'].concat(Array(n - 2).fill('S'), ['SR']) : n === 2 ? ['SL', 'SR'] : ['LSR']; };
       var mid = function (q) { return (q.a + q.b) / 2; }, GG = function (a, b) { return G(a, b); };
       var inA = qat(MA, function (q) { return q.a >= 0; }), outA = qat(MA, function (q) { return q.b <= 0; }), inB = qat(MB, function (q) { return q.b <= 0; }), outB = qat(MB, function (q) { return q.a >= 0; });
       var arm = function (id, nm, mainA, hin, IN, OUT, pin, pout, cross) { return { id: id, name: nm, main: mainA, hin: hin, cross: s.zebra ? cross : undefined,
-        lanes: IN.map(function (q, i) { return { id: id + 'i' + i, mid: mid(q), codes: codes(IN.length)[i], pts: pin(mid(q)) }; }),
-        exits: OUT.map(function (q, i) { return { id: id + 'o' + i, mid: mid(q), pts: pout(mid(q)) }; }) }; };
+        lanes: IN.map(function (q, i) { var g = IN.filter(function (x) { return x.t !== 'bus'; }), gi = g.indexOf(q); return { id: id + 'i' + i, mid: mid(q), bus: q.t === 'bus', codes: q.t === 'bus' ? 'S' : codes(g.length)[gi], pts: pin(mid(q)) }; }),
+        exits: OUT.map(function (q, i) { return { id: id + 'o' + i, mid: mid(q), bus: q.t === 'bus', pts: pout(mid(q)) }; }) }; };
       var sW = zW[0] - 1, sE = zE[1] + 1, sN = zN[0] - 1, sS = zS[1] + 1, dB = GG(0, 1);
       var A4 = [
         arm('W', MA.n + ' · gʻarbdan', true, [1, 0], inA, outA, function (y) { return [[-Lm, y], [sW, y]]; }, function (y) { return [[zW[0], y], [-Lm, y]]; }, [[(zW[0] + zW[1]) / 2, ym1], [(zW[0] + zW[1]) / 2, ym2]]),
@@ -569,7 +571,7 @@ export default class Component extends DCLogic {
         arm('N', MB.n + ' · shimoldan', false, dB, inB, outB, function (x) { return [GG(x, -Lm), GG(x, sN)]; }, function (x) { return [GG(x, zN[0]), GG(x, -Lm)]; }, [GG(xc1, (zN[0] + zN[1]) / 2), GG(xc2, (zN[0] + zN[1]) / 2)]),
         arm('S', MB.n + ' · janubdan', false, [-dB[0], -dB[1]], outB, inB, function (x) { return [GG(x, Lm), GG(x, sS)]; }, function (x) { return [GG(x, zS[1]), GG(x, Lm)]; }, [GG(xc2, (zS[0] + zS[1]) / 2), GG(xc1, (zS[0] + zS[1]) / 2)])
       ].filter(function (a) { return a.id !== s.miss; });
-      self._geo = { arms: A4, ctl: s.ctl, px: px, CX: CX, CY: CY, key: JSON.stringify([s.a, s.b, s.ang, s.miss || '', s.ctl, s.R, s.TPL[s.a][2], s.TPL[s.b][2], !!s.zebra]) };
+      self._geo = { arms: A4, ctl: s.ctl, ringR: Math.max(2, Math.min(MA.cw, MB.cw) / 2 - 5) + 4, px: px, CX: CX, CY: CY, key: JSON.stringify([s.a, s.b, s.ang, s.miss || '', s.ctl, s.R, s.TPL[s.a][2], s.TPL[s.b][2], !!s.zebra]) };
     })();
     var SR = s.simRes && self._geo && s.simRes.key === self._geo.key ? s.simRes : null, simRows = [];
     if (SR) { var thL = SR.sig ? [10, 20, 35, 55, 80] : [10, 15, 25, 35, 50], LC = { A: '#2b7449', B: '#2b7449', C: '#95620f', D: '#95620f', E: '#b23a2e', F: '#b23a2e' };
@@ -577,6 +579,7 @@ export default class Component extends DCLogic {
       var row = function (nm, get) { var d = avg(function (r) { return get(r).delay; }), fl = avg(function (r) { return get(r).flow; }), F = SR.R.filter(function (r) { return get(r).los === 'F'; }).length >= 2;
         var l = F ? 'F' : ('ABCDE'[thL.findIndex(function (x) { return d <= x; })] || 'F'); simRows.push({ n: nm, v: Math.round(fl) + ' / ' + Math.round(get(SR.R[0]).demand) + ' avt/soat · ' + d.toFixed(1) + ' s · ' + l, c: LC[l] }); };
       SR.names.forEach(function (x) { row(x[1], function (r) { return r.arms[x[0]]; }); }); row(tr('Jami'), function (r) { return r.total; });
+      var bf = avg(function (r) { return r.bus.flow; }); if (bf > 0) { simRows.push({ n: tr('Avtobuslar'), v: tf('${n} avt/soat · ${d} s', { n: Math.round(bf), d: avg(function (r) { return r.bus.delay; }).toFixed(1) }), c: '#2a5a9a' }); simRows.push({ n: tr('Odam boshiga kechikish'), v: avg(function (r) { return r.person; }).toFixed(1) + ' s', c: '#141414' }); }
       var pf = avg(function (r) { return r.ped.flow; }); if (pf > 0) simRows.push({ n: tr('Piyodalar'), v: tf('${n} kishi/soat · kutish ${w} s', { n: Math.round(pf), w: avg(function (r) { return r.ped.wait; }).toFixed(1) }), c: '#141414' }); }
     var ped = hasCore ? Math.max(LA, LB) / 1.2 : 0;
     return {
@@ -609,13 +612,13 @@ export default class Component extends DCLogic {
       note: 'Piyoda oʻtish joyi burchak egri qismidan keyin, velo oʻtish joyi esa uning yadro tomonida joylashadi. Avtobus boʻlagi chorrahada koʻk punktir bilan davom etadi. Yangi qurilishda R ≥ 15 m (108-band), kichik radius esa piyoda uchun xavfsizroq — ziddiyat ochiq qoldirilgan.',
       signs: SG.map(function (k) { var g = SGN[k]; return { n: g[0], c: g[1], b: g[2], r: g[3] }; })
 ,
-      simQa: s.simQa != null ? s.simQa : 600, simQb: s.simQb != null ? s.simQb : 400, simL: s.simL != null ? s.simL : 20, simS: s.simS != null ? s.simS : 65, simR: s.simR != null ? s.simR : 15, simC: s.simC != null ? s.simC : 90, simP: s.simP != null ? s.simP : 100, simPed: !!s.zebra,
+      simQa: s.simQa != null ? s.simQa : 600, simQb: s.simQb != null ? s.simQb : 400, simL: s.simL != null ? s.simL : 20, simS: s.simS != null ? s.simS : 65, simR: s.simR != null ? s.simR : 15, simC: s.simC != null ? s.simC : 90, simP: s.simP != null ? s.simP : 100, simB: s.simB != null ? s.simB : 20, simPed: !!s.zebra,
       simIn: function (e) { var k = e.target.dataset.k; if (k) self.state[k] = e.target.value; },
-      simSig: s.ctl === 0, simOk: hasCore && s.ctl !== 2,
+      simSig: s.ctl === 0, simOk: hasCore,
       simRun: function () { self.simRun(); }, simPlay: function () { self.simPlay(); }, simPlayT: s.simOn ? '⏸ Toʻxtatish' : '▶ Koʻrsatish',
-      simMsg: !hasCore ? tr('Ikki koʻchaning qatnov qismi kerak.') : s.ctl === 2 ? tr('Aylanma halqa hozircha modelda yoʻq — svetofor yoki belgilarni tanlang.') : s.simBusy ? tr('Hisoblanmoqda…') : SR ? '' : tr('Talabni kiriting va «Hisoblash»ni bosing.'),
+      simMsg: !hasCore ? tr('Ikki koʻchaning qatnov qismi kerak.') : s.simBusy ? tr('Hisoblanmoqda…') : SR ? '' : tr('Talabni kiriting va «Hisoblash»ni bosing.'),
       simRows: simRows,
-      simNote: SR ? tf('3 takror × 15 daq. Qiymat: oʻtdi / talab · kechikish · LOS (HCM, ${t}). Natijalar taxminiy — loyiha qarori uchun tasdiqlangan model emas.', { t: SR.sig ? 'svetoforli 10/20/35/55/80 s' : 'svetoforsiz 10/15/25/35/50 s' }) : tr('Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (chapga buriluvchi qarshidagiga; belgilar bilan — ikkinchi darajali yoʻl asosiyga), burilishda piyodaga yoʻl berish.')
+      simNote: SR ? tf('3 takror × 15 daq. Qiymat: oʻtdi / talab · kechikish · LOS (HCM, ${t}). Natijalar taxminiy — loyiha qarori uchun tasdiqlangan model emas.', { t: SR.sig ? 'svetoforli 10/20/35/55/80 s' : 'svetoforsiz va aylanma 10/15/25/35/50 s' }) : tr('Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (chapga buriluvchi qarshidagiga; belgilar bilan — ikkinchi darajali yoʻl asosiyga; aylanmada — halqadagilarga, kritik interval 4 s), burilishda piyodaga yoʻl berish.')
     };
     })();
     return __split(__r);
