@@ -12,13 +12,26 @@ export const JWKS_URL = 'https://rest.fal.ai/.well-known/jwks.json';
  * Model identifikatori va kirish sxemasi — kalit qoʻyilgach fal playground da bir marta tekshiring.
  */
 /** Kirish oʻlchami (uzun tomoni ≤ 2048) — modelga aniq oʻlcham beriladi, kadr qayta kesilmasin */
-const sizeOf = (p) => (p.w > 0 && p.h > 0 ? { width: Math.round(p.w / 16) * 16, height: Math.round(p.h / 16) * 16 } : undefined);
+const sizeOf = (p, long = 0) => {
+  if (!(p.w > 0 && p.h > 0)) return undefined;
+  const k = long ? long / Math.max(p.w, p.h) : 1;
+  return { width: Math.round((p.w * k) / 16) * 16, height: Math.round((p.h * k) / 16) * 16 };
+};
 const KONTEXT_AR = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21']);
 
 export const ENGINES = Object.freeze({
-  fast: { item: 'ren.fast', model: 'fal-ai/bytedance/seedream/v4.5/edit', usd: 0.04, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, image_size: 'auto_2K', enable_safety_checker: true }) },
-  pro: { item: 'ren.pro', model: 'fal-ai/nano-banana-pro/edit', usd: 0.15, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, resolution: '2K', aspect_ratio: p.aspect ?? 'auto', output_format: 'png' }) },
-  pro4k: { item: 'ren.pro4k', model: 'fal-ai/nano-banana-pro/edit', usd: 0.30, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, resolution: '4K', aspect_ratio: p.aspect ?? 'auto', output_format: 'png' }) },
+  /* 13.11 kechqurun (egasi tasdiqladi, project claude/render-model-taqqoslov-13-11.md):
+     Tez — Seedream 5 Lite (aniq o'lcham — kadr saqlanadi); Pro / Pro 4K — GPT Image 2 (eng realistik, kamera saqlanadi) */
+  fast: { item: 'ren.fast', model: 'fal-ai/bytedance/seedream/v5/lite/edit', usd: 0.035, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, ...(sizeOf(p) ? { image_size: sizeOf(p) } : {}), enable_safety_checker: true }) },
+  pro: { item: 'ren.pro', model: 'openai/gpt-image-2/edit', usd: 0.08, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, image_size: sizeOf(p, 2048) ?? 'auto', quality: 'medium', output_format: 'png' }) },
+  pro4k: { item: 'ren.pro4k', model: 'openai/gpt-image-2/edit', usd: 0.45, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, image_size: sizeOf(p, 3840) ?? 'auto', quality: 'high', output_format: 'png' }) },
+  /* eski Pro (Nano Banana Pro) — egasi sinovi uchun saqlanadi */
+  nbpro: { item: 'ren.pro', lab: true, model: 'fal-ai/nano-banana-pro/edit', usd: 0.15, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, resolution: '2K', aspect_ratio: p.aspect ?? 'auto', output_format: 'png' }) },
+  /* Kattalashtirish (kind: 'up'): kirish — tayyor natija. SeedVR2 — asliga sodiq; Clarity — detal qo'shadi (Magnific uslubi) */
+  up2: { item: 'ren.up2', kind: 'up', factor: 2, label: 'Kattalashtirish', model: 'fal-ai/seedvr/upscale/image', usd: 0.02, input: (p) => ({ image_url: p.images[0], upscale_mode: 'factor', upscale_factor: 2, noise_scale: 0.1, output_format: 'jpg' }) },
+  up3: { item: 'ren.up3', kind: 'up', factor: 3, label: 'Kattalashtirish', model: 'fal-ai/seedvr/upscale/image', usd: 0.04, input: (p) => ({ image_url: p.images[0], upscale_mode: 'factor', upscale_factor: 3, noise_scale: 0.1, output_format: 'jpg' }) },
+  up4: { item: 'ren.up4', kind: 'up', factor: 4, label: 'Kattalashtirish', model: 'fal-ai/seedvr/upscale/image', usd: 0.06, input: (p) => ({ image_url: p.images[0], upscale_mode: 'factor', upscale_factor: 4, noise_scale: 0.1, output_format: 'jpg' }) },
+  enhance: { item: 'ren.enhance', kind: 'up', factor: 2, maxOut: 4096, label: 'Tiniqlashtirish', model: 'fal-ai/clarity-upscaler', usd: 0.3, input: (p) => ({ image_url: p.images[0], upscale_factor: 2, prompt: 'masterpiece, best quality, highres, photorealistic architectural photography, sharp facade details', negative_prompt: '(worst quality, low quality, normal quality:2), blurry, distorted geometry', creativity: 0.3, resemblance: 0.7, enable_safety_checker: true }) },
   /* Sinov modellari (13.11, lab: true) — hozircha faqat egasiga: geometriya taqqoslovi, keyin eng yaxshisi «Tez» boʻladi */
   qwen: { item: 'ren.fast', lab: true, model: 'fal-ai/qwen-image-edit-2511', usd: 0.07, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, output_format: 'png', enable_safety_checker: true }) },
   kontext: { item: 'ren.fast', lab: true, model: 'fal-ai/flux-pro/kontext', usd: 0.04, refs: false, input: (p) => ({ prompt: p.prompt, image_url: p.images[0], num_images: 1, output_format: 'png', safety_tolerance: '2', ...(KONTEXT_AR.has(p.aspect) ? { aspect_ratio: p.aspect } : {}) }) },
