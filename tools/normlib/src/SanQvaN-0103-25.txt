@@ -1,4 +1,41 @@
+﻿
+Oʻzbekiston Respublikasi Sogʻliqni Saqlash Vazirligi huzuridagi Sanitariya-epidemiologik osoyishtalik va jamoat salomatligi qoʻmitasining
+qarori
+Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlarini (0103-25-son SanQvaN) tasdiqlash toʻgʻrisida
+[Oʻzbekiston Respublikasi Adliya vazirligi tomonidan 2025-yil 29-sentabrda hisobga olindi, hisob raqami 373]
+Oʻzbekiston Respublikasining “Aholining sanitariya-epidemiologik osoyishtaligi toʻgʻrisida”gi Qonuni, Oʻzbekiston Respublikasi Prezidentining 2020-yil 25-iyuldagi PF-6035-son “Koronavirus pandemiyasini yumshatish, aholining sanitariya-epidemiologik osoyishtaligi va salomatligini saqlash tizimini tubdan takomillashtirish chora-tadbirlari toʻgʻrisida”gi Farmoniga muvofiq Oʻzbekiston Respublikasi Sogʻliqni saqlash vazirligi huzuridagi Sanitariya-epidemiologik osoyishtalik va jamoat salomatligi qoʻmitasi qaror qiladi:
+1. Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlari (0103-25-son SanQvaN) 1-ilovaga muvofiq tasdiqlansin.
+2. Ayrim sanitariya qoidalari, normalari va gigiyena normativlari 2-ilovaga muvofiq oʻz kuchini yoʻqotgan deb topilsin.
+3. Mazkur qaror Oʻzbekiston Respublikasi Prezidenti huzuridagi Tadbirkorlik subyektlarining huquqlari va qonuniy manfaatlarini himoya qilish boʻyicha vakil, Sogʻliqni saqlash vazirligi, Qurilish va uy-joy kommunal xoʻjaligi vazirligi, Qishloq xoʻjaligi vazirligi, Togʻ-kon sanoati va geologiya vazirligi, Favqulodda vaziyatlar vazirligi, Ekologiya, atrof-muhitni muhofaza qilish va iqlim oʻzgarishi vazirligi, Energetika vazirligi hamda Vazirlar Mahkamasi huzuridagi Sanoat, radiatsiya va yadro xavfsizligi qoʻmitasi bilan kelishilgan.
+4. Mazkur qaror rasmiy eʼlon qilingan kundan eʼtiboran kuchga kiradi.
+Rais B. YUSUPALIYEV
+Toshkent sh.,
+2025-yil 15-avgust,
+24-son
+Kelishildi:
+Energetika vaziri J. MIRZAMAHMUDOV
+2025-yil 11-avgust
+Ekologiya, atrof-muhitni muhofaza qilish va iqlim oʻzgarishi vazirining birinchi oʻrinbosari O. QUDRATOV
+2025-yil 6-avgust
+Qishloq xoʻjaligi vaziri I. ABDURAXMONOV
+2025-yil 14-iyul
+Favqulodda vaziyatlar vaziri B. QUDRATXODJAYEV
+2025-yil 10-iyul
+Tadbirkorlik subyektlarining huquqlari va qonuniy manfaatlarini himoya qilish boʻyicha vakil oʻrinbosari J. URUNOV
+2025-yil 8-iyul
+Qurilish va uy-joy kommunal xoʻjaligi vaziri Sh. XIDOYATOV
+2025-yil 7-iyul
+Sanoat, radiatsiya va yadro xavfsizligi qoʻmitasi raisi A. RAFIQOV
+2025-yil 4-iyul
+Sogʻliqni saqlash vaziri A. XUDAYAROV
+2025-yil 4-iyul
+Togʻ-kon sanoati va geologiya vaziri B. ISLAMOV
+2025-yil 3-iyul
+Oʻzbekiston Respublikasi Sogʻliqni saqlash vazirligi huzuridagi Sanitariya-epidemiologik osoyishtalik va jamoat salomatligi qoʻmitasining 2025-yil 15-avgustdagi 24-son qaroriga
 1-ILOVA
+Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlari (0103-25-son SanQvaN)
+Mazkur sanitariya qoidalari, normalari va gigiyena normativlari (bundan buyon matnda sanitariya qoidalari deb yuritiladi) aholi turar joylarini atmosfera havosiga chiqariladigan ifloslantiruvchi kimyoviy va biologik moddalardan (bundan buyon matnda ifloslantiruvchi moddalar deb yuritiladi) hamda fizikaviy omillarning zararli taʼsiridan muhofaza qilish uchun sanitariya-muhofaza zonasiga oid talablarni belgilaydi.
+Ushbu sanitariya qoidalari atmosfera havosiga ifloslantiruvchi moddalar chiqaradigan hamda fizikaviy omillarning zararli taʼsiri boʻlgan korxonalarga (bundan buyon matnda obyektlar deb yuritiladi) nisbatan tatbiq etiladi.
 1-bob. Umumiy qoidalar
 1. Mazkur sanitariya qoidalarida quyidagi asosiy tushunchalar qoʻllaniladi:
 ruxsat etilgan miqdor (bundan buyon matnda REM deb yuritiladi) — aholi turar joylarida atmosfera havosini ifloslantiruvchi kimyoviy va biologik omillarning ruxsat etilgan miqdori;
@@ -65,10 +102,607 @@ ET kuchlanishi 750 kV gacha boʻlsa 40 m;
 ET kuchlanishi 1150 kV gacha boʻlsa 55 m.
 16. ET kuchlanishi yuqori (500 kV gacha) boʻlganda, undan hosil boʻladigan elektr maydoni turar joy binolari ichida 0,5 kV/m, turar joy binolarining hududida 1 kV/m, avtomobil yoʻllarini kesib oʻtadigan joylarda 10 kV/m, aholi yashamaydigan hududlarda 20 kV/m, magnit maydon esa 80 A/mdan (100 mkTl) yuqori boʻlmasligi lozim.
 17. Hayvonlarni saqlash joylari bilan aholi turar joylari oraligʻidagi SMZ masofasi mazkur sanitariya qoidalarining 2-ilovasiga muvofiq, avtomobillarni ochiq turdagi saqlash joylari bilan aholi turar joylari oraligʻidagi SMZ masofasi ushbu sanitariya qoidalarining 3-ilovasiga muvofiq va oqova suvlarni tozalash qurilmalari bilan aholi turar joylari oraligʻidagi SMZ masofasi mazkur sanitariya qoidalarining 4-ilovasiga muvofiq boʻlishi lozim.
+Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlariga (0103-25-son SanQvaN)
+1-ILOVA
+Ishlab chiqarish turlariga koʻra obyektlarning xavflilik sinflari
+1-sinf
+Kimyoviy ishlab chiqarish
+1. | Azot birikmalarni (ammiak, azot kislotasi, azot oʻgʻitli aralashmasi va boshqa oʻgʻitlar) ishlab chiqarish
+2. | Benzol va efir anilin boʻyoq sanoati mahsulotlari va yarim tayyor mahsulotlar — anilin, nitrobenzol, nitro-anilin, alkilbenzol, nitroxlorbenzol, fenol, aseton, xlorbenzol va boshqalar
+3. | Naftalin va antrasen seriyali yarim tayyor mahsulotlar — beta-naftalin, kul-kislota, fenilperatsid, periatsid, antrakinon, ftalik angidrid va boshqalarni ishlab chiqarish
+4. | Oltingugurt yoki oltingugurt saqlovchi materiallarni yoqish asosida sulfit kislota va bisulfit yoki monosulfit usullari bilan sellyuloza va yarim sellyuloza olish, shuningdek sellyulozani sulfat usulida (sulfat sellyuloza) olish
+5. | Elektroliz yoʻli bilan xlor, yarim tayyor mahsulotlar va xlor asosidagi mahsulotlar ishlab chiqarish
+6. | Xlorlash (titan-magniy, magniy va boshqalar) orqali nodir metallar olish
+7. | Sunʼiy va sintetik tolalar (viskon, neylon, lavsan, nitron va sellofan) ishlab chiqarish
+8. | Dimetiltereftalat ishlab chiqarish
+9. | Kaprolaktam ishlab chiqarish
+10. | Uglerod dioksidi ishlab chiqarish
+11. | Sintetik polimer materiallar uchun mahsulotlar va yarim tayyor mahsulotlar ishlab chiqarish
+12. | Margimush va uning birikmalarini ishlab chiqarish
+13. | Neft ishlab chiqarish, u bilan bogʻliq neft va tabiiy gazni qayta ishlash (tarkibida oltingugurt birikmasi 1% dan (ogʻirlik) ortiq boʻlgan uglevodorod xomashyosini qayta ishlashda sanitariya-muhofaza zonasi oshirish kerak)
+14. | Pikrin kislota ishlab chiqarish
+15. | Ftor, vodorod ftorid, ular asosida yarim tayyor va tayyor mahsulotlar (organik, noorganik) ishlab chiqarish
+16. | Slanetsni qayta ishlash zavodlari
+17. | Qora uglerod ishlab chiqarish
+18. | Fosfor (sariq, qizil) va ularning organik birikmalarini hamda oʻgʻitlarini ishlab chiqish
+19. | Superfosfat oʻgʻitlarini ishlab chiqarish
+20. | Kalsiy karbid, kalsiy karbididan asetilen va asetilen asosidagi hosilalarni ishlab chiqarish
+21. | Sunʼiy va sintetik kauchuk ishlab chiqarish
+22. | Sianid kislota, organik yarim tayyor mahsulotlar va uning asosidagi mahsulotlar (aseton sianogidrin, etilen sianogidrin, metakril va akril kislotalarning efirlari, diizotsianidlar va boshqalar) ishlab chiqarish sianid tuzlari (kaliy, natriy, mis va boshqalar), sianid qotishmasi, ditsianamid, kalsiy sianamid ishlab chiqarish
+23. | Uglevodorod gazi va uning asosidagi mahsulotlardan asetilen ishlab chiqarish
+24. | Kislorod bilan toʻgʻridan-toʻgʻri oksidlanish yoʻli bilan sintetik yogʻ kislotalarini, yuqori yogʻli kislotalarni ishlab chiqarish
+25. | Merkaptan ishlab chiqarish
+26. | Xrom, xrom angidrid va uning tuzlarini ishlab chiqarish
+27. | Efir moylari ishlab chiqarish
+28. | Fenolformaldegid, poliefir, epoksid va boshqa sunʼiy smolalar ishlab chiqarish
+29. | Metionin ishlab chiqarish
+30. | Metall karbonil ishlab chiqarish
+31. | Bitum, neft hamda gidron, polugidron va uning hosilalaridan haydash usuli bilan boshqa mahsulotlarni ishlab chiqarish
+32. | Berilliy ishlab chiqarish
+33. | Sintetik (butil, propil, izopropil, amil) spirtlarini ishlab chiqarish
+34. | Volfram, molibden, kobalt gidrometallurgiya korxonalari
+35. | Pestitsidlar va boshqa agrokimyoviy moddalar ishlab chiqarish
+36. | Portlovchi moddalar ishlab chiqarish hamda qurol va oʻq-dorilar ishlab chiqarish
+37. | Alifatik aminlar (mono-di-tri-metilaminlar, dietil-trietilaminlar va boshqalar) va ular asosidagi mahsulotlar (simazin va boshqalar) ishlab chiqarish.
+38. | Ozuqa aminokislotalarini ishlab chiqarish (ozuqa lizin, premikslar)
+Metallga ishlov berish, metallurgiya, mashinasozlik
+39. | Toʻliq siklli choʻyan, poʻlat va temir qotishmalarni ishlab chiqarish (yillik ishlab chiqarish quvvati 1 000 000 t dan koʻp boʻlganda)
+40. | Rangli metallarni (mis, qoʻrgʻoshin, rux va sh.k.) ikkilamchi ishlab chiqarish (yillik ishlab chiqarish quvvati 3 000 t dan koʻp boʻlsa)
+41. | Bevosita rudalardan choʻyanni eritish yoʻli bilan ishlab chiqarish (rudalarni erituvchi pechlarning sigʻimi 1500 m3 dan ziyod boʻlganda)
+42. | Chiqindilarni qayta ishlash sexlari (Tomas shlaklarini maydalash va boshqalar) bilan oʻchoq va konvertor usullaridan foydalangan holda poʻlat ishlab chiqarish
+43. | Toʻgʻridan-toʻgʻri rudalar va konsentratlar (shu jumladan, qoʻrgʻoshin, qalay, mis, nikel) dan 2000 t/yil dan ortiq erituvchi rangli metallar ishlab chiqarish
+44. | Alyumin tuzlaridan elektroliz usuli bilan aluminiy ishlab chiqarish
+45. | Maxsus quyma temir ishlab chiqarish, ferroqotishmalar ishlab chiqarish
+46. | Qora va rangli metall rudalari va ularning shlaklarini aglomeratsiya qilish korxonalari
+47. | Glinozem (alyumin oksid) ishlab chiqarish
+48. | Simob va simobli uskunalar ishlab chiqish
+49. | Koks-kimyo ishlab chiqarish (koks gazi)
+Ruda va ruda boʻlmagan qazilmalarni qazib olish
+50. | Neftni qazib olish korxonasi (bir kunda tashqi muhitga 0,5 dan 1 t gacha vodorod sulfidi tashlanadigan boʻlsa)
+51. | Polimetall (qoʻrgʻoshin, simob, mishyak, berilliy, marganets) rudalari va jinslarini ochiq usulda qazib olish korxonalari
+52. | Tabiiy gaz qazib olish korxonasi (tabiiy gaz tarkibida vodorod sulfidi 1,5 — 3 % va merkaptin boʻlsa, SMZ 5000 m gacha, vodorod sulfidi 20 % va undan ziyod boʻlsa, 8000 m gacha SMZ belgilanishi mumkin)
+53. | Ochiq koʻmir konlari
+54. | Neft slanetsi qazib olish korxonalari
+55. | Togʻ-kon boyitish fabrikalari (kombinatlari)
+Qurilish mahsulotlarini ishlab chiqarish
+56. | Asbest va asbestdan buyumlar ishlab chiqarish
+57. | Kuydirish yoʻli bilan magnezit, dolomat va kaolin ishlab chiqarish.
+Yogʻoch mahsulotlar ishlab chiqarish va qayta ishlash
+58. | Yogʻoch kimyo komplekslari (yogʻochni kimyoviy qayta ishlash va koʻmir ishlab chiqarish)
+Toʻqimachilik va yengil sanoat mahsulotlarini ishlab chiqarish
+59. | Urugʻlarga simob-organik preparatlar ishlov berish sexi boʻlgan paxtani birlamchi qayta ishlash.
+Qishloq xoʻjaligi mahsulotlarini ishlab chiqarish, hayvonlarni boqish va ularning mahsulotlarini qayta ishlash
+60. | Teri qoldiqlari, dala va axlat suyaklari hamda boshqa hayvonlar chiqindilaridan yelim ishlab chiqaradigan korxonalar
+61. | Parrandachilik fermalari (400 000 dona tovuq va 3 000 000 dona joʻja boʻlganda)
+62. | Suyak, teri qoldiqlari va hayvonning boshqa qoldiqlaridan texnik jelatin ishlab chiqarish va ularni saqlash omborxonasi
+63. | Suyakni kuydirish va maydalash
+64. | Uy hayvonlarini boqish majmualari
+65. | Choʻchqalarni boqish majmualari
+66. | Soʻyishdan oldin hayvonlarni va soʻyilgandan soʻng hayvonlarning xomashyolarini uch kungacha saqlash uchun moʻljallangan goʻsht kombinatlari
+67. | Oʻlgan hayvon, baliq va ularning qoldiqlarini qayta ishlash
+Farmatsevtika va mikrobiologiya
+68. | Sintetik kimyoviy-farmatsevtika mahsulotlarini va dori vositalarini ishlab chiqarish
+69. | Uglevodorodlardan (neft parafinlari, etanol, metanol, tabiiy gaz) oqsil-vitaminli konsentratlar ishlab chiqarish
+70. | Patogenligi boʻyicha 1-2-guruhlariga kiruvchi mikroorganizmlarini ishlab chiqarish va ushbu mikroorganizmlarni ishlab chiqarishda ishlatish (spora hosil qiluvchi mikroorganizmlar uchun SMZ 6 km gacha belgilanishi mumkin)
+Yoqilgʻilarni yoqish natijasida issiqlik va elektr energiyalarini ishlab chiqarish
+71. | Yoqilgʻi sifatida koʻmir va mazutdan foydalanadigan ekvivalent elektr quvvati 600 MVt va undan yuqori boʻlgan issiqlik elektr stansiyalari (IES)
+Yuklarni tashish, saqlash joylari va omborxonalari
+72. | Sement, fosfor uni, apatit konsentrati va boshqa changlanuvchi yuklar tushirish va ortish joylari va ochiq omborlari (yuklarning aylanishi bir yilda 150 000 t dan koʻp boʻlganda)
+73. | Suyultirilgan (metan, propan, ammiak) gazlar, galogenlar, oltingugurt, azot, uglevodorodlar (metanol, benzol, toluol), spirt, aldegidlar va ularning birikmalaridan iborat suyuq kimyoviy yuklarni qayta yuklash va saqlash joylari
+74. | Portlovchi vositalar va qurol-yarogʻ omborlari.
+Qishloq xoʻjaligidagi ishlab chiqarish, transport tarmoqlari, xizmat koʻrsatish, savdo, sport va kommunal yoʻnalishdagi obyektlar
+75. | Nazoratga olingan qattiq chirigan chiqindilar va kelib chiqishi organik boʻlgan suyuq xoʻjalik chiqindilari uchun chiqindilarni joylashtirish obyektlari
+76. | Chiqindilarning assenzatsiya va shudgorlanadigan maydonlari
+77. | Xavfliligi boʻyicha 1-2-sinflarga kiruvchi toksik chiqindilarni koʻmish, zararsizlantirish va joylashtirish boʻyicha poligonlar
+78. | Quvvati bir yilda 40 000 t dan yuqori boʻlgan chiqindilarni qayta ishlash va yoqish joylari
+79. | Bitta pechkadan koʻp boʻlgan krematoriyalar
+80. | Hayvon jasadlarni utilizatsiya qilish korxonasi
+81. | Utilizatsiya qilinmagan sanoat chiqindilari uchun chiqindilarni joylashtirish obyektlari
+2-sinf
+Kimyoviy ishlab chiqarish
+82. | Brom, yarim tayyor mahsulotlar va uning asosidagi mahsulotlarni (organik, noorganik) ishlab chiqarish
+83. | Gazlar ishlab chiqarish
+84. | Yer osti koʻmirni gazlashtirish stansiyalari
+85. | Organik erituvchilar va yogʻlar (benzol, toluol, ksilol, naftol, krezol, antrasen, fenantren, akridin, karbozol) ishlab chiqarish
+86. | Koʻmir va koʻmirga asoslangan mahsulotlarni (koʻmir qatroni, smolalar) qayta ishlash korxonalari
+87. | Sulfat kislota, oleum, oltingugurt dioksidi ishlab chiqarish
+88. | Xlorid kislotasi ishlab chiqarish
+89. | Sulfat kislota usuli yoki toʻgʻridan-toʻgʻri gidratsiya usuli bilan sintetik etil spirtini ishlab chiqarish
+90. | Fosgen va uning asosidagi mahsulotlar (poroforlar) ishlab chiqarish
+91. | Aminoantik, aminodekanoik, aminoperalgonik, tiodivalerik va izoftalik kislotalarni ishlab chiqarish
+92. | Natriy nitrit, tionilxlorid, ammoniy karbonat tuzlari, ammoniy karbonat ishlab chiqarish
+93. | Dimetilformamid ishlab chiqarish
+94. | Etil suyuqligi ishlab chiqarish
+95. | Katalizator ishlab chiqarish
+96. | Organik oltingugurtli boʻyoqlar ishlab chiqarish
+97. | Kaliy tuzlari ishlab chiqarish
+98. | Uchuvchi organik erituvchilar yordamida sunʼiy teri ishlab chiqarish
+99. | Azotol va azoamin sinfidagi barcha boʻyoqlarni ishlab chiqarish
+100. | Polipropilen, polietilen, propilen oksidi, etilen oksidlarini ishlab chiqarish
+101. | Birlashtirilgan neft gazlari asosida 3,3-di (xlorometil) oksotsiklobutan, polikarbonat, etilen-propilen sopolimerlari, yuqori poliolefin polimerlarini ishlab chiqarish
+102. | Plastifikator ishlab chiqarish
+103. | Vinilxlorid yoki sellyuloza efirlari asosida plastmassa ishlab chiqarish
+104. | Baklarni tozalash, yuvish va bugʻlash punktlari (neft va neft mahsulotlarini tashish uchun)
+105. | Maishiy kimyo vositalarini, shu jumladan sintetik yuvish vositalarini ishlab chiqarish
+106. | Bor va uning birikmalarini ishlab chiqarish
+107. | Parafin ishlab chiqarish
+108. | Kreozot, aseton, terpetin, skipidar, sirka kislotasi, metil spirtlarini ishlab chiqarish
+109. | Sirka kislotasini ishlab chiqarish
+110. | Sirka angidridi va sirka kislotasidan olingan xomashyodan asetilsellyuloza ishlab chiqarish
+111. | Gidroliz usuli bilan oʻsimlikli xomashyolaridan pentozan birikmalari ishlab chiqarish
+112. | Izobutanol, butanal, butirat, poliviniltoluol, viniltoluola, penoplast, poliformaldegid, metilpirrolidon, polivinilpirrolidon, pentaeritrit, urotropin, formaldegid ishlab chiqarish
+113. | Kapron va lavsan matolari ishlab chiqarish
+114. | Gazni suyultirish texnologiyasiga ega boʻlgan, joylashuvi boʻyicha gaz quvurlari (bosimdan kelib chiqqan holda), gaz konlari yoki magistral gaz quvurlarining gaz taqsimlash stansiyalarining bosimiga qarab hududida joylashgan va suyultirilgan tabiiy gazni 1000 m3 dan ortiq hajmda saqlash imkoniyati mavjud boʻlgan obyektlar
+Metallga ishlov berish, metallurgiya, mashinasozlik
+115. | Domna pechining umumiy hajmi 500 dan 1500 m3 gacha boʻlgan quyma temir ishlab chiqarish
+116. | Toʻliq ishlab chiqarish jarayoniga ega boʻlgan qora metallurgiya kombinati (yillik ishlab chiqarish quvvati 1 000 000 t gacha boʻlsa)
+117. | Yiliga 1 000 000 t gacha boʻlgan asosiy mahsulotlarni ishlab chiqarish bilan oʻchoqli, elektr eritish va konvertor usullaridan foydalangan holda chiqindilarni qayta ishlash sexlari (Tomas shlaklari va boshqalar) bilan poʻlat ishlab chiqarish
+118. | Magniy ishlab chiqarish (xloriddan tashqari barcha usullar bilan)
+119. | Yiliga 100 000 donadan ortiq miqdorda quyma temir shaklli quyma ishlab chiqarish
+120. | Koks ishlab chiqarish
+121. | Qoʻrgʻoshin kislotali akkumulyator ishlab chiqarish
+122. | Samolyotlarni ishlab chiqarish, texnik xizmat koʻrsatish
+123. | Avtomobil sanoati korxonalari
+124. | Temir konstruksiyalarni ishlab chiqarish
+125. | Quyma va boʻyash sexlari bilan vagonlar ishlab chiqarish
+Ruda va ruda boʻlmagan qazilmalarni qazib olish
+126. | Asbest qazib olish korxonalari
+127. | Temir rudalari va jinslarini ochiq usulda qazib olish
+128. | Ochiq usulda metalloidlarini (bor, kremniy, germaniy, margumish, surma, tellur) qazib olish
+129. | Rangli metall rudalarini qazib olishda hosil boʻlgan jins va shlamlarni toʻplash joyi
+130. | Ruda boʻlmagan qurilish materiallarini qazib olish
+131. | Oʻz-oʻzidan yonishni bartaraf etish choralari koʻrilmagan shaxta terrikonlari
+132. | Gips qazib oluvchi korxonalar
+Qurilish mahsulotlarini ishlab chiqarish
+133. | Statsionar sharoitda asfalt-beton ishlab chiqarish
+134. | Gips (alebastr) ishlab chiqarish
+135. | Ohak ishlab chiqarish
+136. | Sement ishlab chiqarish
+Yogʻoch mahsulotlarini ishlab chiqarish va qayta ishlash
+137. | Koʻmir ishlab chiqarish
+Toʻqimachilik va yengil sanoat mahsulotlarini ishlab chiqarish
+138. | Oʻsimliklarga (paxta, lina, kanop, kandir) ip ishlab chiqish uchun birlamchi ishlov berish
+139. | Uchuvchi eritmalarni qoʻllagan holda sunʼiy teri ishlab chiqarish
+140. | Kimyoviy moddalar va oltingugurt bilan ishlov berish orqali mato ishlab chiqarish
+141. | Paxta tozalash.
+Qishloq xoʻjaligi mahsulotlarini ishlab chiqarish, hayvonlarni boqish va ularning mahsulotlarini qayta ishlash
+142. | Choʻchqa yogʻidan texnik mahsulot ishlab chiqarish
+143. | Uy hayvonlarini (1200 dan 2000 boshgacha sigir yoki novvos, 6000 tagacha buzoq, 1200 dan 2000 boshgacha yilqi, echki, qoʻy) boqish
+144. | Choʻchqa (4000 dan 12 000 boshgacha) boqish
+145. | Yovvoyi hayvonlarni boqish
+146. | Parranda (100 000 dan 400 000 donagacha tovuq va 1 000 000 dona joʻja) yetishtirish
+147. | Zaharli ximikatlarni (ombor quvvati 500 t dan koʻp) saqlash
+148. | Biologik ishlov berilgan suyuq goʻngni ochiq holatda saqlash
+149. | Qushxonalarda 51 donadan koʻp hayvonlarni soʻyish, shuningdek, soʻyishdan oldin va soʻyilgandan soʻng hayvonlarning xomashyolarini uch kungacha saqlash
+150. | Hayvon ichaklarini yuvish
+Farmatsevtika va mikrobiologiya
+151. | Batsitratsin ozuqasini ishlab chiqarish
+152. | Mikrobiologik sintez yoʻli bilan aminokislota ozuqasini ishlab chiqarish
+153. | Antibiotiklar ishlab chiqarish
+154. | Gidroliz usuli bilan qishloq xoʻjaligi chiqindilaridan spirt, ozuqa achitqilari va furfurol ishlab chiqarish
+155. | Yuzaki oʻstirish usuli yordamida turli maqsadlar uchun fermentlarni ishlab chiqarish
+156. | Oʻsimliklar xomashyolaridan pektin ishlab chiqarish
+157. | Yogʻochdan gidroliz yoʻli bilan spirt ishlab chiqarish
+158. | Albumin ishlab chiqarish
+Yoqilgʻilarni yoqish natijasida elektr energiyalarini ishlab chiqarish
+159. | Gaz va gaz-neft yoqilgʻisida ishlaydigan issiqlik elektr stansiyalarida (IES) ekvivalent elektr quvvati 600 MVt va undan yuqori boʻlgan elektr energiya ishlab chiqarish
+160. | Yoqilgʻi sifatida koʻmir va mazutdan foydalanadigan issiqlik elektr stansiyalarida (IES) ekvivalent elektr quvvati 200 MVt va undan yuqori boʻlgan elektr energiya ishlab chiqarish
+Yuklarni tashish, saqlash joylari va omborxonalari
+161. | Sement, fosfor uni, apatit konsentrati va boshqa changlanuvchi yuklar tushirib ortish joylari va ochiq omborlari (yuklarning aylanishi bir yilda 150 000 t dan kam boʻlganda)
+162. | Koʻmirni tushirish-ortish joylari va ochiq omborlar
+163. | Mineral oʻgʻitlarni, asbest, ohak, ruda (radioaktivlaridan tashqari) va boshqa minerallarni (oltingugurt, kolchedana, gips) tushirish-ortish joylari va ochiq omborlar
+164. | Neft, bitum, mazut va kimyoviy mahsulotli yuklarni tushirish-ortish va saqlash joylari
+165. | Yogʻochli antiseptik ishlov berilgan shpal tushirish-ortish va saqlash joylari
+166. | Sanitariya-karantin stansiyalari
+Qishloq xoʻjaligidagi ishlab chiqarish, transport tarmoqlari, xizmat koʻrsatish, savdo, sport va kommunal yoʻnalishdagi obyektlar
+167. | Quvvati bir yilda 40 000 t gacha boʻlgan chiqindilarni qayta ishlash va yoqish joylari
+168. | Qattiq maishiy chiqindi poligonlari
+169. | Suyuq maishiy chiqindilarni saqlash joylari
+170. | Aholi turar joylarining qattiq maishiy chiqindilari va oqova suv tarmoqlari uchun kompostlash joylari
+171. | Xavfliligi boʻyicha 3-4-sinflarga kiruvchi toksik chiqindilarni koʻmish, zararsizlantirish va joylashtirish boʻyicha poligonlar
+172. | Drenaj stansiyalari
+3-sinf
+Kimyoviy ishlab chiqarish
+173. | Niobiy va tantal ishlab chiqarish
+174. | Ammiakli usul bilan natriy karbonat sodasi ishlab chiqarish
+175. | Ammiakli, kaliyli, natriyli, kalsiyli selitra ishlab chiqarish
+176. | Kimyoviy reaktiv ishlab chiqarish
+177. | Korund ishlab chiqarish
+178. | Bariy va uning birikmalarini ishlab chiqarish
+179. | Ultramarin ishlab chiqarish
+180. | Yogʻoch va qishloq xoʻjaligi chiqindilaridan gidroliz yoʻli bilan yem xamirturushlari va furfural ishlab chiqarish
+181. | Nikotin ishlab chiqarish
+182. | Sintetik kofurni izomerlash usuli bilan olish
+183. | Melamin va sianid kislota ishlab chiqarish
+184. | Polikarbonat ishlab chiqarish
+185. | Mineral tuzlar ishlab chiqarish (tarkibida margumish, fosfor, xrom, qoʻrgʻoshin va simob boʻlganlaridan tashqari)
+186. | Plastmassa (karbolita) ishlab chiqarish
+187. | Fenolformaldegidli press-materiallar, presslangan va oʻralgan buyumlar hamda fenolformaldegidli smolalar asosidagi gazlamalar ishlab chiqarish
+188. | Sunʼiy mineral boʻyoq ishlab chiqarish
+189. | Kauchuk va rezinani qayta ishlash
+190. | Shinalar, rezina buyumlar, ebonit, yelimlangan poyabzallar, shuningdek, ular uchun kauchuk aralashmalar ishlab chiqarish
+191. | Noyob metalli konlarda kimyoviy ishlov berish yoʻli bilan litiy, vismut, surma olish
+192. | Elektrotexnika sanoati uchun uglerodli mahsulotlar (choʻtkalar, elektr uglerodlari) ishlab chiqarish
+193. | Vulkanizatsiya uchun rezina ishlab chiqarish
+194. | Ammiakli suv ishlab chiqarish va uni saqlash uchun
+195. | Parafaz usulida (simob ishlatilmagan holda) asetaldegid ishlab chiqarish
+196. | Polistirol va stirollarni ishlab chiqarish
+197. | Kremniy organik laki, suyuqligi va smolasini ishlab chiqarish
+198. | Merkaptandan odorizatsiya qurilmalari bilan jihozlangan magistral gaz quvurlarining gaz taqsimlash stansiyalari
+199. | Sebasik kislota ishlab chiqarish
+200. | Vinilasetat va uning asosida mahsulotlarni (polivinilasetat, polivinilasetat emulsiyasi, polivinil spirti, vinifleks) ishlab chiqarish
+201. | Laklar ishlab chiqarish (moy, spirt, bosma izolyator, kauchuk sanoati uchun)
+202. | Suyultirilgan mahsulotlarni ishlab chiqarish
+203. | Epixlorgidrin ishlab chiqarish
+204. | Kislorod va siqilgan azot ishlab chiqarish
+205. | Ozuqa xamirturushi ishlab chiqarish
+206. | Magistral gaz tarmoqlarining tabiiy suyultirilgan gazni saqlash joylari, gaz konlarida oʻrnatilgan gaz tarmoqlari va tabiiy suyultirilgan gaz qurilmalari (sigʻimlarning hajmi 250 dan 1000 m3 gacha boʻlganda)
+Metallga ishlov berish, metallurgiya, mashinasozlik
+207. | Yiliga 1000 dan 2000 t gacha rangli metallar ishlab chiqarish
+208. | Rangli metall (mis, qoʻrgʻoshin, rux) ishlab chiqarish (yillik ishlab chiqarish quvvati 1000 dan 2000 t gacha boʻlganda)
+209. | Metallurgiya chiqindilaridan tomasshlak ishlab chiqarish
+210. | Yuqori haroratli metallurgiya jarayoni va elektrolitik usul bilan surma ishlab chiqarish
+211. | Choʻyanni eritish yoʻli bilan ishlab chiqarish (yillik ishlab chiqarish quvvati 20 000 dan 100 000 t gacha boʻlganda)
+212. | Qoʻrgʻoshin, rux, qalay, mis va boshqa rangli metallar ishlab chiqarish
+213. | Marganets ishlatilgan holda metall elektrodlar ishlab chiqarish
+214. | Bosim ostida eritish yoʻli bilan rangli metall qotishmalari ishlab chiqarish (yillik ishlab chiqarish quvvati 10000 t gacha )
+215. | Lyuminofor ishlab chiqarish
+216. | Qurilish uchun metall konstruksiyalar va buyumlar ishlab chiqarish
+217. | Sanitariya-texnik jihozlar ishlab chiqarish
+218. | Goʻsht-sut mashinasozlik korxonalari
+219. | Konlarni avtomatlashtirish vositalarini ishlab chiqarish
+220. | Kabel ishlab chiqarish
+221. | Ishqorli akkumulyator ishlab chiqarish
+222. | Kimyoviy ishlov berilmagan rudalardan metall qorishmalari ishlab chiqarish
+Ruda va ruda boʻlmagan qazilmalarni qazib olish
+223. | Neftni gaz qazib olish (bir kunda tashqi muhitga 0,5 t gacha vodorod sulfidi tashlanadigan boʻlsa)
+224. | Fosforitlar, apatitlar, piritlar (kimyoviy ishlovsiz), temir rudalarini qazib olish
+225. | VI-VII toifadagi togʻ jinslarini — dolomitlar, magnezitlar, smolalar, asfaltlarni ochiq qazib olish yoʻli bilan qazib olish
+226. | Torf, tosh, jigarrang va boshqa koʻmirlarni qazib olish
+227. | Maydalangan koʻmir va torfdan briket ishlab chiqarish
+228. | Hoʻl usulda boyitish gidro shaxtalari
+229. | Tosh tuzini qazib olish
+230. | Frezer usulida torf qazib olish
+231. | Temir qazib olishda hosil boʻlgan jins va shlamlarni toʻplash
+232. | Qoʻrgʻoshin rudalari, simob, marimush va marganetsdan tashqari, shaxtada metall rudalari va metalloidlarni qazib olish
+Qurilish mahsulotlarini ishlab chiqarish
+233. | Quyma va kristall ishlab chiqarish
+234. | Ochiq usulda shagʻal, qum, shuningdek boyitilgan kvarsli qum ishlab chiqarish
+235. | Ruberiod ishlab chiqarish
+236. | Ferrit ishlab chiqarish
+237. | Gʻisht, cherepitsa va pishirilgan loydan qurilish materiallari ishlab chiqarish
+238. | Kranlar yordamida quyma yuklarni tashish
+239. | Qurilish uchun beton va temirbeton buyumlarini ishlab chiqarish
+240. | Keramzit va boshqa sunʼiy toʻldiruvchilarni ishlab chiqarish
+241. | Sunʼiy tosh ishlab chiqarish
+242. | Sement va boshqa changli qurilish materiallari uchun liftlar ishlab chiqarish
+243. | IES chiqindilaridan qurilish materiallari ishlab chiqarish
+244. | Beton mahsulotlarini ishlab chiqarish
+245. | Shagʻal va qum karerlari
+246. | Tabiiy toshni qayta ishlash
+247. | Portlatmagan holda tosh qazib olish
+248. | Fibrolit, qamish, somon, trim ishlab chiqarish
+249. | Qurilish qismlarini ishlab chiqarish
+250. | Bitum oʻrnatish
+Yogʻoch mahsulotlarini ishlab chiqarish va qayta ishlash
+251. | Yogʻochni konservatsiyalash
+252. | Yogʻoch qipiqlaridan bogʻlovchi sintetik qatronlarni qoʻllagan holda mahsulot tayyorlash
+253. | Yogʻochga ishlov berish.
+Toʻqimachilik va yengil sanoat mahsulotlarini ishlab chiqarish
+254. | Mato va qogʻozni moy, moy-asfalt, bakelit va boshqa laklar bilan uzluksiz singdirish
+255. | Uchuvchi organik erituvchilardan foydalanmasdan polivinilxlorid va boshqa smolalar asosida sunʼiy teri ishlab chiqarish
+256. | Uglerod disulfididan tashqari gazlamalarni (charm, granit va boshqalar) kimyoviy moddalar bilan singdirish va qayta ishlash
+257. | Polivinilxlorid bir tomonlama mustahkamlangan plyonkalar, birlashtirilgan polimerlardan plyonkalar, poyabzal tagliklari uchun kauchuk, erituvchilar yordamida qayta ishlangan kauchuk ishlab chiqarish
+258. | Ip yigiruv-toʻqimachilik
+259. | Neylon va boshqa quyma poyafzal ishlab chiqarish
+260. | Oqartirish, boʻyash va pardozlash
+Qishloq xoʻjaligi mahsulotlarini ishlab chiqarish, hayvonlarni boqish va ularning mahsulotlarini qayta ishlash
+261. | Uy hayvonlarini boqish (1200 donadan kam yirik shoxli qoramol, yilqi, echki, qoʻy boʻlganda)
+262. | Parrandachilik (quvvati 100 000 gacha tovuq va 1 000 000 donagacha joʻja boʻlsa) yetishtirish
+263. | Choʻchqa boqish (4000 donagacha boʻlsa)
+264. | Zaharli kimyoviy moddalarni saqlash omborxonalari (sigʻimi 50 t dan koʻp boʻlsa)
+265. | Baliqchilik xoʻjaligi
+266. | Qushxonalarda 50 donagacha hayvonlarni soʻyish
+267. | Dudlamagan baliq mahsulotlarini ishlab chiqarish
+268. | Goʻshtni qayta ishlash
+269. | Hayvon terilarini qayta ishlash va terini oshlash
+270. | Ozuqa ishlab chiqarish (shu jumladan oziq qoldiqlaridan)
+271. | Utilizatsiya xomashyosini yigʻish boʻyicha omborlar
+272. | Hayvonlarning jasadlaridan skelet va koʻrgazmali qurollar tayyorlash
+Oziq-ovqat mahsulotlari va taʼm beruvchi vositalar ishlab chiqarish
+273. | Pivo va kvas ishlab chiqarish
+274. | Tegirmonlar (quvvati bir soatda 2 t dan yuqori boʻlganda)
+275. | Achitqi va solod tayyorlash
+276. | Tamaki mahsulotlarini ishlab chiqarish
+277. | Oʻsimlik yogʻi ishlab chiqarish
+278. | Hidli moddalar ajratadigan mineral suvlarni ishlab chiqarish va qadoqlash
+279. | Dudlamagan holda baliq mahsulotlarini ishlab chiqarish
+280. | Shakar ishlab chiqarish
+281. | Goʻshtni qayta ishlash
+Farmatsevtika va mikrobiologiya
+282. | Oziq-ovqat mahsuloti va ozuqa uchun achitqi ishlab chiqarish
+283. | Oʻsimliklarni himoya qilish uchun biovositalar (trixogramm va boshqa) ishlab chiqarish
+284. | Mikrobiologik sintez usuli bilan oʻsimlikni himoya qilish vositalari ishlab chiqarish
+285. | Mikrobiologik usullar bilan antibiotiklar ishlab chiqarish
+286. | Mikrobiologik soha korxonalari va ilmiy-tadqiqot institutlari
+287. | Vaksina va zardob ishlab chiqarish
+288. | Dekstrinmaltoza, maltodekstrin, glukoza, dekstrin ishlab chiqarish
+289. | Farmatsevtik kaliy tuzlari (xlorid, sulfat, kaliy) ishlab chiqarish
+Yoqilgʻilarni yoqish natijasida issiqlik va elektr energiyalarini ishlab chiqarish
+290. | Quvvati soatiga 200 Gkal gacha boʻlgan issiqlik stansiyalari va issiqlik qozonxonalari
+291. | Quvvati soatiga 50 Gkal gacha boʻlgan energiyalarini ishlab chiqarish
+292. | Quvvati soatiga 10 Gkal boʻlgan energiyalarini ishlab chiqarish
+293. | Quvur diametri 500 mm gacha boʻlgan issiqlik tarmoqlari
+294. | Issiqlik elektr stansiyalarining (IES) kul-shlak chiqindilarini saqlash omborlari
+Yuklarni tashish, saqlash joylari va omborxonalari
+295. | Sement, fosfor uni, magnezit va dolomit mahsulotlarni tushirish-ortish va ochiq joylarda saqlash (yuklarning miqdori bir yilda 5 000 t dan kam boʻlganda)
+296. | Kimyoviy (oʻgʻit, organik erituvchilar, kislota) mahsulotlarni tushirish-ortish va yopiq joylarda saqlash
+297. | Magnezit, dolomit va atrof-muhitga chang chiqaruvchi yuklarni yer usti omborlariga ochiq yuklash
+298. | Suyuq (ammiakli suv, oʻgʻit, soda, lak-boʻyoq materiallar) mahsulotlarni saqlash
+299. | Quruq qum, tosh va boshqa qurilish materiallari ortish-tushirish va ochiq joyda saqlash
+300. | Atrof-muhitga chang chiqaruvchi oʻsimlik (shrot, jmix) mahsulotlarini ortish-tushirish va ochiq joyda saqlash
+301. | Utilizatsiya qilinadigan xomashyolarni ortish-tushirish va ochiq joyda saqlash
+302. | Tuzlangan teri (200 donadan ziyod) xomashyolari ortish-tushirish va saqlash joylari
+303. | Baliq va baliq mahsulotlarni omborxonalari
+304. | Suyultirilgan tabiiy gazlarni ortish-tushirish va saqlash joylari (sigʻimi 100 dan 250 m2 gacha)
+Qishloq xoʻjaligidagi ishlab chiqarish, transport tarmoqlari, xizmat koʻrsatish, savdo, sport va kommunal yoʻnalishdagi obyektlar
+305. | Chiqindilarni kompostlash joyi
+306. | Goʻng va najassiz kompostlash joyi
+307. | Yuk avtomobillariga xizmat koʻrsatuvchi obyektlar
+308. | Avtovokzal
+309. | Avtobus va trolleybus parklari, tramvay va metro depolari (taʼmirlash tarmogʻi bilan)
+310. | Ochiq tipdagi 500 nafardan ziyod tomoshabin oʻrinlari boʻlgan sport sogʻlomlashtirish inshootlari
+4-sinf
+Kimyoviy ishlab chiqarish
+311. | Oʻgʻit aralashmalarini ishlab chiqarish
+312. | Ftoroplastiklarni qayta ishlash
+313. | Tayyor sellyulozadan qogʻoz ishlab chiqarish
+314. | Glitserin ishlab chiqarish
+315. | Galalit va boshqa oqsilli plastmassalar (aminoplastiklar) ishlab chiqarish
+316. | Kondensatli smolalardan emallarni ishlab chiqarish
+317. | Sovun ishlab chiqarish
+318. | Tuz ishlab chiqarish va tuzni maydalash
+319. | Tabiiy minerallardan (boʻr, oxra boʻyoqlar ishlab chiqarish
+320. | Oshlovchi ekstrakt ishlab chiqarish
+321. | Poligrafiya uchun boʻyoqlar ishlab chiqarish
+322. | Fotokimyoviy (foto qogʻoz, foto va kinoplyonka) mahsulotlari ishlab chiqarish
+323. | Tayyor xomashyolardan maishiy kimyo mahsulotlarini ishlab chiqarish
+324. | Alif ishlab chiqarish
+325. | Shishatolasi ishlab chiqarish
+326. | Tibbiy shisha ishlab chiqarish (simobdan foydalanmasdan)
+327. | Plastmassni (quyma, ekstruziya, presslash, vakuum shakllantirish) qayta ishlash
+328. | Poliuretan ishlab chiqarish
+329. | Vanillin va saxarin ishlab chiqarish
+330. | Texnik salomas ishlab chiqarish (noelektrolitik usulda vodorod olish bilan)
+331. | Parfyumeriya vositalarini ishlab chiqarish.
+332. | Magistral gaz tarmoqlarining tabiiy suyultirilgan gazni saqlash joylari, gaz konlarida oʻrnatilgan gaz tarmoqlari va tabiiy suyultirilgan gaz qurilmalari (sigʻimi 50-250 m3)
+Metallga ishlov berish, metallurgiya, mashinasozlik
+333. | Termik ishlab berilmaydigan jarayonlar orqali metall ishlab chiqarish
+334. | Qoʻrgʻoshin bilan qoplangan yoki rezina bilan izolyatsiyalangan kabellar ishlab chiqarish
+335. | Eritish yoʻli bilan choʻyan ishlab chiqarish (yillik ishlab chiqarish quvvati 10 000 dan 20 000 t gacha boʻlganda)
+336. | Ikkilamchi mahsulotlardan rangli metall ishlab chiqarish (yillik ishlab chiqarish quvvati 1000 t gacha boʻlganda)
+337. | Eritish yoʻli bilan choʻyan (erituvchi pechlarni sigʻimi 500 m3 gacha boʻlganda)
+338. | Ogʻir presslar ishlab chiqarish
+339. | Elektrotexnika sanoati uchun mashinalar va qurilmalar (dinamolar, kondansatorler, transformatorlar, projektorlar va boshqalar) ishlab chiqarish
+340. | Elektrotexnika sanoati uchun uskuna va jihozlar (elektr chirogʻi, fonar va boshqa) ishlab chiqarish (simob ishlatilmaganda)
+341. | Maishiy elektr jihozlari ishlab chiqarish
+342. | Metropoliten va temiryoʻl transportlarining harakatlanadigan tarkiblarini va avtomobillarni taʼmirlash korxonalari
+343. | Burgʻulash mashinalarini ishlab chiqarish
+344. | Choʻyan, poʻlat (yillik ishlab chiqarish quvvati 10 000 t gacha) va rangli metallarni (yillik ishlab chiqarish quvvati 100 t gacha) ishlab chiqarish
+345. | Metall elektrod ishlab chiqarish
+346. | Shrift quyish (qoʻrgʻoshinsiz)
+347. | Matbaa korxonalari
+348. | Qoʻrgʻoshin ishlatilgan bosmaxonalar
+349. | Eritish jarayoni boʻlmagan mashinasozlik korxonalari
+Ruda va ruda boʻlmagan qazilmalarni qazib olish
+350. | Ochiq usulda marmar, qum va tuproq qazib olish
+351. | Ochiq usulda kaliy karbonatni qazib olish
+352. | Choʻkma natijasida hosil boʻlgan tuzlarni qazib olish
+Qurilish mahsulotlarini ishlab chiqarish
+353. | Loydan qurilish materiallari ishlab chiqarish
+354. | Oyna ishlab chiqarish, shisha silliqlash va qirqish
+355. | Marmarni mexanik usulda qayta ishlash
+356. | Qurilish uchun plastik buyumlar ishlab chiqarish
+357. | Chinni va sopol buyumlar ishlab chiqarish
+358. | Qurilish jihozlarini ishlab chiqarish
+359. | Keramik buyumlar ishlab chiqarish
+Yogʻoch mahsulotlar ishlab chiqarish va qayta ishlash
+360. | Ignabargli vitaminli un, xlorofill-karotin pastasi va ignabargli ekstraktni ishlab chiqarish
+361. | Yogʻochni kesish, fanera ishlab chiqish
+362. | Yogʻochdan yasalgan qayiqlar ishlab chiqarish
+363. | Yashik va parket ishlab chiqarish va duradgorlik
+364. | Mebel ishlab chiqarish, yigʻish va taʼmirlash
+Toʻqimachilik va yengil sanoat mahsulotlarini ishlab chiqarish
+365. | Boʻyash va oqartirish sexlari mavjud boʻlgan jundan, paxtadan, zigʻirdan, shuningdek sintetik tolalar bilan aralash holda kalava ip va boʻz gazlamalar ishlab chiqarish
+366. | Organik erituvchilarni qoʻllagan holda polimerlar bilan pardozlangan charm-attorlik kartoni ishlab chiqarish
+367. | Paxtani qabul qilish punktlari
+368. | Toʻqimachilik mahsulotlarini boʻyash
+369. | Paypoq mahsulotlari ishlab chiqarish
+370. | Sport mahsulotlari ishlab chiqarish
+371. | Poyafzal ishlab chiqarish
+372. | Qogʻoz va kartondan buyumlar ishlab chiqarish
+Qishloq xoʻjaligi mahsulotlarini ishlab chiqarish, hayvonlarni boqish va ularning mahsulotlarini qayta ishlash
+373. | Junni yuvish korxonasi
+374. | Tuzlangan va qayta ishlanmagan terilarni vaqtincha saqlash
+375. | Soch, tuklar, patlar, shoxlar va tuyoqlarni qayta ishlash
+376. | Kigiz ishlab chiqarish
+377. | Ketgut ishlab chiqarish
+378. | Quyonlar va boshqa moʻynali hayvonlarni boqish
+379. | 100 boshgacha hayvonlarni boquvchi xoʻjaliklar
+380. | Veterinariya davolash maskani, hayvonlarni saqlash, vivariya, kinologiya markazi
+381. | Teplitsa va parnik xoʻjaliklari
+382. | Mineral oʻgʻitlari va zaharli kimyoviy moddalarni 50 t gacha saqlash
+383. | Oziq-ovqat qoldiqlarini qoʻshmagan holda ozuqa tayyorlash
+Oziq-ovqat mahsulotlari va taʼm beruvchi vositalar ishlab chiqarish
+384. | Elevatorlar
+385. | Kuydirish yoʻli bilan kofe ishlab chiqarish
+386. | Margarin ishlab chiqarish
+387. | Oziq-ovqat uchun spirti ishlab chiqarish
+388. | Makkajoʻxori donini qayta ishlash, makkajoʻxori kraxmalini ishlab chiqarish
+389. | Kraxmal ishlab chiqarish
+390. | Birlamchi vino mahsulotini ishlab chiqarish
+391. | Sut va yogʻni qayta ishlash
+392. | Pishloq ishlab chiqarish
+393. | Tegirmon (quvvati bir soatda 0,5 dan 2 t gacha boʻlganda)
+394. | Liker va aroq ishlab chiqarish
+395. | Dudlangan goʻsht va baliq ishlab chiqarish
+Farmatsevtika va mikrobiologiya
+396. | Fermentlar ishlab chiqarish
+397. | Glitserin ishlab chiqarish
+398. | Farmatsevtika uchun kaliyli tuz ishlab chiqarish
+399. | Toʻliq ishlab chiqarish jarayoni boʻyicha alkaloidlar va oʻsimlik xomashyolaridan dori vositalari ishlab chiqarish
+400. | Galen preparatlarini ishlab chiqarish
+Yoqilgʻilarni yoqish natijasida issiqlik va elektr energiyalarini ishlab chiqarish
+401. | Quvvati soatiga 10 Gkal gacha boʻlgan isitish energiyalarini ishlab chiqarish
+402. | Quvvati soatiga 5 Gkal boʻlgan markaziy issiqlik energiyalarini ishlab chiqarish
+403. | Quvur diametri 200 mm gacha boʻlgan issiqlik tarmoqlari
+404. | Shamol elektrostansiyalari.
+Yuklarni tashish, saqlash joylari va omborxonalari
+405. | Tuzlangan teri (200 donagacha) xomashyolari ortish-tushirish va saqlash
+406. | Donlarni ochiq joyda ortish-tushirish va saqlash
+407. | Tuzlarni ochiq joyda ortish-tushirish va saqlash
+408. | Jun, soch mahsulotlarini ochiq joyda ortish-tushirish va saqlash
+409. | Apatit konsentrati, fosforit uni, sementlar va boshqa changlanuvchi yuklarni qayta yuklash
+410. | Suyultirilgan tabiiy gazni saqlash omborxonalari (sigʻimi 50 dan 100 m2 gacha)
+Qishloq xoʻjaligidagi ishlab chiqarish, transport tarmoqlari, xizmat koʻrsatish, savdo, sport va kommunal yoʻnalishdagi obyektlar
+411. | Utilizatsiya qilinadigan xomashyoni toʻplash joylari
+412. | Chiqindilarni vaqtincha saqlash joylari
+413. | Shaharlararo yuk tashish uchun avtoturargohlar, bojxona terminallari
+414. | Suyuq va gaz motorli avtomobillarga yoqilgʻi quyish shoxobchalari
+415. | Portal tipidagi yuk mashinalarini yuvish
+416. | Kimyoviy tozalash shoxobchalari
+417. | Hammom-kir yuvish shoxobchalari
+418. | Ochiq tipdagi 500 nafargacha tomoshabin oʻrinlari boʻlgan sport-sogʻlomlashtirish inshootlari
+419. | Avtobus va troleybus parklari (300 donagacha texnikasi boʻlganda)
+420. | Chiqindilarni qayta yuklash joylari
+421. | Avtomobillarni yuvish shoxobchalari (yuvish joyi 2 tadan koʻp boʻlgan)
+422. | Kriogen avtomobillarga yoqilgʻi qoʻyish shoxobchalari, faqat suyultirilgan yoki siqilgan tabiiy gazlarni transport vositalariga quyish uchun, shoxobcha hududida regazafikatsiya yoʻli bilan olingan tabiiy suyultirilgan gazni saqlash sigʻimlari 50 dan 100 m3 gacha boʻlganda
+423. | Yuk va yengil avtomobillarga xizmat koʻrsatish (5 ta joydan ziyod boʻlgan) obyektlari
+424. | Obodonlashtirish boshqarmalarning transport saqlash joyi
+425. | Yoqilgʻi-moylash materiallari omborlari
+5-sinf
+Kimyoviy ishlab chiqarish
+426. | Makulaturadan qogʻoz ishlab chiqarish
+427. | Karbonat angidrid va “quruq muz” ishlab chiqarish
+428. | Gugurt ishlab chiqarish
+429. | Plastmassa va sintetik smolalardan mahsulotlar ishlab chiqarish (mexanik ishlov berish)
+430. | Sunʼiy marvarid ishlab chiqarish
+431. | Salfetka, hojatxona qogʻozi, tagliklar va gigiyena vositalari ishlab chiqarish
+432. | Magistral gaz tarmoqlarining tabiiy suyultirilgan gazni saqlash joylari, gaz konlarida oʻrnatilgan gaz tarmoqlari va tabiiy suyultirilgan gaz qurilmalari (sigʻimi 50 m3 gacha boʻlganda)
+Metallga ishlov berish, metallurgiya, mashinasozlik
+433. | Qozon ishlab chiqarish
+434. | Metallni qayta ishlash
+335. | Qishloq xoʻjalik soha texnikalarning qismlari ishlab chiqarish
+436. | Tipografiya (qoʻrgʻoshin ishlatilmaydigan)
+Qurilish mahsulotlarini ishlab chiqarish
+437. | Gips va boʻr mahsulotlari, shlakli bloklar, plitkalar ishlab chiqarish
+Yogʻoch mahsulotlar ishlab chiqarish va qayta ishlash
+438. | Boʻyash ishlari olib borilmagan holda mebel ishlab chiqarish
+439. | Tayyor yogʻoch mahsulotlaridan buyumlar ishlab chiqarish
+440. | Mato va toʻquv mahsulotlarini ishlab chiqarish
+441. | Tayyor mahsulotlardan mebellarni yigʻish (lak va boʻyashsiz)
+Toʻqimachilik va yengil sanoat mahsulotlarini ishlab chiqarish
+442. | Ipak tolalarini tayyorlash va yigirish
+443. | Ip va jun gazlamalarini ishlab chiqarish
+444. | Arqon, kanop, chilvir, bogʻichlar ishlab chiqarish va toʻr toʻqish
+445. | Sunʼiy qorakoʻl ishlab chiqarish
+446. | Boʻyash va oqartirish sexlari mavjud boʻlmagan paxta, zigʻir, jundan ip va gazlamalarni ishlab chiqarish
+447. | Ipak toʻqish
+448. | Gilam va gilam mahsulotlari ishlab chiqarish
+449. | Poyabzal ishlab chiqarish (tayyor xomashyolardan suvda eriydigan yelim ishlatilganda)
+450. | Gʻaltak ishlab chiqarish
+451. | Gulqogʻoz ishlab chiqarish
+452. | Qogʻoz va kartondan buyumlar ishlab chiqarish
+Qishloq xoʻjaligi mahsulotlarini ishlab chiqarish, hayvonlarni boqish va ularning mahsulotlarini qayta ishlash
+453. | Teridan jihozlar ishlab chiqarish
+454. | Choʻtkalar ishlab chiqarish
+455. | Kigiz tikish ustaxonalari
+456. | Don, meva va sabzavotlarni saqlash omborxonalari
+457. | Qishloq xoʻjalik xomashyolarini zamonaviy minitexnologiya va uskunalar bilan qayta ishlash
+458. | Hayvonlarni saqlamagan holda uy hayvonlarni davolashi
+459. | Baliq, goʻsht va mahsulotlarini namli dudlash yoʻli bilan ishlab chiqarish (quvvati bir kunda 500 kg dan kam boʻlganda)
+460. | Goʻshtni qayta ishlash (bir kunlik quvvati 5000 kg dan kam boʻlganda)
+461. | Dagʻal jun va sochdan jihozlar ishlab chiqarish
+Oziq-ovqat mahsulotlari va taʼm beruvchi vositalar ishlab chiqarish
+462. | Qandolat mahsulotlarini ishlab chiqarish
+463. | Choy qadoqlash
+464. | Meva va sabzavotlarni ulgurji saqlash joyi
+465. | Past haroratda oziq-ovqat mahsulotlarini saqlash joyi (sigʻimi 600 t dan yuqori boʻlganda)
+466. | Konyak uchun spirti ishlab chiqarish
+467. | Makaron ishlab chiqarish
+468. | Kolbasa mahsulotlarini ishlab chiqarish
+469. | Nonvoyxona (quvvati bir kunda 2,5 t dan ziyod boʻlganda)
+470. | Sharbatlar va alkogolsiz ichimliklar ishlab chiqarish
+471. | Vinoni tayyorlash va quyish
+472. | Mayonez ishlab chiqarish
+473. | Piva ishlab chiqarish (solod qoʻshilmagan)
+474. | Meva va sabzavotlarni qayta ishlash va saqlash (quritish, tuzlash va fermentatsiya qilish)
+475. | Alkogolsiz ichimliklar ishlab chiqarish
+Farmatsevtika va mikrobiologiya
+476. | Patogenligi boʻyicha 3-4-guruhiga kiruvchi mikroorganizmlarini ishlab chiqarish va ushbu mikoorganizmlar ishlab chiqarishda ishlatish
+477. | Tayyor komponentlarda dori vositalari ishlab chiqarish.
+478. | Dori vositalarini va tibbiy buyumlar saqlash omborlari.
+479. | Dorilarni tayyor dozalash shakllarini ishlab chiqarish (komponentlarni ishlab chiqarmasdan)
+Yuklarni tashish, saqlash joylari va omborxonalari
+480. | Qurilish (qum, tosh) materiallarini ortish-tushirish va ochiq joyda saqlash
+481. | Pichan, somon, tamaki mahsulotlari saqlash
+482. | Oziq-ovqat mahsulotlarini (goʻsht, sut va qandolat mahsulotlari), meva-sabzavotlarni ortish-tushirish va saqlash
+483. | Suyultirilgan tabiiy gazlarni saqlash omborxonalari (sigʻimi 50 m2 gacha)
+Qishloq xoʻjaligidagi ishlab chiqarish, transport tarmoqlari, xizmat koʻrsatish, savdo, sport va kommunal yoʻnalishdagi obyektlar
+484. | Hammom
+485. | Oʻt oʻchirish deposi
+486. | Ochiq tipdagi 100 nafargacha tomoshabin oʻrinlari boʻlgan sport-sogʻlomlashtirish inshootlari
+487. | Yengil avtomobillarga texnik xizmat koʻrsatish va taʼmirlash (boʻyash va temirchilik ishlaridan tashqari)
+488. | Ulgurji bozorlar, sanoat va oziq-ovqat mollari bozorlari, koʻp tarmoqli savdo majmualari
+489. | Avtomobillarni yuvish shoxobchalari (yuvish joyi 2 tadan koʻp boʻlmagan)
+490. | Bir kunlik quvvati 500 kg. gacha boʻlgan kir yuvish shoxobchalari
+491. | Yengil transport vositalariga faqat suyuq yoqilgʻi quyish shoxobchalari, 3 dan koʻp boʻlmagan yoqilgʻi quyish joyi, shuningdek haydovchi va yoʻlovchilarga xizmat koʻrsatish obyektlari (doʻkon, kafe va hojatxona) boʻlgan
+492. | Avtomobillarga gaz toʻldirish kompressor shoxobchalari, kompressorlar bino yoki konteyner ichida boʻlgan bir kunda 500 dan koʻp boʻlmagan avtomobillarga yoqilgʻi quyishga moʻljallangan, shuningdek haydovchi va yoʻlovchilarga xizmat koʻrsatish obyektlari (doʻkon, kafe va hojatxona) boʻlgan
+493. | Kriogen avtomobillarga yoqilgʻi quyish shoxobchalari, faqat suyultirilgan yoki siqilgan tabiiy gazlarni transport vositalariga quyish uchun, shoxobcha hududida regazafikatsiya yoʻli bilan olingan tabiiy suyultirilgan gazni saqlash sigʻimi 50 m3 hajmda, shuningdek haydovchi va yoʻlovchilarga xizmat koʻrsatish obyektlari (doʻkon, kafe va hojatxona) boʻlgan
+494. | Avtomobillarga gaz quyish shoxobchalari, faqat suyultirilgan uglevodorodlarni transport vositalariga quyish uchun, shuningdek haydovchi va yoʻlovchilarga xizmat koʻrsatish obyektlari (doʻkon, kafe va hojatxona) boʻlgan
+495. | Non va xamirdan tayyorlangan mahsulotlar ishlab chiqarish (sutkalik quvvati 2500 kg dan koʻp boʻlgan)
+496. | Paxta titish korxonasi
+497. | Yopiq alohida binodagi sport-sogʻlomlashtirish majmualari, sport klublar, ochiq sport maydonchalari.
+Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlariga (0103-25-son SanQvaN)
+2-ILOVA
+Hayvonlarni saqlash joylari bilan aholi turar joylari oraligʻidagi sanitariya-muhofaza zonasi masofasi
+T/r | Oraliq masofa | sigir, buqa/buzoq | qoʻy, echki | choʻchqa | quyon | qush | ot | nutriya
+1. | 20 m | 5/14 | 15 — 25 | 5 — 15 | 20 — 50 | 50 — 74 | 5 — 15 | 5 — 15
+2. | 50 m | 6/25 | 26 — 50 | 16 — 50 | 50 | 75 — 100 | 16 — 75 | 16 — 49
+3. | 75 m | 25/50 | 50 | 50 | - | 101 — 150 | 76 — 100 | 50 — 75
+Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlariga (0103-25-son SanQvaN)
 3-ILOVA
 Avtomobillarni ochiq turdagi saqlash joylari bilan aholi turar joylari oraligʻidagi sanitariya-muhofaza zonasi masofasi
-T/r | Sanitariya-muhofaza zonasi belgilangan joylar | avtomobillar soni (ta): 10 tagacha | 11 tadan 50 tagacha | 51 tadan 100 tagacha | 101 tadan 300 tagacha | 300 dan ortiq
+T/r | Sanitariya-muhofaza zonasi belgilangan joylar | avtomobillar soni (ta)
+10 tagacha | 11 tadan 50 tagacha | 51 tadan 100 tagacha | 101 tadan 300 tagacha | 300 dan ortiq
 1. | Aholi turar joy binosining derazasi boʻlgan tomoni | 10 m | 12 m | 15 m | 25 m | 35 m
 2. | Aholi turar joy binosining derazasi boʻlmagan tomoni | 10 m | 15 m | 25 m | 35 m | 50 m
 3. | Maktabgacha taʼlim tashkilotlari, taʼlim muassasalari, dam olish joylari va sport inshootlari | 15 m | 25 m | 25 m | 50 m | -
 4. | Statsionar tipdagi davolash-profilaktika muassasalari | 25 m | 50 m | - | - | -
+Sanitariya-muhofaza zonasiga doir sanitariya qoidalari, normalari va gigiyena normativlariga (0103-25-son SanQvaN)
+4-ILOVA
+Oqova suvlarni tozalash qurilmalari bilan aholi turar joylari oraligʻidagi sanitariya-muhofaza zonasi masofasi
+Oqova suvlarni tozalash qurilmalari | Oqova suvlarni tozalash qurilmalarining quvvatidan kelib chiqib oqova suvlarni tozalash qurilmalari bilan aholi turar joylari oraligʻidagi sanitariya-muhofaza zonasi masofasi (m da)
+200 m3 gacha | 200 m3 dan 5000 m3 gacha | 5000 m3 dan 50 000 m3 gacha | 50 000 m3 dan 280 000 m3 gacha
+Nasos stansiyalari | 15 | 20 | 20 | 30
+Bijgʻigan choʻkindilarni ushlab qoluvchi maydonchasi boʻlgan mexanik va biologik tozalash qurilmasi, shuningdek alohida bijgʻigan choʻkindilarni ushlab qoluvchi maydoncha | 150 | 200 | 400 | 500
+Yopiq binolarda choʻkindilarga termomexanik ishlov beruvchi mexanik va biologik tozalash qurilmasi | 100 | 150 | 300 | 400
+Filtrlash maydoni | 200 | 300 | 500 | -
+Sugʻoriladigan maydon | 150 | 200 | 400 | -
+Biologik hovuz | 200 | 200 | 300 | 300
+Aylanma oksidlash kanallari boʻlgan qurilma | 150 | - | - | -
+Izohlar:
+quvvati 280 000 m³/s dan yuqori boʻlgan oqova suv tarmoqlarida yoki oqova suvlarni tozalash hamda choʻkindilarni qayta ishlash texnologiyasidan chetga chiqilganda, sanitariya-muhofaza zonasi (bundan buyon matnda SMZ deb yuritiladi) masofasiga mos ravishda oʻzgartirishlar kiritiladi;
+agar aholi turar joylari oqova suvlarni tozalash qurilmalariga nisbatan shamol yoʻnalishi tomonida joylashgan boʻlsa, mazkur jadvalda koʻrsatilgan SMZ oʻlchamlarini kengaytirilishiga (2 barobardan koʻp boʻlmaslik sharti bilan), shamol yoʻnalishida joylashmagan boʻlsa qisqartirilishiga (25 foizdan ortiq boʻlmagan oʻlchamlarda) ruxsat beriladi;
+quvvati 200 m3/s dan yuqori boʻlgan oqova suvlarni tozalash qurilmalari hududlarida bijgʻigan choʻkindilarni ushlab qoluvchi maydonlar boʻlmaganda SMZ masofasi 30 foizgacha qisqartiriladi;
+filtrlash yuzasi 0,5 ga gacha boʻlgan maydonlar va quvvati 50 m3/s gacha boʻlgan biofiltrdagi mexanik va biologik tozalash qurilmalari uchun SMZ masofasi 100 m etib belgilanadi;
+quvvati 15 m3/s dan kam boʻlgan yer osti filtrlash maydonida boʻlgan oqova suvlarni tozalash qurilmalari uchun SMZ masofasi 15 m etib belgilanadi;
+handaqlar va qum-shagʻalli filtrlar boʻlgan oqova suvlarni tozalash qurilmalari uchun SMZ masofasi 25 m, septik quduqli oqova suvlarni tozalash qurilmalari uchun 5 m va sizuvchi quduqli oqova suvlarni tozalash qurilmalari uchun 8 m, shamollatish yoʻli bilan balchiqni toʻliq oksidlovchi aerotsion qurilmalar uchun 50 m etib belgilanadi;
+sanoat korxonalaridagi oqova suvlarni tozalash qurilmalari uchun SMZ masofasi oqova suvlarni tarkibi va xossalaridan kelib chiqib belgilanadi.
+Oʻzbekiston Respublikasi Sogʻliqni saqlash vazirligi huzuridagi Sanitariya-epidemiologik osoyishtalik va jamoat salomatligi qoʻmitasining 2025-yil 15-avgustdagi 24-son qaroriga
+2-ILOVA
+Oʻz kuchini yoʻqotgan deb topilayotgan sanitariya qoidalari, normalari va gigiyena normativlari
+ROʻYXATI
+1. Oʻzbekiston Respublikasi Bosh davlat sanitariya vrachi tomonidan 2004-yil 24-avgustda tasdiqlangan “Farmatsevtika sanoati korxonalari, inshootlari va uning obyektlari tasnifi va sanitariya-himoya zonalari” 0164-04-son SanQvaN.
+2. Oʻzbekiston Respublikasi Bosh davlat sanitariya vrachi tomonidan 2007-yil 6-sentabrda tasdiqlangan “Yuqori kuchlanishdagi elektr energiyasi uzatish tarmoqlari yaqinida yashovchi aholining xavfsizligini taʼminlash toʻgʻrisida” 0236-07-son SanQvaN.
+3. Oʻzbekiston Respublikasi Bosh davlat sanitariya vrachi tomonidan 2017-yil 13-noyabrda tasdiqlangan “Oʻzbekiston Respublikasi aholi yashash joylari atmosfera havosining muhofazasi boʻyicha sanitariya qoidalari va meʼyorlari” 0350-17-son SanQvaN.
