@@ -1,7 +1,7 @@
 export type XY = [number, number];
-export interface Arm { id: string; sig?: boolean; hin: XY; cross?: [XY, XY]; lanes: { id: string; pts: XY[]; codes: string; mid?: number; bus?: boolean }[]; exits: { id: string; pts: XY[]; mid?: number; bus?: boolean }[] }
+export interface Arm { id: string; j?: string; sig?: boolean; hin: XY; cross?: [XY, XY]; lanes: { id: string; pts: XY[]; codes: string; mid?: number; bus?: boolean }[]; exits: { id: string; pts: XY[]; mid?: number; bus?: boolean }[] }
 export interface Conn { id: string; from: string; to: string; m: 'L' | 'S' | 'R'; pts: XY[] }
-export interface Net { ring?: { c: XY; r: number } | null; arms: Arm[]; conns: Conn[]; signal?: { cycle: number; phases: string[][] } | null; main?: string[]; yUp?: boolean }
+export interface Net { ring?: { c: XY; r: number } | null; juncs?: { id: string; signal?: { cycle: number; phases: string[][]; offset?: number } | null; ring?: { c: XY; r: number } | null; main?: string[] }[]; links?: { from: string; to: string[] }[]; arms: Arm[]; conns: Conn[]; signal?: { cycle: number; phases: string[][] } | null; main?: string[]; yUp?: boolean }
 export interface ArmRes { n: number; flow: number; delay: number; los: string; queue: number }
 export function autoConnect(arms: Arm[], yUp?: boolean): Conn[];
 export function connPath(A: XY, ha: XY, B: XY, hb: XY): XY[];
@@ -19,5 +19,5 @@ export class GraphSim {
   sig: unknown;
   snapshot(): { id: number; x: number; y: number; h: number; m: string; v: number; len: number; bus: number }[];
   queues(): Record<string, number>;
-  result(from?: number): { arms: Record<string, ArmRes>; total: { n: number; flow: number; delay: number; los: string }; ped: { n: number; flow: number; wait: number }; bus: { n: number; flow: number; delay: number }; person: number };
+  result(from?: number): { juncs: Record<string, { n: number; flow: number; delay: number; los: string }>; arms: Record<string, ArmRes>; total: { n: number; flow: number; delay: number; los: string }; ped: { n: number; flow: number; wait: number }; bus: { n: number; flow: number; delay: number }; person: number };
 }

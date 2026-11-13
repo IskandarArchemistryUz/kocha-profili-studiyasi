@@ -5,7 +5,6 @@
  * B va Varaq bitta koʻcha maʼlumotini (kesim, rejadagi elementlar, tarmoqlar) birga ishlatadi.
  */
 import { langMenu } from '../ui/langmenu';
-import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
 import './ks.css';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
@@ -129,8 +128,8 @@ function fileMenu(): HTMLElement {
   return h('div', { class: 'ks-filew' }, btn, fileOpen ? h('div', { class: 'ks-fmenu', role: 'menu' },
     item('ksSave', 'Saqlash', '.json', () => saveJson(allState())),
     item('ksOpen', 'Faylni ochish', '.json', () => openJson(o => { restoreAll(o); toast(tr('Fayl ochildi')); })),
-    /* oldingi studiya hozircha faqat egasiga (js/sinov.js) */
-    isOwner() ? item('ksOld', 'Xaritada ishlash', tr('oldingi studiya'), () => { location.href = '../studio.html'; }) : null) : null);
+    /* 13.11 (Iskandar): xaritada chizish studiyasi hammaga ochiq — beta (chorrahada harakatni sinash bilan) */
+    item('ksOld', 'Xaritada ishlash', 'beta · ' + tr('xaritada chizish va harakatni sinash'), () => { location.href = '../studio.html'; })) : null);
 }
 document.addEventListener('pointerdown', e => {
   const t = e.target as Element;
