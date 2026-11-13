@@ -38,9 +38,38 @@ export function autoPhases(arms){const used=new Set(),ph=[];
     if(best){used.add(best.id);ph.push([a.id,best.id]);}else ph.push([a.id]);});
   return ph;}
 
+/* Boʻlak ulagichlari (muharrirdagi laneConnections bilan bir xil qoida):
+   kiruvchi boʻlak strelkasi (codes) boʻyicha; chapga — chap chetga, oʻngga — oʻng chetga, toʻgʻri — koʻndalang siljish eng kam.
+   arms[].lanes va arms[].exits chapdan oʻngga tartiblangan; boʻlak oxiri — toʻxtash chizigʻi, chiqish boshi — pts[0].
+   yUp: koordinata oʻqi y yuqoriga (xarita) yoki pastga (SVG). */
+export function autoConnect(arms,yUp=true){const conns=[],cr=(h,v)=>(h[0]*v[1]-h[1]*v[0])*(yUp?1:-1),th=(h,v)=>Math.atan2(cr(h,v),h[0]*v[0]+h[1]*v[1]);
+  arms.forEach(e=>{if(!e.lanes.length)return;const tg={};
+    arms.forEach(f=>{if(f===e||!f.exits.length)return;const out=[-f.hin[0],-f.hin[1]],t=th(e.hin,out),c=Math.abs(t)<=.61?'S':t>0?'L':'R';
+      const sc=c==='S'?-Math.abs(t):c==='L'?-Math.abs(t-Math.PI/2):-Math.abs(t+Math.PI/2);if(!tg[c]||sc>tg[c].sc)tg[c]={f,sc};});
+    ['L','S','R'].forEach(m=>{const T=tg[m];if(!T)return;const src=e.lanes.filter(l=>(l.codes||'').includes(m)),D=T.f.exits;if(!src.length||!D.length)return;
+      const ns=src.length,nd=D.length,pairs=[];
+      if(m==='L')src.forEach((l,i)=>pairs.push([l,D[Math.min(i,nd-1)]]));
+      else if(m==='R')src.forEach((l,i)=>pairs.push([l,D[Math.max(0,nd-ns+i)]]));
+      else{let best=null;for(let sh=Math.min(0,nd-ns);sh<=Math.max(0,nd-ns);sh++){let c=0;src.forEach((l,i)=>{c+=Math.abs(Math.abs(l.mid||0)-Math.abs(D[Math.max(0,Math.min(nd-1,i+sh))].mid||0));});if(!best||c<best.c-1e-9)best={c,sh};}
+        src.forEach((l,i)=>pairs.push([l,D[Math.max(0,Math.min(nd-1,i+best.sh))]]));}
+      pairs.forEach(([l,d])=>{const A=l.pts[l.pts.length-1],B=d.pts[0];conns.push({id:'c'+conns.length,from:l.id,to:d.id,m,pts:connPath(A,e.hin,B,[-T.f.hin[0],-T.f.hin[1]])});});});});
+  return conns;}
+/* toʻgʻri kesma + aylana yoyi + toʻgʻri kesma (boʻlaklarga urinma); deyarli parallel boʻlsa — kubik egri */
+export function connPath(A,ha,B,hb){const den=ha[0]*(-hb[1])-ha[1]*(-hb[0]);
+  if(Math.abs(den)>1e-6){const dx=B[0]-A[0],dy=B[1]-A[1],t1=(dx*(-hb[1])-dy*(-hb[0]))/den,t2=(dx*ha[1]-dy*ha[0])/den;
+    if(t1>.3&&t2>.3){const X=[A[0]+ha[0]*t1,A[1]+ha[1]*t1],u1=[-ha[0],-ha[1]],u2=hb,phi=Math.acos(Math.max(-1,Math.min(1,u1[0]*u2[0]+u1[1]*u2[1])));
+      if(phi>Math.PI-.03)return [A,B];
+      const td=Math.min(t1,t2),r=td*Math.tan(phi/2),T1=[X[0]+u1[0]*td,X[1]+u1[1]*td],T2=[X[0]+u2[0]*td,X[1]+u2[1]*td];
+      const bx=u1[0]+u2[0],by=u1[1]+u2[1],bl=Math.hypot(bx,by)||1,dc=r/Math.sin(phi/2),C=[X[0]+bx/bl*dc,X[1]+by/bl*dc];
+      const a1=Math.atan2(T1[1]-C[1],T1[0]-C[0]);let da=Math.atan2(T2[1]-C[1],T2[0]-C[0])-a1;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+      const P=[A,T1],nn=Math.max(6,Math.ceil(Math.abs(da)/.08));for(let k=1;k<nn;k++){const t=a1+da*k/nn;P.push([C[0]+r*Math.cos(t),C[1]+r*Math.sin(t)]);}P.push(T2,B);return P;}}
+  const D=Math.hypot(B[0]-A[0],B[1]-A[1])*.42,c1=[A[0]+ha[0]*D,A[1]+ha[1]*D],c2=[B[0]-hb[0]*D,B[1]-hb[1]*D],P=[];
+  for(let k=0;k<=24;k++){const t=k/24,m=1-t;P.push([m*m*m*A[0]+3*m*m*t*c1[0]+3*m*t*t*c2[0]+t*t*t*B[0],m*m*m*A[1]+3*m*m*t*c1[1]+3*m*t*t*c2[1]+t*t*t*B[1]]);}return P;}
+
 export class GraphSim{
   constructor(net,opt={}){
     this.o={demand:{},shares:{L:.2,S:.65,R:.15},seed:1,...opt};this.rnd=mulberry(this.o.seed);this.t=0;this.V=[];this.nid=1;this.done=[];this.pend={};
+    this.sig=net.signal||null;this.main=new Set(net.main||[]);this.yUp=net.yUp!==false;
     this.arms=net.arms;this.armById={};net.arms.forEach(a=>this.armById[a.id]=a);
     this.link={};const add=(id,pts,kind,arm,extra)=>{const c=cum(pts);this.link[id]={id,pts,c,len:c[c.length-1],kind,arm,...extra};};
     net.arms.forEach(a=>{a.lanes.forEach(l=>add(l.id,l.pts,'in',a.id,{codes:l.codes}));a.exits.forEach(x=>add(x.id,x.pts,'out',a.id));});
@@ -51,9 +80,9 @@ export class GraphSim{
       if(a.arm===b.arm)return false;const A=this.armById[a.arm],B=this.armById[b.arm];
       const opp=A.hin[0]*B.hin[0]+A.hin[1]*B.hin[1]<-.6;
       if(a.m==='L'&&opp&&b.m!=='L')return true;if(b.m==='L'&&opp&&a.m!=='L')return false;
-      if(!this.sig){const cr=A.hin[0]*B.hin[1]-A.hin[1]*B.hin[0];return cr>0;} // B oʻngdan keladi (a ning yoʻnalishiga nisbatan)
+      if(!this.sig){const pa=this.main.has(a.arm),pb=this.main.has(b.arm);if(pa!==pb)return pb;          // ikkinchi darajali yoʻl asosiy yoʻlga yoʻl beradi (2.4 belgisi)
+        const cr=A.hin[0]*B.hin[1]-A.hin[1]*B.hin[0];return this.yUp?cr>0:cr<0;}                              // teng ahamiyatli: oʻngdan kelayotganga
       return null;};
-    this.sig=net.signal||null;
     for(let i=0;i<this.conns.length;i++)for(let j=i+1;j<this.conns.length;j++){const a=this.conns[i],b=this.conns[j];if(a.from===b.from)continue;
       const La=this.link[a.id],Lb=this.link[b.id];let pts=a.arm===b.arm?[]:crossings(La.pts,La.c,Lb.pts,Lb.c);
       if(a.to===b.to)pts.push({sa:La.len,sb:Lb.len,merge:1});
@@ -85,27 +114,48 @@ export class GraphSim{
       off+=this.link[id].len-base;}
     return best;}
   /* svetofor va yoʻl berish: toʻxtash nuqtasigacha masofa.
-     Chorrahaga kirish (toʻxtash chizigʻida) — yoʻl boʻsh boʻlsagina; ichkaridagi mashina faqat
-     kesishuvni oʻzidan avval kirgan mashina egallab turgan boʻlsa toʻxtaydi (tiqilish boʻlmasligi uchun). */
-  stopDist(v){let d=1e9;const R=v.route,L0=this.link[R[0]],cid=R[1];
-    const occ=(c,u,k)=>u.li===k&&u.s>c.os-3&&u.s<c.os+LEN+1;
-    if(v.li===0){const toStop=L0.len-v.s,lt=this.light(v.arm);
-      if(lt!=='G'&&toStop>0.3){const need=v.v*v.v/(2*3.5);if(lt==='R'||toStop>need)d=Math.min(d,toStop);}
-      if(d<1e9)return d;
-      if(toStop<Math.max(12,v.v*v.v/(2*IDM.b)+6)){
-        /* chiqish yoʻli toʻlib qolgan boʻlsa chorrahaga kirmaydi */
-        const ex=R[2];if(this.V.some(u=>u.route[u.li]===ex&&u.s<LEN+3&&u.v<1))return toStop;
-        const myV=Math.max(v.v,3);
-        for(const c of this.cf[cid]){const myT=(toStop+c.s)/myV;
-          for(const u of this.V){const k=u.route.indexOf(c.o);if(k!==1||u.li>1)continue;
-            if(u.li===1){if(occ(c,u,1))return toStop;const uD=c.os-u.s;if(uD<0)continue;if(uD/Math.max(u.v,2)<myT+1.5)return toStop;continue;}
-            if(this.light(u.arm)==='R')continue;const uD=this.link[u.route[0]].len-u.s+c.os,uT=uD/Math.max(u.v,3);if(uD>80)continue;
-            if(c.yield&&(u.v>2||uD<15)&&uT<myT+3.5)return toStop;                        // yoʻl berish (99-band / oʻngdan)
-            if(!c.pri&&!c.yield&&u.v>2&&uT<myT)return toStop;}}}
-      return d;}
-    if(v.li===1){for(const c of this.cf[cid]){const myD=c.s-v.s;if(myD<-1)continue;if(myD>25)break;
-        for(const u of this.V){if(u===v||u.route[1]!==c.o)continue;if(occ(c,u,1)&&u.tIn<v.tIn){d=Math.min(d,myD-2);break;}}}}
-    return d;}
+     Chorrahaga faqat toʻxtash chizigʻidan, yoʻli boʻsh boʻlsa kiriladi: ichkaridagi mashina oʻtib ketmagan kesishuv —
+     band (bron); yaqinlashayotganlar bilan — ustunlik qoidasi. Ichkaridagi mashina kesishuv uchun toʻxtamaydi
+     (u kirganda yoʻl boʻsh edi) — shu sababli aylanma tiqilish va ustma-ust tushish boʻlmaydi. */
+  stopDist(v){const R=v.route,L0=this.link[R[0]],cid=R[1],gap=this.sig?3.5:2.5;
+    /* svetoforli chorrahada chapga buriluvchi: chorrahaga kirib, qarshi oqimdagi boʻshliqni kesishuv oldida kutadi
+       (sariq/qizilda chiqib ketadi — «chorrahadan chiqib ulgurmaganga yoʻl berish», 103-band) */
+    const permL=this.sig&&v.m==='L';
+    if(v.li===1){if(!permL)return 1e9;
+      for(const c of this.cf[cid]){if(!c.yield)continue;const myD=c.s-v.s;if(myD<-.5)continue;if(myD<v.v*v.v/(2*IDM.b)-1)continue;
+        const myT=myD/Math.max(v.v,2.5);
+        for(const u of this.V){if(u===v||u.route[1]!==c.o||u.li>1)continue;
+          if(u.li===1){if(u.s<c.os+LEN+.5)return Math.max(0,myD-2);continue;}
+          if(this.light(u.arm)==='R')continue;const uS=this.link[u.route[0]].len-u.s;if(uS>60)continue;
+          if(this.light(u.arm)==='A'&&uS>u.v*u.v/(2*3.5)+1)continue;   // sariqda toʻxtay oladi
+          if((uS+c.os)/Math.max(u.v,3)<myT+gap)return Math.max(0,myD-2);}}
+      return 1e9;}
+    if(v.li!==0)return 1e9;
+    const toStop=L0.len-v.s,lt=this.light(v.arm);
+    if(lt!=='G'&&toStop>0.3){const need=v.v*v.v/(2*3.5);if(lt==='R'||toStop>need)return toStop;}
+    if(toStop>Math.max(12,v.v*v.v/(2*IDM.b)+6))return 1e9;
+    const ex=R[2];if(this.V.some(u=>u.route[u.li]===ex&&u.s<LEN+3&&u.v<1))return toStop;   // chiqish toʻla
+    if(permL&&this.V.some(u=>u.li===1&&u.route[0]===R[0]&&u.m==='L'&&u.v<1))return toStop; // ichkarida bitta kutuvchi yetarli
+    const myV=Math.max(v.v,3);
+    for(const c of this.cf[cid]){const myT=(toStop+c.s)/myV;
+      for(const u of this.V){if(u===v||u.route[1]!==c.o||u.li>1)continue;
+        if(u.li===1){if(c.pri&&u.m==='L'&&u.s<c.os-1.5)continue;                              // u — kutib turgan chapga buriluvchi
+          if(u.s<c.os+LEN+.5)return toStop;continue;}                                          // kesishuv band
+        if(u.commit){if(!v.commit)return toStop;continue;}                                     // u yoʻlga chiqdi — band
+        if(v.commit)continue;
+        if(permL&&c.yield)continue;                                                            // qarshi oqim — ichkarida kutiladi
+        if(this.light(u.arm)==='R')continue;const uS=this.link[u.route[0]].len-u.s;if(uS>60)continue;
+        const lead=w=>!this.V.some(x=>x!==w&&x.li===0&&x.route[0]===w.route[0]&&x.s>w.s);
+        const uT=(uS+c.os)/Math.max(u.v,3),uStop=u.v<1&&uS<6&&lead(u),vStop=v.v<1&&toStop<6;
+        if(u.v<1&&!lead(u))continue;                                                           // navbatda turgan (oldida mashina bor) — hozir kirmaydi
+        /* svetoforsiz, ikkalasi ham turibdi (asosiy yoʻl farqi boʻlmasa): koʻp kutgan oʻtadi — aylanma kutish boʻlmaydi */
+        if(!this.sig&&uStop&&vStop&&this.main.has(u.arm)===this.main.has(v.arm)){if(u.stopped>v.stopped+.05||(Math.abs(u.stopped-v.stopped)<=.05&&u.id<v.id))return toStop;continue;}
+        if(c.yield){if(u.v>2?uT<myT+gap:uS<12)return toStop;continue;}                          // yoʻl berish (oʻngdan / asosiy yoʻl)
+        if(c.pri)continue;
+        if(uStop&&vStop){if(u.stopped>v.stopped+.05||(Math.abs(u.stopped-v.stopped)<=.05&&u.id<v.id))return toStop;continue;}
+        if(uT<myT-.05||(Math.abs(uT-myT)<=.05&&u.id<v.id))return toStop;}}
+    if(!this.sig&&toStop<6)v.commit=1;                                                                 // qaror qabul qilindi — endi toʻxtamaydi
+    return 1e9;}
   step(dt){this.t+=dt;
     this.arms.forEach(a=>{const q=(this.o.demand[a.id]??500)/3600;if(this.rnd()<q*dt)this.spawn(a.id);});
     this.admit();
@@ -114,7 +164,8 @@ export class GraphSim{
       let [gap,vl]=this.ahead(v);const sd=this.stopDist(v);if(sd<gap){gap=sd;vl=0;}
       const v0=Math.min(vmax,V0),ss=IDM.s0+Math.max(0,v.v*IDM.T+v.v*(v.v-vl)/(2*Math.sqrt(IDM.a*IDM.b)));
       let a=IDM.a*(1-Math.pow(v.v/v0,IDM.d)-Math.pow(ss/Math.max(gap,.1),2));
-      if(v.li===0&&v.route[1]){const c=this.link[v.route[1]],dc=this.link[v.route[0]].len-v.s;if(dc<30&&v.v>c.vmax)a=Math.min(a,(c.vmax*c.vmax-v.v*v.v)/(2*Math.max(dc,1)));}
+      if(v.li===0&&v.route[1]){const c=this.link[v.route[1]],dc=this.link[v.route[0]].len-v.s,vc=!this.sig&&!this.main.has(v.arm)?Math.min(c.vmax,6):c.vmax; // svetoforsizda ikkinchi darajali/teng yoʻlda sekinlashib yaqinlashadi
+        if(dc<40&&v.v>vc)a=Math.min(a,(vc*vc-v.v*v.v)/(2*Math.max(dc,1)));}
       acc.set(v,Math.max(-8,a));}
     const keep=[];
     for(const v of this.V){const a=acc.get(v);let nv=Math.max(0,v.v+a*dt);v.s+=Math.max(0,v.v*dt+.5*a*dt*dt);v.v=nv;if(v.v<.5)v.stopped+=dt;

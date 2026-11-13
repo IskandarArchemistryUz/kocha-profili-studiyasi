@@ -10,7 +10,7 @@ const MCOL={L:'#4c5bd4',S:'#1c2628',R:'#c0643a'};
 const DIRS=['sharqdan','shimoli-sharqdan','shimoldan','shimoli-gʻarbdan','gʻarbdan','janubi-gʻarbdan','janubdan','janubi-sharqdan'];
 const armName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.PI/4))%8)+8)%8;return (e.name?e.name+' · ':'')+DIRS[k];};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=1',document.baseURI).href);return mod;}
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=2',document.baseURI).href);return mod;}
 
 /* JNET → model tarmogʻi */
 function buildNet(J,cycle){

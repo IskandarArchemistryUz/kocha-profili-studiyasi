@@ -24,6 +24,41 @@ export default class Component extends DCLogic {
         nodeSrc: r.notes.concat(A.src.map(function (x) { return 'A: ' + x; }), B.src.map(function (x) { return 'B: ' + x; })) });
     } catch (e) { this.setState({ nodeSt: 'err', nodeErr: String((e && e.message) || e) }); }
   }
+  /* ===== Harakat modeli (BETA, 13.11): chorraha maketi → boʻlaklar va ulagichlar → js/kssim-graph.js =====
+     Geometriya renderVals da this._geo ga yoziladi (metr, y pastga). */
+  _simOpts() { var s = this.state, n = function (v, d, lo, hi) { v = +v; return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+    return { qa: n(s.simQa, 600, 0, 3000), qb: n(s.simQb, 400, 0, 3000), L: n(s.simL, 20, 0, 100), S: n(s.simS, 65, 0, 100), R: n(s.simR, 15, 0, 100), cyc: n(s.simC, 90, 40, 180) }; }
+  async _simMake(seed) { var G = this._geo; if (!G || !G.arms.length) return null;
+    var M = await import('../../../../js/kssim-graph.js'), o = this._simOpts();
+    var conns = M.autoConnect(G.arms, false), demand = {};
+    G.arms.forEach(function (a) { demand[a.id] = a.main ? o.qa : o.qb; });
+    var net = { arms: G.arms, conns: conns, yUp: false, main: G.ctl === 1 ? G.arms.filter(function (a) { return a.main; }).map(function (a) { return a.id; }) : [],
+      signal: G.ctl === 0 ? { cycle: o.cyc, phases: M.autoPhases(G.arms) } : null };
+    return new M.GraphSim(net, { demand: demand, shares: { L: o.L / 100, S: o.S / 100, R: o.R / 100 }, seed: seed }); }
+  async simRun() { this.simStop(); if (!this._geo || this._geo.ctl === 2) return; this.setState({ simBusy: 1, simRes: null });
+    var R = [];
+    for (var k = 1; k <= 3; k++) { var m = await this._simMake(k); if (!m) { this.setState({ simBusy: 0 }); return; } await new Promise(function (r) { setTimeout(r, 0); }); R.push(m.run(1020, 0.1).result(120)); }
+    this.setState({ simBusy: 0, simRes: { R: R, key: this._geo.key, sig: this._geo.ctl === 0, names: this._geo.arms.map(function (a) { return [a.id, a.name]; }) } }); }
+  simStop() { if (this._sim) { cancelAnimationFrame(this._sim.raf); var cv = document.getElementById('ksSimCv'); if (cv) { var g = cv.getContext('2d'); g && g.clearRect(0, 0, cv.width, cv.height); } } this._sim = null; }
+  async simPlay() { if (this._sim) { this.simStop(); this.setState({ simOn: 0 }); return; }
+    var m = await this._simMake(1); if (!m) return; var self = this, geo = this._geo;
+    this._sim = { m: m, geo: geo, last: performance.now(), raf: 0, tick: 0 }; this.setState({ simOn: 1 });
+    var loop = function () { var S = self._sim; if (!S) return; var cv = document.getElementById('ksSimCv'); if (!cv || !cv.isConnected || S.geo.key !== (self._geo && self._geo.key)) { self.simStop(); self.setState({ simOn: 0 }); return; }
+      S.raf = requestAnimationFrame(loop); var now = performance.now(), dt = Math.min(0.1, (now - S.last) / 1000) * 4; S.last = now;
+      for (var i = 0; i < Math.max(1, Math.round(dt / 0.1)); i++) S.m.step(Math.min(0.1, dt));
+      self._simDraw(cv, S);
+      if ((S.tick++ % 15) === 0) { var el = document.getElementById('ksSimLive'), r = S.m.result(0), q = S.m.queues(); if (el) el.textContent = tf('t = ${t} s · mashina: ${n} · oʻtdi: ${d} · kechikish: ${k} s · navbat: ${q}', { t: Math.floor(S.m.t), n: S.m.V.length, d: r.total.n, k: r.total.delay, q: Object.values(q).reduce(function (a, b) { return a + b; }, 0) }); } };
+    loop(); }
+  _simDraw(cv, S) { var W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    var g = cv.getContext('2d'); if (!g) return; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    var k = Math.min(W / 784, H / 860), ox = (W - 784 * k) / 2, oy = (H - 860 * k) / 2, G = S.geo, ppm = G.px * k;
+    var P = function (x, y) { return [ox + (G.CX + x * G.px) * k, oy + (G.CY + y * G.px) * k]; };
+    if (S.m.sig) G.arms.forEach(function (a) { var l = S.m.light(a.id), c = l === 'G' ? '#2b9a5a' : l === 'A' ? '#e0a526' : '#d23c2e';
+      a.lanes.forEach(function (ln) { var q = ln.pts[ln.pts.length - 1], p = P(q[0], q[1]); g.fillStyle = c; g.beginPath(); g.arc(p[0], p[1], Math.max(2.5, ppm * 0.9), 0, 7); g.fill(); }); });
+    var COL = { L: '#4c5bd4', S: '#2f2e2b', R: '#c0643a' }; g.lineCap = 'butt';
+    S.m.snapshot().forEach(function (v) { var c = P(v.x, v.y), f = P(v.x + Math.cos(v.h) * 2.3, v.y + Math.sin(v.h) * 2.3), r = [2 * c[0] - f[0], 2 * c[1] - f[1]];
+      g.strokeStyle = COL[v.m] || '#2f2e2b'; g.lineWidth = Math.max(2, ppm * 1.9); g.beginPath(); g.moveTo(r[0], r[1]); g.lineTo(f[0], f[1]); g.stroke(); }); }
   renderVals() {
     var s = this.state, self = this;
 
@@ -516,6 +551,31 @@ export default class Component extends DCLogic {
     function seg(key, vals, lab) { return vals.map(function (v, i) { return { n: lab ? lab[i] : String(v), p: s[key] === v ? 'true' : 'false', pick: function () { var o = {}; o[key] = v; self.setState(o); } }; }); }
     function togL(k) { return function () { var l = Object.assign({}, self.state.lay || {}); l[k] = l[k] === false ? true : false; self.setState({ lay: l }); }; }
     var SGN = { piy: ['Piyodalar oʻtish joyi', '#2a62b8', '#ffffff', '2px'], asosiy: ['Asosiy yoʻl', '#f2c230', '#ffffff', '2px'], yolber: ['Yoʻl bering', '#ffffff', '#c0392b', '2px'], aylanma: ['Aylanma harakat', '#2a62b8', '#ffffff', '50%'], avtobus: ['Avtobus boʻlagi', '#2a62b8', '#ffffff', '2px'], velo: ['Velosiped yoʻlkasi', '#2a62b8', '#ffffff', '50%'], toxtash: ['Toʻxtash taqiqlangan', '#2a62b8', '#c0392b', '50%'], svetofor: ['Svetofor', '#2f2e2b', '#2f2e2b', '2px'] };
+    /* harakat modeli uchun geometriya (metr, y pastga): 4 tarmoq, faqat umumiy boʻlaklar (qat) */
+    (function () {
+      if (!hasCore) { self._geo = null; return; }
+      var Lm = 72, qat = function (Z, f) { return Z.z.filter(function (q) { return q.t === 'qat' && f(q); }).sort(function (p, q) { return Math.abs((p.a + p.b) / 2) - Math.abs((q.a + q.b) / 2); }); };
+      var codes = function (n) { return n >= 3 ? ['L'].concat(Array(n - 2).fill('S'), ['SR']) : n === 2 ? ['SL', 'SR'] : ['LSR']; };
+      var mid = function (q) { return (q.a + q.b) / 2; }, GG = function (a, b) { return G(a, b); };
+      var inA = qat(MA, function (q) { return q.a >= 0; }), outA = qat(MA, function (q) { return q.b <= 0; }), inB = qat(MB, function (q) { return q.b <= 0; }), outB = qat(MB, function (q) { return q.a >= 0; });
+      var arm = function (id, nm, mainA, hin, IN, OUT, pin, pout) { return { id: id, name: nm, main: mainA, hin: hin,
+        lanes: IN.map(function (q, i) { return { id: id + 'i' + i, mid: mid(q), codes: codes(IN.length)[i], pts: pin(mid(q)) }; }),
+        exits: OUT.map(function (q, i) { return { id: id + 'o' + i, mid: mid(q), pts: pout(mid(q)) }; }) }; };
+      var sW = zW[0] - 1, sE = zE[1] + 1, sN = zN[0] - 1, sS = zS[1] + 1, dB = GG(0, 1);
+      var A4 = [
+        arm('W', MA.n + ' · gʻarbdan', true, [1, 0], inA, outA, function (y) { return [[-Lm, y], [sW, y]]; }, function (y) { return [[zW[0], y], [-Lm, y]]; }),
+        arm('E', MA.n + ' · sharqdan', true, [-1, 0], outA, inA, function (y) { return [[Lm, y], [sE, y]]; }, function (y) { return [[zE[1], y], [Lm, y]]; }),
+        arm('N', MB.n + ' · shimoldan', false, dB, inB, outB, function (x) { return [GG(x, -Lm), GG(x, sN)]; }, function (x) { return [GG(x, zN[0]), GG(x, -Lm)]; }),
+        arm('S', MB.n + ' · janubdan', false, [-dB[0], -dB[1]], outB, inB, function (x) { return [GG(x, Lm), GG(x, sS)]; }, function (x) { return [GG(x, zS[1]), GG(x, Lm)]; })
+      ].filter(function (a) { return a.id !== s.miss; });
+      self._geo = { arms: A4, ctl: s.ctl, px: px, CX: CX, CY: CY, key: JSON.stringify([s.a, s.b, s.ang, s.miss || '', s.ctl, s.R, s.TPL[s.a][2], s.TPL[s.b][2]]) };
+    })();
+    var SR = s.simRes && self._geo && s.simRes.key === self._geo.key ? s.simRes : null, simRows = [];
+    if (SR) { var thL = SR.sig ? [10, 20, 35, 55, 80] : [10, 15, 25, 35, 50], LC = { A: '#2b7449', B: '#2b7449', C: '#95620f', D: '#95620f', E: '#b23a2e', F: '#b23a2e' };
+      var avg = function (f) { return SR.R.reduce(function (t, r) { return t + f(r); }, 0) / SR.R.length; };
+      var row = function (nm, get) { var d = avg(function (r) { return get(r).delay; }), fl = avg(function (r) { return get(r).flow; }), F = SR.R.filter(function (r) { return get(r).los === 'F'; }).length >= 2;
+        var l = F ? 'F' : ('ABCDE'[thL.findIndex(function (x) { return d <= x; })] || 'F'); simRows.push({ n: nm, v: Math.round(fl) + ' / ' + Math.round(get(SR.R[0]).demand) + ' avt/soat · ' + d.toFixed(1) + ' s · ' + l, c: LC[l] }); };
+      SR.names.forEach(function (x) { row(x[1], function (r) { return r.arms[x[0]]; }); }); row(tr('Jami'), function (r) { return r.total; }); }
     var ped = hasCore ? Math.max(LA, LB) / 1.2 : 0;
     return {
       modes: [['A', 'Tarmoq'], ['B', 'Kesim'], ['C', 'Chorraha'], ['D', 'Koʻcha muhiti'], ['E', 'Mikromodel']].map(function (m, i) { return { k: m[0], n: m[1], p: i === 2 ? 'true' : 'false' }; }),
@@ -546,6 +606,14 @@ export default class Component extends DCLogic {
       checks: R0, okCount: nOk + ' / ' + R0.length,
       note: 'Piyoda oʻtish joyi burchak egri qismidan keyin, velo oʻtish joyi esa uning yadro tomonida joylashadi. Avtobus boʻlagi chorrahada koʻk punktir bilan davom etadi. Yangi qurilishda R ≥ 15 m (108-band), kichik radius esa piyoda uchun xavfsizroq — ziddiyat ochiq qoldirilgan.',
       signs: SG.map(function (k) { var g = SGN[k]; return { n: g[0], c: g[1], b: g[2], r: g[3] }; })
+,
+      simQa: s.simQa != null ? s.simQa : 600, simQb: s.simQb != null ? s.simQb : 400, simL: s.simL != null ? s.simL : 20, simS: s.simS != null ? s.simS : 65, simR: s.simR != null ? s.simR : 15, simC: s.simC != null ? s.simC : 90,
+      simIn: function (e) { var k = e.target.dataset.k; if (k) self.state[k] = e.target.value; },
+      simSig: s.ctl === 0, simOk: hasCore && s.ctl !== 2,
+      simRun: function () { self.simRun(); }, simPlay: function () { self.simPlay(); }, simPlayT: s.simOn ? '⏸ Toʻxtatish' : '▶ Koʻrsatish',
+      simMsg: !hasCore ? tr('Ikki koʻchaning qatnov qismi kerak.') : s.ctl === 2 ? tr('Aylanma halqa hozircha modelda yoʻq — svetofor yoki belgilarni tanlang.') : s.simBusy ? tr('Hisoblanmoqda…') : SR ? '' : tr('Talabni kiriting va «Hisoblash»ni bosing.'),
+      simRows: simRows,
+      simNote: SR ? tf('3 takror × 15 daq. Qiymat: oʻtdi / talab · kechikish · LOS (HCM, ${t}). Natijalar taxminiy — loyiha qarori uchun tasdiqlangan model emas.', { t: SR.sig ? 'svetoforli 10/20/35/55/80 s' : 'svetoforsiz 10/15/25/35/50 s' }) : tr('Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (chapga buriluvchi qarshidagiga; belgilar bilan — ikkinchi darajali yoʻl asosiyga).')
     };
     })();
     return __split(__r);

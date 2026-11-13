@@ -38,11 +38,24 @@ var e=`<div class="ws ws-c">
         <sc-for list="{{draw}}" as="p"><path d="{{p.d}}" fill="{{p.f}}" stroke="{{p.s}}" stroke-width="{{p.w}}" stroke-dasharray="{{p.da}}" opacity="{{p.o}}" stroke-linecap="round" stroke-linejoin="round" transform="{{p.t}}"></path></sc-for>
         <sc-for list="{{txt_m}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="middle" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for><sc-for list="{{txt_s}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="start" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for><sc-for list="{{txt_e}}" as="t"><text x="{{t.x}}" y="{{t.y}}" text-anchor="end" font-size="{{t.fs}}" font-weight="{{t.fw}}" fill="{{t.c}}" font-family="{{t.ff}}">{{t.t}}</text></sc-for>
       </svg>
+      <canvas id="ksSimCv" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
     </div>
   </main>
   <aside class="panel" style="position: absolute; top: 76px; right: 12px; width: 348px; bottom: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; z-index: 2;">
     <span class="lbl">Qatlamlar · koʻrsatish / yashirish</span>
     <div class="group white" style="padding: 4px;"><sc-for list="{{lay}}" as="i"><button class="itm" onClick="{{i.tog}}"><span class="check {{i.c}}" style="width: 20px; height: 20px;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span style="flex: 1;">{{i.n}}</span><span class="t-foot">{{i.src}}</span></button></sc-for></div>
+    <span class="lbl">Harakat modeli <b style="display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 4px; background: #4c5bd4; color: #ffffff; font: 600 10px/16px 'IBM Plex Mono', monospace; letter-spacing: .04em;">BETA</b></span>
+    <div class="group white" id="ksSim" style="padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;">
+      <div class="lim"><span>Asosiy koʻcha · har yoʻnalish, avt/soat</span><input class="input" type="number" min="0" max="3000" step="50" data-k="simQa" style="width: 72px;" value="{{simQa}}" onInput="{{simIn}}" aria-label="Asosiy koʻcha talabi"></div>
+      <div class="lim"><span>Kesishuvchi · har yoʻnalish, avt/soat</span><input class="input" type="number" min="0" max="3000" step="50" data-k="simQb" style="width: 72px;" value="{{simQb}}" onInput="{{simIn}}" aria-label="Kesishuvchi koʻcha talabi"></div>
+      <span class="t-foot">Ulush, %: ↰ chapga · ↑ toʻgʻriga · ↱ oʻngga</span>
+      <div style="display: flex; gap: 6px;"><input class="input" type="number" min="0" max="100" data-k="simL" style="flex: 1; min-width: 0;" value="{{simL}}" onInput="{{simIn}}" aria-label="Chapga ulushi"><input class="input" type="number" min="0" max="100" data-k="simS" style="flex: 1; min-width: 0;" value="{{simS}}" onInput="{{simIn}}" aria-label="Toʻgʻriga ulushi"><input class="input" type="number" min="0" max="100" data-k="simR" style="flex: 1; min-width: 0;" value="{{simR}}" onInput="{{simIn}}" aria-label="Oʻngga ulushi"></div>
+      <sc-if value="{{simSig}}"><div class="lim"><span>Svetofor sikli, s</span><input class="input" type="number" min="40" max="180" step="5" data-k="simC" style="width: 72px;" value="{{simC}}" onInput="{{simIn}}" aria-label="Svetofor sikli"></div></sc-if>
+      <sc-if value="{{simOk}}"><div style="display: flex; gap: 6px;"><button class="btn btn-sm" id="ksSimRun" onClick="{{simRun}}">Hisoblash</button><button class="btn btn-sm btn-ghost" id="ksSimPlay" onClick="{{simPlay}}">{{simPlayT}}</button></div></sc-if>
+      <span class="t-foot" id="ksSimLive">{{simMsg}}</span>
+      <sc-for list="{{simRows}}" as="r"><div class="lim"><span>{{r.n}}</span><b class="num" style="color: {{r.c}};">{{r.v}}</b></div></sc-for>
+      <span class="t-foot">{{simNote}}</span>
+    </div>
     <span class="lbl">Koʻrsatkichlar</span>
     <div class="group white" style="padding: 6px 10px;"><sc-for list="{{mets}}" as="l"><div class="lim"><span>{{l.n}}</span><b>{{l.v}}</b></div></sc-for></div>
     <span class="lbl">Tekshiruv · {{okCount}}</span>
