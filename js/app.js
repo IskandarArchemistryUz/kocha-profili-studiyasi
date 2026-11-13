@@ -1697,11 +1697,11 @@ function buildShapes0(){
 }
 /* chizma uslubi: «rangli» (andoza) yoki «chiziqli» (B4: och funksional ranglar, qora bordyur, kulrang chiziqlar) */
 const LINE_COL={'#e4d9c3':'#fbf8f2','#dccfb0':'#f6f1e6','#8cb36b':'#e3eedb','#86ad66':'#e3eedb','#d6d1c6':'#f1efea','#4b4e55':'#e9e9e6','#51545b':'#e6e6e2','#55585f':'#e6e6e2',
-  '#62656c':'#e1e5ee','#bf5a4d':'#dfe6f5','#6b6c72':'#e4e1ec','#5fae88':'#f5ddd3','#6aa07f':'#dcebd9','#d3cab6':'#e3eedb','#cdbfa3':'#f3ede2','#6e9c50':'#ffffff','#96c173':'#eef5e8','#f4f4f0':'#a8a49b','#d9d4c7':'#c9c5bc'};
+  '#62656c':'#e1e5ee','#bf5a4d':'#dfe6f5','#6b6c72':'#e4e1ec','#5fae88':'#f5ddd3','#6aa07f':'#dcebd9','#d3cab6':'#e3eedb','#cdbfa3':'#f3ede2','#6e9c50':'#ffffff','#96c173':'#eef5e8','#f4f4f0':'#7d7a73','#d9d4c7':'#9a958b'};
 const isLineSty=()=>S.dsty==='line';
 const mixW=(c,k=.8)=>{const m=/^#([0-9a-f]{6})$/i.exec(c||'');if(!m)return c;const n=parseInt(m[1],16),f=v=>Math.round(v+(255-v)*k);return '#'+[n>>16,(n>>8)&255,n&255].map(v=>f(v).toString(16).padStart(2,'0')).join('');};
 const lineFill=c=>LINE_COL[(c||'').toLowerCase()]||mixW(c);
-const lineStroke=c=>{const l=(c||'').toLowerCase();return l==='#fff'||l==='#ffffff'||l==='white'?'#a8a49b':l==='#48703a'?'#8aa874':c;};
+const lineStroke=c=>{const l=(c||'').toLowerCase();return l==='#fff'||l==='#ffffff'||l==='white'?'#7d7a73':l==='#48703a'?'#5f7f4a':c;};
 function renderDesign(){
   designL.clearLayers();const {sh}=buildShapes();
   if(isLineSty()){/* bordyur: yoʻl poligonlari ostidan qora chiziq — ichki chegaralarni qoʻshni yoʻl yopadi, tashqi chegara qoladi */
@@ -1713,7 +1713,7 @@ function renderDesign(){
   const zk=Math.pow(2,map.getZoom()-19),sc=o=>{const r=Object.assign({},o);r.weight=Math.max(.5,(o.weight??3)*zk);if(o.dashArray)r.dashArray=String(o.dashArray).split(/[ ,]+/).map(v=>Math.max(1,+v*zk).toFixed(1)).join(' ');return r;};
   const oc=origin();
   sh.sort((a,b)=>a.z-b.z).forEach(x=>{
-    if(x.t==='poly')L.polygon(x.ll,x.stroke?{pane:'design',renderer:DR,fill:false,color:x.stroke,weight:Math.max(1.2,2.4*zk),interactive:false}:{pane:'design',renderer:DR,stroke:false,fillColor:x.col,fillOpacity:x.op??1,interactive:false}).addTo(designL);
+    if(x.t==='poly')L.polygon(x.ll,x.stroke?{pane:'design',renderer:DR,fill:false,color:x.stroke,weight:Math.max(1.6,3.2*zk),interactive:false}:{pane:'design',renderer:DR,stroke:false,fillColor:x.col,fillOpacity:x.op??1,interactive:false}).addTo(designL);
     else if(x.t==='line')L.polyline(x.ll,Object.assign({pane:'design',renderer:DR,interactive:false,lineCap:'butt'},sc(x.opt))).addTo(designL);
     else if(x.t==='car'&&zk>=.45){const P=toXY(x.ll,oc),ca=Math.cos(x.h),sa=Math.sin(x.h),R=(u,v)=>toLL([P[0]+u*ca-v*sa,P[1]+u*sa+v*ca],oc);
       L.polygon([R(-2.2,-.85),R(1.9,-.85),R(2.2,-.6),R(2.2,.6),R(1.9,.85),R(-2.2,.85)],{pane:'design',renderer:DR,color:'#8a8d94',weight:Math.max(.5,zk),fillColor:'#f3f3f0',fillOpacity:1,interactive:false}).addTo(designL);
