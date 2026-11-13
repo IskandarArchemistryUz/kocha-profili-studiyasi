@@ -44,7 +44,7 @@ import { housePlan, housePlanSvg, partySide } from '../core/lowplan';
 import { applyRoadEdits, vtxOp, cutBetween, type VtxOp } from '../core/roadedit';
 import { deadEnds, junctions, nextEnd, nearestSpot, ROUND, roundKind } from '../core/streetends';
 import { CATS, checkProfile, PROFILES, profileById, profileWidth, type Profile } from '../core/profiles';
-import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams } from '../core/gridgen';
+import { GRID_PRESETS, DEFAULT_GRID, gridStreets, gridVariants, autoAngle, gridStreetsAround, lineHitsRing, profileForOsm, perimeterAxis, type GridParams, type GridAnchor, type GridStreet, anchorAligned, anchorAngle, outside } from '../core/gridgen';
 import { insolCompass, type Compass } from '../core/kompas';
 import { FIRE_CLS, isLowHouse, lowFireNeed } from '../core/firedist';
 import { stageRows, normLine } from '../core/sheet';
@@ -3393,6 +3393,8 @@ export class Editor {
   private gridVar = 0;
   /** toʻr qoʻllashda uchastkani kesib oʻtgan mavjud koʻchalar saqlanadi (loyihaga olinadi, toʻr ular orasiga) */
   private gridKeep = true;
+  /** 13.11 (egasi): toʻr mavjud yoʻllar davomiga moslashadi (core/roadstubs → GridParams.anchors) */
+  private gridFit = true;
   /** toʻr qoʻllashda uchastka perimetri boʻylab koʻcha (qizil chiziq — uchastka chegarasi) */
   private gridPerim = false;
   private gridPerimProf = 'mahalla-15';
@@ -3458,7 +3460,11 @@ export class Editor {
     const doc = this.store.doc, fr = frame(doc.origin), site = doc.site!.rings[0].map(fr.toLocal), g = this.grid;
     const has = doc.streets.some(s => s.gen === 'grid');
     const box = h('div', { class: 'col', id: 'gridBox' });
-    const vars = gridVariants(site, g), pre = GRID_PRESETS.find(p => p.id === this.gridPreset);
+    // 13.11 (egasi): chegarada toʻxtagan mavjud yoʻllar — toʻr ularning davomi ustidan oʻtadi, burchak eng muhimiga moslanadi
+    const stubAll = this.stubs(), stubs = this.gridFit ? stubAll : [];
+    const anchors: GridAnchor[] = stubs.map(x => { const a = x.axis[0], b = x.axis[x.axis.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return { p: a, d: [(b[0] - a[0]) / L, (b[1] - a[1]) / L] as XY, profile: x.profile }; });
+    const gB: GridParams = anchors.length ? { ...g, angle: g.angle ?? anchorAngle(anchors), anchors } : g;
+    const vars = gridVariants(site, gB), pre = GRID_PRESETS.find(p => p.id === this.gridPreset);
     const roads = this.siteRoads(), keep = this.gridKeep ? roads : [];
     // saqlanadiganlar: yangi olinadigan mavjud koʻchalar + loyihadagi toʻrdan boshqa koʻchalar (avval olingan yoki qoʻlda chizilgan), uchastkani kesib oʻtsa
     const ownAll = doc.streets.filter(st => st.gen !== 'grid').map(st => ({ axis: st.axis.map(fr.toLocal), half: profileWidth(profileById(st.profile)) / 2 })).filter(st => lineHitsRing(st.axis, site));
@@ -3468,7 +3474,12 @@ export class Editor {
     const avoidG = (() => { const ls = (doc.limits ?? []).filter(l => isActive(l) && l.kind !== 'elu' && l.rings?.[0]); if (!ls.length) return [] as MultiPolygon; const hw = profileWidth(profileById(g.profiles.main)) / 2;
       try { const parts = ls.map(l => bufferLocal(l.rings![0].map(fr.toLocal), hw, true)); return safeUnion(parts); } catch { return [] as MultiPolygon; } })();
     const apply = () => {
-      const v = vars[this.gridVar] ?? vars[0], sts = gridStreetsAround(site, keepC, v.g, avoidG);
+      const v = vars[this.gridVar] ?? vars[0], sts: GridStreet[] = gridStreetsAround(site, keepC, v.g, avoidG);
+      // davomlarning uchastkadan tashqaridagi qismi (mavjud yoʻl uchigacha) va toʻrga mos kelmagan davomlar — oʻz holicha
+      for (const [i, x] of stubs.entries()) {
+        const ax = x.axis, segs = anchorAligned(anchors[i].d, v.g.angle ?? 0) ? outside(ax[0], ax[ax.length - 1], site) : [ax];
+        for (const sg of segs) if (Math.hypot(sg[1][0] - sg[0][0], sg[1][1] - sg[0][1]) >= 2) sts.push({ axis: sg, profile: x.profile, main: true });
+      }
       if (!sts.length && !keepC.length) { toast(tr('Uchastka tanlangan modul uchun kichik — modulni kichraytiring')); return; }
       /* toʻr va uchlarni yoʻllarga ulash — bitta buyruq: sahna, panel va hisob bir marta qayta quriladi, tarixda bitta qadam */
       const pAx = perim ? perimeterAxis(site, pHalf, sts.flatMap(st => [st.axis[0], st.axis[st.axis.length - 1]])) : null;   // birikish — toʻr uchlaridan uzoqda
@@ -3492,6 +3503,8 @@ export class Editor {
       h('div', { class: 'glabel' }, h('span', {}, tr('Joylashuv'))),
       h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Variantlar') }, ...vars.map((v, i) => h('button', { class: 'tile', 'data-gvar': i, 'aria-pressed': this.gridVar === i, onclick: () => { this.gridVar = i; this.renderPanel(); } },
         h('span', { class: 'th', html: this.gridThumb(site, v.g, 64, 44) }), h('span', {}, tr(v.name)), h('span', { class: 'sub' }, `${gridStreetsAround(site, keepC, v.g, avoidG).length} ${tr('koʻcha')}`)))),
+      stubAll.length ? h('div', { class: 'group', id: 'gridFitBox' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Mavjud yoʻllar davomiga moslash'), h('span', { class: 'sub' }, tf('${n} ta mavjud yoʻl chegarada toʻxtagan — toʻr ularning davomidan boshlanadi', { n: stubAll.length }))),
+        sw({ id: 'gridFit', label: tr('Mavjud yoʻllar davomiga moslash'), on: this.gridFit, onchange: v => { this.gridFit = v; this.renderPanel(); } }))) : '',
       this.compassBox(site, g),
       h('div', { class: 'row' },
         h('button', { class: 'btn btn-primary btn-lg grow', id: 'gridApply', onclick: apply }, tr(has ? 'Qayta qoʻllash' : 'Toʻrni qoʻllash')),

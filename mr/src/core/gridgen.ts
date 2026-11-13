@@ -29,7 +29,15 @@ export interface GridParams {
   /** oʻzgartirish: moduldan kichik chetki bloklar qoʻshni blokka qoʻshiladi (chiziq tashlanadi) */
   minEdge: number;
   profiles: { main: string; minor: string };
+  /** 13.11 (egasi): mavjud yoʻllar davomi — toʻr chiziqlari shular ustidan oʻtadi (core/roadstubs); qolganlari ular orasida teng */
+  anchors?: GridAnchor[];
 }
+/** Langar: chiziq nuqtasi, yoʻnalishi va profili (mahalliy metr) */
+export interface GridAnchor { p: XY; d: XY; profile: string }
+/** Langar toʻr yoʻnalishiga mosmi (≤ 10°) */
+export const anchorAligned = (d: XY, angDeg: number): boolean => { const a = angDeg * Math.PI / 180, c = Math.abs(d[0] * Math.cos(a) + d[1] * Math.sin(a)), s = Math.abs(-d[0] * Math.sin(a) + d[1] * Math.cos(a)); return Math.max(c, s) > 0.985; };
+/** Langarlarning burchagi (°) — birinchisi (eng muhim yoʻl) boʻyicha */
+export const anchorAngle = (a: GridAnchor[]): number | null => a.length ? Math.atan2(a[0].d[1], a[0].d[0]) * 180 / Math.PI : null;
 export const DEFAULT_GRID: GridParams = { w: 113, h: 113, angle: null, offU: 0, offV: 0, mainEvery: 3, minEdge: 0.45, profiles: { main: 'turar-20', minor: 'mahalla-15' } };
 
 export interface GridStreet { axis: XY[]; profile: string; main: boolean }
@@ -66,20 +74,36 @@ export function gridStreets(site: XY[], g: GridParams): GridStreet[] {
   const u0 = Math.min(...pu), u1 = Math.max(...pu), v0 = Math.min(...pv), v1 = Math.max(...pv);
   const out: GridStreet[] = [];
   /** c — chiziqning koʻndalang koordinatasi; dir — chiziq yoʻnalishi; along — chiziq boʻylab oʻq (uchun chegaralar) */
-  const line = (c: number, dir: XY, nrm: XY, lo: number, hi: number, main: boolean, modulAlong: number) => {
+  const line = (c: number, dir: XY, nrm: XY, lo: number, hi: number, main: boolean, modulAlong: number, prof?: string) => {
     const a: XY = [nrm[0] * c + dir[0] * (lo - 50), nrm[1] * c + dir[1] * (lo - 50)], b: XY = [nrm[0] * c + dir[0] * (hi + 50), nrm[1] * c + dir[1] * (hi + 50)];
-    for (const seg of clipSeg(a, b, ring)) { const L = Math.hypot(seg[1][0] - seg[0][0], seg[1][1] - seg[0][1]); if (L >= modulAlong * 0.6 && L >= 30) out.push({ axis: seg, profile: main ? g.profiles.main : g.profiles.minor, main }); }
+    for (const seg of clipSeg(a, b, ring)) { const L = Math.hypot(seg[1][0] - seg[0][0], seg[1][1] - seg[0][1]); if (prof ? L >= 20 : L >= modulAlong * 0.6 && L >= 30) out.push({ axis: seg, profile: prof ?? (main ? g.profiles.main : g.profiles.minor), main: main || !!prof }); }
   };
+  // langarlar: u ga parallel (koordinatasi v boʻylab) va v ga parallel (koordinatasi u boʻylab)
+  const fixV: { c: number; prof: string }[] = [], fixU: { c: number; prof: string }[] = [];
+  for (const an of g.anchors ?? []) {
+    const du = Math.abs(an.d[0] * u[0] + an.d[1] * u[1]), dv = Math.abs(an.d[0] * v[0] + an.d[1] * v[1]);
+    if (du > 0.985) fixV.push({ c: an.p[0] * v[0] + an.p[1] * v[1], prof: an.profile }); else if (dv > 0.985) fixU.push({ c: an.p[0] * u[0] + an.p[1] * u[1], prof: an.profile });
+  }
   // v boʻylab chiziqlar (u yoʻnalishida yotadi) — oraliq h; u boʻylab chiziqlar (v yoʻnalishida) — oraliq w
   /** chiziqlar: span moduldan butun songa boʻlinmasa, bloklar tenglashtiriladi (chetki yarim bloklar qolmasin); off — modul ulushida siljish */
-  const place = (lo: number, hi: number, step: number, off: number): { c: number; k: number }[] => {
+  const place = (lo: number, hi: number, step: number, off: number, fix: { c: number; prof: string }[] = []): { c: number; k: number; prof?: string }[] => {
+    const fx = fix.filter(f => f.c > lo + 5 && f.c < hi - 5).sort((a, b) => a.c - b.c).filter((f, i, a) => !i || f.c - a[i - 1].c > 8);
+    if (fx.length) {   // langarlar orasidagi har oraliq moduldan butun songa teng boʻlinadi
+      const B = [lo, ...fx.map(f => f.c), hi], cs: { c: number; k: number; prof?: string }[] = []; let k = 0;
+      for (let i = 0; i + 1 < B.length; i++) {
+        if (i > 0) cs.push({ c: B[i], k: k++, prof: fx[i - 1].prof });
+        const gap = B[i + 1] - B[i], n = Math.max(1, Math.round(gap / step)), st = gap / n;
+        for (let j = 1; j < n; j++) cs.push({ c: B[i] + j * st, k: k++ });
+      }
+      return cs;
+    }
     const span = hi - lo, n = Math.max(1, Math.round(span / step)), st = span / n, cs: { c: number; k: number }[] = [];
     for (let k = 0; k <= n; k++) { const c = lo + (k + off) * st; if (c - lo < st * g.minEdge || hi - c < st * g.minEdge) continue; cs.push({ c, k }); }
     return cs;
   };
   // asosiy koʻcha — toʻrning har n-chi chizigʻi (chetlari tashlangan boʻlsa ham sanoq toʻr boʻyicha)
-  place(v0, v1, g.h, g.offV).forEach(({ c, k }) => line(c, u, v, u0, u1, g.mainEvery > 0 && k % g.mainEvery === g.mainEvery - 1, g.w));
-  place(u0, u1, g.w, g.offU).forEach(({ c, k }) => line(c, v, u, v0, v1, g.mainEvery > 0 && k % g.mainEvery === g.mainEvery - 1, g.h));
+  place(v0, v1, g.h, g.offV, fixV).forEach(({ c, k, prof }) => line(c, u, v, u0, u1, g.mainEvery > 0 && k % g.mainEvery === g.mainEvery - 1, g.w, prof));
+  place(u0, u1, g.w, g.offU, fixU).forEach(({ c, k, prof }) => line(c, v, u, v0, v1, g.mainEvery > 0 && k % g.mainEvery === g.mainEvery - 1, g.h, prof));
   return out;
 }
 
@@ -126,7 +150,7 @@ export function gridStreetsAround(site: XY[], keep: { axis: XY[]; half: number }
   return out;
 }
 /** Kesmaning koʻpburchakdan tashqaridagi boʻlaklari */
-function outside(a: XY, b: XY, ring: XY[]): XY[][] {
+export function outside(a: XY, b: XY, ring: XY[]): XY[][] {
   const ins = clipSeg(a, b, ring), dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
   const tOf = (p: XY) => ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2;
   const iv = ins.map(sg => [tOf(sg[0]), tOf(sg[sg.length - 1])].sort((x, y) => x - y)).sort((x, y) => x[0] - y[0]);

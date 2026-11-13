@@ -1,0 +1,1 @@
+export{l as sendToRender}from"./inbox-BHLV-D3n.js";
