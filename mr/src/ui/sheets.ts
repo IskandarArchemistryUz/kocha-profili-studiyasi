@@ -19,7 +19,7 @@ import { aptPicks, houseTypes } from '../core/albumset';
 import { SERVICES } from '../core/services';
 import { housePlan, housePlanSvg } from '../core/lowplan';
 import { sheetLayout, stageOf, type SheetInner } from '../core/sheet';
-import { sheetSvg, sheetChecks, recommendScale, layerOf, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetSvc, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
+import { sheetSvg, sheetChecks, recommendScale, layerOf, bandOn, SHEET_DEFAULT, SHEET_KINDS, SHEET_LAYERS, SCALES, PAPERS, FONTS, type SheetCtx, type SheetSvc, type SheetOpts, type SheetResult, type Paper, type SheetLayerId } from '../core/sheet';
 import { LABEL_MODES, type LabelMode } from '../core/labels';
 import { h, download, toast, svgIcon, icl, IC, fmt } from './dom';
 import { check, dropdown, stepper, sw } from './controls';
@@ -464,7 +464,7 @@ export function openGraphics(host: SheetsHost): void {
   function renderSide(): void {
     const o = O(), S = { ...SHEET_DEFAULT.show, ...o.show }, rec = recommendScale(ha, o.kind);
     view.classList.toggle('axpick', o.mode === 'akso' && (open === 'axo' || !!open?.startsWith('A:')));
-    const decos: [keyof SheetOpts['show'], string][] = [['title', 'Sarlavha'], ['scaleBar', 'Masshtab chizgʻichi'], ['north', 'Shimol'], ['legend', 'Shartli belgilar'], ['frame', 'Ramka'], ['grid', 'Koordinata toʻri'], ['stamp', 'Shtamp'], ['plotTable', 'Yer uchastkalari jadvali'], ['situation', 'Vaziyat sxemasi']];
+    const decos: [keyof SheetOpts['show'], string][] = [['title', 'Sarlavha'], ['scaleBar', 'Masshtab chizgʻichi'], ['north', 'Shimol'], ['legend', 'Shartli belgilar'], ['frame', 'Ramka'], ['grid', 'Koordinata toʻri'], ['stamp', 'Shtamp'], ['plotTable', 'Yer uchastkalari jadvali'], ['situation', 'Vaziyat sxemasi'], ['band', 'Pastki lenta (oʻng ustun oʻrniga)']];
     const nDeco = decos.filter(([k]) => S[k]).length;
     const nLay = SHEET_LAYERS.filter(l => layerOf(o, l.id).on).length;
     const tile = (attrs: Record<string, unknown>, t: string, sub: string) => h('button', { class: 'tile', ...attrs }, h('b', {}, t), sub ? h('span', { class: 'sub' }, sub) : '');
@@ -566,7 +566,7 @@ export function openGraphics(host: SheetsHost): void {
         h('span', { class: 't-small' }, tr('Kod 3,5 mm, qolgani 2,5 mm (GOST 2.304-81). Sigʻmagani «Yer uchastkalari» jadvalida.'))] : []),
         h('div', { class: 'group sh-frows' },
           frow('deco', tr('Bezaklar'), `${nDeco} / 9`, () => [
-            h('div', { class: 'group flat' }, ...decos.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: !!S[k], 'data-show': k, onchange: v => set({ show: { ...S, [k]: v } }) })))),
+            h('div', { class: 'group flat' }, ...decos.map(([k, t]) => h('div', { class: 'li' }, check(h('span', { class: 'k' }, tr(t)), { checked: k === 'band' ? bandOn(o) : !!S[k], 'data-show': k, onchange: v => set({ show: { ...S, [k]: v } }) })))),
             S.grid ? h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Toʻr qadami'), h('span', { class: 'sub' }, tr('0 — avtomatik'))), stepper({ label: tr('Toʻr qadami'), min: 0, max: 2000, step: 50, value: o.gridStep ?? 0, unit: 'm', onchange: v => set({ gridStep: v }) })) : '',
             h('div', { class: 'field' }, h('label', {}, tr('Shrift')), dropdown({ 'aria-label': tr('Shrift'), id: 'gxFont', onchange: v => set({ font: v }) }, FONTS.map(f => ({ value: f, label: f, selected: (o.font ?? 'Archivo') === f }))))]),
           frow('lay', tr('Qatlamlar'), `${nLay} / ${SHEET_LAYERS.length}`, () => SHEET_LAYERS.map(l => layerRow(l.id))),

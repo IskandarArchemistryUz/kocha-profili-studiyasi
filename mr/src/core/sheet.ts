@@ -112,7 +112,7 @@ export interface SheetOpts {
   /** 0 — avtomatik (standart qatordan hudud sigʻadigan eng yirik masshtab) */
   scale: number;
   title: string;
-  show: { title: boolean; scaleBar: boolean; north: boolean; legend: boolean; frame: boolean; grid: boolean; context: boolean; trees: boolean; labels: boolean; demolished: boolean; stamp?: boolean; plotTable?: boolean; situation?: boolean };
+  show: { title: boolean; scaleBar: boolean; north: boolean; legend: boolean; frame: boolean; grid: boolean; context: boolean; trees: boolean; labels: boolean; demolished: boolean; stamp?: boolean; plotTable?: boolean; situation?: boolean; /** 13.11: oʻng ustun oʻrniga pastki lenta (sarlavha, shartli belgilar, shtamp) — chizma butun kenglikda (kanvas K-00…K-08) */ band?: boolean };
   /** yer uchastkasi yozuvlari (4.1): avtomatik yoki eng yuqori daraja */
   labelMode?: LabelMode;
   /** koordinata toʻri qadami, m (0 — avtomatik) */
@@ -203,11 +203,16 @@ export function niceLen(maxM: number): number {
 }
 
 /** Varaq tuzilishi (mm): chizma maydoni va oʻng ustun — V3 ramkasi uchun (sheetSvg dagi bilan bir xil) */
+/** Pastki lenta balandligi, mm */
+export const BAND_H = 40;
+/** Pastki lenta yoqilganmi: foydalanuvchi tanlovi, tanlanmagan boʻlsa — «Kesim va fasad» varaqlarida sukut boʻyicha (uzun lenta) */
+export const bandOn = (o: Pick<SheetOpts, 'show' | 'mode'>): boolean => o.show?.band ?? o.mode === 'siluet';
+
 export function sheetLayout(o: SheetOpts): { pw: number; ph: number; vw: number; vh: number; col: number; gap: number } {
   const S = { ...SHEET_DEFAULT.show, ...o.show }, paper = o.paper === 'fit' ? 'A3' : o.paper;
   const [pw, ph] = o.landscape ? PAPERS[paper] : [PAPERS[paper][1], PAPERS[paper][0]];
-  const hasCol = S.legend || !!S.plotTable || !!S.stamp || !!S.situation, M = 10, gap = 6;
-  const col = hasCol ? Math.max(70, Math.min(220, pw * 0.26)) : 0, TB = !hasCol && S.title ? 22 : 0;
+  const hasCol = S.legend || !!S.plotTable || !!S.stamp || !!S.situation, M = 10, gap = 6, band = hasCol && bandOn(o);
+  const col = hasCol && !band ? Math.max(70, Math.min(220, pw * 0.26)) : 0, TB = band ? BAND_H : !hasCol && S.title ? 22 : 0;
   return { pw, ph, vw: pw - 2 * M - (col ? col + gap : 0), vh: ph - 2 * M - TB, col, gap };
 }
 
@@ -239,23 +244,24 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
   const cx = o.center?.[0] ?? (bx0 + bx1) / 2, cy = o.center?.[1] ?? (by0 + by1) / 2;
   const rot = (o.rot ?? 0) * Math.PI / 180, cr = Math.cos(rot), sr = Math.sin(rot);
   // varaq oʻlchami: oʻng ustun (sarlavha, shartli belgilar, jadval, shtamp) — 26 %, 70…220 mm
-  const hasCol = S.legend || !!S.plotTable || !!S.stamp || !!S.situation;
+  const band = (S.legend || !!S.plotTable || !!S.stamp || !!S.situation) && bandOn(o);
+  const hasCol = !band && (S.legend || !!S.plotTable || !!S.stamp || !!S.situation);
   const M = 10, gap = 6;
-  const layout = (pw: number, ph: number) => { const col = hasCol ? Math.max(70, Math.min(220, pw * 0.26)) : 0, TB = !hasCol && S.title ? 22 : 0; return { col, TB, vw: pw - 2 * M - (col ? col + gap : 0), vh: ph - 2 * M - TB }; };
+  const layout = (pw: number, ph: number) => { const col = hasCol ? Math.max(70, Math.min(220, pw * 0.26)) : 0, TB = band ? BAND_H : !hasCol && S.title ? 22 : 0; return { col, TB, vw: pw - 2 * M - (col ? col + gap : 0), vh: ph - 2 * M - TB }; };
   // rotatsiyadagi kenglik/balandlik (m)
   const ext = (() => { let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity; for (const p of [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]] as XY[]) { const u = (p[0] - cx) * cr + (p[1] - cy) * sr, v = -(p[0] - cx) * sr + (p[1] - cy) * cr; a = Math.min(a, u); b = Math.max(b, u); c = Math.min(c, v); d = Math.max(d, v); } return [Math.max(b, -a) * 2, Math.max(d, -c) * 2]; })();
   let pw: number, ph: number, scale: number, auto = false;
   if (o.paper === 'fit') {
     scale = o.scale > 0 ? o.scale : recommendScale(site ? Math.abs(area(site[0])) / 1e4 : 1, K).scale; auto = !(o.scale > 0);
     const kk = 1000 / scale, w = ext[0] * 1.15 * kk, h = ext[1] * 1.15 * kk, col = hasCol ? 120 : 0;
-    pw = Math.ceil(w + 2 * M + (col ? col + gap : 0)); ph = Math.ceil(Math.max(h + 2 * M + (!hasCol && S.title ? 22 : 0), col ? 200 : 0));
+    pw = Math.ceil(w + 2 * M + (col ? col + gap : 0)); ph = Math.ceil(Math.max(h + 2 * M + (band ? BAND_H : !hasCol && S.title ? 22 : 0), col ? 200 : 0));
   } else {
     [pw, ph] = o.landscape ? PAPERS[o.paper] : [PAPERS[o.paper][1], PAPERS[o.paper][0]];
     const L0 = layout(pw, ph), need = Math.max(ext[0] * 1.15 / L0.vw, ext[1] * 1.15 / L0.vh) * 1000;
     auto = !(o.scale > 0);
     scale = o.scale > 0 ? o.scale : (SCALES.find(v => v >= need) ?? Math.ceil(need / 10000) * 10000);
   }
-  const { col, TB, vw, vh } = o.paper === 'fit' ? (() => { const c2 = hasCol ? 120 : 0; return { col: c2, TB: !hasCol && S.title ? 22 : 0, vw: pw - 2 * M - (c2 ? c2 + gap : 0), vh: ph - 2 * M - (!hasCol && S.title ? 22 : 0) }; })() : layout(pw, ph);
+  const { col, TB, vw, vh } = o.paper === 'fit' ? (() => { const c2 = hasCol ? 120 : 0; const tb = band ? BAND_H : !hasCol && S.title ? 22 : 0; return { col: c2, TB: tb, vw: pw - 2 * M - (c2 ? c2 + gap : 0), vh: ph - 2 * M - tb }; })() : layout(pw, ph);
   const vx = M, vy = M;
   const k = 1000 / scale; // 1 m → mm
   const fits = ext[0] * k <= vw + 0.5 && ext[1] * k <= vh + 0.5;
@@ -940,6 +946,26 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
       lay('Shtamp', 'Shtamp', out.join(''));
     }
     lay('Muallif', 'Muallif', `<text x="${n2(x0 + w)}" y="${n2(vy + vh + 4.5)}" font-size="${T(2.5)}" text-anchor="end" fill="#8a857c">Archemistry Lab · Master reja · ${esc(tr('Asos'))}: OpenStreetMap · ${nset === 'UZ' ? 'ShNQ 2.07.01-23' : 'NSW ADG 3F-1'} · ${esc(tr('qavat'))} ${fh} m</text>`);
+  } else if (band) {
+    // 13.11 pastki lenta: chapda sarlavha, oʻrtada shartli belgilar (ustunlarda), oʻngda shtamp
+    const y0 = vy + vh + 3, H = BAND_H - 3, st = o.stamp ?? {}, out: string[] = [];
+    out.push(`<path d="M${vx},${n2(y0)}H${n2(vx + vw)}" stroke="#1d1d1b" stroke-width="0.35"/>`);
+    const tw = Math.min(110, vw * 0.3), sw = S.stamp ? Math.min(100, vw * 0.26) : 0, lx = vx + tw + 6, lw2 = vw - tw - sw - 12;
+    if (S.title) out.push(`<text x="${vx}" y="${n2(y0 + 7)}" font-size="${T(5)}" font-weight="700" fill="#1d1d1b">${ttl}</text>`,
+      `<text x="${vx}" y="${n2(y0 + 13)}" font-size="${T(2.8)}" fill="#55524b">${esc(kindName)}</text><text x="${vx}" y="${n2(y0 + 17.5)}" font-size="${T(2.8)}" fill="#55524b">${scaleTxt} · ${d}</text>`,
+      `<text x="${vx}" y="${n2(y0 + H - 2)}" font-size="${T(2.3)}" fill="#8a857c">Archemistry Lab · ${esc(tr('Asos'))}: OpenStreetMap · ${esc(tr('qavat'))} ${fh} m</text>`);
+    if (S.legend && legend.length) {
+      const rowH = 4.6, rows = Math.max(1, Math.floor((H - 8) / rowH)), cw = 62, cols = Math.max(1, Math.floor(lw2 / cw));
+      out.push(`<text x="${n2(lx)}" y="${n2(y0 + 5.5)}" font-size="${T(2.8)}" font-weight="700" fill="#1d1d1b">${esc(tr('Shartli belgilar'))}</text>`);
+      legend.slice(0, rows * cols).forEach((it, i) => { const c = Math.floor(i / rows), r = i % rows, x = lx + c * cw, yy = y0 + 8.5 + r * rowH; out.push(legendSym(it, x, yy), `<text x="${n2(x + 8)}" y="${n2(yy + 2.3)}" font-size="${T(2.5)}" fill="#1d1d1b">${esc(it.label)}</text>`); });
+    }
+    if (S.stamp) {
+      const sx = vx + vw - sw, rows: [string, string][] = [[tr('Loyiha'), o.title || doc.name], [tr('Varaq'), `${st.num ? st.num + ' · ' : ''}${st.sheet || kindName}`], [tr('Muallif'), st.author || ''], [tr('Masshtab'), inner ? inner.label.replace(/^M /, '') : `1:${scale}`], [tr('Sana'), d], [tr('Varaq'), `${st.index ?? 1} / ${st.total ?? 1}`]];
+      const rh = (H - 2) / rows.length;
+      out.push(`<rect x="${n2(sx)}" y="${n2(y0 + 2)}" width="${n2(sw)}" height="${n2(H - 2)}" fill="#ffffff" stroke="#1d1d1b" stroke-width="0.3"/><path d="M${n2(sx + 20)},${n2(y0 + 2)}v${n2(H - 2)}" stroke="#1d1d1b" stroke-width="0.12"/>`);
+      rows.forEach(([a, b], i) => { const yy = y0 + 2 + (i + 0.72) * rh; if (i) out.push(`<path d="M${n2(sx)},${n2(y0 + 2 + i * rh)}h${n2(sw)}" stroke="#1d1d1b" stroke-width="0.12"/>`); const mx = Math.max(8, Math.floor((sw - 24) / 1.35)), bb = b.length > mx ? b.slice(0, mx - 1) + '…' : b; out.push(`<text x="${n2(sx + 1.5)}" y="${n2(yy)}" font-size="${T(2.4)}" fill="#6b6965">${esc(a)}</text><text x="${n2(sx + 22)}" y="${n2(yy)}" font-size="${T(2.5)}" fill="#1d1d1b">${esc(bb)}</text>`); });
+    }
+    lay('Pastki_lenta', 'Pastki lenta', out.join(''));
   } else {
     if (S.legend && legend.length) {
       const rowH = 4.6, w = 60, hgt = 7 + legend.length * rowH, lx = vx + vw - w - 4, ly = vy + vh - hgt - 4, out: string[] = [];

@@ -4,6 +4,7 @@ import { frame } from '../../src/core/geo';
 import { apply } from '../../src/core/commands';
 import { silhouette, heightAt, nextSecLabel } from '../../src/core/siluet';
 import { silSheet, silStats, SIL_STYLES } from '../../src/core/siluetsvg';
+import { sheetLayout, sheetSvg, SHEET_DEFAULT, type SheetOpts } from '../../src/core/sheet';
 import type { SheetCtx } from '../../src/core/sheet';
 
 /* 13.11 (egasi): master reja kesimi va fasadi atrof bilan */
@@ -109,5 +110,17 @@ describe('Kesim va fasad (atrof bilan)', () => {
     const d2 = apply(d, { type: 'setSections', sections: [{ id: 's2', a: G(60, -150), b: G(60, 150), label: '2', look: 1, depth: 200 }] });
     const t2 = silSheet(d2, c, 's2', s => s, 380, 220, 'kesim', { tahlil: true, wind: { dir: 90, prevailing: 'sharq', mean: 2.3 } }).body(0, 0, 380, 220);
     expect((t2.match(/data-sil="quyosh"/g) ?? []).length).toBe(3); expect(t2).toContain('data-sil="soya"'); expect(t2).toContain('data-sil="shamol"'); expect(t2).toContain('22.12 · 25,');
+  });
+  it('pastki lenta (13.11): oʻng ustun oʻrniga — chizma butun kenglikda, masshtab yiriklashadi', () => {
+    const base: SheetOpts = { ...SHEET_DEFAULT, landscape: true, mode: 'siluet', sec: 's1', show: { ...SHEET_DEFAULT.show, band: false } } as SheetOpts;
+    const a = sheetLayout(base), b = sheetLayout({ ...base, show: { ...base.show, band: true } });
+    // sukut: «Kesim va fasad» — lenta bilan, boshqa varaqlar — ustun bilan
+    expect(sheetLayout({ ...base, show: SHEET_DEFAULT.show }).col).toBe(0); expect(sheetLayout({ ...SHEET_DEFAULT, landscape: true } as SheetOpts).col).toBeGreaterThan(0);
+    expect(a.col).toBeGreaterThan(0); expect(b.col).toBe(0); expect(b.vw).toBeGreaterThan(a.vw + 80); expect(b.vh).toBeLessThan(a.vh);
+    const d = doc(), ob = { ...base, show: { ...base.show, band: true } } as SheetOpts;
+    const svg = sheetSvg(d, ctx(), ob, new Date(), false, s => s, silSheet(d, ctx(), 's1', s => s, b.vw, b.vh)).svg;
+    expect(svg).toContain('id="Pastki_lenta"'); expect(svg).toContain('Shartli belgilar'); expect(svg).not.toContain('id="Shtamp"');
+    // oddiy varaq (lentasiz) — oʻzgarmagan
+    expect(sheetSvg(d, ctx(), base, new Date(), false, s => s, silSheet(d, ctx(), 's1', s => s, a.vw, a.vh)).svg).toContain('id="Shtamp"');
   });
 });
