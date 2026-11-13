@@ -155,3 +155,13 @@ export async function loadLstLandsat(c: LngLat, R: number, step: number, f: type
   }
   return null;
 }
+
+/** Doira ichidagi eng issiq / eng salqin joylar (Jurnal, Issiq dogʻlar yorliqlari): bir-biridan ≥ max(200 m, r/3) uzoqda */
+export function heatSpots(v: Float32Array, n: number, step: number, mu: number, r: number, k = 3): { x: number; y: number; d: number }[] {
+  const c = (n - 1) / 2, cells: { x: number; y: number; d: number }[] = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = (i - c) * step, y = (j - c) * step, q = v[j * n + i]; if (Number.isNaN(q) || Math.hypot(x, y) > r - step) continue; cells.push({ x, y, d: q - mu }); }
+  const sep = Math.max(200, r / 3), pick = (arr: typeof cells, ok: (d: number) => boolean) => { const out: typeof cells = []; for (const p of arr) { if (!ok(p.d)) break; if (out.every(o => Math.hypot(o.x - p.x, o.y - p.y) >= sep)) out.push(p); if (out.length >= k) break; } return out; };
+  cells.sort((a, b) => b.d - a.d); const hot = pick(cells, d => d >= 1);
+  cells.sort((a, b) => a.d - b.d); const cold = pick(cells, d => d <= -1);
+  return [...hot, ...cold];
+}

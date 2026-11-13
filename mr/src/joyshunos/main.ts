@@ -29,7 +29,7 @@ import { distAt, type Net } from '../core/services';
 import { walkNet, strictNet, reach, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, noiseColor, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
 import { loadNarx, narxFC, narxAt, narxPolys, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
-import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, bilinear, type LstGrid, type Px } from './heat';
+import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, devColor, lstMean, bilinear, type LstGrid, type Px, heatSpots } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
 import { daySteps, insolation, sunPosition, localToUtcAt, type Prism } from '../core/sun';
 import { placeOf, placeLabel, utcLabel, tzOffsetH } from '../core/place';
@@ -1222,6 +1222,8 @@ function addOverlays(): void {
   m.addLayer({ id: 'joy-kadb', type: 'fill', source: 'joy-kadb', layout: { visibility: 'none' }, paint: { 'fill-color': ['get', 'col'], 'fill-opacity': 0.9, 'fill-outline-color': '#ffffff' } } as never, before);
   m.addLayer({ id: 'joy-kad', type: 'raster', source: 'joy-kad', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } } as never, before);
   m.addLayer({ id: 'joy-heat', type: 'raster', source: 'joy-heat', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.55, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
+  m.addSource('joy-heat-l', { type: 'geojson', data: fc([]) as never });
+  m.addLayer({ id: 'joy-heat-l', type: 'symbol', source: 'joy-heat-l', layout: { visibility: 'none', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 13, 'text-allow-overlap': true, 'text-anchor': 'center' }, paint: { 'text-color': ['get', 'c'], 'text-halo-color': ['get', 'hc'], 'text-halo-width': 1.6 } } as never);
   m.addLayer({ id: 'joy-sun', type: 'raster', source: 'joy-sun', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } } as never, before);
   m.addLayer({ id: 'joy-shadow', type: 'raster', source: 'joy-shadow', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.4, 'raster-fade-duration': 0 } } as never, before);
   heatKey = sunKey = shadowKey = '';
@@ -1285,7 +1287,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
-const HUD_LAYERS = ['joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1360,8 +1362,15 @@ function paintH(): void {
   const pwG = isOn('uylar') && !inTash(S.c) && POP.key === popKey() ? POP.v : undefined;
   if (isOn('uylar') && (pwG || (inTash(S.c) && KAD.v))) { const k = `${S.c.join()}|${S.r}|${V('uylar').st}|${pwG ? POP.key : 'kad'}`; if (k !== kadKey) { kadKey = k; upd('joy-kad', pwG ? popImage(pwG) : kadImage(KAD.v!, V('uylar').st)); } m.setLayoutProperty('joy-kad', 'visibility', 'visible'); }
   else if (m.getLayer('joy-kad')) m.setLayoutProperty('joy-kad', 'visibility', 'none');
-  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), k = `${S.c.join()}|${S.r}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}`; if (k !== heatKey) { heatKey = k; const mu = lstMean(lg0); const hc = (v: number) => Number.isNaN(v) ? null : heatCol(v - mu); upd('joy-heat', vh.st === 'geks' ? hexImage(lg0.v, lg0.n, lg0.step, S.r, hc, 210, S.r) : smoothImage(lg0.v, lg0.n, lg0.step, S.r, hc, 210)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
+  if (isOn('issiqlik') && lg0) { const vh = V('issiqlik'), vec = vh.st === 'binolar' || vh.st === 'kochalar', ok = !vec || axBundle?.key === `${S.c.join()}|${S.r + 100}`;
+    if (vec && !ok) void needCtx();
+    const k = `${S.c.join()}|${S.r}|${lg0.year}|${lg0.src}|${vh.p}|${vh.k.toFixed(2)}|${vh.st}|${ok ? axBundle?.key : '-'}|${isDark()}`; if (k !== heatKey) { heatKey = k; upd('joy-heat', heatImage(lg0, vh.st, ok)); } m.setLayoutProperty('joy-heat', 'visibility', 'visible'); }
   else m.setLayoutProperty('joy-heat', 'visibility', 'none');
+  { const vh = V('issiqlik'), on = isOn('issiqlik') && !!lg0 && (vh.st === 'jurnal' || vh.st === 'doglar');
+    if (m.getLayer('joy-heat-l')) m.setLayoutProperty('joy-heat-l', 'visibility', on ? 'visible' : 'none');
+    if (on) { const k = `${heatKey}|l`; if (k !== heatLKey) { heatLKey = k; const mu = lstMean(lg0!), fr = geoFrame(S.c), dg = vh.st === 'doglar', sp = heatSpots(lg0!.v, lg0!.n, lg0!.step, mu, S.r, dg ? 2 : 3), num = ['①', '②', '③', '④', '⑤', '⑥'];
+      const sg = (d: number) => `${d > 0 ? '+' : '−'}${fmt(Math.abs(d), 1)} °C`;
+      (m.getSource('joy-heat-l') as GeoJSONSource).setData(fc((dg ? sp.filter((p, i, A) => p.d > 0 || A.findIndex(q => q.d < 0) === i) : sp).map((p, i) => ({ type: 'Feature', properties: { t: dg ? `${num[i]} ${sg(p.d)}` : sg(p.d), c: dg ? '#ffffff' : p.d > 0 ? '#8f1d12' : '#16467e', hc: dg ? '#0d1627' : '#ffffff' }, geometry: { type: 'Point', coordinates: fr.toGeo([p.x, p.y]) } }))) as never); } } }
   // quyosh: soatlar toʻri + tanlangan soatdagi soyalar
   const sm = SM;
   if (isOn('quyosh') && sm?.hours) {
@@ -1378,7 +1387,7 @@ function paintH(): void {
   focusMap(m);
   // legenda: nishab va xizmatlar
   const lg: Node[] = [];
-  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n))));
+  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n)), heatNote()));
   if (sm?.hours && isOn('quyosh')) lg.push(V('quyosh').st === 'soya'
     ? h('div', { class: 'lg' }, h('b', {}, tf('Soyada, soat · ${d}', { d: tr(sunDay()[2]) })), ...SHADE_BINS.map(([v, n]) => h('span', {}, h('i', { style: `background:${rampColor(SHADE_PAL, v / 10)}` }), n)))
     : h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
@@ -1421,6 +1430,41 @@ function sunCol(hours: ArrayLike<number>): (x: number) => string | null {
   let mx = 0; for (let i = 0; i < hours.length; i++) if (hours[i] > mx) mx = hours[i];
   return x => Number.isNaN(x) ? null : rampColor(SHADE_PAL, Math.max(0, mx - x) / 10);
 }
+/** Issiqlik uslublari (13.11, kanvas 1–4): Jurnal (±0,5 °C rangsiz + yorliqlar), Binolar (har bino — u turgan katak rangi),
+ *  Issiq dogʻlar (±1 °C ichi toʻq fon, konturlar), Koʻchalar va tomlar (koʻcha — issiq rang, toʻqligi katakka qarab; tomlar; bogʻlar yashil).
+ *  Hammasi faqat tahlil doirasi ichida (canvas clip). Bino/koʻcha rangi — 100 m katak qiymati, alohida tom oʻlchovi emas. */
+function heatImage(g: LstGrid, st: string, vecOk: boolean): { url: string; coords: [number, number][] } {
+  const mu = lstMean(g), dAt = (x: number, y: number) => bilinear(g.v, g.n, g.step, x, y) - mu;
+  if (st === 'geks') return hexImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210, S.r);
+  if (st === 'jurnal') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) || Math.abs(v - mu) < 0.5 ? null : heatCol(v - mu), 220);
+  if (st === 'doglar') return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : Math.abs(v - mu) < 1 ? '#0d1627' : heatCol(v - mu), v => Math.abs(v - mu) < 1 ? 235 : 250);
+  if ((st !== 'binolar' && st !== 'kochalar') || !vecOk || !axBundle) return smoothImage(g.v, g.n, g.step, S.r, v => Number.isNaN(v) ? null : heatCol(v - mu), 210);
+  const px = 768, clip = S.r, k = px / (2 * clip), cv = document.createElement('canvas'); cv.width = cv.height = px;
+  const cx = cv.getContext('2d')!, fr = geoFrame(S.c), P = (q: LngLat): [number, number] => { const [x, y] = fr.toLocal(q); return [(x + clip) * k, (clip - y) * k]; };
+  cx.beginPath(); cx.arc(px / 2, px / 2, clip * k, 0, 2 * Math.PI); cx.clip();
+  const o = axBundle.b.osm, ring = (r: LngLat[]) => { r.forEach((q, i) => { const [a, b] = P(q); if (i) cx.lineTo(a, b); else cx.moveTo(a, b); }); cx.closePath(); };
+  const ctr = (r: LngLat[]) => { let a = 0, b = 0; for (const q of r) { const [x, y] = fr.toLocal(q); a += x; b += y; } return [a / r.length, b / r.length]; };
+  if (st === 'kochalar') {
+    cx.fillStyle = isDark() ? '#24402c' : '#cfe6c0';
+    for (const a of o.green) { cx.beginPath(); for (const r of a.rings) ring(r); cx.fill('evenodd'); }
+    const warm = ['#fbe3cf', '#f6b27c', '#e06a35', '#a8321b', '#6e1a0e'];
+    cx.lineCap = 'round'; cx.lineJoin = 'round';
+    for (const r of o.roads) for (let i = 1; i < r.pts.length; i++) {
+      const a = fr.toLocal(r.pts[i - 1]), b = fr.toLocal(r.pts[i]), d = dAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); if (Number.isNaN(d)) continue;
+      cx.strokeStyle = rampColor(warm, Math.max(0, Math.min(1, 0.4 + d / 8))); cx.lineWidth = Math.max(1.5, Math.min(30, r.w || 6) * k);
+      cx.beginPath(); cx.moveTo(...P(r.pts[i - 1])); cx.lineTo(...P(r.pts[i])); cx.stroke();
+    }
+  }
+  cx.strokeStyle = isDark() ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.7)'; cx.lineWidth = 0.6;
+  for (const b of o.buildings) { const r = b.rings[0]; if (!r || r.length < 3) continue; const [x, y] = ctr(r), d = dAt(x, y); if (Number.isNaN(d)) continue; cx.fillStyle = heatCol(d); cx.beginPath(); for (const rr of b.rings) ring(rr); cx.fill('evenodd'); cx.stroke(); }
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  return { url: cv.toDataURL(), coords: [[S.c[0] - clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] + clip / ky], [S.c[0] + clip / kx, S.c[1] - clip / ky], [S.c[0] - clip / kx, S.c[1] - clip / ky]] };
+}
+/** Uslubga xos izoh (shartli belgilar ostida) */
+function heatNote(): HTMLElement | null {
+  const st = V('issiqlik').st, t = st === 'jurnal' ? tr('±0,5 °C — rangsiz (fonga teng)') : st === 'doglar' ? tr('Fondan ±1 °C ichidagi hudud koʻrsatilmaydi; chiziqlar: +1, +2, +3 va −1, −2 °C') : st === 'binolar' ? tr('Bino rangi — u turgan 100 m katak qiymati, alohida tom oʻlchovi emas') : st === 'kochalar' ? tr('Uslub koʻrinishi, alohida oʻlchov emas: koʻcha va tom bitta 100 m katak qiymatini oladi; yashil — bogʻ, maysa') : '';
+  return t ? h('em', { class: 't-small', style: 'display:block;flex-basis:100%;font-style:normal;opacity:.8' }, t) : null;
+}
 function heatCol(d: number): string { const v = V('issiqlik'), pal = VIEW.issiqlik.pals![v.p][1]; return rampColor(pal, 0.5 + d / (2 * (4.6 - 3.4 * v.k))); }
 function noiseCol(db: number): string { const v = V('shovqin'), pal = VIEW.shovqin.pals![v.p][1], i = NOISE_BINS.findIndex(([t]) => db < t); return pal[Math.min(pal.length - 1, i < 0 ? pal.length - 1 : i)]; }
 /** Izochiziqlar va strelkalar: relyef (topo), nishab (pasayish), issiqlik (izotermalar), shovqin (izofonlar) */
@@ -1429,8 +1473,8 @@ function paintIso(m: MLMap): void {
   const t = D.ter.v, lg0 = D.lst.v, nz = NM?.noise;
   const topoOn = isOn('relyef') && !!t && V('relyef').st === 'topo', arrOn = isOn('nishab') && !!t && V('nishab').st === 'strelka';
   const vi = V('issiqlik'), vn = V('shovqin');
-  const heatIso = isOn('issiqlik') && !!lg0 && vi.st === 'izoterma', noiseIso = isOn('shovqin') && !!nz && vn.st === 'kontur';
-  const key = [S.c.join(), S.r, topoOn, arrOn, heatIso && `${lg0!.year}|${lg0!.src}|${vi.p}|${vi.k.toFixed(2)}`, noiseIso && `${NM!.key}|${vn.p}`, isDark()].join('|');
+  const heatIso = isOn('issiqlik') && !!lg0 && (vi.st === 'izoterma' || vi.st === 'doglar'), noiseIso = isOn('shovqin') && !!nz && vn.st === 'kontur';
+  const key = [S.c.join(), S.r, topoOn, arrOn, heatIso && `${lg0!.year}|${lg0!.src}|${vi.p}|${vi.k.toFixed(2)}|${vi.st}`, noiseIso && `${NM!.key}|${vn.p}`, isDark()].join('|');
   vis('joy-topo', topoOn); vis('joy-topo-l', topoOn); vis('joy-arr', arrOn); vis('joy-iso', heatIso || noiseIso);
   if (key === isoKey) return; isoKey = key;
   const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
@@ -1453,8 +1497,10 @@ function paintIso(m: MLMap): void {
   }
   if (heatIso && lg0) {
     const mu = lstMean(lg0); let lo = Infinity, hi = -Infinity; for (const v of lg0.v) if (!Number.isNaN(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-    const lv: number[] = []; for (let v = Math.ceil((lo - mu) * 2) / 2; v <= hi - mu; v += 0.5) lv.push(mu + v);
-    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, S.r)) for (const line of joinSegs(L.segs)) for (const part of clipLine(line, S.r)) iso.push({ type: 'Feature', properties: { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: part.map(geo(S.c)) } });
+    const dg = vi.st === 'doglar', lv: number[] = [];
+    if (dg) for (const d of [-2, -1, 1, 2, 3]) lv.push(mu + d);   // 13.11 (kanvas 3): +1, +2, +3 va −1, −2 °C konturlari
+    else for (let v = Math.ceil((lo - mu) * 2) / 2; v <= hi - mu; v += 0.5) lv.push(mu + v);
+    for (const L of isolines(lg0.v, lg0.n, lg0.step, lv, S.r)) for (const line of joinSegs(L.segs)) for (const part of clipLine(line, S.r)) iso.push({ type: 'Feature', properties: dg ? { c: L.lv > mu ? '#ffe2c4' : '#bfe3ff', mj: Math.abs(L.lv - mu) >= 1.99 } : { c: heatCol(L.lv - mu), mj: Math.abs((L.lv - mu) % 1) < 0.01 }, geometry: { type: 'LineString', coordinates: part.map(geo(S.c)) } });
   }
   if (noiseIso && nz) for (const L of isolines(nz.v, nz.n, nz.step, [50, 55, 60, 65, 70, 75])) for (const line of joinSegs(L.segs)) for (const part of clipLine(line, S.r)) iso.push({ type: 'Feature', properties: { c: noiseCol(L.lv + 0.1), mj: L.lv === 65 }, geometry: { type: 'LineString', coordinates: part.map(geo(S.c)) } });
   (m.getSource('joy-topo') as GeoJSONSource).setData(fc(topo) as never);
@@ -1536,7 +1582,7 @@ function focusMap(m: MLMap): void {
   set('joy-narx-f', 'fill-opacity', q('narx', 0.35, 0.9)); set('joy-narx-l', 'line-opacity', 0.8 * k('narx')); set('joy-arr', 'icon-opacity', q('nishab', 0.4, 1));
   set('joy-kad', 'raster-opacity', q('uylar', 0.35, 0.88) * (isOn('uylar') && kadOwnerFeats() ? 0.35 : 1));
   set('joy-kadb', 'fill-opacity', q('uylar', 0.4, 0.92));
-  set('joy-heat', 'raster-opacity', q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : 1));
+  set('joy-heat', 'raster-opacity', V('issiqlik').st === 'doglar' ? Math.min(1, q('issiqlik', 0.6, 1)) : q('issiqlik', 0.3, 0.85) * (V('issiqlik').st === 'izoterma' ? 0.45 : /^(binolar|kochalar)$/.test(V('issiqlik').st) ? 1.15 : 1));
   set('joy-iso', 'line-opacity', Math.max(q('issiqlik', 0.5, 1), q('shovqin', 0.5, 1)));
   set('joy-sun', 'raster-opacity', q('quyosh', 0.35, 0.95));
   set('joy-shadow', 'raster-opacity', q('quyosh', 0.2, 0.55));
@@ -1789,7 +1835,7 @@ async function report(kind: 'pdf' | 'svg' | 'chz'): Promise<void> {
   } catch (e) { toast(`${tr('Hisobot tayyorlanmadi')}: ${(e as Error).message}`); }
   finally { repBusy = false; renderRight(); }
 }
-let noiseKey = '', heatKey = '', sunKey = '', shadowKey = '';
+let noiseKey = '', heatLKey = '', heatKey = '', sunKey = '', shadowKey = '';
 /** Markazga nisbatan toʻr (n×n, qadam step, yarim kenglik R) → rasm; clip — shu radiusdan tashqari shaffof */
 function gridImage(vals: Float32Array, n: number, step: number, R: number, col: (v: number) => string | null, alpha = 200, clip?: number): { url: string; coords: [number, number][] } {
   const cv = document.createElement('canvas'); cv.width = cv.height = n;
