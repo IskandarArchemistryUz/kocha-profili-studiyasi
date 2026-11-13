@@ -4,6 +4,7 @@
  * Maʼlumot: OSM kontekst toʻplami (binolar, yoʻllar, daraxtlar — ContextManager), qoʻshimcha Overpass soʻrovi
  * (piyoda oʻtish joylari, svetofor, bekatlar, doʻkon/xizmatlar, yoʻl tezligi).
  */
+import { scoped } from '../core/projctx';
 import type { Map as MLMap, GeoJSONSource, Marker } from 'maplibre-gl';
 import type { LngLat } from '../core/doc';
 import { h, svgIcon, fmt, toast } from '../ui/dom';
@@ -31,7 +32,7 @@ const SUN_M = 7, SUN_D = 15, SUN_H = 15.5;
 export const LV_COL: Record<Lv, string> = { c: '#c8452f', w: '#e0a400', g: '#4f9a5b', u: '#cfccc5', i: '#b9c4cc' };
 interface Counts { car?: number; ped?: number; bike?: number; when?: string }
 interface Saved { /** pastki panel: bloklar matritsasi (sukut) yoki 20 m li batafsil lenta */ view?: 'bloklar' | 'batafsil'; A?: LngLat | null; B?: LngLat | null; metric?: Metric; counts?: Record<string, Counts>; /** 'draw' — koʻchani oʻzi chizadi (sukut), 'ab' — A → B yoʻl izlash */ mode?: 'draw' | 'ab'; line?: LngLat[] | null }
-const SK = 'joy-street';
+const SK = scoped('joy-street');
 const st: Saved = (() => { try { return JSON.parse(localStorage.getItem(SK) || 'null') ?? {}; } catch { return {}; } })();
 const save = () => { try { localStorage.setItem(SK, JSON.stringify(st)); } catch { /* */ } };
 

@@ -7,6 +7,7 @@
  * Master rejadan kelinmagan boʻlsa — har doim yangi alohida loyiha.
  */
 import { getMrReturn, type MrReturn } from './mrback';
+import { ctxProject } from '../core/projctx';
 import { tr, tf } from '../i18n';
 import type { LngLat } from '../core/doc';
 
@@ -58,7 +59,13 @@ export function askTarget(r: MrReturn, name: string, center?: LngLat | null): Pr
 
 /** Qaysi loyihaga: Master rejadan kelinmagan — yangi; kelingan — tanlov oynasi */
 export async function chzTarget(name: string, center?: LngLat | null): Promise<ChzTarget | null> {
-  const r = getMrReturn();
+  let r = getMrReturn();
+  // 3-PR: loyiha ichida (?p=) ochilgan xizmat — oʻsha loyiha (sessionStorage dagi boshqa loyiha emas)
+  const p = ctxProject();
+  if (p && r?.id !== p) {
+    const d = await (await import('../storage/db')).getProject(p).catch(() => null);
+    r = d ? { id: p, name: d.name, step: '', cam: null, at: Date.now(), origin: [d.origin[0], d.origin[1]], hasSite: !!d.site?.rings[0]?.length } : r;
+  }
   return r ? askTarget(r, name, center) : newTarget(name, center);
 }
 /** Varaqni navbatga qoʻyib, Chizmadonni ochadi. 'cancel' — foydalanuvchi bekor qildi; false — brauzer xotirasi toʻla */

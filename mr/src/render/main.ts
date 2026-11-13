@@ -7,6 +7,7 @@
  *   Natija: asl bilan solishtirish, PNG, Chizmadonga, asos yoki referens qilish.
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
+import { scoped, svcHref } from '../core/projctx';
 import { langMenu } from '../ui/langmenu';
 import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
@@ -39,9 +40,9 @@ const ICON = {
 const ic = (d: string) => svgIcon(d);
 export const SERVICES = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
-  { id: 'ks', name: 'Koʻchasoz', href: './kochasoz.html', color: 'var(--svc-ks)' },
-  { id: 'joy', name: 'Joyshunos', href: './joyshunos.html', color: 'var(--svc-joy)' },
-  { id: 'ren', name: 'Render', href: './render.html', color: 'var(--svc-ren)', cur: true, beta: true },
+  { id: 'ks', name: 'Koʻchasoz', href: svcHref('./kochasoz.html'), color: 'var(--svc-ks)' },
+  { id: 'joy', name: 'Joyshunos', href: svcHref('./joyshunos.html'), color: 'var(--svc-joy)' },
+  { id: 'ren', name: 'Render', href: svcHref('./render.html'), color: 'var(--svc-ren)', cur: true, beta: true },
   { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
 ];
@@ -52,7 +53,7 @@ const MAX_REFS = 4;
 const A = loadState();
 interface Ref { id: string; img: string; name: string; role: RefRole }
 let SRC: RenderSrc[] = [], OUT: RenderOut[] = [], REFS: Ref[] = [];
-let baseId = (() => { try { return localStorage.getItem('render-base') || ''; } catch { return ''; } })();
+let baseId = (() => { try { return localStorage.getItem(scoped('render-base')) || ''; } catch { return ''; } })();
 let view: 'asos' | 'natija' | 'cmp' = 'asos', busy = false, prog = '', err = '', needBuy = false, pickOpen = false, roleOpen = -1, allOuts = false;
 /** Server sozlamasi (null — hali olinmagan yoki server javob bermadi) */
 let CFG: RenderCfg | null = null;
@@ -69,7 +70,7 @@ const engName = (e: string) => {
   if (e === 'enhance') return tr('Tiniqlashtirish'); const l = LAB.find(x => x[0] === e); return l ? l[1] : `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`; };
 let viewer: { id: string; mode: 'natija' | 'cmp' | 'yon' } | null = null;
 const base = () => SRC.find(s => s.id === baseId) ?? null;
-const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem('render-base', id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
+const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem(scoped('render-base'), id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
 const saveRefs = () => { void cachePut('render-refs', REFS).catch(() => {}); };
 const save = () => saveState(A);
 

@@ -6,6 +6,7 @@
  * Manbasi hali ulanmagan qatlamlar «Tez orada» (Iskandar, 2026-10-18: «birlamchi maʼlumot ololsak — beta, ololmasak — ishlab chiqib qoʻshamiz»).
  * Eski toʻliq asboblar (gis, shamol, posadka, ai) — panel pastidagi havolalar orqali ochiq qoladi (0-qoida).
  */
+import { scoped, svcHref, ctxProject, seedSite } from '../core/projctx';
 import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import './joy.css';
@@ -93,11 +94,13 @@ interface State { siteSt?: SiteSt; /** issiqlik: tanlangan yil (Landsat arxivi 2
 /** uchastka uslubi xaritada */
 type SiteSt = 'kontur' | 'yashil' | 'shtrix' | 'yorug';
 const DEF: State = { c: [69.2797, 41.3111], r: 500, on: ['relyef', 'shamol', 'xizmat', 'raqobat'], cat: 'cafe', base: 'stil' };
+/** 3-PR (14.11): loyiha ichida (?p=) birinchi marta ochilyaptimi — u holda markaz va hudud loyiha uchastkasidan olinadi */
+const FRESH = !!ctxProject() && (() => { try { return !localStorage.getItem(scoped('joy-state')); } catch { return false; } })();
 const S: State = (() => {
-  try { const o = JSON.parse(localStorage.getItem('joy-state') || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
+  try { const o = JSON.parse(localStorage.getItem(scoped('joy-state')) || 'null'); if (o && Array.isArray(o.c)) return { ...DEF, ...o, on: (o.on as LayerId[]).filter(id => LAYERS.some(l => l.id === id && l.ready)) }; } catch { /* */ }
   return { ...DEF };
 })();
-const save = () => { try { localStorage.setItem('joy-state', JSON.stringify(S)); } catch { /* */ } };
+const save = () => { try { localStorage.setItem(scoped('joy-state'), JSON.stringify(S)); } catch { /* */ } };
 /** Toshkent shahri (kadastr va uybor.uz qamrovi) */
 const TASH_BBOX = [69.12, 41.16, 69.48, 41.42] as const;
 const inTash = (c: LngLat) => c[0] >= TASH_BBOX[0] && c[0] <= TASH_BBOX[2] && c[1] >= TASH_BBOX[1] && c[1] <= TASH_BBOX[3];
@@ -650,9 +653,9 @@ const ICON = {
 };
 const SERVICES = [
   { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
-  { id: 'ks', name: 'Koʻchasoz', href: './kochasoz.html', color: 'var(--svc-ks)' },
-  { id: 'joy', name: 'Joyshunos', href: './joyshunos.html', color: 'var(--svc-joy)', cur: true },
-  { id: 'ren', name: 'Render', href: './render.html', color: 'var(--svc-ren)', beta: true },
+  { id: 'ks', name: 'Koʻchasoz', href: svcHref('./kochasoz.html'), color: 'var(--svc-ks)' },
+  { id: 'joy', name: 'Joyshunos', href: svcHref('./joyshunos.html'), color: 'var(--svc-joy)', cur: true },
+  { id: 'ren', name: 'Render', href: svcHref('./render.html'), color: 'var(--svc-ren)', beta: true },
   { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
 ];
@@ -888,10 +891,10 @@ function ringArea(r: LngLat[]): number { const [kx, ky] = kxy(r[0]); let a = 0; 
 function lineLen(r: LngLat[]): number { let L = 0; for (let i = 1; i < r.length; i++) L += distM(r[i - 1], r[i]); return L; }
 function ringPerim(r: LngLat[]): number { return lineLen([...r, r[0]]); }
 /** Ekotizimdagi umumiy hudud («kps_site»: ring — [kenglik, uzunlik]) */
-function kpsSite(): LngLat[] | null { try { const o = JSON.parse(localStorage.getItem('kps_site') || 'null'); if (o && Array.isArray(o.ring) && o.ring.length > 2) return o.ring.map((p: number[]) => [+p[1], +p[0]] as LngLat); } catch { /* */ } return null; }
+function kpsSite(): LngLat[] | null { try { const o = JSON.parse(localStorage.getItem(scoped('kps_site')) || 'null'); if (o && Array.isArray(o.ring) && o.ring.length > 2) return o.ring.map((p: number[]) => [+p[1], +p[0]] as LngLat); } catch { /* */ } return null; }
 function setSite(r: LngLat[] | null, write = true): void {
   S.site = r; save();
-  if (write) try { if (r) localStorage.setItem('kps_site', JSON.stringify({ t: Date.now(), mode: 'poly', ring: r.map(p => [+p[1].toFixed(6), +p[0].toFixed(6)]), center: null, r: null, areaM2: Math.round(ringArea(r)), src: 'joyshunos' })); } catch { /* */ }
+  if (write) try { if (r) localStorage.setItem(scoped('kps_site'), JSON.stringify({ t: Date.now(), mode: 'poly', ring: r.map(p => [+p[1].toFixed(6), +p[0].toFixed(6)]), center: null, r: null, areaM2: Math.round(ringArea(r)), src: 'joyshunos' })); } catch { /* */ }
   renderLeft(); renderRight(); paintDraw(); if (mode === 'axo') axBuild();
 }
 function startDraw(k: DrawKind): void {
@@ -2276,14 +2279,14 @@ let axBundle: { key: string; b: ContextBundle } | null = null, axMsg = '', axSat
 type AxSt = 'albom' | 'rangli' | 'arctic' | 'funksiya' | 'minimal' | 'tungi' | 'palitra';
 const AX_STYLES: [AxSt, string, string][] = [['albom', 'Qogʻoz', 'oq binolar, soyalar'], ['rangli', 'Shahar ranglari', 'OSM ranglari, sunʼiy yoʻldosh'], ['arctic', 'Gips maket', 'oq gil model'], ['funksiya', 'Funksional', 'funksiya ranglari'], ['minimal', 'Chizma', 'oq-qora grafika'], ['tungi', 'Tungi', 'qorongʻi fon, yorqin tahlil'], ['palitra', 'Xarita palitrasi', '7 ta uslubdan']];
 let axStyle: AxSt = (() => { try { const v = localStorage.getItem('joy-axstyle') ?? localStorage.getItem('mr-style'); return AX_STYLES.some(x => x[0] === v) ? v as AxSt : 'albom'; } catch { return 'albom'; } })();
-const AXST = (() => { try { return JSON.parse(localStorage.getItem('joy-axo') || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string; col?: Record<string, string>; lbl?: string } | null; } catch { return null; } })() ?? {};
+const AXST = (() => { try { return JSON.parse(localStorage.getItem(scoped('joy-axo')) || 'null') as { view?: string; order?: string[]; vis?: Record<string, boolean>; ex?: boolean; gap?: number; day?: number; hour?: number; anim?: boolean; sun?: string; col?: Record<string, string>; lbl?: string } | null; } catch { return null; } })() ?? {};
 /** E4a: foydalanuvchi ranglari (asosiy obyekt, tahlil 1, tahlil 2, atrof) — boʻsh boʻlsa uslub rangi */
 type AxColKey = 'main' | 'a1' | 'a2' | 'atrof';
 const AX_COLS: [AxColKey, string, string][] = [['main', 'Asosiy obyekt', 'uchastka va markaz'], ['a1', 'Tahlil 1', 'quyosh, shamol'], ['a2', 'Tahlil 2', 'radius halqasi'], ['atrof', 'Atrof binolari', 'kontekst']];
 const AX_SW = ['#d2492f', '#e0532c', '#c0643a', '#e8a317', '#f2c94c', '#3f8f6b', '#2f8a5f', '#3a7bd5', '#24507e', '#7b74d6', '#141518', '#5c5a55', '#9a978f', '#c9c2b5', '#dedad2', '#f1efea', '#ffffff', '#2a2e34'];
 const axCol: Partial<Record<AxColKey, string>> = (() => { const o: Partial<Record<AxColKey, string>> = {}; const c = AXST.col ?? {}; for (const [k] of AX_COLS) { const v = c[k]; if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) o[k] = v.toLowerCase(); } return o; })();
 let axColOpen = false;
-function axSave(): void { if (!axo) return; try { localStorage.setItem('joy-axo', JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook, col: axCol, lbl: axo.labelMode })); } catch { /* */ } }
+function axSave(): void { if (!axo) return; try { localStorage.setItem(scoped('joy-axo'), JSON.stringify({ view: axo.view, order: axo.order, vis: axo.vis, ex: axo.exploded, gap: axo.gap, day: axo.day, hour: axo.hour, anim: axo.animate, sun: axo.sunStyle, city: axo.cityLook, site: axo.siteLook, col: axCol, lbl: axo.labelMode })); } catch { /* */ } }
 function renderMode(): void {
   modeSw.replaceChildren(h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') },
     ...([['map', 'Xarita', 'Xarita'], ['axo', 'Aksonometriya', 'Akson.']] as const).map(([k, n, s]) => h('button', { type: 'button', 'data-mode': k, 'aria-pressed': mode === k, title: tr(n), onclick: () => setMode(k) }, h('span', { class: 'l' }, tr(n)), h('span', { class: 's', 'aria-hidden': 'true' }, tr(s))))));
@@ -2624,6 +2627,16 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Backspace') { d.pts.pop(); renderLeft(); paintDraw(); }
   }
 });
-void initMap().catch(e => { mapEl.append(h('div', { class: 'joy-maperr note warn' }, tr('Xarita yuklanmadi'), ': ', String((e as Error).message || e))); });
+/** 3-PR: Master reja loyihasi ichida birinchi ochilganda — tahlil markazi va hududi shu loyihadan */
+async function fromProject(): Promise<void> {
+  const p = ctxProject(); if (!p || !FRESH) return;
+  const d = await (await import('../storage/db')).getProject(p).catch(() => null); if (!d) return;
+  if (seedSite(p, d.site?.rings[0])) {
+    const r = kpsSite();
+    if (r) { const c: LngLat = [r.reduce((a, q) => a + q[0], 0) / r.length, r.reduce((a, q) => a + q[1], 0) / r.length]; pick(c, true); setSite(r, false); return; }
+  }
+  if (d.origin && Number.isFinite(d.origin[0])) pick([d.origin[0], d.origin[1]], true);
+}
+void initMap().then(() => fromProject()).catch(e => { mapEl.append(h('div', { class: 'joy-maperr note warn' }, tr('Xarita yuklanmadi'), ': ', String((e as Error).message || e))); });
 ensure();
 if (mode === 'axo') void enterAxo();
