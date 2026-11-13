@@ -27,7 +27,7 @@ export const svcDef = (k: Svc) => SERVICES.find(s => s.id === k)!;
 export const LOW_DENSITY_R: Partial<Record<Svc, number>> = { mtm: 500, dorixona: 800 };
 
 /* ---------------- piyoda tarmogʻi ---------------- */
-export interface Net { xy: XY[]; adj: { to: number; w: number }[][]; segs: [number, number][]; grid: Map<string, number[]>; C: number }
+export interface Net { xy: XY[]; adj: { to: number; w: number }[][]; segs: [number, number][]; grid: Map<string, number[]>; C: number; /** 13.11: oʻchirilgan qirralar (qattiq piyoda tarmogʻi) */ off?: Uint8Array }
 
 const key = (p: XY) => `${Math.round(p[0] * 2)},${Math.round(p[1] * 2)}`;
 

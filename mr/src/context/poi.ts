@@ -11,10 +11,10 @@ import { overpass } from './load';
 
 export interface Poi { id: string; kind: Svc; at: LngLat; name?: string }
 /** roads — xizmat radiuslari uchun piyoda tarmogʻi (kontekstdan kengroq, 2 km): [cls, nuqtalar] */
-export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[] }[] }
+export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[]; f?: string }[]; attr?: { at: LngLat; w: number }[] }
 
 export const POI_R = 2000;
-export const poiKey = (c: LngLat) => `poi3:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
+export const poiKey = (c: LngLat) => `poi4:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
 
 const SHOP = /^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$/;
 export function classify(t: Record<string, string>): Svc | null {
@@ -44,10 +44,38 @@ export function parsePoi(j: { elements?: El[] }): Poi[] {
   return out;
 }
 
+/** Odamlarni oʻziga tortadigan joylar (13.11, oqim modeli uchun): savdo markazi, bozor, ovqatlanish, oliygoh, kino/teatr — vazn bilan */
+export function attrWeight(t: Record<string, string>): number {
+  if (t.highway) return 0;
+  if (t.shop === 'mall' || t.shop === 'department_store') return 12;
+  if (t.amenity === 'marketplace') return 8;
+  if (t.amenity === 'university' || t.amenity === 'college') return 6;
+  if (t.amenity === 'cinema' || t.amenity === 'theatre') return 3;
+  if (t.amenity === 'food_court') return 3;
+  if (t.amenity === 'restaurant' || t.amenity === 'cafe' || t.amenity === 'fast_food') return 1.5;
+  return 0;
+}
+export function parseAttr(j: { elements?: El[] }): { at: LngLat; w: number }[] {
+  const out: { at: LngLat; w: number }[] = [];
+  for (const e of j.elements || []) {
+    const w = attrWeight(e.tags || {}); if (!w) continue;
+    const p = e.type === 'node' ? (e.lat != null ? { lat: e.lat, lon: e.lon! } : null) : e.center; if (!p) continue;
+    out.push({ at: [Math.round(p.lon * 1e6) / 1e6, Math.round(p.lat * 1e6) / 1e6], w });
+  }
+  return out;
+}
 export function parseRoads(j: { elements?: El[] }): PoiBundle['roads'] {
   const r = (v: number) => Math.round(v * 1e6) / 1e6;
   return (j.elements || []).filter(e => e.type === 'way' && e.tags?.highway && e.geometry && e.geometry.length >= 2)
-    .map(e => ({ cls: e.tags!.highway, pts: e.geometry!.filter((g): g is { lat: number; lon: number } => !!g).map(g => [r(g.lon), r(g.lat)] as LngLat) }));
+    .map(e => { const t = e.tags!, f = roadFlags(t); return { cls: t.highway, pts: e.geometry!.filter((g): g is { lat: number; lon: number } => !!g).map(g => [r(g.lon), r(g.lat)] as LngLat), ...(f ? { f } : {}) }; });
+}
+/** Piyoda uchun muhim teglar (13.11) qisqa bayroqlarda: b — koʻprik/estakada/tunnel, n — piyodaga taqiqlangan (foot=no, access=no), s — trotuar alohida chizilgan yoki yoʻq */
+export function roadFlags(t: Record<string, string>): string {
+  let f = '';
+  if ((t.bridge && t.bridge !== 'no') || (t.tunnel && t.tunnel !== 'no') || Number(t.layer) >= 1) f += 'b';
+  if (t.foot === 'no' || t.foot === 'use_sidepath' || ((t.access === 'no' || t.access === 'private') && t.foot !== 'yes' && t.foot !== 'designated')) f += 'n';
+  if (/^(separate|no|none)$/.test(t.sidewalk ?? t['sidewalk:both'] ?? '')) f += 's';
+  return f;
 }
 
 export async function fetchPoi(center: LngLat, f: typeof fetch = fetch.bind(globalThis)): Promise<PoiBundle> {
@@ -63,8 +91,9 @@ export async function fetchPoi(center: LngLat, f: typeof fetch = fetch.bind(glob
   nwr["public_transport"="platform"]["bus"="yes"];
   nwr["public_transport"="platform"]["trolleybus"="yes"];
   nwr["railway"="station"]["station"="subway"];
+  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court|university|college|cinema|theatre)$"];
 );out center qt;
 way["highway"]["area"!="yes"]["highway"!~"^(motorway|motorway_link|construction|proposed|raceway|bus_guideway)$"];out geom qt;`;
   const j = await overpass(q, f, () => {}) as { elements?: El[] };
-  return { center, radius: POI_R, fetched: new Date().toISOString(), pois: parsePoi(j), roads: parseRoads(j) };
+  return { center, radius: POI_R, fetched: new Date().toISOString(), pois: parsePoi(j), roads: parseRoads(j), attr: parseAttr(j) };
 }

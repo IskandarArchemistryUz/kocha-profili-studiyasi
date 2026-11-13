@@ -16,7 +16,7 @@ export function windSpeedGrid(blds: XY[][], fromDeg: number, R: number, n = 160)
 export function windFlow(blds: XY[][], fromDeg: number, R: number, density = 0.5): FlowLine[] {
   const { S, vel, tang, wx, wy, G } = windField(blds, fromDeg, R);
   const out: FlowLine[] = [], nx = -wy, ny = wx, sp = R / (8 + 22 * density), step = G;
-  for (let s = -R * 1.45; s < R * 1.45; s += sp) {
+  for (let s = -R * 1.45, k = 1; s < R * 1.45; s += sp * (0.7 + 0.6 * jit(k++))) {   // 13.11: oraliq tasodifiy — qatorlar «chiziqli daftar» boʻlib koʻrinmaydi
     let x = -wx * R * 1.45 + nx * s, y = -wy * R * 1.45 + ny * s, L: XY[] = [], V: number[] = [];
     for (let t = 0; t < 1200; t++) {
       if (Math.abs(x) > R || Math.abs(y) > R) { if (L.length > 6) out.push({ pts: L, v: V }); L = []; V = []; x += wx * step; y += wy * step; if (t > 50 && Math.abs(x) > R * 1.5) break; continue; }
@@ -30,6 +30,7 @@ export function windFlow(blds: XY[][], fromDeg: number, R: number, density = 0.5
   }
   return out;
 }
+const jit = (k: number) => { const x = Math.sin(k * 12.9898) * 43758.5453; return x - Math.floor(x); };
 function inPoly(x: number, y: number, P: XY[]): boolean { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [a, b] = P[i], [e, f] = P[j]; if ((b > y) !== (f > y) && x < (e - a) * (y - b) / (f - b) + a) c = !c; } return c; }
 
 /** Siniq chiziqni doira (markaz 0,0, radius r) bilan kesish: faqat ichki boʻlaklar, chegarada aniq nuqta bilan (12.11 — doiradan hech narsa chiqmasin) */
