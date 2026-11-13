@@ -123,3 +123,24 @@ test('uy narxlari — ijara va yangi / ikkilamchi tanlovi', async ({ page }) => 
   await expect(card.locator('.big')).toHaveText(/3.?115 \$\/m²$/, { timeout: 20_000 });
   expect(errs).toEqual([]);
 });
+
+/** 13.11: Toshkentdan tashqarida — «Uylar va aholi» va «Uy narxlari» oʻchiq, «Faqat Toshkent» belgisi; Toshkentga qaytganda yana yoqiladi */
+test('faqat Toshkent qatlamlari qamrovdan tashqarida', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errs: string[] = [];
+  await page.route(/raw\.githubusercontent\.com\/.*toshkent_hex\.json/, r => r.fulfill({ path: NARX, contentType: 'application/json' }));
+  await open(page, errs);
+  await joyClick(page, 'narx', '.switch');
+  await expect(page.locator('[data-card=narx]')).toBeVisible();
+  await moveTo(page, [66.9597, 39.6542]);   // Samarqand
+  for (const id of ['narx', 'uylar']) {
+    await expect(page.locator(`[data-layer=${id}] em.soon`)).toHaveText('Faqat Toshkent');
+    await expect(page.locator(`[data-layer=${id}] .switch`)).toHaveCount(0);
+  }
+  await expect(page.locator('[data-card=narx]')).toHaveCount(0);
+  await expect(page.locator('[data-layer=xizmat] .switch')).toHaveCount(1);
+  await moveTo(page, [69.29507, 41.32561]);
+  await expect(page.locator('[data-layer=narx] .switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('[data-card=narx] .big')).toHaveText(/\$\/m²/, { timeout: 20_000 });
+  expect(errs).toEqual([]);
+});
