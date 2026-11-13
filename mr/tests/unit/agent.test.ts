@@ -97,3 +97,30 @@ describe('Master reja buyruqlari', () => {
     expect(ruleOut(RULE)).toMatchObject({ value: 22.5, deviation_pct: -25.1, required: '≥ 30' });
   });
 });
+
+import { joyTools, type JoyHost } from '../../src/agent/tools-joy';
+describe('Joyshunos buyruqlari', () => {
+  const host = (o: Partial<JoyHost> = {}): JoyHost => ({
+    center: () => [69.28, 41.31], radius: () => 500, address: () => 'Amir Temur 21', layers: () => [{ id: 'xizmat', name: 'Xizmatlar' }],
+    cards: () => [{ id: 'xizmat', name: 'Xizmatlar', color: '#000', chip: 'OSM', beta: false, big: '12 obyekt', text: ['Maktab 2'], norms: [], src: 'OSM' }],
+    services: () => [{ kind: 'maktab', count_in_radius: 2, nearest_osm_m: 312.4, nearest_added_m: null, norm_radius_m: 500, status: 'ok' }, { kind: 'mtm', count_in_radius: 0, nearest_osm_m: null, nearest_added_m: null, norm_radius_m: 300, status: 'none' }],
+    narx: () => null, ...o,
+  });
+  it('qatlamlar — ekrandagi karta raqamlari, hudud', () => {
+    const r = joyTools(host()).joyshunos_layers({}) as { area: { radius_m: number; walk_min: number }; layers: { headline: string }[] };
+    expect(r.area).toMatchObject({ radius_m: 500, walk_min: 6 });
+    expect(r.layers[0].headline).toBe('12 obyekt');
+  });
+  it('xizmatlar: tur boʻyicha, «topilmadi» — not_found_in_data', () => {
+    const t = joyTools(host());
+    const s = t.nearby_services({ kind: 'school' }) as { items: { kind: string; nearest_osm_m: number }[] };
+    expect(s.items).toEqual([expect.objectContaining({ kind: 'maktab', nearest_osm_m: 312 })]);
+    const k = t.nearby_services({ kind: 'kindergarten' }) as { items: { status: string }[] };
+    expect(k.items[0].status).toBe('not_found_in_data');
+  });
+  it('qatlam oʻchiq — available:false va nima qilish kerak', () => {
+    const t = joyTools(host({ services: () => null }));
+    expect(t.nearby_services({ kind: 'all' })).toMatchObject({ available: false });
+    expect(t.price_hex_summary({})).toMatchObject({ available: false });
+  });
+});
