@@ -10,6 +10,9 @@ import { makeCache } from './data/cache.js';
 import { makeEra5 } from './data/era5.js';
 import { makePower } from './data/power.js';
 import { fileURLToPath } from 'node:url';
+import nodemailer from 'nodemailer';
+import { makeFal } from './render/fal.js';
+import { makeR2 } from './render/r2.js';
 
 const env = process.env;
 const need = (k) => { if (!env[k]) { console.error(`${k} berilmagan`); process.exit(1); } return env[k]; };
@@ -20,6 +23,17 @@ await migrate(db);
 // foydalanish hodisalari: 400 kundan eskisini kuniga bir marta tozalash
 const prune = () => pruneEvents(db).catch((e) => console.error('events prune', e));
 void prune(); setInterval(prune, 24 * 3600e3).unref();
+
+// Egasiga xabar (render chegarasi, fal balansi): SMTP boʻlsa — pochta, boʻlmasa — jurnal
+const ownerMails = (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const mailer = env.SMTP_URL ? nodemailer.createTransport(env.SMTP_URL) : null;
+const notifyOwner = async (subject, text) => {
+  console.warn(`[egasiga] ${subject}: ${text}`);
+  if (mailer && ownerMails.length) await mailer.sendMail({ from: env.MAIL_FROM || 'Archemistry Lab <kod@archemistry.uz>', to: ownerMails.join(','), subject: `Archemistry Lab — ${subject}`, text });
+};
+// Render: FAL_KEY va R2 toʻliq boʻlmasa — oʻchiq (/render/* → 503 «Render vaqtincha ishlamayapti»)
+const renderOn = !!(env.FAL_KEY && env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY);
+if (!renderOn) console.warn('render: FAL_KEY yoki R2_* berilmagan — render oʻchiq');
 
 const app = await buildApp({
   db,
@@ -52,6 +66,13 @@ const app = await buildApp({
     ...(env.AGENT_PRICES ? { prices: JSON.parse(env.AGENT_PRICES) } : {}),
     ...(env.AGENT_FREE_DAILY_USD ? { freeDailyUsd: Number(env.AGENT_FREE_DAILY_USD) } : {}),
     ...(env.AGENT_DAILY_USD ? { dailyUsd: Number(env.AGENT_DAILY_USD) } : {}),
+  } : null,
+  render: renderOn ? {
+    fal: makeFal({ key: env.FAL_KEY.trim() }),
+    r2: makeR2({ accountId: env.R2_ACCOUNT_ID.trim(), keyId: env.R2_ACCESS_KEY_ID.trim(), secret: env.R2_SECRET_ACCESS_KEY.trim(), bucket: (env.R2_BUCKET || 'archemistry-render').trim() }),
+    hookUrl: `${(env.RENDER_HOOK_BASE || 'https://api.archemistry.uz').replace(/\/$/, '')}/render/hook`,
+    dailyUsd: Number(env.RENDER_DAILY_USD_CAP || 20),
+    notify: notifyOwner,
   } : null,
   owners: (env.OWNER_EMAILS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   secure: env.COOKIE_SECURE !== '0',

@@ -1,7 +1,9 @@
 /**
  * Render studiyasi (beta) — app/render.html. Kanvasdagi «Render studiyasi — maket» (R-1, R-2, R-3).
  *   Kirish: asos rasm (geometriya va kadr) + 4 tagacha referens (uslub · material · yorugʻlik · kontekst).
- *   Render: uslub, asosga sodiqlik, soʻrov, variantlar → Gemini / GPT Image / OpenRouter (foydalanuvchining oʻz kaliti, brauzerdan).
+ *   Render: uslub, asosga sodiqlik, soʻrov, variantlar, sifat (Tez · Pro 2K · Pro 4K) → server navbati (fal.ai, markaziy kalit), tanga bilan.
+ *   13.11 (Render 1-bosqich): kalit maydonlari va provayder tanlovi yoʻq; kadr 2048 px WebP qilib R2 ga yuklanadi, holat har 3 s soʻraladi,
+ *   tarix serverdan (IndexedDB — faqat eskiz keshi).
  *   Natija: asl bilan solishtirish, PNG, Chizmadonga, asos yoki referens qilish.
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
@@ -15,7 +17,10 @@ import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
-import { PROV, STY, SUBJECTS, FIDELITY, ROLES, RUN, NoImage, buildPrompt, loadState, saveState, modelOf, shrink, type ProvId, type RefRole, type Subject, type Fidelity } from './providers';
+import { STY, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
+import { ENGINES, renderApi, toUpload, waitJob, type Engine, type Job, type JobBody, type RenderCfg } from './api';
+import { ApiError, check } from '../account/session';
+import { ensureLogin } from '../account/gate';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
 import { initStats, track } from '../core/stats';
 initStats('ren');
@@ -45,14 +50,23 @@ const MAX_REFS = 4;
 
 /* ---------------- holat ---------------- */
 const A = loadState();
-A.fid ??= A.keep === false ? 'muvozanat' : 'qatiy'; A.subj ??= 'reja'; A.n ??= 1;
 interface Ref { id: string; img: string; name: string; role: RefRole }
 let SRC: RenderSrc[] = [], OUT: RenderOut[] = [], REFS: Ref[] = [];
 let baseId = (() => { try { return localStorage.getItem('render-base') || ''; } catch { return ''; } })();
-let view: 'asos' | 'natija' | 'cmp' = 'asos', busy = false, prog = '', err = '', pickOpen = false, keyOpen = false, provOpen = false, roleOpen = -1;
+let view: 'asos' | 'natija' | 'cmp' = 'asos', busy = false, prog = '', err = '', needBuy = false, pickOpen = false, roleOpen = -1, allOuts = false;
+/** Server sozlamasi (null — hali olinmagan yoki server javob bermadi) */
+let CFG: RenderCfg | null = null;
+const FULL = new Map<string, string>();   // ish → toʻliq rasm havolasi (1 soat amal qiladi)
+const UP = new Map<string, { key: string; w: number; h: number }>();   // mahalliy rasm → R2 kaliti (sessiya davomida qayta yuklanmaydi)
+const FOLLOW = new Set<string>();         // kuzatilayotgan ishlar
+const HIDDEN_K = 'ren-hidden';
+const hidden = (): string[] => { try { return JSON.parse(localStorage.getItem(HIDDEN_K) || '[]') as string[]; } catch { return []; } };
+const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4 };
+const coinsOf = (e: Engine) => CFG?.engines?.[e]?.coins ?? DEF_COINS[e];
+const engName = (e: string) => `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`;
 let viewer: { id: string; mode: 'natija' | 'cmp' | 'yon' } | null = null;
 const base = () => SRC.find(s => s.id === baseId) ?? null;
-const setBase = (id: string) => { baseId = id; try { localStorage.setItem('render-base', id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
+const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem('render-base', id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
 const saveRefs = () => { void cachePut('render-refs', REFS).catch(() => {}); };
 const save = () => saveState(A);
 
@@ -128,6 +142,8 @@ function imgSize(src: string): Promise<{ w: number; h: number }> { return new Pr
 
 /* ---------------- markaz: asos / oxirgi natija / solishtirish ---------------- */
 function lastOut(): RenderOut | null { return OUT.find(o => o.srcId === baseId) ?? null; }
+/** Toʻliq rasm: server natijasi — havola (keshda yoʻq boʻlsa eskiz), eski mahalliy natija — oʻzi */
+const fullOf = (o: RenderOut): string => (o.job ? FULL.get(o.job) ?? o.src : o.src);
 function cmpBox(before: string, after: string): HTMLElement {
   const box = h('div', { class: 'ren-cmp' }, h('img', { src: after, alt: tr('Natija') }), h('div', { class: 'b' }, h('img', { src: before, alt: tr('Asos') })), h('i', { class: 'bar' }, h('span', {}, '‹ ›')));
   const b = box.querySelector<HTMLElement>('.b')!, bar = box.querySelector<HTMLElement>('i')!, im = box.querySelector<HTMLImageElement>(':scope > img')!;
@@ -147,7 +163,7 @@ function renderStage(): void {
   const b = base(), o = lastOut();
   if (!b) { stage.replaceChildren(h('div', { class: 'ren-hello' }, h('h2', {}, tr('Render studiyasi')), h('p', {}, tr('Asos rasm — Master reja, Joyshunos yoki Koʻchasozdagi kadr yoki oʻzingizning rasmingiz. Model fayli kerak emas: AI rasm bilan ishlaydi.')), h('button', { type: 'button', class: 'btn btn-primary', onclick: () => { fileFor = 'base'; fileIn.click(); } }, ic(ICON.up), tr('Rasm yuklash')))); return; }
   const v = o ? view : 'asos';
-  const body = v === 'cmp' && o ? cmpBox(b.img, o.src) : h('img', { class: 'ren-img', src: v === 'natija' && o ? o.src : b.img, alt: b.name });
+  const body = v === 'cmp' && o ? cmpBox(b.img, fullOf(o)) : h('img', { class: 'ren-img', src: v === 'natija' && o ? fullOf(o) : b.img, alt: b.name });
   stage.replaceChildren(
     h('div', { class: 'ren-frame' }, body),
     h('div', { class: 'ren-top' },
@@ -164,7 +180,8 @@ function renderStage(): void {
 
 /* ---------------- oʻng panel: render sozlamalari ---------------- */
 function renderRight(): void {
-  const P = PROV[A.prov], key = A.key[A.prov] || '', outs = OUT.filter(o => o.srcId === baseId), b = base();
+  const outs = allOuts ? OUT : OUT.filter(o => o.srcId === baseId), b = base(), own = !!CFG?.owner, off = !!CFG && !CFG.enabled;
+  const price = coinsOf(A.engine) * (A.n ?? 1);
   right.replaceChildren(
     h('div', { class: 'hd' }, h('h2', { class: 'ttl' }, tr('Render')), h('span', { class: 'chip warn' }, 'beta')),
     h('div', { class: 'glabel' }, h('span', {}, tr('Nima tasvirlangan'))),
@@ -172,62 +189,140 @@ function renderRight(): void {
     h('div', { class: 'glabel' }, h('span', {}, tr('Uslub'))),
     h('div', { class: 'tiles c2 ren-sty', id: 'sty' }, ...STY.map(([k, n]) => h('button', { type: 'button', class: 'tile', 'aria-pressed': A.sty === k, 'data-sty': k, onclick: () => { A.sty = A.sty === k && REFS.length ? '' : k; save(); renderRight(); } }, tr(n)))),
     h('div', { class: 'glabel' }, h('span', {}, tr('Asosga sodiqlik'))),
-    h('div', { class: 'seg', role: 'group', 'aria-label': tr('Asosga sodiqlik'), id: 'fid' }, ...FIDELITY.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.fid === k, onclick: () => { A.fid = k as Fidelity; A.keep = k === 'qatiy'; save(); renderRight(); } }, tr(n)))),
+    h('div', { class: 'seg', role: 'group', 'aria-label': tr('Asosga sodiqlik'), id: 'fid' }, ...FIDELITY.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.fid === k, onclick: () => { A.fid = k as Fidelity; save(); renderRight(); } }, tr(n)))),
     h('p', { class: 't-small' }, tr(A.fid === 'qatiy' ? 'Binolar soni, qavatlar, joylashuv va kamera oʻzgarmaydi.' : A.fid === 'muvozanat' ? 'Hajm va kamera saqlanadi; fasad detallari, materiallar va obodonlashtirish qoʻshiladi.' : 'Asos — umumiy kompozitsiya; detallar va muhitni model erkin toʻldiradi.')),
     h('label', { class: 'glabel', for: 'renExtra' }, h('span', {}, tr('Soʻrov (ixtiyoriy)'))),
-    (() => { const t = h('textarea', { class: 'input ren-ta', id: 'renExtra', rows: 2, placeholder: tr('masalan: fasadlar terrakota gʻisht, hovlida bolalar maydonchasi') }) as HTMLTextAreaElement; t.value = A.extra; t.oninput = () => { A.extra = t.value; save(); }; return t; })(),
+    (() => { const t = h('textarea', { class: 'input ren-ta', id: 'renExtra', rows: 2, maxlength: 400, placeholder: tr('masalan: fasadlar terrakota gʻisht, hovlida bolalar maydonchasi') }) as HTMLTextAreaElement; t.value = A.extra; t.oninput = () => { A.extra = t.value; save(); }; return t; })(),
+    h('div', { class: 'glabel' }, h('span', {}, tr('Sifat'))),
+    h('div', { class: 'seg ren-eng', role: 'group', 'aria-label': tr('Sifat'), id: 'eng' }, ...ENGINES.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.engine === k, 'data-eng': k, onclick: () => { A.engine = k; save(); renderRight(); } },
+      tr(n), own ? null : h('code', {}, String(coinsOf(k)))))),
+    h('p', { class: 't-small' }, tr(A.engine === 'fast' ? 'Tez — eskiz va variantlar uchun, taxminan 20 soniya.' : A.engine === 'pro' ? 'Pro 2K — geometriya va materiallar aniqroq, taxminan 40 soniya.' : 'Pro 4K — taqdimot va chop etish uchun, taxminan 1 daqiqa.')),
     h('div', { class: 'ren-row' }, h('span', { class: 'glabel' }, h('span', {}, tr('Variantlar'))),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Variantlar soni'), id: 'nVar' }, ...[1, 2, 4].map(n => h('button', { type: 'button', 'aria-pressed': A.n === n, onclick: () => { A.n = n; save(); renderRight(); } }, String(n))))),
-    h('details', { class: 'ren-key', open: keyOpen || !key, ontoggle: (e: Event) => { keyOpen = (e.target as HTMLDetailsElement).open; } },
-      h('summary', {}, tr('Model va API kaliti'), ' · ', h('code', {}, P.n.split(' ')[0] === 'Google' ? 'Gemini' : P.n.split(' ')[0]), key ? null : h('em', { class: 'need' }, tr('kalit kerak'))),
-      h('div', { class: 'in' },
-        h('div', { class: 'ren-selw' },
-          h('button', { type: 'button', class: 'ren-sel', id: 'prov', 'aria-haspopup': 'listbox', 'aria-expanded': provOpen, onclick: () => { provOpen = !provOpen; renderRight(); } }, tr(P.n), ic(ICON.chev)),
-          provOpen ? h('div', { class: 'ren-menu', role: 'listbox' }, ...(Object.keys(PROV) as ProvId[]).map(k => h('button', { type: 'button', role: 'option', 'aria-selected': A.prov === k, onclick: () => { A.prov = k; provOpen = false; save(); renderRight(); } }, tr(PROV[k].n)))) : null),
-        h('label', { class: 'fl' }, h('span', {}, tr('Model nomi')), (() => { const i = h('input', { class: 'input mono', id: 'renModel', list: 'renModels', value: modelOf(A) }) as HTMLInputElement; i.onchange = () => { A.model[A.prov] = i.value.trim(); save(); }; return i; })(),
-          h('datalist', { id: 'renModels' }, ...P.models.map(m => h('option', { value: m })))),
-        h('label', { class: 'fl' }, h('span', {}, tr('API kaliti')), (() => { const i = h('input', { class: 'input mono', id: 'renKey', type: 'password', autocomplete: 'off', placeholder: tr('kalitni shu yerga qoʻying'), value: key }) as HTMLInputElement; i.onchange = () => { A.key[A.prov] = i.value.trim(); save(); renderRight(); }; return i; })()),
-        h('p', { class: 't-small' }, tr('Kalit faqat shu brauzerda saqlanadi va toʻgʻridan-toʻgʻri provayderga yuboriladi. Toʻlov — sizning hisobingizdan.'), ' ', h('a', { href: P.key, target: '_blank', rel: 'noopener' }, tr('Kalit olish'), ic(ICON.ext))))),
-    h('button', { type: 'button', class: 'btn btn-primary btn-lg btn-block', id: 'renGo', disabled: busy || !b, onclick: () => void go() }, ic(ICON.spark), busy ? prog : A.n! > 1 ? tf('Render qilish · ${n} variant', { n: A.n! }) : tr('Render qilish')),
+    ...(off ? [h('p', { class: 'note warn', id: 'renOff', role: 'status' }, tr('Render vaqtincha ishlamayapti'))] : []),
+    h('button', { type: 'button', class: 'btn btn-primary btn-lg btn-block', id: 'renGo', disabled: busy || !b || off, onclick: () => void go() }, ic(ICON.spark),
+      busy ? prog : A.n! > 1 ? tf('Render qilish · ${n} variant', { n: A.n! }) : tr('Render qilish'),
+      busy || own ? null : h('em', { class: 'ren-price' }, tf('${c} tanga', { c: price }))),
     ...(err ? [h('p', { class: 'note bad', id: 'renErr', role: 'alert' }, err)] : []),
-    h('div', { class: 'glabel' }, h('span', {}, tr('Natijalar')), h('code', {}, `${outs.length} / ${OUT.length}`)),
+    ...(needBuy ? [h('button', { type: 'button', class: 'btn btn-sm btn-block', id: 'renBuy', onclick: () => void import('../account/buy').then(m => m.buyDialog()) }, tr('Tanga sotib olish'))] : []),
+    h('div', { class: 'glabel' }, h('span', {}, tr(allOuts ? 'Hamma natijalar' : 'Natijalar')),
+      h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'outAll', 'aria-pressed': allOuts, title: tr('Hamma natijalar'), onclick: () => { allOuts = !allOuts; renderRight(); } }, h('code', {}, `${OUT.filter(o => o.srcId === baseId).length} / ${OUT.length}`))),
     outs.length ? h('div', { class: 'ren-gal', id: 'renGal' }, ...outs.map(o => h('button', { type: 'button', 'aria-label': o.name, title: o.name, onclick: () => openViewer(o.id) }, h('img', { src: o.src, alt: '' }))))
       : h('p', { class: 't-small' }, tr('Natijalar shu yerda chiqadi. Bosing — kattalashtirish, asl bilan solishtirish, Chizmadonga.')),
   );
 }
 
-/* ---------------- render ---------------- */
+/* ---------------- render (server navbati) ---------------- */
+const sleep = (ms: number) => new Promise(ok => setTimeout(ok, ms));
+const dataUrl = (b: Blob) => new Promise<string>((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => no(r.error); r.readAsDataURL(b); });
+async function loadCfg(): Promise<RenderCfg | null> { try { CFG = await renderApi.config(); } catch { CFG = null; } return CFG; }
+
+/** Mahalliy rasmni R2 ga (bir marta) */
+async function upKey(id: string, img: string, max: number): Promise<{ key: string; w: number; h: number }> {
+  const c = UP.get(id); if (c) return c;
+  const u = await toUpload(img, max, CFG?.maxBytes);
+  const r = { key: await renderApi.upload(u.blob), w: u.w, h: u.h };
+  UP.set(id, r); return r;
+}
+/** Parallel chegarada — oldingi ish tugashini kutib qayta urinish (10 daqiqagacha) */
+async function createWithRoom(b: JobBody): Promise<{ id: string; downgraded: boolean }> {
+  for (let i = 0; ; i++) {
+    try { return await renderApi.create(b); }
+    catch (e) { if (!(e instanceof ApiError && e.code === 'parallel') || i > 200) throw e; await sleep(3000); }
+  }
+}
+/** Tayyor ish → kesh: 512 px eskiz va asosning kichik nusxasi; toʻliq rasm havolasi — xotirada */
+async function keep(j: Job, srcId: string, name: string, orig: string): Promise<RenderOut | null> {
+  if (j.status !== 'done' || !j.thumb) return null;
+  if (j.out) FULL.set(j.id, j.out);
+  let th = j.thumb;
+  try { th = await dataUrl(await (await fetch(j.thumb, { mode: 'cors' })).blob()); } catch { /* havola qoladi (1 soat) */ }
+  const sty = j.params.style ?? '';
+  return addOut({ job: j.id, status: j.status, srcId, src: th, orig, name, prompt: j.prompt ?? '', model: engName(j.engine), sty, fid: j.params.fid ?? 'qatiy', refs: j.params.refs ?? 0, t: j.created });
+}
+function errText(e: unknown): string {
+  needBuy = false;
+  if (!(e instanceof ApiError)) return tr('Xato yuz berdi — qayta urinib koʻring');
+  if (e.status === 402 || e.code === 'insufficient') { needBuy = true; return tf('Tanga yetmaydi: kerak ${need}, hisobingizda ${balance}', { need: e.details?.need ?? '?', balance: e.details?.balance ?? 0 }); }
+  if (e.status === 401) { void ensureLogin(undefined, 'Render qilish uchun kiring. Hisob bepul.'); return tr('Hisobga kiring.'); }
+  const M: Record<string, string> = {
+    render_off: 'Render vaqtincha ishlamayapti', render_budget: 'Bugungi render chegarasi tugadi — ertaga urinib koʻring',
+    render_busy: 'Render xizmati javob bermadi — tanga qaytarildi, birozdan keyin urinib koʻring', busy: 'Render navbati band — bir daqiqadan keyin urinib koʻring',
+    upload: 'Rasm yuklanmadi — internetni tekshiring', upload_missing: 'Rasm yuklanmadi — internetni tekshiring', too_big: 'Rasm juda katta', bad_type: 'Rasm juda katta',
+    offline: 'Server bilan aloqa yoʻq. Internetni tekshiring yoki birozdan keyin urinib koʻring.', rate: 'Juda koʻp soʻrov — birozdan keyin urinib koʻring',
+  };
+  return tr(M[e.code] ?? 'Xato yuz berdi — qayta urinib koʻring');
+}
+
 async function go(): Promise<void> {
   const b = base(); if (!b || busy) return;
   track('ren/run');
-  const key = (A.key[A.prov] || '').trim(), model = modelOf(A);
-  if (!key) { err = tr('API kalitini kiriting.'); keyOpen = true; renderRight(); return; }
-  err = ''; busy = true;
-  const n = A.n ?? 1, img = await shrink(b.img, 1536), refs = await Promise.all(REFS.map(r => shrink(r.img, 1024)));
-  const P = buildPrompt(A, A.subj ?? 'reja', REFS.map(r => r.role));
-  const styN = tr((STY.find(x => x[0] === A.sty) ?? ['', 'Referens boʻyicha'])[1]);
+  if (!CFG && !await loadCfg()) { err = errText(new ApiError('offline', '')); renderRight(); return; }
+  if (!CFG!.enabled) { err = tr('Render vaqtincha ishlamayapti'); renderRight(); return; }
+  if (!await ensureLogin(undefined, 'Render qilish uchun kiring. Hisob bepul.')) return;
+  err = ''; needBuy = false; busy = true;
+  const n = A.n ?? 1; let ok = 0, bad = 0, first = '';
+  const tick = () => { prog = n > 1 ? tf('Yaratilmoqda… ${i} / ${n}', { i: Math.min(n, ok + bad + 1), n }) : tr('Yaratilmoqda… (20–60 soniya)'); renderStage(); renderRight(); };
+  prog = tr('Rasm yuklanmoqda…'); renderStage(); renderRight();
   try {
+    const inp = await upKey(`b:${b.id}`, b.img, CFG!.maxSide || 2048);
+    const refs: { key: string; role: string }[] = [];
+    for (const r of REFS) refs.push({ key: (await upKey(`r:${r.id}`, r.img, 1024)).key, role: r.role });
+    const orig = (await shrink(b.img, 512)).url;
+    const styN = tr((STY.find(x => x[0] === A.sty) ?? ['', 'Referens boʻyicha'])[1]);
+    const body: JobBody = { engine: A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id };
+    const waits: Promise<void>[] = [];
     for (let i = 0; i < n; i++) {
-      prog = n > 1 ? tf('Yaratilmoqda… ${i} / ${n}', { i: i + 1, n }) : tr('Yaratilmoqda… (20–60 soniya)'); renderStage(); renderRight();
-      const src = await RUN[A.prov](key, model, P, img, fetch.bind(globalThis), refs);
-      await addOut({ srcId: b.id, src, orig: img.url, name: `${b.name} · ${styN}`, prompt: P, model, sty: A.sty, fid: A.fid!, refs: REFS.length });
-      OUT = await listOut(); view = 'natija';
+      tick();
+      const j = await createWithRoom(body);
+      if (j.downgraded) toast(tr('Bugungi chegara: Pro oʻrniga Tez ishlatildi'));
+      FOLLOW.add(j.id);
+      waits.push(waitJob(j.id).then(async r => {
+        if (r.status === 'done' && await keep(r, b.id, `${b.name} · ${styN}`, orig)) { ok++; first ||= `j${r.id}`; OUT = await listOut(); view = 'natija'; }
+        else bad++;
+      }, () => { bad++; }).finally(() => { FOLLOW.delete(j.id); tick(); }));
     }
-  } catch (e) {
-    err = e instanceof NoImage ? `${tr('Model rasm qaytarmadi')}${e.message ? ': ' + e.message : ''}` : `${tr('Xato')}: ${(e as Error).message || e}`;
-  }
+    await Promise.all(waits);
+    if (bad) err = ok ? tf('${n} ta render bajarilmadi — tanga qaytarildi', { n: bad }) : tr('Render bajarilmadi — tanga qaytarildi. Boshqa uslub yoki rasm bilan urinib koʻring.');
+  } catch (e) { err = errText(e); }
   busy = false; prog = ''; renderStage(); renderRight();
-  if (!err && OUT[0]?.srcId === b.id) openViewer(OUT[0].id);
+  if (first && OUT.some(o => o.id === first)) openViewer(first);
+}
+
+/** Server tarixi: kesh yoʻq natijalar (boshqa brauzer, tozalangan kesh) qoʻshiladi; tugamagan ishlar kuzatiladi */
+async function syncHistory(): Promise<void> {
+  if (!CFG?.enabled || !await check()) return;
+  let items: Job[] = [];
+  try { items = await renderApi.history(30); } catch { return; }
+  const have = new Set(OUT.map(o => o.job).filter(Boolean)), hid = new Set(hidden());
+  let added = 0;
+  for (const j of items) {
+    if (hid.has(j.id)) continue;
+    const srcId = j.tag && SRC.some(s => s.id === j.tag) ? j.tag : '';
+    const name = `${tr((FROM[j.source as From] ?? FROM.fayl)[0])} · ${tr((STY.find(x => x[0] === j.params.style) ?? ['', 'Referens boʻyicha'])[1])}`;
+    if (j.status === 'done' && !have.has(j.id)) { if (await keep(j, srcId, name, '')) added++; }
+    else if ((j.status === 'queued' || j.status === 'running') && !FOLLOW.has(j.id)) {
+      FOLLOW.add(j.id);
+      void waitJob(j.id).then(async r => { if (await keep(r, srcId, name, '')) { OUT = await listOut(); renderAll(); toast(tr('Render tayyor')); } }).catch(() => {}).finally(() => FOLLOW.delete(j.id));
+    }
+  }
+  if (added) { OUT = await listOut(); renderAll(); }
 }
 
 /* ---------------- natija oynasi (R-2) ---------------- */
-function openViewer(id: string): void { viewer = { id, mode: viewer?.mode ?? 'cmp' }; renderViewer(); }
+function openViewer(id: string): void {
+  viewer = { id, mode: viewer?.mode ?? 'cmp' }; renderViewer();
+  // toʻliq rasm havolasi (1 soat) — kerak boʻlsa serverdan yangisi
+  const o = OUT.find(x => x.id === id);
+  if (o?.job && !FULL.has(o.job)) void renderApi.job(o.job).then(j => { if (j.out) { FULL.set(o.job!, j.out); if (j.prompt && !o.prompt) o.prompt = j.prompt; if (viewer?.id === id) renderViewer(); renderStage(); } }).catch(() => {});
+}
 function closeViewer(): void { viewer = null; renderViewer(); }
 function renderViewer(): void {
   const o = viewer ? OUT.find(x => x.id === viewer!.id) : null;
   over.hidden = !o; if (!o || !viewer) { over.replaceChildren(); return; }
-  const src = SRC.find(s => s.id === o.srcId), sib = OUT.filter(x => x.srcId === o.srcId), V = viewer;
-  const body = V.mode === 'cmp' ? cmpBox(o.orig, o.src) : V.mode === 'yon' ? h('div', { class: 'ren-yon' }, h('figure', {}, h('img', { src: o.orig, alt: tr('Asos') }), h('figcaption', {}, tr('Asos'))), h('figure', {}, h('img', { src: o.src, alt: tr('Natija') }), h('figcaption', {}, tr('Natija')))) : h('img', { class: 'ren-img', src: o.src, alt: o.name });
+  const src = SRC.find(s => s.id === o.srcId), sib = o.srcId ? OUT.filter(x => x.srcId === o.srcId) : [o], V = viewer;
+  const full = fullOf(o), before = src?.img ?? (o.orig || full);
+  const body = V.mode === 'cmp' ? cmpBox(before, full) : V.mode === 'yon' ? h('div', { class: 'ren-yon' }, h('figure', {}, h('img', { src: before, alt: tr('Asos') }), h('figcaption', {}, tr('Asos'))), h('figure', {}, h('img', { src: full, alt: tr('Natija') }), h('figcaption', {}, tr('Natija')))) : h('img', { class: 'ren-img', src: full, alt: o.name });
   const dt = new Date(o.t), when = `${dt.toLocaleDateString('ru-RU')} ${dt.toTimeString().slice(0, 5)}`;
   over.replaceChildren(
     h('header', { class: 'eko glass ren-vh' },
@@ -236,7 +331,7 @@ function renderViewer(): void {
       h('div', { class: 'nm' }, h('b', {}, o.name), h('code', {}, `${o.model} · ${when}`)),
       h('span', { class: 'sp' }),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Koʻrinish'), id: 'vMode' }, ...([['natija', 'Natija'], ['cmp', 'Asl bilan solishtirish'], ['yon', 'Yonma-yon']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': V.mode === k, onclick: () => { V.mode = k; renderViewer(); } }, tr(n)))),
-      h('button', { type: 'button', class: 'btn btn-sm', id: 'vPng', onclick: () => void savePng(o) }, tr('PNG yuklab olish')),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'vPng', onclick: () => void savePng(o).catch(() => toast(tr('Rasm yuklanmadi — internetni tekshiring'))) }, tr('PNG yuklab olish')),
       h('button', { type: 'button', class: 'btn btn-sm', id: 'vAgain', onclick: () => { closeViewer(); if (src) setBase(src.id); renderAll(); void go(); } }, tr('Yana render')),
       h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'vChz', onclick: () => void toChizmadon(o) }, tr('Chizmadonga'), ic(ICON.arrow))),
     h('div', { class: 'ren-vb' },
@@ -254,22 +349,23 @@ function renderViewer(): void {
         sib.length > 1 ? h('div', { class: 'ren-gal' }, ...sib.map(x => h('button', { type: 'button', 'aria-pressed': x.id === o.id, 'aria-label': x.name, onclick: () => openViewer(x.id) }, h('img', { src: x.src, alt: '' })))) : null,
         h('span', { class: 'sp' }),
         h('button', { type: 'button', class: 'btn btn-block', id: 'vBase', onclick: () => void asBase(o) }, tr('Natijani asos rasm qilish')),
-        h('button', { type: 'button', class: 'btn btn-block', id: 'vRef', disabled: REFS.length >= MAX_REFS, onclick: () => { REFS.push({ id: o.id, img: o.src, name: o.name, role: 'uslub' }); saveRefs(); toast(tr('Referensga qoʻshildi')); renderAll(); } }, tr('Referens qilish')),
-        h('button', { type: 'button', class: 'btn btn-block btn-danger', id: 'vDel', onclick: () => void (async () => { await delOut(o.id); OUT = await listOut(); closeViewer(); renderAll(); })() }, tr('Oʻchirish')))),
+        h('button', { type: 'button', class: 'btn btn-block', id: 'vRef', disabled: REFS.length >= MAX_REFS, onclick: () => void (async () => { const im = await shrink(fullOf(o), 1024).catch(() => ({ url: o.src })); REFS.push({ id: o.id, img: im.url, name: o.name, role: 'uslub' }); saveRefs(); toast(tr('Referensga qoʻshildi')); renderAll(); })() }, tr('Referens qilish')),
+        h('button', { type: 'button', class: 'btn btn-block btn-danger', id: 'vDel', onclick: () => void (async () => { if (o.job) { try { localStorage.setItem(HIDDEN_K, JSON.stringify([...hidden(), o.job].slice(-300))); } catch { /* */ } } await delOut(o.id); OUT = await listOut(); closeViewer(); renderAll(); })() }, tr('Oʻchirish')))),
   );
 }
 async function asBase(o: RenderOut): Promise<void> {
-  const sz = await imgSize(o.src);
-  const s = await addSrc({ name: o.name, from: 'natija', subj: A.subj!, img: o.src, w: sz.w, h: sz.h });
+  const img = o.job ? await fetch(fullOf(o), { mode: 'cors' }).then(r => r.blob()).then(dataUrl).catch(() => o.src) : o.src;
+  const sz = await imgSize(img);
+  const s = await addSrc({ name: o.name, from: 'natija', subj: A.subj!, img, w: sz.w, h: sz.h });
   SRC = await listSrc(); setBase(s.id); closeViewer(); renderAll();
 }
 async function savePng(o: RenderOut): Promise<void> {
-  const b = await (await fetch(o.src)).blob(), u = URL.createObjectURL(b), a = document.createElement('a');
-  a.href = u; a.download = `render-${o.id}.${b.type.includes('jpeg') ? 'jpg' : 'png'}`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+  const b = await (await fetch(fullOf(o), { mode: 'cors' })).blob(), u = URL.createObjectURL(b), a = document.createElement('a');
+  a.href = u; a.download = `render-${o.id}.${b.type.includes('jpeg') ? 'jpg' : b.type.includes('webp') ? 'webp' : 'png'}`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
 }
 /** Chizmadon kiruvchi varagʻi (Koʻchasoz bilan bir xil kalit): A3 albom, rasm sigʻdirilgan, ostida nom */
 async function toChizmadon(o: RenderOut): Promise<void> {
-  const im = await shrink(o.src, 2400), W = 420, H = 297, M = 12, cap = 10, aw = W - 2 * M, ah = H - 2 * M - cap, k = Math.min(aw / im.w, ah / im.h), w = im.w * k, hh = im.h * k, x = (W - w) / 2, y = M + (ah - hh) / 2;
+  const im = await shrink(fullOf(o), 2400), W = 420, H = 297, M = 12, cap = 10, aw = W - 2 * M, ah = H - 2 * M - cap, k = Math.min(aw / im.w, ah / im.h), w = im.w * k, hh = im.h * k, x = (W - w) / 2, y = M + (ah - hh) / 2;
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const svg = `<g id="01_Render" data-name="Render"><image x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${hh.toFixed(2)}" href="${im.url}" preserveAspectRatio="xMidYMid meet"/></g><g id="02_Yozuv" data-name="Yozuv"><text x="${M}" y="${H - M}" font-size="4" font-family="Archivo, sans-serif" fill="#1d1d1b">${esc(o.name)}</text><text x="${W - M}" y="${H - M}" font-size="2.6" text-anchor="end" font-family="IBM Plex Mono, monospace" fill="#6b6965">${esc(tr('AI render'))} · ${esc(o.model)}</text></g>`;
   const { sendSheet } = await import('../ui/chzsend');
@@ -278,7 +374,7 @@ async function toChizmadon(o: RenderOut): Promise<void> {
 
 /* ---------------- ishga tushirish ---------------- */
 function renderAll(): void { renderHeader(); renderLeft(); renderStage(); renderRight(); renderViewer(); document.title = `${tr('Render studiyasi')} · Archemistry Lab`; }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (viewer) closeViewer(); else if (pickOpen || provOpen || roleOpen >= 0) { pickOpen = provOpen = false; roleOpen = -1; renderAll(); } } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (viewer) closeViewer(); else if (pickOpen || roleOpen >= 0) { pickOpen = false; roleOpen = -1; renderAll(); } } });
 onLang(() => { renderAll(); document.documentElement.lang = getLang(); });
 onTheme(() => renderHeader());
 async function boot(): Promise<void> {
@@ -287,8 +383,9 @@ async function boot(): Promise<void> {
   if (m && SRC.some(s => s.id === m[1])) { setBase(m[1]); history.replaceState(null, '', location.pathname); }
   else if (!base() && SRC[0]) setBase(SRC[0].id);
   renderAll();
+  if (await loadCfg()) { renderRight(); void syncHistory(); }
 }
 renderAll();
 void boot();
 addEventListener('hashchange', () => { if (location.hash.startsWith('#/s/')) void boot(); });
-(window as unknown as { renderStudio: unknown }).renderStudio = { get state() { return { baseId, refs: REFS.length, out: OUT.length, src: SRC.length, A }; } };
+(window as unknown as { renderStudio: unknown }).renderStudio = { get state() { return { baseId, refs: REFS.length, out: OUT.length, src: SRC.length, A, cfg: CFG }; } };

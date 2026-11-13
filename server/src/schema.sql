@@ -206,3 +206,54 @@ CREATE TABLE IF NOT EXISTS agent_free (
   used        INT NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, week)
 );
+
+-- tanga ushlab turish (2026-11-13, Render 1-bosqich): hold → capture (natija bor) yoki release (xato — tanga qaytadi).
+-- Hold paytida ledger ga manfiy yozuv tushadi (balansda darhol koʻrinadi, ikki marta sarflab boʻlmaydi); release — musbat yozuv '<reason>_refund'.
+CREATE TABLE IF NOT EXISTS holds (
+  ref         TEXT PRIMARY KEY,
+  user_id     BIGINT NOT NULL REFERENCES users(id),
+  reason      TEXT NOT NULL,
+  coins       INT NOT NULL CHECK (coins > 0),
+  state       TEXT NOT NULL DEFAULT 'held',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  settled_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS holds_held ON holds (created_at) WHERE state = 'held';
+
+-- Render navbati (2026-11-13): fal.ai queue + webhook. Rasmlar VPS da emas — Cloudflare R2 da (render_assets.r2_key).
+-- status: queued (tanga ushlangan, fal ga yuborilmoqda) · running (fal da) · done · failed (tanga yechilmagan edi) · refunded (tanga qaytdi)
+CREATE TABLE IF NOT EXISTS render_jobs (
+  id              BIGSERIAL PRIMARY KEY,
+  user_id         BIGINT NOT NULL REFERENCES users(id),
+  status          TEXT NOT NULL DEFAULT 'queued',
+  engine          TEXT NOT NULL,
+  source          TEXT NOT NULL DEFAULT 'fayl',
+  params          JSONB NOT NULL,
+  prompt          TEXT NOT NULL,
+  coins           INT NOT NULL DEFAULT 0,
+  owner           BOOLEAN NOT NULL DEFAULT false,
+  usd_micro       BIGINT NOT NULL DEFAULT 0,
+  fal_request_id  TEXT UNIQUE,
+  err             TEXT,
+  claimed_at      TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  submitted_at    TIMESTAMPTZ,
+  finished_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS render_jobs_user ON render_jobs (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS render_jobs_active ON render_jobs (status, created_at) WHERE status IN ('queued', 'running');
+CREATE INDEX IF NOT EXISTS render_jobs_at ON render_jobs (created_at);
+-- role: input · ref · depth · mask · out · thumb; expires_at — saqlash muddati (R2 lifecycle bilan tozalanadi)
+CREATE TABLE IF NOT EXISTS render_assets (
+  id          BIGSERIAL PRIMARY KEY,
+  job_id      BIGINT NOT NULL REFERENCES render_jobs(id) ON DELETE CASCADE,
+  role        TEXT NOT NULL,
+  r2_key      TEXT NOT NULL,
+  w           INT,
+  h           INT,
+  bytes       BIGINT,
+  meta        JSONB,
+  expires_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS render_assets_job ON render_assets (job_id);

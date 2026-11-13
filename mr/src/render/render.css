@@ -138,3 +138,7 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
   .ren-lp{width:252px}.ren-rp{width:300px}
   .eko .svc a{padding:0 9px}
 }
+/* Render 1-bosqich (13.11): sifat tanlovi va narx — tugmada koʻrinadi */
+.ren-eng button code { margin-left: 5px; font-size: 11px; opacity: .65; }
+.ren-eng button[aria-pressed="true"] code { opacity: .9; }
+#renGo .ren-price { font-style: normal; font-weight: 500; margin-left: 6px; opacity: .8; font-size: .86em; }

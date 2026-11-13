@@ -12,7 +12,8 @@ import { ownerStats, grantCoins, ownerUser, ownerReveal, geoOf } from './owner.j
 import { parseBatch, insertEvents, eventStats } from './events.js';
 import { makePrivate, parseBbox, PrivateError } from './private.js';
 import { registerAgent } from './agent.js';
-import { AGENT_COINS, AGENT_FREE_PER_WEEK, ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
+import { registerRender } from './render/routes.js';
+import { RENDER_COINS, AGENT_COINS, AGENT_FREE_PER_WEEK, ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
 
@@ -30,9 +31,10 @@ export const COOKIE = 'ks_sess';
  * @param {{cache: object, fetchImpl?: Function, servers?: string[]}|null} [o.data]  hudud ma'lumoti keshi (data/cache.js); null — /data/* yo'q
  * @param {{arcgis?: string|null}} [o.mapKeys]  brauzerga beriladigan ochiq xarita kalitlari (ARCGIS_API_KEY)
  * @param {object|null} [o.agent] agent «Maslahatchi» sozlamasi (agent.js: apiKey, services, …); null — agent oʻchiq
+ * @param {object|null} [o.render] render navbati (render/routes.js: fal, r2, hookUrl, dailyUsd, notify …); null — «Render vaqtincha ishlamayapti»
  * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -75,7 +77,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   // brauzer uchun ochiq xarita kalitlari (referrer bilan cheklangan; repoga yozilmaydi — .env dan)
   app.get('/config/maps', async (req, reply) => { reply.header('cache-control', 'public, max-age=3600'); return { arcgis: mapKeys.arcgis || null }; });
 
-  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, genFree: GEN_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS }));
+  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, genFree: GEN_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS, render: RENDER_COINS }));
 
   app.post('/quote', async (req) => {
     const { items, areaHa } = req.body ?? {};
@@ -259,6 +261,12 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   /* ---------- agent «Maslahatchi» (13.11): kalit .env da; boʻlmasa /agent/config → enabled: false ---------- */
   registerAgent(app, {
     db, wallet, requireUser, isOwner, limited, cfg: agent, now: now ?? (() => new Date()),
+    optionalUser: (req) => auth.userByToken(req.cookies[COOKIE]),
+  });
+
+  /* ---------- Render navbati (13.11): fal.ai + R2; kalitlar boʻlmasa /render/* → 503 ---------- */
+  registerRender(app, {
+    db, wallet, requireUser, isOwner, limited, cfg: render, now: now ?? (() => new Date()),
     optionalUser: (req) => auth.userByToken(req.cookies[COOKIE]),
   });
 

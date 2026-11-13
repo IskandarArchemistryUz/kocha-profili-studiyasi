@@ -24,11 +24,22 @@ Oʻzbekiston hududida saqlanishi kerak).
 | `GET /agent/config` | agent «Maslahatchi»: yoqilganmi, xizmatlar, ssenariylar narxi, bepul qoldiq |
 | `POST /agent/run` `{scenario, project?, areaHa?}` | yurish boshlash: haftalik bepul savol yoki tanga oldindan yechiladi → `run` |
 | `POST /agent/step` `{run, messages, lang}` | bitta model qadami (tizim yoʻriqnomasi va buyruqlar serverda qoʻshiladi) |
+| `GET /render/config` | render yoqilganmi, dvigatellar narxi, parallel chegara |
+| `POST /render/upload-url` `{type, bytes}` | R2 presigned PUT (5 daq), faqat `image/webp` \| `image/png`, ≤ 8 MB → `{key, url, headers}` |
+| `POST /render/jobs` `{engine, input:{key,w,h}, refs?, subj, style, fid, extra?, facts?, source, project?}` | tanga ushlanadi (hold), prompt serverda yigʻiladi, fal queue → `{id, status, coins, balance, downgraded}` |
+| `POST /render/hook` | fal webhook (ED25519 imzo): natija R2 ga, 512 px WebP eskiz, CAPTURE; xatoda RELEASE |
+| `GET /render/jobs/:id` · `GET /render/history` | holat, natija va eskiz havolalari (1 soatlik GET) |
 
 **Agent** (`src/agent.js`, `src/agent-tools.js`): kalit `ANTHROPIC_API_KEY` faqat serverdagi `.env` da; boʻlmasa oʻchiq.
 Qisqa savol 1 tanga, xulosa 3 tanga (k yoʻq, loyiha shiftiga kiradi); haftasiga 3 ta qisqa savol bepul. Chegaralar: yurishda
 ≤ 10 qadam va ≤ 200 ming kirish tokeni, 30 daqiqa; bepul savollarga kunlik $2, hammasiga kunlik $20 (`AGENT_*`).
 Birinchi qadam model xatosi bilan tugasa — tanga va bepul savol qaytariladi. Savol matni bazaga yozilmaydi — faqat token, $, tanga.
+
+**Render** (`src/render/`): kalitlar `FAL_KEY`, `R2_*` faqat `.env` da; boʻlmasa `/render/*` → 503 «Render vaqtincha ishlamayapti».
+Tez 1 · Pro 2K 2 · Pro 4K 4 tanga (`RENDER_COINS`), loyiha shiftiga kirmaydi. Tanga natija kelguncha ushlanadi (`holds`),
+xatoda qaytadi. Parallel: foydalanuvchi 2, hali toʻlamagan 1, sayt 20. Kunlik fal chegarasi `RENDER_DAILY_USD_CAP` ($20):
+80 % da egasiga xabar, chegarada Pro → Tez, keyin rad. Webhook kelmasa — har 5 daqiqada fal dan soʻraladi, 30 daqiqadan keyin
+tanga qaytadi. Egasi — tangasiz. Rasm VPS diskida saqlanmaydi.
 
 Xatolar: `401` — kirilmagan, `402` — tanga yetmaydi (`need`, `balance`), `429` — juda koʻp soʻrov.
 

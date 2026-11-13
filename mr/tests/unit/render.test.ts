@@ -1,42 +1,48 @@
-import { describe, it, expect } from 'vitest';
-import { buildPrompt, gemini, openai, openrouter, nearAR, openaiSize, type AirState } from '../../src/render/providers';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { renderApi, setFetch, waitJob, type Job } from '../../src/render/api';
+import { loadState } from '../../src/render/providers';
 
-const S = (o: Partial<AirState> = {}): AirState => ({ prov: 'gemini', model: {}, key: {}, sty: 'toshkent', extra: '', keep: true, fid: 'qatiy', ...o });
-const img = { url: 'data:image/jpeg;base64,QUJD', w: 1600, h: 900 }, ref = { url: 'data:image/jpeg;base64,UkVG', w: 512, h: 512 };
-const ok = (j: unknown) => Promise.resolve(new Response(JSON.stringify(j), { status: 200 }));
+/** 13.11 (Render 1-bosqich): kalitsiz — hamma soʻrov serverga; provayder va kalit yoʻq */
+const store = new Map<string, string>();
+(globalThis as unknown as { localStorage: Storage }).localStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => { store.set(k, String(v)); }, removeItem: k => { store.delete(k); }, clear: () => store.clear(), key: () => null, length: 0 } as Storage;
+const json = (status: number, b: unknown) => Promise.resolve(new Response(JSON.stringify(b), { status }));
 
-describe('Render studiyasi · soʻrov', () => {
-  it('uslub, sodiqlik va referens rollari soʻrovga tushadi', () => {
-    const p = buildPrompt(S({ extra: 'terrakota gʻisht' }), 'reja', ['material', 'yorugik']);
-    expect(p).toMatch(/^The first image is the BASE image/);
-    expect(p).toContain('Tashkent'); expect(p).toContain('Image 2 is a MATERIAL reference'); expect(p).toContain('Image 3 is a LIGHTING reference');
-    expect(p).toContain('Do not add or remove buildings'); expect(p).toContain('terrakota');
-    expect(buildPrompt(S({ fid: 'erkin' }), 'bino')).toContain('loose composition guide');
-    expect(buildPrompt(S({ sty: '' }), 'eskiz', ['uslub'])).toContain('high-quality architectural visualization');
+describe('Render studiyasi · holat', () => {
+  beforeEach(() => store.clear());
+  it('eski kps_air dan faqat tugmalar olinadi — kalit va provayder yoʻq', () => {
+    store.set('kps_air', JSON.stringify({ prov: 'openai', key: { openai: 'sk-xxx' }, model: { openai: 'gpt' }, sty: 'toshkent', extra: 'gʻisht', keep: false, n: 2 }));
+    const s = loadState();
+    expect(s).toEqual({ sty: 'toshkent', extra: 'gʻisht', fid: 'muvozanat', subj: 'reja', n: 2, engine: 'pro' });
+    expect(JSON.stringify(s)).not.toContain('sk-xxx');
   });
-  it('kadr nisbati', () => { expect(nearAR(1600 / 900)).toBe('16:9'); expect(openaiSize(0.6)).toBe('1024x1536'); });
+  it('notoʻgʻri qiymatlar sukutga qaytadi', () => {
+    store.set('ren-state', JSON.stringify({ engine: 'turbo', n: 7, fid: 'x', subj: 'y', sty: 'neon' }));
+    expect(loadState()).toMatchObject({ engine: 'pro', n: 1, fid: 'qatiy', subj: 'reja', sty: 'foto' });
+  });
 });
 
-describe('Render studiyasi · provayderlar (koʻp rasm)', () => {
-  it('Gemini: asos + referenslar inline_data sifatida, natija rasmi qaytadi', async () => {
-    let body: any = null;
-    const f = ((_u: string, o: RequestInit) => { body = JSON.parse(String(o.body)); return ok({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: 'UE5H' } }] } }] }); }) as unknown as typeof fetch;
-    expect(await gemini('k', 'm', 'P', img, f, [ref])).toBe('data:image/png;base64,UE5H');
-    expect(body.contents[0].parts.filter((p: any) => p.inline_data).map((p: any) => p.inline_data.data)).toEqual(['QUJD', 'UkVG']);
-    expect(body.generationConfig.imageConfig.aspectRatio).toBe('16:9');
+describe('Render studiyasi · server', () => {
+  it('yuklash: imzolangan havola → R2 ga PUT (server orqali emas)', async () => {
+    const calls: { url: string; method?: string; body?: unknown }[] = [];
+    setFetch(((url: string, o: RequestInit = {}) => {
+      calls.push({ url, method: o.method, body: o.body });
+      if (url.endsWith('/render/upload-url')) return json(200, { key: 'in/u1/a.webp', url: 'https://r2.test/put', headers: { 'content-type': 'image/webp' } });
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }) as typeof fetch);
+    const blob = new Blob([new Uint8Array(10)], { type: 'image/webp' });
+    expect(await renderApi.upload(blob)).toBe('in/u1/a.webp');
+    expect(JSON.parse(String(calls[0].body))).toEqual({ type: 'image/webp', bytes: 10 });
+    expect(calls[1]).toMatchObject({ url: 'https://r2.test/put', method: 'PUT', body: blob });
   });
-  it('OpenAI: bir nechta rasm — image[]', async () => {
-    let fd: FormData | null = null;
-    const f = ((u: string, o?: RequestInit) => { if (u.startsWith('data:')) return Promise.resolve(new Response(new Blob(['x'], { type: 'image/jpeg' }))); fd = o!.body as FormData; return ok({ data: [{ b64_json: 'QQ==' }] }); }) as unknown as typeof fetch;
-    expect(await openai('k', 'gpt-image-1', 'P', img, f, [ref])).toBe('data:image/png;base64,QQ==');
-    expect(fd!.getAll('image[]').length).toBe(2); expect(fd!.get('size')).toBe('1536x1024');
+  it('xato: 402 — need va balance bilan', async () => {
+    setFetch((() => json(402, { error: 'insufficient', message: 'tanga yetarli emas', need: 2, balance: 1 })) as typeof fetch);
+    await expect(renderApi.create({ engine: 'pro', input: { key: 'k', w: 1, h: 1 }, subj: 'reja', style: '', fid: 'qatiy', source: 'mr' })).rejects.toMatchObject({ code: 'insufficient', status: 402, details: { need: 2, balance: 1 } });
   });
-  it('OpenRouter: rasmlar image_url, xato matni koʻrsatiladi', async () => {
-    let body: any = null;
-    const f = ((_u: string, o: RequestInit) => { body = JSON.parse(String(o.body)); return ok({ choices: [{ message: { images: [{ image_url: { url: 'data:image/png;base64,Wg==' } }] } }] }); }) as unknown as typeof fetch;
-    expect(await openrouter('k', 'm', 'P', img, f, [ref, ref])).toContain('Wg==');
-    expect(body.messages[0].content.filter((c: any) => c.type === 'image_url').length).toBe(3);
-    const bad = (() => Promise.resolve(new Response(JSON.stringify({ error: { message: 'kalit notoʻgʻri' } }), { status: 401 }))) as unknown as typeof fetch;
-    await expect(gemini('k', 'm', 'P', img, bad)).rejects.toThrow(/401 kalit notoʻgʻri/);
+  it('holat soʻrovi: tugaguncha, aloqa uzilsa ham davom etadi', async () => {
+    const seq: (Job | Error)[] = [{ status: 'running' } as Job, new Error('net'), { status: 'done', id: '5' } as Job];
+    const api = { ...renderApi, job: async () => { const x = seq.shift()!; if (x instanceof Error) throw x; return x; } };
+    const ticks: string[] = [];
+    const j = await waitJob('5', t => ticks.push(t.status), undefined, api, 1);
+    expect(j.status).toBe('done'); expect(ticks).toEqual(['running', 'done']);
   });
 });
