@@ -23,7 +23,7 @@ async function mockServer(page: Page, o: { enabled?: boolean; balance?: number }
   const view = (id: string, full: boolean) => {
     const j = jobs.get(id)!, done = j.n >= 2;
     return { id, status: done ? 'done' : 'running', engine: j.body.engine, source: j.body.source, coins: 4, created: new Date(Date.UTC(2026, 10, 13, 10, 0, Number(id))).toISOString(), finished: null, downgraded: false,
-      params: { subj: j.body.subj, style: j.body.style, fid: j.body.fid, refs: (j.body.refs as unknown[]).length }, tag: j.body.tag,
+      params: { subj: j.body.subj, style: j.body.style, fid: j.body.fid, refs: ((j.body.refs as unknown[]) ?? []).length }, tag: j.body.tag ?? 'x',
       ...(done ? { thumb: `${R2}/get/th/${id}.webp`, ...(full ? { out: `${R2}/get/out/${id}.png`, w: 256, h: 256, prompt: 'INPUT: … GEOMETRY …' } : {}) } : {}) };
   };
   await page.route(`${API}/**`, async r => {
@@ -100,21 +100,29 @@ test('Render studiyasi: kalitsiz — server navbati, R2 ga yuklash, 2 variant, h
   await expect(page.locator('.ren-va .ren-gal button')).toHaveCount(2);
   await expect(page.locator('.ren-va dd code')).toHaveText('Archemistry Pro 4K');
   await page.screenshot({ path: 'test-results/render-natija.png' });
+  // kattalashtirish ×2 — tayyor natijadan (from), yangi natija sifatida ochiladi
+  await expect(page.locator('#vUp button')).toHaveCount(3);
+  await page.locator('#vUp [data-up=up2]').click();
+  await expect(page.locator('.ren-vh .nm b')).toContainText('×2', { timeout: 30_000 });
+  expect(hits.jobs.at(-1)).toMatchObject({ engine: 'up2', from: expect.stringMatching(/^[12]$/) });
+  await expect(page.locator('.ren-va .ren-gal button')).toHaveCount(3);
+  await page.locator('.ren-va .ren-gal button').first().click();
+  await page.setViewportSize({ width: 1024, height: 768 }); await page.screenshot({ path: 'test-results/render-viewer-1024.png' }); await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator('#vMode button', { hasText: 'Yonma-yon' }).click();
   await expect(page.locator('.ren-yon figure')).toHaveCount(2);
   // referens qilish va orqaga
   await page.locator('#vRef').click();
   await expect(page.locator('.ren-refs .ref')).toHaveCount(2);
   await page.locator('#vBack').click();
-  await expect(page.locator('#renGal button')).toHaveCount(2);
+  await expect(page.locator('#renGal button')).toHaveCount(3);
   await page.locator('#stView button', { hasText: 'Solishtirish' }).click();
   await expect(page.locator('.ren-frame .ren-cmp')).toBeVisible();
   await page.screenshot({ path: 'test-results/render-studiya.png' });
   // saqlanish: kesh (eskiz) + server tarixi — takrorlanmaydi
   await page.reload();
-  await expect(page.locator('#renGal button')).toHaveCount(2);
+  await expect(page.locator('#renGal button')).toHaveCount(3);
   await page.waitForTimeout(600);
-  await expect(page.locator('#renGal button')).toHaveCount(2);
+  await expect(page.locator('#renGal button')).toHaveCount(3);
   await expect(page.locator('.ren-refs .ref')).toHaveCount(2);
   await expect(page.locator('#sty [data-sty=toshkent]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#eng [data-eng=pro4k]')).toHaveAttribute('aria-pressed', 'true');

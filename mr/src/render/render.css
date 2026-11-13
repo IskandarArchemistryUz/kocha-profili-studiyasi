@@ -142,3 +142,8 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 .ren-eng button code { margin-left: 5px; font-size: 11px; opacity: .65; }
 .ren-eng button[aria-pressed="true"] code { opacity: .9; }
 #renGo .ren-price { font-style: normal; font-weight: 500; margin-left: 6px; opacity: .8; font-size: .86em; }
+/* kattalashtirish tugmalari qoʻshildi — planshetda (≤ 1180 px) sarlavha siqiladi */
+.ren-vh .nm code{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ren-vh #vUp button{padding:0 8px;font-variant-numeric:tabular-nums}
+@media (max-width:1180px){.ren-vh .nm b{max-width:180px}.ren-vh .nm code{max-width:180px}.ren-vh #vMode{grid-auto-columns:auto;flex:none}.ren-vh #vMode button{padding:0 8px}.ren-vh .btn-sm{padding-inline:8px}}
+.ren-va .ren-up{display:flex;gap:8px;align-items:center}.ren-va .ren-up .seg{flex:1}.ren-va .ren-up .seg button{flex:1}

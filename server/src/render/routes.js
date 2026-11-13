@@ -21,7 +21,8 @@ export const RENDER_DEFAULTS = Object.freeze({
   maxRefs: 4,
   uploadTtl: 300,        // presigned PUT — 5 daqiqa
   getTtl: 3600,          // brauzer va fal uchun GET havolasi — 1 soat
-  maxOutBytes: 40 * 2 ** 20,
+  maxOutBytes: 80 * 2 ** 20,
+  maxUpSide: 8192,       // kattalashtirilgan natijaning uzun tomoni
   sweepMs: 5 * 60e3,     // «osilgan» ishlarni tekshirish oraligʻi
   staleMin: 2,           // webhook shu daqiqada kelmasa — fal dan soʻraladi
   stuckMin: 30,          // shundan keyin ham natija yoʻq — xato, tanga qaytadi
@@ -119,22 +120,40 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     const own = isOwner(u);
     if (!ENGINES[engine] || (ENGINES[engine].lab && !own)) throw new RenderError(400, 'bad_engine', 'dvigatel notoʻgʻri');
 
+    // Kattalashtirish / tiniqlashtirish (kind: 'up'): kirish — shu foydalanuvchining tayyor natijasi (from)
+    const up = ENGINES[engine].kind === 'up';
+    let fromJob = null;
+    if (up) {
+      const from = Number(b.from);
+      if (!Number.isSafeInteger(from) || from <= 0) throw new RenderError(400, 'bad_from', 'natija tanlanmagan');
+      const r = await db.query(
+        `SELECT j.id, j.source, j.params, a.r2_key, a.w, a.h, a.bytes FROM render_jobs j JOIN render_assets a ON a.job_id = j.id AND a.role = 'out'
+         WHERE j.id = $1 AND j.user_id = $2 AND j.status = 'done'`, [from, u.id]);
+      if (!r.rows.length) throw new RenderError(400, 'bad_from', 'natija topilmadi');
+      fromJob = r.rows[0];
+      const side = Math.max(fromJob.w || 0, fromJob.h || 0) * ENGINES[engine].factor;
+      const lim = ENGINES[engine].maxOut ?? c.maxUpSide;
+      if (side > lim) throw new RenderError(400, 'up_too_big', `natija ${lim} px dan oshadi — kichikroq koeffitsiyent tanlang`);
+    }
+
     // kirishlar: faqat shu foydalanuvchi yuklagan kalitlar
     const pre = prefixOf(u.id);
-    const inputs = [{ role: 'input', key: b.input?.key, w: b.input?.w, h: b.input?.h }, ...(Array.isArray(b.refs) ? b.refs : []).map((r) => ({ role: 'ref', key: r?.key, refRole: r?.role }))];
+    const inputs = up ? [{ role: 'input', key: fromJob.r2_key, w: fromJob.w, h: fromJob.h, bytes: fromJob.bytes, own: true }] : [{ role: 'input', key: b.input?.key, w: b.input?.w, h: b.input?.h }, ...(Array.isArray(b.refs) ? b.refs : []).map((r) => ({ role: 'ref', key: r?.key, refRole: r?.role }))];
     if (inputs.length - 1 > c.maxRefs) throw new RenderError(400, 'bad_refs', `referens ${c.maxRefs} tadan koʻp emas`);
     for (const x of inputs) {
+      if (x.own) continue;
       if (typeof x.key !== 'string' || !x.key.startsWith(pre) || !/^[\w/.-]{8,200}$/.test(x.key) || x.key.includes('..')) throw new RenderError(400, 'bad_input', 'kirish rasmi notoʻgʻri');
       if (x.role === 'ref' && !REF_ROLES.includes(x.refRole)) throw new RenderError(400, 'bad_refs', 'referens roli notoʻgʻri');
     }
-    const prompt = compilePrompt({ subj: b.subj, style: b.style || '', fid: b.fid, refs: inputs.slice(1).map((x) => x.refRole), extra: b.extra, facts: b.facts });
-    const source = ['mr', 'joy', 'ks', 'chz', 'fayl', 'natija'].includes(b.source) ? b.source : 'fayl';
+    const prompt = up ? `${ENGINES[engine].label} ×${ENGINES[engine].factor}` : compilePrompt({ subj: b.subj, style: b.style || '', fid: b.fid, refs: inputs.slice(1).map((x) => x.refRole), extra: b.extra, facts: b.facts });
+    const source = up ? fromJob.source : ['mr', 'joy', 'ks', 'chz', 'fayl', 'natija'].includes(b.source) ? b.source : 'fayl';
     const project = typeof b.project === 'string' && /^[\w-]{1,64}$/.test(b.project) ? b.project : null;
     // brauzerdagi manba belgisi (IndexedDB dagi asos rasm id si) — tarixni shu asosga bogʻlash uchun
-    const tag = typeof b.tag === 'string' && /^[\w-]{1,40}$/.test(b.tag) ? b.tag : null;
+    const tag = up ? (fromJob.params?.tag ?? null) : typeof b.tag === 'string' && /^[\w-]{1,40}$/.test(b.tag) ? b.tag : null;
 
     // R2 da bormi, turi va hajmi toʻgʻrimi (brauzer imzodan tashqari narsa yuklay olmaydi, lekin yuklamagan boʻlishi mumkin)
     for (const x of inputs) {
+      if (x.own) continue;
       const hd = await c.r2.head(x.key);
       if (!hd) throw new RenderError(400, 'upload_missing', 'rasm yuklanmagan — qayta urinib koʻring');
       if (hd.bytes > c.maxBytes || (hd.type && !TYPES.has(hd.type))) throw new RenderError(400, 'bad_input', 'kirish rasmi notoʻgʻri');
@@ -145,7 +164,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     const spent = await spentTodayMicro(), cap = c.dailyUsd * 1e6;
     let downgraded = false;
     if (spent + ENGINES[engine].usd * 1e6 > cap) {
-      if (engine !== 'fast' && spent + ENGINES.fast.usd * 1e6 <= cap) { engine = 'fast'; downgraded = true; }
+      if ((engine === 'pro' || engine === 'pro4k') && spent + ENGINES.fast.usd * 1e6 <= cap) { engine = 'fast'; downgraded = true; }
       else {
         notify('Render: kunlik chegara tugadi', `Bugungi fal xarajati $${(spent / 1e6).toFixed(2)} (chegara $${c.dailyUsd}). Yangi renderlar ertaga ochiladi.`);
         throw new RenderError(503, 'render_budget', 'bugungi render chegarasi tugadi — ertaga urinib koʻring');
@@ -162,7 +181,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
       const a = await q.query(`SELECT COUNT(*) FILTER (WHERE user_id = $1)::int AS mine, COUNT(*)::int AS all FROM render_jobs WHERE status IN ('queued', 'running')`, [u.id]);
       if (a.rows[0].mine >= max) throw new RenderError(429, 'parallel', max === 1 ? 'oldingi render tugashini kuting' : `bir vaqtda ${max} tadan koʻp render boʻlmaydi — oldingisi tugashini kuting`, { limit: max });
       if (a.rows[0].all >= c.siteMax) throw new RenderError(503, 'busy', 'render navbati band — bir daqiqadan keyin urinib koʻring');
-      const params = { subj: b.subj, style: b.style || '', fid: b.fid ?? 'qatiy', refs: inputs.slice(1).map((x) => x.refRole), extra: b.extra ? String(b.extra).slice(0, 400) : '', w: Number(b.input?.w) || null, h: Number(b.input?.h) || null, project, tag, downgraded, asked: String(b.engine) };
+      const params = { subj: b.subj, style: b.style || '', fid: b.fid ?? 'qatiy', refs: inputs.slice(1).map((x) => x.refRole), extra: b.extra ? String(b.extra).slice(0, 400) : '', w: Number(b.input?.w) || null, h: Number(b.input?.h) || null, project, tag, downgraded, asked: String(b.engine), ...(up ? { from: Number(fromJob.id), factor: ENGINES[engine].factor, w: fromJob.w, h: fromJob.h } : {}) };
       const r = await q.query(
         `INSERT INTO render_jobs (user_id, engine, source, params, prompt, coins, owner, usd_micro, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         [u.id, engine, source, JSON.stringify(params), prompt, coins, own, usdMicro, t]);
@@ -179,7 +198,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     try {
       // bitta rasm qabul qiladigan model (refs: false) — faqat asos rasm
       const images = (ENGINES[engine].refs === false ? inputs.slice(0, 1) : inputs).map((x) => c.r2.presignGet(x.key, c.getTtl));
-      const w = Number(b.input?.w), h = Number(b.input?.h);
+      const w = up ? fromJob.w : Number(b.input?.w), h = up ? fromJob.h : Number(b.input?.h);
       const s = await c.fal.submit(engine, { prompt, images, aspect: nearAR(w, h), w: Number.isFinite(w) ? w : 0, h: Number.isFinite(h) ? h : 0 }, c.hookUrl);
       await db.query(`UPDATE render_jobs SET status = 'running', fal_request_id = $2, submitted_at = $3, params = params || $4::jsonb WHERE id = $1`,
         [job.id, s.request_id, now(), JSON.stringify({ fal: { status_url: s.status_url, response_url: s.response_url } })]);
@@ -314,7 +333,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     return {
       id: String(job.id), status: job.status, engine: job.engine, source: job.source, coins: job.coins,
       created: job.created_at, finished: job.finished_at, downgraded: !!job.params?.downgraded,
-      params: { subj: job.params?.subj, style: job.params?.style, fid: job.params?.fid, refs: job.params?.refs?.length ?? 0 }, tag: job.params?.tag ?? null,
+      params: { subj: job.params?.subj, style: job.params?.style, fid: job.params?.fid, refs: job.params?.refs?.length ?? 0, ...(job.params?.from ? { from: String(job.params.from), factor: job.params.factor } : {}) }, tag: job.params?.tag ?? null,
       ...(job.status === 'failed' || job.status === 'refunded' ? { error: 'render bajarilmadi' } : {}),
       ...(th ? { thumb: c.r2.presignGet(th.r2_key, c.getTtl) } : {}),
       ...(full && out ? { out: c.r2.presignGet(out.r2_key, c.getTtl), w: out.w, h: out.h, prompt: job.prompt } : {}),

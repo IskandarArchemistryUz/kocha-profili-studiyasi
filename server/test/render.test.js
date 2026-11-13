@@ -117,10 +117,10 @@ describe('render — sozlama', () => {
     expect(await balance('ali@mail.uz')).toBe(5);
   });
   it('narxlar: Tez 1 · Pro 2K 2 · Pro 4K 4; /prices da ham', async () => {
-    expect(RENDER_COINS).toEqual({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4 });
+    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 2, 'ren.enhance': 2 });
     const r = (await get('/render/config')).json();
     expect(r.enabled).toBe(true);
-    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 } });
+    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 2 }, enhance: { coins: 2 } });
     expect((await get('/prices')).json().render).toEqual(RENDER_COINS);
     const ck = await login();
     expect((await get('/render/config', ck)).json()).toMatchObject({ owner: false, parallel: 1 });
@@ -151,7 +151,7 @@ describe('render — tanga: hold → capture / release', () => {
     const call = falCalls.at(-1);
     expect(call.url).toBe(`https://queue.fal.run/${ENGINES.pro.model}?fal_webhook=${encodeURIComponent('https://api.archemistry.uz/render/hook')}`);
     expect(call.headers.authorization).toBe('Key fal-test');
-    expect(call.body).toMatchObject({ resolution: '2K', aspect_ratio: '16:9', num_images: 1 });
+    expect(call.body).toMatchObject({ quality: 'medium', image_size: { width: 2048, height: 1152 }, num_images: 1 });
     expect(call.body.image_urls[0]).toMatch(/^https:\/\/r2\.test\/get\/in\//);
     expect(call.body.prompt).toContain('Tashkent');
     expect((await get(`/render/jobs/${j.id}`, ck)).json()).toMatchObject({ status: 'running' });
@@ -314,13 +314,13 @@ describe('render — cheklovlar', () => {
 describe('render — sinov modellari (lab)', () => {
   it('faqat egasiga: konfigda koʻrinadi va ishlaydi; boshqalarga — bad_engine', async () => {
     const ck = await login(); await give('ali@mail.uz', 5);
-    expect(Object.keys((await get('/render/config', ck)).json().engines)).toEqual(['fast', 'pro', 'pro4k']);
+    expect(Object.keys((await get('/render/config', ck)).json().engines)).toEqual(['fast', 'pro', 'pro4k', 'up2', 'up3', 'up4', 'enhance']);
     expect((await job(ck, { engine: 'qwen' })).json().error).toBe('bad_engine');
     expect(await balance('ali@mail.uz')).toBe(5);
     const own = await login('boss@mail.uz');
     const cfg = (await get('/render/config', own)).json();
     expect(cfg.engines.qwen).toMatchObject({ lab: true });
-    expect(Object.keys(cfg.engines)).toEqual(['fast', 'pro', 'pro4k', 'qwen', 'kontext', 'seedream5', 'gptimg']);
+    expect(Object.keys(cfg.engines)).toEqual(['fast', 'pro', 'pro4k', 'nbpro', 'up2', 'up3', 'up4', 'enhance', 'qwen', 'kontext', 'seedream5', 'gptimg']);
   });
   it('har model oʻz sxemasi bilan; Kontext — faqat asos rasm, kadr nisbati saqlanadi', async () => {
     const own = await login('boss@mail.uz');
@@ -337,6 +337,54 @@ describe('render — sinov modellari (lab)', () => {
       // parallel chegara oshmasin — ishni yakunlaymiz
       await hook(okPayload((await jobRow(r.json().id)).fal_request_id)); await app.render.flush();
     }
+  });
+});
+
+describe('render — kattalashtirish va tiniqlashtirish', () => {
+  async function doneJob(ck, engine = 'fast') {
+    const j = (await job(ck, { engine })).json();
+    await hook({ ...okPayload((await jobRow(j.id)).fal_request_id), payload: { images: [{ url: 'https://v3.fal.media/files/out.png', width: 2048, height: 1152 }] } });
+    await app.render.flush();
+    return j.id;
+  }
+  it('×2 / ×4: kirish — oʻz natijasi (R2 out), SeedVR2, tanga 1 / 2', async () => {
+    const ck = await login(); await give('ali@mail.uz', 10); await paid('ali@mail.uz');
+    const from = await doneJob(ck);
+    const r = await post('/render/jobs', { engine: 'up2', from }, ck);
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ engine: 'up2', coins: 1, balance: 8 });
+    const call = falCalls.at(-1);
+    expect(call.url.startsWith('https://queue.fal.run/fal-ai/seedvr/upscale/image?')).toBe(true);
+    expect(call.body).toMatchObject({ upscale_mode: 'factor', upscale_factor: 2, output_format: 'jpg' });
+    expect(call.body.image_url).toMatch(/\/get\/out\//);
+    await hook(okPayload((await jobRow(r.json().id)).fal_request_id)); await app.render.flush();
+    const v = (await get(`/render/jobs/${r.json().id}`, ck)).json();
+    expect(v).toMatchObject({ status: 'done', engine: 'up2', tag: 'sMR1', params: { from: String(from), factor: 2 } });
+    expect((await post('/render/jobs', { engine: 'up4', from }, ck)).json()).toMatchObject({ coins: 2 });
+  });
+  it('tiniqlashtirish — Clarity, 4096 px dan oshmaydi; ×4 — 8192 px dan oshmaydi', async () => {
+    const own = await login('boss@mail.uz');
+    const from = await doneJob(own);
+    const e = await post('/render/jobs', { engine: 'enhance', from }, own);
+    expect(e.statusCode).toBe(200);
+    expect(falCalls.at(-1).url.startsWith('https://queue.fal.run/fal-ai/clarity-upscaler?')).toBe(true);
+    expect(falCalls.at(-1).body).toMatchObject({ upscale_factor: 2, resemblance: 0.7 });
+    await hook(okPayload((await jobRow(e.json().id)).fal_request_id)); await app.render.flush();
+    const big = await doneJob(own, 'pro4k');
+    await db.query(`UPDATE render_assets SET w = 3840, h = 2160 WHERE job_id = $1 AND role = 'out'`, [big]);
+    expect((await post('/render/jobs', { engine: 'enhance', from: big }, own)).json().error).toBe('up_too_big');
+    expect((await post('/render/jobs', { engine: 'up4', from: big }, own)).json().error).toBe('up_too_big');
+    expect((await post('/render/jobs', { engine: 'up2', from: big }, own)).statusCode).toBe(200);
+  });
+  it('boshqaning natijasi yoki tugamagan ish — rad', async () => {
+    const a = await login('a@mail.uz'), b = await login('b@mail.uz');
+    await give('a@mail.uz', 5); await give('b@mail.uz', 5);
+    const from = await doneJob(a);
+    expect((await post('/render/jobs', { engine: 'up2', from }, b)).json().error).toBe('bad_from');
+    const run = (await job(b)).json().id;
+    expect((await post('/render/jobs', { engine: 'up2', from: run }, b)).json().error).toBe('bad_from');
+    expect((await post('/render/jobs', { engine: 'up2' }, b)).json().error).toBe('bad_from');
+    expect(await balance('b@mail.uz')).toBe(3);
   });
 });
 

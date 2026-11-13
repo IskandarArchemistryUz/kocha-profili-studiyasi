@@ -6,20 +6,23 @@ import { apiBase } from '../account/config';
 import { ApiError } from '../account/session';
 
 /** Hammaga: fast · pro · pro4k. Sinov modellari (lab) — faqat egasiga, server konfigida keladi */
-export type Engine = 'fast' | 'pro' | 'pro4k' | 'qwen' | 'kontext' | 'seedream5' | 'gptimg';
+export type Engine = 'fast' | 'pro' | 'pro4k' | 'nbpro' | 'qwen' | 'kontext' | 'seedream5' | 'gptimg' | 'up2' | 'up3' | 'up4' | 'enhance';
 export const ENGINES: [Engine, string][] = [['fast', 'Tez'], ['pro', 'Pro 2K'], ['pro4k', 'Pro 4K']];
-export const LAB: [Engine, string][] = [['qwen', 'Qwen Edit'], ['kontext', 'FLUX Kontext'], ['seedream5', 'Seedream 5'], ['gptimg', 'GPT Image 2']];
+export const LAB: [Engine, string][] = [['nbpro', 'Nano Banana Pro'], ['qwen', 'Qwen Edit'], ['kontext', 'FLUX Kontext'], ['seedream5', 'Seedream 5'], ['gptimg', 'GPT Image 2']];
 export interface RenderCfg { enabled: boolean; message: string | null; engines: Partial<Record<Engine, { coins: number; lab?: boolean }>>; maxBytes: number; maxSide: number; maxRefs: number; types: string[]; owner?: boolean; parallel?: number }
 export type Status = 'queued' | 'running' | 'done' | 'failed' | 'refunded';
 export interface Job {
   id: string; status: Status; engine: Engine; source: string; coins: number; created: string; finished: string | null; downgraded: boolean;
-  params: { subj?: string; style?: string; fid?: string; refs: number }; tag: string | null;
+  params: { subj?: string; style?: string; fid?: string; refs: number; from?: string; factor?: number }; tag: string | null;
   thumb?: string; out?: string; w?: number | null; h?: number | null; prompt?: string; error?: string;
 }
+/** Yangi render (input…) yoki tayyor natijani kattalashtirish (from — ish id si) */
 export interface JobBody {
-  engine: Engine; input: { key: string; w: number; h: number }; refs?: { key: string; role: string }[];
-  subj: string; style: string; fid: string; extra?: string; source: string; tag?: string; project?: string;
+  engine: Engine; input?: { key: string; w: number; h: number }; refs?: { key: string; role: string }[]; from?: string;
+  subj?: string; style?: string; fid?: string; extra?: string; source?: string; tag?: string; project?: string;
 }
+/** Kattalashtirish: SeedVR2 (asliga sodiq) va tiniqlashtirish (detal qo'shadi, 2×) */
+export const UPS: [Engine, string][] = [['up2', '×2'], ['up3', '×3'], ['up4', '×4']];
 export const TERMINAL: Status[] = ['done', 'failed', 'refunded'];
 export const POLL_MS = 3000;
 

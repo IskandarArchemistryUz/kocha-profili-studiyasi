@@ -18,7 +18,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
 import { STY, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
-import { ENGINES, LAB, renderApi, toUpload, waitJob, type Engine, type Job, type JobBody, type RenderCfg } from './api';
+import { ENGINES, LAB, UPS, renderApi, toUpload, waitJob, type Engine, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
 import { ensureLogin } from '../account/gate';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
@@ -61,9 +61,12 @@ const UP = new Map<string, { key: string; w: number; h: number }>();   // mahall
 const FOLLOW = new Set<string>();         // kuzatilayotgan ishlar
 const HIDDEN_K = 'ren-hidden';
 const hidden = (): string[] => { try { return JSON.parse(localStorage.getItem(HIDDEN_K) || '[]') as string[]; } catch { return []; } };
-const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2 };
+const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, nbpro: 2, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2, up2: 1, up3: 1, up4: 2, enhance: 2 };
 const coinsOf = (e: Engine) => CFG?.engines?.[e]?.coins ?? DEF_COINS[e];
-const engName = (e: string) => { const l = LAB.find(x => x[0] === e); return l ? l[1] : `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`; };
+let upBusy = '';
+const engName = (e: string) => {
+  const u = UPS.find(x => x[0] === e); if (u) return `${tr('Kattalashtirish')} ${u[1]}`;
+  if (e === 'enhance') return tr('Tiniqlashtirish'); const l = LAB.find(x => x[0] === e); return l ? l[1] : `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`; };
 let viewer: { id: string; mode: 'natija' | 'cmp' | 'yon' } | null = null;
 const base = () => SRC.find(s => s.id === baseId) ?? null;
 const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem('render-base', id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
@@ -173,7 +176,7 @@ function renderStage(): void {
         ...([['asos', 'Asos'], ['natija', 'Oxirgi natija'], ['cmp', 'Solishtirish']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': v === k, disabled: k !== 'asos' && !o, onclick: () => { view = k; renderStage(); } }, tr(n))))),
     h('div', { class: 'ren-tools glass' },
       h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, tr('Hudud belgilash'), h('em', { class: 'soon' }, tr('tez orada'))),
-      h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, tr('Kattalashtirish ×2'), h('em', { class: 'soon' }, tr('tez orada')))),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'stUp', disabled: !o?.job || !!upBusy, title: tr('Oxirgi natijani 2 marta kattalashtirish'), onclick: () => { if (o) void upscale(o, 'up2'); } }, tr('Kattalashtirish ×2'))),
     ...(busy ? [h('div', { class: 'ren-busy', role: 'status' }, h('span', { class: 'spin' }), prog)] : []),
   );
 }
@@ -251,7 +254,7 @@ function errText(e: unknown): string {
   const M: Record<string, string> = {
     render_off: 'Render vaqtincha ishlamayapti', render_budget: 'Bugungi render chegarasi tugadi — ertaga urinib koʻring',
     render_busy: 'Render xizmati javob bermadi — tanga qaytarildi, birozdan keyin urinib koʻring', busy: 'Render navbati band — bir daqiqadan keyin urinib koʻring',
-    upload: 'Rasm yuklanmadi — internetni tekshiring', upload_missing: 'Rasm yuklanmadi — internetni tekshiring', too_big: 'Rasm juda katta', bad_type: 'Rasm juda katta',
+    bad_from: 'Natija topilmadi — sahifani yangilang', upload: 'Rasm yuklanmadi — internetni tekshiring', upload_missing: 'Rasm yuklanmadi — internetni tekshiring', up_too_big: 'Natija juda katta boʻladi — kichikroq koeffitsiyent tanlang', too_big: 'Rasm juda katta', bad_type: 'Rasm juda katta',
     offline: 'Server bilan aloqa yoʻq. Internetni tekshiring yoki birozdan keyin urinib koʻring.', rate: 'Juda koʻp soʻrov — birozdan keyin urinib koʻring',
   };
   return tr(M[e.code] ?? 'Xato yuz berdi — qayta urinib koʻring');
@@ -290,6 +293,24 @@ async function go(): Promise<void> {
   } catch (e) { err = errText(e); }
   busy = false; prog = ''; renderStage(); renderRight();
   if (first && OUT.some(o => o.id === first)) openViewer(first);
+}
+
+/** Tayyor natijani kattalashtirish / tiniqlashtirish — yangi natija sifatida shu asosga qoʻshiladi */
+async function upscale(o: RenderOut, engine: Engine): Promise<void> {
+  if (!o.job || upBusy) return;
+  if (!await ensureLogin(undefined, 'Render qilish uchun kiring. Hisob bepul.')) return;
+  upBusy = engine; renderViewer(); renderStage();
+  toast(tr(engine === 'enhance' ? 'Tiniqlashtirilmoqda… (1–2 daqiqa)' : 'Kattalashtirilmoqda…'));
+  try {
+    const j = await createWithRoom({ engine, from: o.job });
+    FOLLOW.add(j.id);
+    const r = await waitJob(j.id).finally(() => FOLLOW.delete(j.id));
+    const lbl = engine === 'enhance' ? tr('Tiniqlashtirilgan') : (UPS.find(x => x[0] === engine) ?? UPS[0])[1];
+    const it = r.status === 'done' ? await keep(r, o.srcId, `${o.name} · ${lbl}`, o.orig) : null;
+    upBusy = '';
+    if (it) { OUT = await listOut(); renderAll(); openViewer(it.id); }
+    else { toast(tr('Render bajarilmadi — tanga qaytarildi. Boshqa uslub yoki rasm bilan urinib koʻring.')); renderViewer(); }
+  } catch (e) { upBusy = ''; toast(errText(e)); renderViewer(); renderStage(); }
 }
 
 /** Server tarixi: kesh yoʻq natijalar (boshqa brauzer, tozalangan kesh) qoʻshiladi; tugamagan ishlar kuzatiladi */
@@ -350,6 +371,12 @@ function renderViewer(): void {
         h('details', { class: 'ren-key' }, h('summary', {}, tr('Soʻrov matni (prompt)')), h('p', { class: 'mono t-small' }, o.prompt)),
         sib.length > 1 ? h('div', { class: 'glabel' }, h('span', {}, tr('Shu manbadan boshqa natijalar'))) : null,
         sib.length > 1 ? h('div', { class: 'ren-gal' }, ...sib.map(x => h('button', { type: 'button', 'aria-pressed': x.id === o.id, 'aria-label': x.name, onclick: () => openViewer(x.id) }, h('img', { src: x.src, alt: '' })))) : null,
+        ...(o.job ? [
+          h('div', { class: 'glabel' }, h('span', {}, tr('Kattalashtirish'))),
+          h('div', { class: 'ren-up' },
+            h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kattalashtirish'), id: 'vUp' }, ...UPS.map(([k, n]) => h('button', { type: 'button', 'data-up': k, disabled: !!upBusy, title: CFG?.owner ? `${tr('Kattalashtirish')} ${n}` : `${tr('Kattalashtirish')} ${n} · ${tf('${c} tanga', { c: coinsOf(k) })}`, onclick: () => void upscale(o, k) }, upBusy === k ? '…' : n))),
+            h('button', { type: 'button', class: 'btn btn-sm', id: 'vEnh', disabled: !!upBusy, title: tr('Tiniqlashtirish — mayda detal qoʻshadi va 2 marta kattalashtiradi'), onclick: () => void upscale(o, 'enhance') }, upBusy === 'enhance' ? '…' : tr('Tiniqlashtirish'))),
+        ] : []),
         h('span', { class: 'sp' }),
         h('button', { type: 'button', class: 'btn btn-block', id: 'vBase', onclick: () => void asBase(o) }, tr('Natijani asos rasm qilish')),
         h('button', { type: 'button', class: 'btn btn-block', id: 'vRef', disabled: REFS.length >= MAX_REFS, onclick: () => void (async () => { const im = await shrink(fullOf(o), 1024).catch(() => ({ url: o.src })); REFS.push({ id: o.id, img: im.url, name: o.name, role: 'uslub' }); saveRefs(); toast(tr('Referensga qoʻshildi')); renderAll(); })() }, tr('Referens qilish')),
