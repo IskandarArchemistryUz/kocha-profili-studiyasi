@@ -30,7 +30,7 @@ export const VIEW: Record<string, ViewDef> = {
   oqim: { styles: [['qalinlik', 'Qalinlik'], ['nur', 'Yorqin nur'], ['dasta', 'Yoʻllar dastasi']], k: true },
   skaner: { stLabel: 'Rang', styles: [['umumiy', 'Umumiy ball'], ['zaif', 'Eng zaif yoʻnalish']], k: true },
   /** Koʻrinadigan joy (13.11): rejim — Nuqta yoki Marshrut (Maydon — keyingi bosqich) */
-  izovist: { stLabel: 'Rejim', styles: [['nuqta', 'Nuqta'], ['marshrut', 'Marshrut']], k: true },
+  izovist: { stLabel: 'Rejim', styles: [['nuqta', 'Nuqta'], ['marshrut', 'Marshrut'], ['maydon', 'Maydon']], k: true },
 };
 export const view = (V: Record<string, LayerView> | undefined, id: string): Required<LayerView> => {
   const d = VIEW[id], v = V?.[id] ?? {};

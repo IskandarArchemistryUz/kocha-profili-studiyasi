@@ -277,8 +277,8 @@ function pvUploadPick(): void {
 /* ---------- koʻrinadigan joy (13.11): izovist — yoʻlovchi nimani koʻradi — izovist.ts; kanvas «Joyshunos» K0–K2 ---------- */
 const IZ_COL = '#ff9900', IZ_RS = [50, 100, 150, 200], IZ_FOVS = [120, 200, 360], IZ_THR = 1000;
 const izR = () => S.iz?.R ?? 100, izFov = () => S.iz?.fov ?? 200;
-const izMode = (): 'nuqta' | 'marshrut' => (V('izovist').st === 'marshrut' ? 'marshrut' : 'nuqta');
-const izOpt = () => ({ R: izR(), fov: izMode() === 'nuqta' ? 360 : izFov(), clip: S.r });
+const izMode = (): 'nuqta' | 'marshrut' | 'maydon' => { const st = V('izovist').st; return st === 'marshrut' || st === 'maydon' ? st : 'nuqta'; };
+const izOpt = () => ({ R: izR(), fov: izMode() === 'marshrut' ? izFov() : 360, clip: S.r });
 /** Binolar indeksi: kontekst toʻplamidan, doira atrofida */
 let IX: { key: string; ix: IsoIndex; fr: ReturnType<typeof geoFrame> } | null = null;
 function izIndex(): typeof IX {
@@ -300,8 +300,69 @@ function izSetRoute(pts: LngLat[]): void {
   const r = pts.map(p => { const x = (p[0] - S.c[0]) * kx, y = (p[1] - S.c[1]) * ky, d = Math.hypot(x, y); return d <= lim ? p : [S.c[0] + x / d * lim / kx, S.c[1] + y / d * lim / ky] as LngLat; });
   S.iz = { ...S.iz, route: r }; save(); WK = null; izD = 0; izStop(); renderRight(); paint();
 }
+/* ---------- Maydon rejimi (13.11, kanvas K3): har katakdan 360° koʻrinish maydoni — VGA (Turner, 2001) ---------- */
+const VGA_COLS = ['#2b2d6e', '#5a4fa0', '#c45a8a', '#f39a52', '#ffe7a3'];
+const VGA_MAXPTS = 14_000;
+let VG: { key: string; step: number; nx: number; vals: Float32Array; done: number; img?: { url: string; coords: [number, number][] }; st?: { p10: number; med: number; p90: number; vmax: number; n: number } } | null = null;
+let vgaKey = '';
+function computeVga(): void {
+  if (!isOn('izovist') || izMode() !== 'maydon') return;
+  const X = izIndex(); if (!X) return;
+  const key = `${X.key}|${izR()}`; if (VG?.key === key) return;
+  const r = S.r, step = Math.max(4, Math.ceil(Math.sqrt(Math.PI * r * r / VGA_MAXPTS))), nx = Math.floor(2 * r / step) + 1;
+  const vals = new Float32Array(nx * nx).fill(NaN), vg = VG = { key, step, nx, vals, done: 0 };
+  const o = { R: izR(), fov: 360, rays: 361, clip: r }, N = nx * nx;
+  const run = () => {
+    if (VG !== vg) return;
+    const t0 = performance.now();
+    while (vg.done < N && performance.now() - t0 < 24) {
+      const i = vg.done++, o0 = (nx - 1) * step / 2, x = -o0 + (i % nx) * step, y = o0 - Math.floor(i / nx) * step;
+      if (x * x + y * y > r * r) continue;
+      const iso = isovist(X.ix, [x, y], 0, o); if (!iso.inside) vals[i] = iso.area;
+    }
+    if (vg.done < N) { const el = document.getElementById('izProg'); if (el) el.textContent = tf('Hisoblanmoqda… ${p} %', { p: Math.round(vg.done / N * 100) }); setTimeout(run, 0); return; }
+    vgaImage(vg); renderRight(); paint();
+  };
+  setTimeout(run, 0);
+}
+/** Rastr: boʻsh kataklar (bino ichi) qoʻshnilari bilan toʻldiriladi (chetda oq dogʻ qolmasin), 4× silliq kattalashtiriladi, so‘ng binolar va doira bilan aniq kesiladi */
+function vgaImage(vg: NonNullable<typeof VG>): void {
+  const { nx, vals, step } = vg, v = Array.from(vals).filter(a => !Number.isNaN(a)).sort((a, b) => a - b);
+  if (!v.length) { vg.st = { p10: NaN, med: NaN, p90: NaN, vmax: 1, n: 0 }; return; }
+  const q = (p: number) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
+  vg.st = { p10: q(0.1), med: q(0.5), p90: q(0.9), vmax: Math.max(1, q(0.97)), n: v.length };
+  let a = Float32Array.from(vals);
+  for (let pass = 0; pass < 80; pass++) {   // boʻsh katakni qoʻshnilar oʻrtachasi bilan toʻldirish
+    const b = Float32Array.from(a); let left = 0;
+    for (let j = 0; j < nx; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (!Number.isNaN(a[k])) continue; let s = 0, c = 0;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nx) continue; const w = a[jj * nx + ii]; if (!Number.isNaN(w)) { s += w; c++; } }
+      if (c) b[k] = s / c; else left++; }
+    a = b; if (!left) break;
+  }
+  const rgb = VGA_COLS.map(c => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]);
+  const sm = document.createElement('canvas'); sm.width = sm.height = nx;
+  const g = sm.getContext('2d')!, im = g.createImageData(nx, nx);
+  for (let k = 0; k < nx * nx; k++) { const val = a[k]; if (Number.isNaN(val)) continue;
+    const t = Math.max(0, Math.min(1, val / vg.st.vmax)) * (rgb.length - 1), i0 = Math.min(rgb.length - 2, Math.floor(t)), f = t - i0;
+    for (let c = 0; c < 3; c++) im.data[k * 4 + c] = Math.round(rgb[i0][c] + (rgb[i0 + 1][c] - rgb[i0][c]) * f); im.data[k * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0);
+  const big = document.createElement('canvas'), px = nx * 4; big.width = big.height = px;
+  const G = big.getContext('2d')!; G.imageSmoothingEnabled = true; G.imageSmoothingQuality = 'high'; G.drawImage(sm, 0, 0, px, px);
+  G.globalCompositeOperation = 'destination-in'; G.beginPath(); G.arc(px / 2, px / 2, (S.r / step) * 4 + 2, 0, Math.PI * 2); G.fill();
+  const h0 = (nx - 1) * step / 2 + step / 2, sc = px / (2 * h0);
+  if (IX) { G.globalCompositeOperation = 'destination-out'; G.beginPath();   // binolar ichi shaffof — rang faqat koʻcha boʻshligʻida
+    for (const r of IX.ix.rings) r.forEach((q, i) => { const X = (q[0] + h0) * sc, Y = (h0 - q[1]) * sc; if (i) G.lineTo(X, Y); else G.moveTo(X, Y); });
+    G.fill('nonzero'); }
+  G.globalCompositeOperation = 'source-over';
+  const kx = 111_320 * Math.cos(S.c[1] * Math.PI / 180), ky = 111_132;
+  vg.img = { url: big.toDataURL(), coords: [[S.c[0] - h0 / kx, S.c[1] + h0 / ky], [S.c[0] + h0 / kx, S.c[1] + h0 / ky], [S.c[0] + h0 / kx, S.c[1] - h0 / ky], [S.c[0] - h0 / kx, S.c[1] - h0 / ky]] };
+}
+const vgaReady = () => !!VG && VG.key === `${IX?.key}|${izR()}` && !!VG.img;
+/** Bosilgan nuqtadagi qiymat (kartada) */
+function vgaAt(c: LngLat): number { const vg = VG; if (!vg || !IX) return NaN; const [x, y] = IX.fr.toLocal(c); const o0 = (vg.nx - 1) * vg.step / 2, i = Math.round((x + o0) / vg.step), j = Math.round((o0 - y) / vg.step); return i >= 0 && j >= 0 && i < vg.nx && j < vg.nx ? vg.vals[j * vg.nx + i] : NaN; }
 function computeIz(): void {
   if (!isOn('izovist')) { izStop(); return; }
+  if (izMode() === 'maydon') { computeVga(); return; }
   if (izMode() !== 'marshrut') return;
   const r = S.iz?.route, X = izIndex(); if (!r || r.length < 2 || !X) return;
   const key = `${X.key}|${r.map(p => p.join()).join(';')}|${izR()}|${izFov()}`;
@@ -324,7 +385,8 @@ let izC: { key: string; iso: Iso; at: P2 } | null = null;
 function izCur(): { key: string; iso: Iso; at: P2 } | null {
   if (!isOn('izovist')) return null;
   const X = izIndex(); if (!X) return null;
-  const nq = izMode() === 'nuqta';
+  const nq = izMode() !== 'marshrut';
+  if (izMode() === 'maydon' && !S.iz?.p) return null;
   if (!nq && !izReady()) return null;
   const at: P2 = nq ? X.fr.toLocal(S.iz?.p ?? S.c) as P2 : WK!.pl.at(izD);
   const key = `${X.key}|${nq ? `n|${at.join()}` : `${WK!.key}|${izD.toFixed(2)}`}|${izR()}|${izFov()}`;
@@ -344,6 +406,11 @@ function izTrailPolys(): P2[][] {
 }
 function paintIz(m: MLMap): void {
   if (!m.getSource('joy-iz')) return;
+  if (m.getLayer('joy-izv')) {
+    const show = isOn('izovist') && izMode() === 'maydon' && vgaReady();
+    if (show && VG!.key !== vgaKey) { vgaKey = VG!.key; (m.getSource('joy-izv') as unknown as { updateImage(o: { url: string; coordinates: [number, number][] }): void }).updateImage({ url: VG!.img!.url, coordinates: VG!.img!.coords }); }
+    m.setLayoutProperty('joy-izv', 'visibility', show ? 'visible' : 'none');
+  }
   const on = isOn('izovist'), cur = on ? izCur() : null, X = IX;
   const vis = (l: string, v: boolean) => { if (m.getLayer(l)) m.setLayoutProperty(l, 'visibility', v ? 'visible' : 'none'); };
   for (const l of ['joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n']) vis(l, on);
@@ -405,8 +472,28 @@ function izChart(w: Walk, s: ReturnType<typeof walkSum>): SVGSVGElement {
   svg.addEventListener('click', e => { const r = svg.getBoundingClientRect(); izStop(); izSeek((e.clientX - r.left) / r.width * w.L); });
   return svg;
 }
+function vgaCard(L: LayerDef, X: NonNullable<typeof IX>): HTMLElement {
+  void X;
+  const ctl = h('div', { class: 'joy-izctl' }, h('div', { class: 'row' }, h('span', { class: 't-small' }, tr('Koʻrish radiusi')),
+    seg(IZ_RS.map(v => ({ id: String(v), label: `${v} m` })), String(izR()), v => { S.iz = { ...S.iz, R: Number(v) }; save(); renderRight(); paint(); }, { class: 'seg sm', 'aria-label': tr('Koʻrish radiusi'), id: 'izR' })));
+  const src = h('span', { class: 'src' }, tf('Har ${s} m da 360° koʻrinish maydoni (VGA, Turner, 2001); binolar — OSM, faqat binolar toʻsiq. Bino ichidagi kataklar qoʻshnilaridan toʻldirilgan.', { s: VG?.step ?? '…' }));
+  if (!vgaReady()) return card(L, 'OSM', '…', [ctl, h('span', { id: 'izProg' }, tr('Hisoblanmoqda…')), src]);
+  const s = VG!.st!, at = S.iz?.p ? vgaAt(S.iz.p) : NaN;
+  return card(L, 'OSM', `${fmt(s.med)} m²`, [
+    h('b', { class: 'joy-izh' }, tf('Mediana — ${m} m²; eng ochiq 10 % joy — ${p} m² dan koʻp', { m: fmt(s.med), p: fmt(s.p90) })), h('br'),
+    ctl,
+    h('div', { class: 'joy-izgr', 'aria-hidden': 'true', style: `background:linear-gradient(90deg,${VGA_COLS.join(',')})` }),
+    h('div', { class: 'joy-izgl t-small' }, h('span', {}, '0'), h('span', {}, `${fmt(s.vmax / 2)}`), h('span', {}, `${fmt(s.vmax)}+ m²`)),
+    h('ul', { class: 'joy-norm' },
+      h('li', {}, h('span', {}, tr('Eng yopiq 10 %')), h('b', {}, `${fmt(s.p10)} m²`), h('em', {}, tr('va undan kam'))),
+      h('li', {}, h('span', {}, tr('Mediana')), h('b', {}, `${fmt(s.med)} m²`), h('em', {}, tf('${n} nuqta', { n: fmt(s.n) }))),
+      h('li', {}, h('span', {}, tr('Eng ochiq 10 %')), h('b', {}, `${fmt(s.p90)} m²`), h('em', {}, tr('va undan koʻp'))),
+      S.iz?.p ? h('li', {}, h('span', {}, tr('Tanlangan nuqta')), h('b', { id: 'izPt' }, Number.isNaN(at) ? tr('bino ichida') : `${fmt(at)} m²`), h('em', {}, '')) : ''),
+    tr('Xaritada doira ichini bosing — oʻsha nuqtadan koʻrinish chiziladi.'), src]);
+}
 function izCard(L: LayerDef): HTMLElement {
   const nq = izMode() === 'nuqta', X = izIndex(), cur = izCur(), r = S.iz?.route;
+  if (X && izMode() === 'maydon') return vgaCard(L, X);
   const busyIz: Ld<unknown> = axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
   const ctl = h('div', { class: 'joy-izctl' },
     h('div', { class: 'row' }, h('span', { class: 't-small' }, tr('Koʻrish radiusi')),
@@ -1310,7 +1397,7 @@ async function initMap(): Promise<void> {
   map.on('style.load', () => { addOverlays(); applySite(); paint(); if (!framed) { framed = true; frame(0); } });
   // fon plitkalari ochilmasa (tarmoq/xizmat ishlamasa) — oddiy fon bilan davom etiladi: qatlamlar va hisoblar baribir koʻrinadi
   setTimeout(() => { if (map && !map.getSource('joy-ring')) map.setStyle({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': isDark() ? '#1c1e21' : '#f3f1ec' } }] } as never); }, 7000);
-  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else if (actId() === 'izovist' && izMode() === 'nuqta' && distM(S.c, c) <= S.r) { S.iz = { ...S.iz, p: c }; save(); renderRight(); paint(); } else if (isOn('skaner') && SK && map!.getLayer('joy-skan-f')) { const f = map!.queryRenderedFeatures(e.point, { layers: ['joy-skan-f'] })[0]; if (f) { skSel = Number(f.properties?.i); renderRight(); paint(); } else pick(c); } else pick(c); });
+  map.on('click', e => { if (catOpen || repOpen) { catOpen = false; repOpen = false; renderRight(); } const c: LngLat = [+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]; if (placing) { placeAdded(c); return; } if (drawing) drawClick(c, e.point); else if (isK()) streetClick(c); else if (actId() === 'izovist' && izMode() !== 'marshrut' && distM(S.c, c) <= S.r) { S.iz = { ...S.iz, p: c }; save(); renderRight(); paint(); } else if (isOn('skaner') && SK && map!.getLayer('joy-skan-f')) { const f = map!.queryRenderedFeatures(e.point, { layers: ['joy-skan-f'] })[0]; if (f) { skSel = Number(f.properties?.i); renderRight(); paint(); } else pick(c); } else pick(c); });
   map.on('dblclick', e => { if (drawing) { e.preventDefault(); finishDraw(); } else if (isK()) { e.preventDefault(); streetFinish(); } });
   map.on('moveend', () => {
     S.z = +map!.getZoom().toFixed(2); save();
@@ -1358,6 +1445,9 @@ function addOverlays(): void {
   m.addSource('joy-noise', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
   m.addLayer({ id: 'joy-noise', type: 'raster', source: 'joy-noise', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 } } as never, before);
   // koʻrinadigan joy (izovist): koʻrinish poligoni binolar ostida; marshrut, kuzatuvchi va ①② — ustida
+  m.addSource('joy-izv', { type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]] } as never);
+  m.addLayer({ id: 'joy-izv', type: 'raster', source: 'joy-izv', layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.85, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } } as never, before);
+  vgaKey = '';
   m.addSource('joy-iz', { type: 'geojson', data: fc([]) as never });
   // ①② — alohida manba: shrift yuklanmasa ham koʻrinish poligonlari chiziladi (yozuv xatosi butun manba plitkasini toʻxtatadi)
   m.addSource('joy-izm', { type: 'geojson', data: fc([]) as never });
@@ -1415,7 +1505,7 @@ function addOverlays(): void {
 let blank = '';
 function blankPng(): string { if (!blank) { const c = document.createElement('canvas'); c.width = c.height = 1; blank = c.toDataURL(); } return blank; }
 let slopeKey = '', yuzaKey = '', narxTKey = '', narxKey = '', skKey = '', kadKey = '', kadbKey = '';
-const HUD_LAYERS = ['joy-yuza', 'joy-narx-t', 'joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
+const HUD_LAYERS = ['joy-izv', 'joy-yuza', 'joy-narx-t', 'joy-heat-l', 'joy-iz-t', 'joy-iz-f', 'joy-iz-l', 'joy-iz-p', 'joy-iz-m', 'joy-iz-n', 'joy-kadb', 'joy-kad', 'joy-poi-h', 'joy-windf', 'joy-skan-f', 'joy-skan-s', 'joy-narx-f', 'joy-narx-l', 'joy-poi-i', 'joy-comp-i', 'joy-wind', 'joy-wind-a', 'joy-topo', 'joy-topo-l', 'joy-iso', 'joy-arr', 'joy-ring-f', 'joy-ring', 'joy-c-h', 'joy-c', 'joy-poi', 'joy-comp', 'joy-walk', 'joy-flow', 'joy-hs', 'joy-slope', 'joy-heat', 'joy-sun', 'joy-shadow', 'joy-noise', 'joy-draw-f', 'joy-draw-l', 'joy-draw-p'];
 function paint(): void {
   syncAdded();   // E2
   const m = map;
@@ -1760,7 +1850,7 @@ function focusMap(m: MLMap): void {
   set('joy-noise', 'raster-opacity', q('shovqin', 0.3, 0.9) * (V('shovqin').st === 'kontur' ? 0.25 : 1));
   set('joy-walk', 'line-opacity', q('piyoda', 0.45, 1));
   set('joy-skan-f', 'fill-opacity', q('skaner', 0.5, 0.95));
-  set('joy-iz-f', 'fill-opacity', q('izovist', 0.45, 0.95)); set('joy-iz-t', 'fill-opacity', 0.1 * k('izovist'));
+  set('joy-iz-f', 'fill-opacity', q('izovist', 0.45, 0.95)); set('joy-izv', 'raster-opacity', q('izovist', 0.45, 0.9)); set('joy-iz-t', 'fill-opacity', 0.1 * k('izovist'));
   set('joy-wind', 'line-opacity', q('shamol', 0.45, 1)); set('joy-wind-a', 'icon-opacity', q('shamol', 0.45, 1));
   set('joy-flow', 'line-opacity', q('oqim', 0.45, 1));
   set('joy-flow', 'line-width', ['interpolate', ['linear'], ['get', 'f'], 0.1, 0.6 + V('oqim').k, 1, 3 + 9 * V('oqim').k]);
