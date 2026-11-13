@@ -76,7 +76,7 @@ import { placeOf, placeLabel, seasonMonth } from '../core/place';
 import { LAWSON, PED_FACTOR, WIND_MAX_KM, lawsonClass, nearestStation, prevailing, rumbName, sampleWind, windField, type Climate, type Station, type WindJob, type WindOut } from '../core/wind';
 import { windAt, windSrcLine, srcAttr, srcShort, type WindAt, type WindSrc } from '../core/windsrc';
 import { INSOL_BINS } from '../scene/scene';
-import { floorPlanSvg, sectionChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
+import { floorPlanSvg, sectionChecks, checkKey, hasChecks, primeChecks, floorGroups, floorTypeOf, FLOOR_NAME, APT_FILL } from '../core/floorplan';
 import { openAlbum, genplanSvg, type InsolView } from './album';
 import { injectCss as injectChzCss } from './chzsend';
 import { facadeSegs } from '../core/sectionplan';
@@ -263,7 +263,7 @@ export class Editor {
     addEventListener('pagehide', keep); this.off.push(() => removeEventListener('pagehide', keep));
   }
 
-  dispose(): void { document.getElementById('agTip')?.remove(); this.world.dispose(); this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
+  dispose(): void { clearTimeout(this.chkTimer); this.chkW?.terminate(); document.getElementById('agTip')?.remove(); this.world.dispose(); this.saver.flush(); this.saver.dispose(); this.off.forEach(f => f()); this.ul.dispose(); this.scene.dispose(); }
 
   /* ---------- qobiq ---------- */
   private build(): HTMLElement {
@@ -2264,6 +2264,34 @@ export class Editor {
   /** generator uchun toʻplam: konsepsiya rejimida — xalqaro andoza geometriyasi (ADG 3F-1, qoʻlda chekinish) */
   private genNorms(): NormSet { return this.concept() ? 'intl' : this.normSet(); }
   private normSet(): NormSet { const o = this.store.doc.origin; return this.store.doc.settings.normSet ?? placeOf(o[0], o[1]).norms; }
+  /** 13.11: xonadon rejasi tekshiruvlari (50 binoda ~5 s) — hujjat 0,8 s tinchigach Web Worker da oldindan hisoblanadi;
+   *  shunda pastki «Meʼyorlar» soni, reyestr va Maslahatchi asosiy oqimni qotirmaydi */
+  private chkW: Worker | null = null;
+  private chkTimer = 0;
+  private chkBusy = false;
+  private schedulePlanChecks(): void {
+    if (this.planRuleCache?.doc === this.store.doc || this.chkBusy) return;
+    clearTimeout(this.chkTimer);
+    this.chkTimer = window.setTimeout(() => void this.primePlanChecks(), 800);
+  }
+  private async primePlanChecks(): Promise<void> {
+    const doc = this.store.doc; if (this.planRuleCache?.doc === doc) return;
+    const fh = doc.settings.floorHeight, plans = planApartments(doc);
+    const items = plans.map(pl => ({ k: checkKey(pl, fh), pl, fh })).filter(x => !hasChecks(x.k));
+    if (items.length) {
+      this.chkBusy = true;
+      try {
+        this.chkW ??= new Worker(new URL('../workers/checks.worker.ts', import.meta.url), { type: 'module' });
+        const w = this.chkW;
+        const res = await new Promise<{ k: string; v: ReturnType<typeof sectionChecks> | null }[]>((ok, no) => {
+          w.onmessage = e => ok(e.data.res); w.onerror = e => no(e); w.postMessage({ id: 1, items });
+        });
+        for (const r of res) if (r.v) primeChecks(r.k, r.v);
+      } catch { this.chkW?.terminate(); this.chkW = null; return; } finally { this.chkBusy = false; }
+    }
+    if (this.store.doc !== doc) { this.schedulePlanChecks(); return; }
+    this.planRules(); this.renderKpi();
+  }
   /** light: xonadon rejasi qoidalari qayta hisoblanmaydi — keshda boʻlsa olinadi (pastki qator uchun) */
   private allRules(light = false): Result[] { return abroadRules([...(this.last?.results ?? []), ...(this.insolRule ? [this.insolRule] : []), ...(light ? (this.planRuleCache?.doc === this.store.doc ? this.planRuleCache.rules : []) : this.planRules()), this.ctxRule(), ...this.aptRules, ...(this.svcRule ? [this.svcRule] : [])], this.normSet(), this.store.doc.settings.normOn).map(r => this.conceptRule(r)).concat(this.last ? siteCondResults(this.last.d, this.store.doc) : []); }
   /**
@@ -5190,6 +5218,7 @@ export class Editor {
   }
   private renderKpi(): void {
     const c = this.last; if (!c) return;
+    this.schedulePlanChecks();
     setExportArea(c.d.siteHa ?? 0); setExportProject(this.store.doc.id);   // narx × k = √(ga/3), loyiha shifti
     const d = c.d, dens = abroadRules(c.results.filter(r => r.id === 'density-84'), this.normSet(), this.store.doc.settings.normOn)[0];
     const k = (label: string, v: string, s?: string, id?: string, x = false, x2 = false) => h('div', { class: `kpi${x ? ' x' : ''}${x2 ? ' x2' : ''}`, 'data-s': s, id }, h('b', {}, v), h('span', {}, tr(label)));

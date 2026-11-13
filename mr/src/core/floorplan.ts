@@ -84,7 +84,25 @@ function labelPt(r: XY[]): XY {
 /** Seksiya rejasi (saqlangan yoki qayta hisoblangan) */
 export function sectionPlan(pl: SecPlan): RulePlan { return pl.layout.plan ?? rulePlan(pl.ring, pl.layout.mods, [20, 40, 30, 10]); }
 /** Seksiya rejasi qoidalari tekshiruvi; fh — qavat balandligi */
-export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] { const P = sectionPlan(pl); return [...planChecks(P, (pl.z0 + pl.f1 - 1) * fh, pl.layout.mods), ...liftChecks(P, pl.layout.mods), ...(pl.grid ? gridChecks(pl.grid, P, pl.layout.mods, pl.f1) : [])]; }
+/** 13.11: seksiya tekshiruvi ogʻir (50 binoda ~5 s) — natija seksiya mazmuni boʻyicha keshlanadi: bitta bino tahrir qilinsa,
+ *  qolganlari qayta tekshirilmaydi. Kalit — reja, modullar, toʻr, qavatlar va qavat balandligi */
+const checkMemo = new Map<string, PlanCheck[]>();
+export function checkKey(pl: SecPlan, fh = 3): string {
+  const s = JSON.stringify([fh, pl.z0, pl.f1, pl.ring, pl.layout.plan ?? null, pl.layout.mods, pl.grid ?? null]);
+  let h1 = 5381, h2 = 52711; for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = ((h1 << 5) + h1 + c) | 0; h2 = ((h2 << 5) + h2) ^ c; }
+  return `${s.length}:${(h1 >>> 0).toString(36)}:${(h2 >>> 0).toString(36)}`;
+}
+/** keshda bormi (Web Worker oldindan hisoblaganda) */
+export function hasChecks(k: string): boolean { return checkMemo.has(k); }
+export function primeChecks(k: string, v: PlanCheck[]): void {
+  checkMemo.set(k, v); if (checkMemo.size > 400) checkMemo.delete(checkMemo.keys().next().value as string);
+}
+export function sectionChecks(pl: SecPlan, fh = 3): PlanCheck[] {
+  const k = checkKey(pl, fh), hit = checkMemo.get(k);
+  if (hit) { checkMemo.delete(k); checkMemo.set(k, hit); return hit; }
+  const v = sectionChecksRaw(pl, fh); primeChecks(k, v); return v;
+}
+export function sectionChecksRaw(pl: SecPlan, fh = 3): PlanCheck[] { const P = sectionPlan(pl); return [...planChecks(P, (pl.z0 + pl.f1 - 1) * fh, pl.layout.mods), ...liftChecks(P, pl.layout.mods), ...(pl.grid ? gridChecks(pl.grid, P, pl.layout.mods, pl.f1) : [])]; }
 
 export function floorPlanSvg(pl0: SecPlan, o: PlanOpts): PlanResult {
   const tr = o.tr ?? ((x: string) => x), tf = (k: string, v: Record<string, unknown>) => tr(k).replace(/\$\{(\w+)\}/g, (_m, e: string) => String(v[e]));
