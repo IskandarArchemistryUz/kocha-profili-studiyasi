@@ -6,14 +6,24 @@
 import type { Project } from './doc';
 import type { LegendItem, SheetCtx, SheetInner } from './sheet';
 import { silhouette, type SilGeom, type SilItem } from './siluet';
+import SILH_RAW from '../ui/silh.json';
+
+/** Shtaffaj — Koʻcha profilidagi siluetlar (silh.json: balandlik 100 birlik, eni w) */
+const SILH = SILH_RAW as Record<string, { w: number; d: string }>;
+function silhP(id: string, cx: number, foot: number, hMm: number, attrs: string, flip = false): string {
+  const sp = SILH[id]; if (!sp || !(hMm > 0)) return '';
+  const k = hMm / 100, w = sp.w * k;
+  const tf = flip ? `translate(${n2(cx + w / 2)} ${n2(foot - hMm)}) scale(${-k} ${k})` : `translate(${n2(cx - w / 2)} ${n2(foot - hMm)}) scale(${k})`;
+  return `<path d="${sp.d}" transform="${tf}" ${attrs}/>`;
+}
 
 const n2 = (v: number) => (Math.round(v * 100) / 100).toString();
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const f1 = (v: number) => (Math.round(v * 10) / 10).toString().replace('.', ',');
 /** Masshtablar: GOST 2.302 qatori + 1:2000, 1:2500, 1:5000 (bosh reja amaliyoti — andoza) */
 const SCALES = [200, 400, 500, 800, 1000, 2000, 2500, 5000, 10000];
-const COL = { loyiha: [217, 119, 74], atrof: [150, 147, 139], daraxt: [150, 186, 128] } as const;
-const mix = (c: readonly number[], t: number) => `rgb(${c.map(v => Math.round(v + (255 - v) * t)).join(',')})`;
+/** 13.11 kanvas (K-03 «Kesim»): kesilgan — oq, qalin qora kontur va orayopmalar; koʻrinadigan loyiha — och qum rang; atrof — och kulrang */
+const K = { cut: 0.45, slab: 0.22, ground: 0.55, vis: '#ece6dc', visLine: '#8a8075', back: '#ebe8e1', tree: '#a9b89a', ink: '#1d1d1b' };
 
 function top(g: SilGeom): number { return Math.max(15, ...g.items.map(i => i.z0 + i.h), ...g.ground.map(p => p[1])) + 4; }
 
@@ -37,9 +47,10 @@ export function silSheet(doc: Project, ctx: SheetCtx | null, secId: string | und
   const N = silScale(g, vw0, vh0), k = 1000 / N, Lb = g.sec.label, H = top(g);
   const name = `${tr('Kesim va fasad')} ${Lb}–${Lb}`;
   const legend: LegendItem[] = [
-    { type: 'fill', fill: '#1d1d1b', label: tr('Loyiha — kesim') }, { type: 'fill', fill: mix(COL.loyiha, 0.15), stroke: '#1d1d1b', label: tr('Loyiha — fasad') },
-    { type: 'fill', fill: '#5d5a53', label: tr('Atrof — kesim') }, { type: 'fill', fill: mix(COL.atrof, 0.35), stroke: '#1d1d1b', label: tr('Atrof — fasad') },
-    { type: 'fill', fill: mix(COL.daraxt, 0.2), label: tr('Daraxtlar') }, { type: 'dash', stroke: '#c0392b', label: tr('Uchastka chegarasi') },
+    { type: 'fill', fill: '#ffffff', stroke: K.ink, label: tr('Loyiha — kesim') }, { type: 'fill', fill: K.vis, stroke: K.visLine, label: tr('Loyiha — fasad') },
+    { type: 'fill', fill: '#f4f3ef', stroke: '#5d5a53', label: tr('Atrof — kesim') }, { type: 'fill', fill: '#e4e4e2', stroke: '#c9c9c9', label: tr('Atrof — fasad') },
+    { type: 'fill', fill: K.back, label: tr('Orqa relyef (koʻrinadigan yer)') },
+    { type: 'fill', fill: K.tree, label: tr('Daraxtlar') }, { type: 'dash', stroke: '#c0392b', label: tr('Uchastka chegarasi') },
   ];
   const body = (vx: number, vy: number, vw: number, vh: number): string => {
     const dw = g.L * k, ox = vx + (vw - dw) / 2 + 4, dh = H * k + 22, gy = vy + Math.max(18, (vh - dh) / 2) + H * k;
@@ -47,24 +58,36 @@ export function silSheet(doc: Project, ctx: SheetCtx | null, secId: string | und
     const o: string[] = [];
     o.push(`<text x="${n2(vx + 2)}" y="${n2(vy + 6)}" font-size="4.2" font-weight="700" fill="#1d1d1b">${esc(name)}</text>`,
       `<text x="${n2(vx + 2)}" y="${n2(vy + 11)}" font-size="2.5" fill="#55524b">${esc(`${tr('uzunligi')} ${Math.round(g.L)} m · ${tr('fasad chuqurligi')} ${Math.round(g.depth)} m · M 1:${N}`)}</text>`);
+    const hid = `silH${Lb}`;
+    o.push(`<defs><pattern id="${hid}" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="1.6" fill="#f2f0eb"/><line x1="0" y1="0" x2="0" y2="1.6" stroke="#9b968c" stroke-width="0.18"/></pattern></defs>`);
+    const gp = g.ground.map(([s, z]) => `${n2(X(s))} ${n2(Y(z))}`).join('L');
+    // orqa relyef (ufq) — chiziq ortidagi koʻrinadigan yer; binolar oʻz yerida turadi
+    const hp = g.horizon.map(([s, z]) => `${n2(X(s))} ${n2(Y(z))}`).join('L');
+    const gr = g.ground.slice().reverse().map(([s, z]) => `${n2(X(s))} ${n2(Y(z))}`).join('L');
+    if (g.horizon.some((h, i) => h[1] > g.ground[i][1] + 0.05)) o.push(`<path data-sil="relyef-orqa" d="M${hp}L${gr}Z" fill="${K.back}"/><path d="M${hp}" fill="none" stroke="#9a9a9a" stroke-width="0.08"/>`);
     // binolar va daraxtlar: uzoqdan yaqinga, keyin kesimlar
     for (const it of g.items) {
-      const x0 = X(it.s0), w = Math.max(0.15, (it.s1 - it.s0) * k), t = Math.min(1, it.d / g.depth);
+      const x0 = X(it.s0), w = Math.max(0.15, (it.s1 - it.s0) * k), t = Math.min(1, Math.max(0, it.d / g.depth));
       if (it.kind === 'daraxt') {
-        const cx = X((it.s0 + it.s1) / 2), r = 3 * k, zb = Y(it.z0);
-        o.push(`<path d="M${n2(cx)} ${n2(zb)}V${n2(zb - 3.5 * k)}" stroke="${mix([107, 90, 61], 0.2 + 0.6 * t)}" stroke-width="${n2(Math.max(0.15, 0.35 * k))}"/><ellipse cx="${n2(cx)}" cy="${n2(zb - 5.5 * k)}" rx="${n2(r)}" ry="${n2(r * 1.15)}" fill="${mix(COL.daraxt, 0.15 + 0.6 * t)}" fill-opacity="0.85"/>`);
+        o.push(silhP(it.sp ?? '31', X((it.s0 + it.s1) / 2), Y(it.z0), it.h * k, `data-sil="daraxt" fill="${K.tree}" fill-opacity="${n2(0.78 - 0.5 * t)}"`));
         continue;
       }
       const yb = Y(it.z0), hh = it.h * k;
-      if (it.cut) { o.push(`<rect data-sil="${it.kind}-kesim" x="${n2(x0)}" y="${n2(yb - hh)}" width="${n2(w)}" height="${n2(hh)}" fill="${it.kind === 'loyiha' ? '#1d1d1b' : '#5d5a53'}"/>`); continue; }
-      const c = it.kind === 'loyiha' ? mix(COL.loyiha, 0.1 + 0.6 * t) : mix(COL.atrof, 0.3 + 0.55 * t);
-      o.push(`<rect data-sil="${it.kind}" x="${n2(x0)}" y="${n2(yb - hh)}" width="${n2(w)}" height="${n2(hh)}" fill="${c}" stroke="#1d1d1b" stroke-opacity="${n2(0.85 - 0.6 * t)}" stroke-width="0.18"/>`);
+      if (it.cut) {
+        const lo = it.kind === 'loyiha', fl = lo ? (it.floors ?? 0) : Math.round(it.h / 3.2);
+        o.push(`<rect data-sil="${it.kind}-kesim" x="${n2(x0)}" y="${n2(yb - hh)}" width="${n2(w)}" height="${n2(hh)}" fill="${lo ? '#ffffff' : '#f4f3ef'}" stroke="${lo ? K.ink : '#5d5a53'}" stroke-width="${lo ? K.cut : 0.35}"/>`);
+        if (fl > 1 && hh / fl > 0.5) { const fh = hh / fl; let d = ''; for (let i = 1; i < fl; i++) d += `M${n2(x0)} ${n2(yb - i * fh)}h${n2(w)}`; o.push(`<path d="${d}" stroke="${lo ? K.ink : '#5d5a53'}" stroke-width="${lo ? K.slab : 0.15}"/>`); }
+        continue;
+      }
+      if (it.kind === 'loyiha') o.push(`<rect data-sil="loyiha" x="${n2(x0)}" y="${n2(yb - hh)}" width="${n2(w)}" height="${n2(hh)}" fill="${K.vis}" fill-opacity="${n2(1 - 0.4 * t)}" stroke="${K.visLine}" stroke-opacity="${n2(1 - 0.5 * t)}" stroke-width="0.1"/>`);
+      else { const c = Math.round(225 + 22 * t); o.push(`<rect data-sil="atrof" x="${n2(x0)}" y="${n2(yb - hh)}" width="${n2(w)}" height="${n2(hh)}" fill="rgb(${c},${c},${c})" fill-opacity="${n2(1 - 0.5 * t)}" stroke="#c9c9c9" stroke-width="0.05"/>`); }
       // qavat chiziqlari — yaqin loyiha binolarida
-      if (it.kind === 'loyiha' && it.floors && it.floors > 1 && it.d < 60 && hh / it.floors > 1.1) { const fh = hh / it.floors; let d = ''; for (let i = 1; i < it.floors; i++) d += `M${n2(x0)} ${n2(yb - i * fh)}h${n2(w)}`; o.push(`<path d="${d}" stroke="#ffffff" stroke-opacity="0.55" stroke-width="0.15"/>`); }
+      if (it.kind === 'loyiha' && it.floors && it.floors > 1 && it.d < 60 && hh / it.floors > 1.1) { const fh = hh / it.floors; let d = ''; for (let i = 1; i < it.floors; i++) d += `M${n2(x0)} ${n2(yb - i * fh)}h${n2(w)}`; o.push(`<path d="${d}" stroke="${K.visLine}" stroke-opacity="0.45" stroke-width="0.08"/>`); }
     }
-    // yer
-    const gp = g.ground.map(([s, z]) => `${n2(X(s))} ${n2(Y(z))}`).join('L');
-    o.push(`<path d="M${gp}L${n2(X(g.L))} ${n2(gy + 4)}L${n2(X(0))} ${n2(gy + 4)}Z" fill="#ece7db"/><path d="M${gp}" fill="none" stroke="#1d1d1b" stroke-width="0.5"/>`);
+    // yer: shtrixlangan massa va qalin chiziq
+    o.push(`<path d="M${gp}L${n2(X(g.L))} ${n2(gy + 4)}L${n2(X(0))} ${n2(gy + 4)}Z" fill="url(#${hid})"/><path d="M${gp}" fill="none" stroke="${K.ink}" stroke-width="${K.ground}"/>`);
+    // odamlar 1,75 m — Koʻcha profili siluetlari
+    if (1.75 * k >= 0.5) for (const p of g.people) o.push(silhP(p.sp, X(p.s), Y(g.ground.reduce((a, b) => Math.abs(b[0] - p.s) < Math.abs(a[0] - p.s) ? b : a)[1]), 1.75 * k, `data-sil="odam" fill="${K.ink}"`, p.flip));
     // kesilgan loyiha binolari ustida qavat soni
     const seen = new Set<string>();
     for (const it of g.items) if (it.kind === 'loyiha' && it.cut && !seen.has(it.id) && (it.s1 - it.s0) * k > 3) { seen.add(it.id); o.push(`<text x="${n2(X((it.s0 + it.s1) / 2))}" y="${n2(Y(it.z0 + it.h) - 1.4)}" font-size="2.3" text-anchor="middle" fill="#1d1d1b">${esc(`${it.floors} ${tr('q.')}`)}</text>`); }
