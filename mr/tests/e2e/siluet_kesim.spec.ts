@@ -34,5 +34,14 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kesim va f
   await expect(v.locator('[data-sil-site]').first()).toBeAttached();
   if (process.env.GX_SHOTS) { await page.waitForTimeout(800); await page.screenshot({ path: `${process.env.GX_SHOTS}/siluet_varaq_${w}${dark ? 'd' : 'l'}.png` }); }
   if (process.env.GX_SHOTS && !dark) await v.locator('svg').first().screenshot({ path: `${process.env.GX_SHOTS}/siluet_varaq_svg.png`, scale: 'device' });
+  // 13.11: uslub tanlovi — 6 ta; «Rangli fasad» — derazalar, kesim yoʻq; «Fasad + kesim» — ikkala lenta
+  await expect(page.locator('#shSilStyle [data-silstyle]')).toHaveCount(6);
+  await page.click('#shSilStyle [data-silstyle=rangli]');
+  await expect(v.locator('[data-sil="deraza"]').first()).toBeAttached();
+  await expect(v.locator('[data-sil="loyiha-kesim"]')).toHaveCount(0);
+  await page.click('#shSilStyle [data-silstyle=juft]');
+  await expect(v.locator('[data-sil="loyiha-kesim"]').first()).toBeAttached();
+  await expect(v.locator('[data-sil="deraza"]').first()).toBeAttached();
+  if (process.env.GX_SHOTS) { await page.waitForTimeout(800); await page.screenshot({ path: `${process.env.GX_SHOTS}/siluet_uslub_${w}${dark ? 'd' : 'l'}.png` }); }
   expect(errs).toEqual([]);
 });

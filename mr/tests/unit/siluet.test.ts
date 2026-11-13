@@ -3,7 +3,7 @@ import { blankProject, migrate, type Project } from '../../src/core/doc';
 import { frame } from '../../src/core/geo';
 import { apply } from '../../src/core/commands';
 import { silhouette, heightAt, nextSecLabel } from '../../src/core/siluet';
-import { silSheet, silStats } from '../../src/core/siluetsvg';
+import { silSheet, silStats, SIL_STYLES } from '../../src/core/siluetsvg';
 import type { SheetCtx } from '../../src/core/sheet';
 
 /* 13.11 (egasi): master reja kesimi va fasadi atrof bilan */
@@ -77,5 +77,17 @@ describe('Kesim va fasad (atrof bilan)', () => {
     expect(svg).toContain('data-sil="relyef-orqa"'); expect(svg).toContain('data-sil="daraxt"'); expect(svg).toContain('data-sil="odam"');
     // bir xil kirish — bir xil natija (barqaror tasodif)
     expect(silhouette(d, c, d.sections![0])!.people).toEqual(g.people);
+  });
+  it('uslublar (kanvas K-01…K-05): har biri chiziladi, oʻziga xos belgilar bilan', () => {
+    const d = doc(), body = (st: any) => silSheet(d, ctx(), 's1', s => s, 380, 220, st).body(0, 0, 380, 220);
+    expect(SIL_STYLES.map(x => x.id)).toEqual(['kesim', 'siluet', 'rangli', 'juft', 'aksent', 'shahar']);
+    for (const x of SIL_STYLES) { const svg = body(x.id); expect(svg).toContain('data-sil-site'); expect(svg).toContain('data-sil="loyiha'); }
+    expect(body('rangli')).toContain('data-sil="deraza"');                       // deraza ritmi
+    expect(body('rangli')).not.toContain('data-sil="loyiha-kesim"');            // rangli fasadda kesim yoʻq
+    expect(body('kesim')).toContain('data-sil="loyiha-kesim"');
+    const j = body('juft'); expect(j).toContain('FASAD 1'); expect(j).toContain('KESIM 1–1'); expect(j).toContain('data-sil="deraza"'); expect(j).toContain('data-sil="loyiha-kesim"');
+    expect(body('shahar')).toContain('data-sil="dominanta"');                    // 12 m atrof binosi
+    expect(body('aksent')).toContain('#d4483b');
+    expect(silSheet(d, ctx(), 's1', s => s, 380, 220, 'siluet').legend!.length).toBeGreaterThan(2);
   });
 });

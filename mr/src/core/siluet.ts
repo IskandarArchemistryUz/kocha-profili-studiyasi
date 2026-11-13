@@ -11,7 +11,7 @@ import type { SheetCtx } from './sheet';
 import type { ReliefGrid } from './relief';
 
 type XY = [number, number];
-export interface SilItem { kind: 'loyiha' | 'atrof' | 'daraxt'; cut: boolean; s0: number; s1: number; z0: number; h: number; d: number; floors?: number; id: string; /** daraxt siluet turi (silh.json) */ sp?: string }
+export interface SilItem { kind: 'loyiha' | 'atrof' | 'daraxt'; cut: boolean; s0: number; s1: number; z0: number; h: number; d: number; floors?: number; id: string; /** daraxt siluet turi (silh.json) */ sp?: string; /** loyiha binosi funksiyasi va noturar pastki qavatlar (rangli fasad uchun) */ use?: string; nonRes?: number }
 /** Kesim chizigʻidagi odam (shtaffaj): s — joyi, sp — silh.json siluet kaliti */
 export interface SilPerson { s: number; sp: string; flip: boolean }
 export interface SilGeom {
@@ -84,16 +84,16 @@ export function silhouette(doc: Project, ctx: SheetCtx | null, sec: SiteSection)
   const zAt = (p: XY): number => { const z = heightAt(terr, p); return z == null ? 0 : z - zref; };
 
   const items: SilItem[] = [];
-  const add = (id: string, ring: XY[], h: number, kind: 'loyiha' | 'atrof', floors?: number) => {
+  const add = (id: string, ring: XY[], h: number, kind: 'loyiha' | 'atrof', floors?: number, use?: string, nonRes?: number) => {
     if (ring.length < 3 || !(h > 0)) return;
     let r = clipHalf(ring, D); r = clipHalf(r, p => depth - D(p)); r = clipHalf(r, S); r = clipHalf(r, p => L - S(p));
     if (r.length < 3) return;
     const ss = r.map(S), ds = r.map(D), s0 = Math.min(...ss), s1 = Math.max(...ss); if (s1 - s0 < 0.3) return;
     const c: XY = [r.reduce((t, p) => t + p[0], 0) / r.length, r.reduce((t, p) => t + p[1], 0) / r.length], z0 = Math.min(zAt(c), ...r.map(zAt));
-    items.push({ kind, cut: false, s0, s1, z0, h, d: Math.min(...ds), floors, id });
-    for (const [a, b] of cutSpans(ring, S, D)) { const c0 = Math.max(0, a), c1 = Math.min(L, b); if (c1 - c0 > 0.2) items.push({ kind, cut: true, s0: c0, s1: c1, z0, h, d: 0, floors, id }); }
+    items.push({ kind, cut: false, s0, s1, z0, h, d: Math.min(...ds), floors, id, ...(use ? { use } : {}), ...(nonRes ? { nonRes } : {}) });
+    for (const [a, b] of cutSpans(ring, S, D)) { const c0 = Math.max(0, a), c1 = Math.min(L, b); if (c1 - c0 > 0.2) items.push({ kind, cut: true, s0: c0, s1: c1, z0, h, d: 0, floors, id, ...(use ? { use } : {}), ...(nonRes ? { nonRes } : {}) }); }
   };
-  for (const b of doc.buildings) if (b.floors > 0) add(b.id, b.footprint.map(q => fr.toLocal(q) as XY), bLevels(doc.settings, b).top, 'loyiha', b.floors);
+  for (const b of doc.buildings) if (b.floors > 0) add(b.id, b.footprint.map(q => fr.toLocal(q) as XY), bLevels(doc.settings, b).top, 'loyiha', b.floors, b.use, b.nonRes);
   for (const b of ctx?.buildings ?? []) if (b.rings[0]) add(`osm${b.id}`, b.rings[0], b.h, 'atrof');
   // daraxtlar (atrof): toj ~ 8 m, eng yaqin 600 tasi
   const trees = (ctx?.trees ?? []).map(p => ({ p, s: S(p), d: D(p) })).filter(t => t.d >= 0 && t.d <= depth && t.s >= 0 && t.s <= L).sort((a, b) => a.d - b.d).slice(0, 600);

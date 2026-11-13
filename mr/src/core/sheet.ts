@@ -131,6 +131,8 @@ export interface SheetOpts {
   cut?: string;
   /** 13.11: «Kesim va fasad» varagʻi — doc.sections id si */
   sec?: string;
+  /** 13.11: «Kesim va fasad» uslubi (kanvas K-01…K-05; sukut — kesim) */
+  silStyle?: 'kesim' | 'siluet' | 'rangli' | 'juft' | 'aksent' | 'shahar';
   /** qavat rejalari: namuna va qavat; aksonometriya: namuna va saqlangan koʻrinish */
   /** qavat rejasi varagʻi: floor — bino raqami (1 dan; tarixiy nom), grp — qavatlar guruhi (boʻlmasa — turar qavat) */
   /** qavat: floor — bino (1 dan), grp — qavat guruhi; uy (02.11): floor — uy turi (1 dan), grp — uy qavati (1 dan) */
