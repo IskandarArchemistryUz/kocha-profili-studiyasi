@@ -1457,7 +1457,36 @@ function cutSeg(ll,rad,s1,s2,o){const P=ll.map(q=>toXY(q,o)),c=cumLen(P),pts=[],
 function remapMk(mk,om){if(!mk)return undefined;const m={};Object.entries(mk).forEach(([i,v])=>{i=+i;const j=om.findIndex((x,k)=>x===i&&om[k+1]===i+1);if(j>=0)m[j]=v;});return m;}
 /* chizish uchun virtual tarmoq: choʻntakli koʻchalar uch qismga ajraladi */
 let VNET=null;
-function virtualNet(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();let vid=-1,changed=false;
+function virtualNet(){const V=virtualNet0(),ds=DS(),B=V||{segs:ds.segs.slice(),nodes:ds.nodes.slice()};let ch=false;const R0={segs:ds.segs,nodes:ds.nodes};ds.segs=B.segs;ds.nodes=B.nodes;try{ch=stationSplit(B);}catch(e){console.error(e);}finally{ds.segs=R0.segs;ds.nodes=R0.nodes;}return V||ch?B:null;}
+/* BRT bekati (orol platforma) koʻchani kengaytiradi: platforma oraligʻi alohida virtual boʻlak boʻladi —
+   avtobus boʻlaklari orasidagi ajratuvchi oʻrniga platforma (andoza 4 m, «BRT bekati kesimi» kabi), ikki tomonda taper. */
+const ST_W=4,ST_TAPER=20;
+function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>n.id))-1,changed=false;const out=[];
+  B.segs.forEach(sg=>{const st0=segStrips(sg),stops=(sg.att||[]).filter(a=>a.t==='tramstop');if(!stops.length){out.push(sg);return;}
+    const lay=layOf(sg),ll=segLL(sg),raw=ll.map(q=>toXY(q,o)),T=cumLen(raw).pop();
+    /* qarama-qarshi yoʻnalishdagi ikki avtobus boʻlagi va ular orasidagi tor qism */
+    const bi=st0.map((x,i)=>x[0]==='bus'?i:-1).filter(i=>i>=0);let pair=null;
+    for(let k=0;k+1<bi.length;k++){const i=bi[k],j=bi[k+1];if((st0[i][2]||0)!==(st0[j][2]||0)&&st0.slice(i+1,j).every(x=>!DK[x[0]]||!DK[x[0]].road||x[0]==='hatch')){pair=[i,j];break;}}
+    if(!pair){out.push(sg);return;}
+    const midW=st0.slice(pair[0]+1,pair[1]).reduce((a,x)=>a+x[1],0);if(midW>=ST_W-.01){out.push(sg);return;}
+    const st2=[...st0.slice(0,pair[0]+1),['walk',ST_W],...st0.slice(pair[1])];
+    const dM=(lay.st[pair[0]].mid+lay.st[pair[1]].mid)/2,L0=stripsLayout(st2,0),pM=(L0.st[pair[0]].mid+L0.st[pair[0]+2].mid)/2,shift=+((dM-pM)-autoOff(st2)).toFixed(3);
+    /* platforma oraliqlari (ustma-ust tushganlari birlashadi), uchlaridan taper+2 m uzoqda boʻlishi shart */
+    let R=stops.map(a=>[a.f*T-a.len/2-ST_TAPER/2,a.f*T+a.len/2+ST_TAPER/2]).filter(r=>r[0]>ST_TAPER/2+2&&r[1]<T-ST_TAPER/2-2).sort((a,b)=>a[0]-b[0]);
+    const M=[];R.forEach(r=>{if(M.length&&r[0]<=M[M.length-1][1]+ST_TAPER)M[M.length-1][1]=Math.max(M[M.length-1][1],r[1]);else M.push(r.slice());});
+    if(!M.length){out.push(sg);return;}
+    changed=true;const cuts=[0];M.forEach(r=>cuts.push(r[0],r[1]));cuts.push(T);
+    const nodeAt=sx=>{const n={id:vid--,ll:toLL(pointAt(raw,cumLen(raw),sx),o),type:'auto',_v:1,_t:ST_TAPER/2};B.nodes.push(n);return n;};
+    const N=cuts.map((c,i)=>i===0?sg.a:i===cuts.length-1?sg.b:nodeAt(c).id);
+    const place=(arr,s1,s2)=>(arr||[]).filter(x=>x.f*T>=s1&&x.f*T<s2).map(x=>({...x,f:(x.f*T-s1)/Math.max(1,s2-s1)}));
+    for(let i=0;i+1<cuts.length;i++){const s1=cuts[i],s2=cuts[i+1],isSt=i%2===1,cm=cutSeg(ll,sg.rad,s1,s2,o);
+      const pc=Object.assign({},sg,{id:sg.id+':s'+i,a:N[i],b:N[i+1],pts:cm.pts,rad:cm.rad,_real:sg._real??sg.id,xw:place(sg.xw,s1,s2),att:place(sg.att,s1,s2),
+        cwA:i===0?sg.cwA:false,cwB:i===cuts.length-2?sg.cwB:false});
+      if(isSt){pc.st=st2;pc.shift=shift;pc.mk=undefined;pc._station=1;pc.att=pc.att.map(a=>a.t==='tramstop'?{...a,d:dM}:a);}
+      if(sg._end&&!(sg._end==='a'?i===0:i===cuts.length-2))delete pc._end;
+      out.push(pc);}});
+  if(changed)B.segs=out;return changed;}
+function virtualNet0(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();let vid=-1,changed=false;
   ds.segs.forEach(sg=>{const A=nodeById(sg.a),B=nodeById(sg.b);if(!A||!B){segs.push(sg);return;}
     let cA=apprCfg(sg,'a'),cB=apprCfg(sg,'b');if(!cA&&!cB){segs.push(sg);return;}
     const ll=segLL(sg),raw=ll.map(q=>toXY(q,o)),Tr=cumLen(raw).pop(),hM=layOf(sg).half;
