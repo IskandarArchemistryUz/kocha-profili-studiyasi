@@ -6,7 +6,9 @@ const mq = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme:
 const subs = new Set<() => void>();
 
 export const themePref = (): Theme => pref;
-export const isDark = (): boolean => pref === 'dark' || (pref === 'auto' && !!mq?.matches);
+/** Xizmatning oʻz rejimi (4-bosqich): sahifa <html data-svc-dark> boʻlsa, foydalanuvchi tanlamagan holda (auto) tungi ochiladi — Render */
+const svcDark = (): boolean => typeof document !== 'undefined' && document.documentElement.hasAttribute('data-svc-dark');
+export const isDark = (): boolean => pref === 'dark' || (pref === 'auto' && (svcDark() || !!mq?.matches));
 function apply(): void { document.documentElement.dataset.theme = isDark() ? 'dark' : 'light'; subs.forEach(f => f()); }
 export function setTheme(t: Theme): void { pref = t; try { localStorage.setItem(KEY, t); } catch { /* */ } apply(); }
 /** Tugma: yorugʻ ↔ tungi (auto dan — joriy holatning teskarisi) */
