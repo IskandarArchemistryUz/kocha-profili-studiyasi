@@ -1831,7 +1831,7 @@ export class Editor {
       plans.forEach(pl => { const used = new Set(pl.layout.apts.flatMap(a => a.mods)); pl.layout.mods.forEach((m, i) => { if (!used.has(i)) return; n++; if (m.az >= 90 && m.az <= 290) hot++; if (isWest(m.az)) west++; }); });
       const shaded = doc.buildings.some(b => b.shade);
       row(tr('Quyoshdan himoya kerak'), `${fmt(hot / n * 100, 0)} % ${tr('deraza 90–290° ga qaragan')} · 16-band`, hot === 0 || shaded ? 'ok' : 'warn', hot === 0 ? tr('kerak emas') : shaded ? tr('bor') : `${fmt(hot / n * 100, 0)} %`);
-      row(tr('Gʻarbga qaragan derazalar'), `${fmt(west / n * 100, 0)} % · ${tr('yashash xonasi qoʻyilmaydi')} · 15-band · ${fmt(n)} ${tr('modul bir qavatda')}`, west === 0 ? 'ok' : 'warn', `${fmt(west / n * 100, 0)} %`);
+      if (this.normSet() === 'UZ') row(tr('Gʻarbga qaragan derazalar'), `${fmt(west / n * 100, 0)} % · ${tr('yashash xonasi qoʻyilmaydi')} · 15-band · ${fmt(n)} ${tr('modul bir qavatda')}`, west === 0 ? 'ok' : 'warn', `${fmt(west / n * 100, 0)} %`);
     }
     const solar = doc.buildings.filter(b => b.roof === 'quyosh').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0), pv = pvEstimate(solar);
     const green = doc.buildings.filter(b => b.roof === 'yashil').reduce((t, b) => t + area(b.footprint.map(fr.toLocal)), 0);
@@ -2106,7 +2106,7 @@ export class Editor {
     }
     body.append(h('div', { class: 'group', id: 'aptPlan' }, h('div', { class: 'li' },
       h('span', { class: 'k' }, h('b', {}, `${fmt(perFloor)} ${tr('kvartira')}`), ` · ${fmt(plans.length)} ${tr('seksiya')}`,
-        h('span', { class: 'sub' }, tf('Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (Toshkentda 10 kvartiraga 7 joy) ham olinadi.', { 'fmt(MOD_W, 1)': fmt(MOD_W, 1), size }))),
+        h('span', { class: 'sub' }, (this.normSet() === 'UZ' ? tf('Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son reyestrdagi avtoturargoh talabiga (Toshkentda 10 kvartiraga 7 joy) ham olinadi.', { 'fmt(MOD_W, 1)': fmt(MOD_W, 1), size }) : tf('Reja qoidadan: seksiya → hovlidan kirish → zina-lift → qisqa koridor → har kvartiraga eshik, fasadga deraza (modul ${fmt(MOD_W, 1)} m), qorongʻi kvartira yoʻq. Maydon oʻlchami ${size}. Shu son avtoturargoh hisobiga ham olinadi.', { 'fmt(MOD_W, 1)': fmt(MOD_W, 1), size })))),
       sm.forced ? h('span', { class: 'chip warn', 'data-s': 'review' }, `${fmt(sm.forced)} ${tr('miksdan tashqari')}`) : '')));
     // blok → qavat → reja (dizayn: «Kvartiralar A»): genplanda bino, qavat ‹ › , reja eskizi; «Albomda ochish» — toʻliq ekran, tahrir
     let insolAlbum: (() => void) | null = null;
@@ -2242,7 +2242,8 @@ export class Editor {
     (this.svc.poi?.pois ?? []).forEach(p => { const q = fr.toLocal(p.at); if (site && pointIn(q, site) && !kept.some(b => pointIn(q, b.rings))) { dropped++; return; } add(p.kind, [q]); });
     doc.pois.forEach(p => add(p.kind, [fr.toLocal(p.at)]));   // qoʻlda belgilangan mavjud obyektlar
     // bekatgacha radius: hudud turi (kvartal funksiyasidan), shahar toifasi, markaz, relyef — ShNQ 2.07.01-23, 382–383-band
-    const T = doc.settings.transit, city = cityOf(doc.settings.district), cat: CityCat = T.cat ?? cityCategory(city?.pop ?? 0);
+    // 14.11 audit: stat.uz shahri faqat Oʻzbekiston toʻplamida; xorijda toifa — qoʻlda (andoza — aholisiz)
+    const T = doc.settings.transit, city = this.normSet() === 'UZ' ? cityOf(doc.settings.district) : null, cat: CityCat = T.cat ?? cityCategory(city?.pop ?? 0);
     const relief = !!this.ctxMgr.current?.terrain && doc.context.layers.relief;
     const stops = (src.bekat ?? []).flatMap(o => o.pts);
     let dh = 0;
@@ -2291,7 +2292,7 @@ export class Editor {
     return h('div', { class: 'group', id: 'trBox', style: 'padding:12px;display:flex;flex-direction:column;gap:10px' },
       h('div', { class: 'row', style: 'align-items:baseline;gap:8px' }, h('b', { style: 'font-size:13.5px;flex:1' }, tr('Bekatgacha radius')), h('span', { class: 'norm' }, svgIcon(IC.book), '382–383-band')),
       h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, tr('Shahar toifasi'),
-        h('span', { class: 'sub' }, X.city ? `${X.city.name} · ${fmt(X.city.pop)} ${tr('kishi')} (stat.uz, ${DEMO.year})${X.city.city ? '' : ` — ${tr('shahar emas, toifani tekshiring')}`}` : tr('hudud tanlanmagan'))),
+        h('span', { class: 'sub' }, X.city ? `${X.city.name} · ${fmt(X.city.pop)} ${tr('kishi')} (stat.uz, ${DEMO.year})${X.city.city ? '' : ` — ${tr('shahar emas, toifani tekshiring')}`}` : this.normSet() !== 'UZ' ? tr('Xorijiy loyiha: aholi maʼlumoti yoʻq — toifani qoʻlda tanlang') : tr('hudud tanlanmagan'))),
         h('span', { class: 'v', id: 'trCatV' }, tr(catName(X.cat))), h('span', { class: `chip ${X.auto ? 'warn' : 'na'}` }, X.auto ? tr('andoza') : tr('qoʻlda')))),
       tbl([tr('Toifa'), tr('Aholi')], CITY_CATS.map(c => [tr(c.name), c.range])),
       h('span', { class: 't-small' }, tr('Aholi soni stat.uz dan avtomatik (1-qadamdagi hudud). Chegaralar — SNiP 2.07.01-89 asosidagi andoza, manba tasdiqlanmagan; ShNQ 2.07.01-23 matnida berilmagan. Asl manba topilsa — almashtiriladi.')),
@@ -2479,7 +2480,7 @@ export class Editor {
       'Mavjud binolar va koʻchalar — OpenStreetMap; balandligi yoʻqlari dogʻ maydoni va turi boʻyicha taxmin qilingan.',
       ...(this.apt.stats ? ['Kvartiralar — fasad modullari (3,3 m) boʻyicha sxema; yashash xonalari eng yaxshi derazalarda (optimistik), balkon soyasi hisobga olinmagan.'] : []),
       ...(this.svc.res ? ['Xizmat radiuslari piyoda yoʻllari boʻylab; OSM obyektlari toʻliq emas — qamrov pastki baho.'] : []),
-      ...(this.scene.inSite.some(x => !new Set(this.store.doc.keep).has(x.id)) ? [`Koʻchirish xarajati — dastlabki baho (${this.store.doc.settings.comp.regime === 'orq1149' ? 'OʻRQ-1149, 40–42-moddalar: noqulaylik 12 %, foyda 2 yil' : 'OʻRQ-781, 23–25-moddalar: noqulaylik 5 %, foyda 1 yil'}); bozor qiymati — ${this.store.doc.settings.comp.priceSource || 'kiritilgan narx'}; baholovchi xulosasi emas (OʻRQ-781, 29-modda).`] : []),
+      ...(this.normSet() === 'UZ' && this.scene.inSite.some(x => !new Set(this.store.doc.keep).has(x.id)) ? [`Koʻchirish xarajati — dastlabki baho (${this.store.doc.settings.comp.regime === 'orq1149' ? 'OʻRQ-1149, 40–42-moddalar: noqulaylik 12 %, foyda 2 yil' : 'OʻRQ-781, 23–25-moddalar: noqulaylik 5 %, foyda 1 yil'}); bozor qiymati — ${this.store.doc.settings.comp.priceSource || 'kiritilgan narx'}; baholovchi xulosasi emas (OʻRQ-781, 29-modda).`] : []),
       'Shamol (agar hisoblangan boʻlsa) — 2D LBM, Lawson mezoni xalqaro amaliyotdan; Oʻzbekiston meʼyori emas.',
     ];
   }
@@ -4555,6 +4556,7 @@ export class Editor {
     this.renderPanel();
   }
   private compSection(body: HTMLElement): void {
+    if (this.normSet() !== 'UZ') return;   // 14.11 audit: OʻRQ-781/1149 va Toshkent narxi — faqat Oʻzbekiston toʻplamida
     const c = this.store.doc.settings.comp, R = this.comp(); if (!R) return;
     const set = (patch: Partial<CompParams>) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { comp: { ...c, ...patch } } }));
     const num = (k: keyof CompParams, label: string, unit: string, step = 1) => { const e = h('input', { type: 'number', class: 'input', min: 0, step, value: c[k] as number, 'data-comp': k, 'aria-label': `${label}, ${unit}` }) as HTMLInputElement;
