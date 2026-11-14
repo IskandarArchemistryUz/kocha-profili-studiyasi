@@ -11,13 +11,13 @@ hdr = body_line[body_line.index('<header class="mnav">'):body_line.index('</head
 hdr = hdr.replace(' aria-current="page"', '')
 foot = body_line[body_line.index('<footer class="mfoot">'):body_line.index('</footer>') + 9]
 
-EDITION = '21.10.2026'
-PRIV_EDITION = '13.11.2026'   # maxfiylik: foydalanish statistikasi (oʻz serverimiz) qoʻshildi
+EDITION = '14.11.2026'   # manzil (YaTT, 27.10) va bepul qism chegarasi yangilandi
+PRIV_EDITION = '14.11.2026'   # maxfiylik: operator manzili yangilandi (13.11: foydalanish statistikasi)
 MAIL = 'info@archemistry.uz'
 REQ = {
- 'uz': 'YaTT Soliyev Iskandar Jaxongir oʻgʻli · davlat roʻyxatidan oʻtkazilgan: 08.08.2025, № 7066967 · STIR 563413523 · manzil: Toshkent shahri, Yakkasaroy tumani, Kichik xalqa yoʻli, 28-uy · hisob raqami 20218000907288528001, ATIB «Ipak Yoʻli» Yakkasaroy filiali, MFO 01028 · pochta ' + MAIL + ' · telefon +998 99 430 11 77',
- 'en': 'Individual entrepreneur Iskandar Jaxongir oʻgʻli Soliyev · state registration: 08.08.2025, No. 7066967 · TIN 563413523 · address: 28 Kichik Xalqa Yoʻli, Yakkasaroy district, Tashkent, Uzbekistan · account 20218000907288528001, JSCB “Ipak Yuli”, Yakkasaroy branch, bank code (MFO) 01028 · email ' + MAIL + ' · phone +998 99 430 11 77',
- 'ru': 'ИП Солиев Искандар Жахонгир угли · государственная регистрация: 08.08.2025, № 7066967 · ИНН 563413523 · адрес: г. Ташкент, Яккасарайский район, ул. Кичик Халка Йули, 28 · р/с 20218000907288528001, АИКБ «Ипак Йули», Яккасарайский филиал, МФО 01028 · эл. почта ' + MAIL + ' · телефон +998 99 430 11 77',
+ 'uz': 'YaTT Soliyev Iskandar Jaxongir oʻgʻli · davlat roʻyxatidan oʻtkazilgan: 08.08.2025, № 7066967 · STIR 563413523 · manzil: Toshkent shahri, Yakkasaroy tumani, Shota Rustaveli 1-tor koʻchasi, 8-uy · hisob raqami 20218000907288528001, ATIB «Ipak Yoʻli» Yakkasaroy filiali, MFO 01028 · pochta ' + MAIL + ' · telefon +998 99 430 11 77',
+ 'en': 'Individual entrepreneur Iskandar Jaxongir oʻgʻli Soliyev · state registration: 08.08.2025, No. 7066967 · TIN 563413523 · address: 8 Shota Rustaveli 1st Lane, Yakkasaroy district, Tashkent, Uzbekistan · account 20218000907288528001, JSCB “Ipak Yuli”, Yakkasaroy branch, bank code (MFO) 01028 · email ' + MAIL + ' · phone +998 99 430 11 77',
+ 'ru': 'ИП Солиев Искандар Жахонгир угли · государственная регистрация: 08.08.2025, № 7066967 · ИНН 563413523 · адрес: г. Ташкент, Яккасарайский район, 1-й тупик Шота Руставели, 8 · р/с 20218000907288528001, АИКБ «Ипак Йули», Яккасарайский филиал, МФО 01028 · эл. почта ' + MAIL + ' · телефон +998 99 430 11 77',
 }
 
 OFERTA = {
@@ -28,7 +28,7 @@ OFERTA = {
   'Foydalanuvchi quyidagi harakatlardan birini bajarib, ofertani toʻliq qabul qiladi (aksept): saytda hisob ochadi (pochta kodi yoki Google orqali kiradi) yoki pullik xizmat uchun toʻlov qiladi.',
   'Ijrochi ofertani oʻzgartirishi mumkin. Yangi tahrir saytga qoʻyilgan kundan kuchga kiradi; toʻlangan obuna yoki tangalar shartlari toʻlov paytidagi tahrir boʻyicha qoladi.']),
  ('2. Xizmat tarkibi', 'ol', [
-  '<b>Bepul qism:</b> brauzerda bajariladigan ishlar — hudud tanlash, uchastka chizish, koʻchalar, hajmlar, meʼyoriy hisoblar va boshqa amallar. Ular Foydalanuvchi qurilmasida hisoblanadi; 3-qadamdan boshlab hisob talab qilinadi.',
+  '<b>Bepul qism:</b> brauzerda bajariladigan ishlar — hudud tanlash, uchastka chizish, koʻchalar, hajmlar, meʼyoriy hisoblar va boshqa amallar. Ular Foydalanuvchi qurilmasida hisoblanadi; «Joy va uchastka» qadamidan keyin hisob talab qilinadi.',
   '<b>Pullik qism:</b> tangalar (va ishga tushirilganda — obuna) — bulutga saqlash, sunʼiy idrok amallari, belgisiz eksport va narxlar sahifasida koʻrsatilgan boshqa amallar uchun.',
   'Narxlar, tarif tarkibi va har amalning tanga qiymati <a href="narxlar.html">archemistry.uz/narxlar.html</a> va <a href="narxlar-batafsil.html">narxlar-batafsil.html</a> sahifalarida eʼlon qilinadi va ofertaning ajralmas qismi hisoblanadi.']),
  ('3. Narx va toʻlov', 'ol', [
@@ -63,7 +63,7 @@ OFERTA = {
   'The User fully accepts the offer by doing either of the following: creating an account on the website (signing in with an email code or Google) or paying for a paid service.',
   'The Provider may amend the offer. A new version takes effect on the day it is published on the website; the terms of credits or subscriptions already paid remain as in the version in force at the time of payment.']),
  ('2. Scope of the Service', 'ol', [
-  '<b>Free part:</b> work performed in the browser — choosing the area, drawing the site, streets, massing, normative calculations and other operations. They are computed on the User’s device; an account is required from step 3 onwards.',
+  '<b>Free part:</b> work performed in the browser — choosing the area, drawing the site, streets, massing, normative calculations and other operations. They are computed on the User’s device; an account is required after the “Site and plot” step.',
   '<b>Paid part:</b> credits (and, once launched, subscriptions) — for cloud saving, AI operations, unwatermarked export and other operations listed on the pricing page.',
   'Prices, plan contents and the credit cost of each operation are published at <a href="narxlar.html">archemistry.uz/narxlar.html</a> and <a href="narxlar-batafsil.html">narxlar-batafsil.html</a> and form an integral part of this offer.']),
  ('3. Price and payment', 'ol', [
@@ -98,7 +98,7 @@ OFERTA = {
   'Пользователь полностью принимает оферту (акцепт), совершив одно из действий: создаёт учётную запись на сайте (входит по коду из почты или через Google) либо оплачивает платную услугу.',
   'Исполнитель вправе изменять оферту. Новая редакция вступает в силу со дня публикации на сайте; условия уже оплаченных монет или подписки сохраняются по редакции, действовавшей на момент оплаты.']),
  ('2. Состав Сервиса', 'ol', [
-  '<b>Бесплатная часть:</b> работа в браузере — выбор территории, построение участка, улицы, объёмы, нормативные расчёты и другие операции. Они выполняются на устройстве Пользователя; начиная с 3-го шага требуется учётная запись.',
+  '<b>Бесплатная часть:</b> работа в браузере — выбор территории, построение участка, улицы, объёмы, нормативные расчёты и другие операции. Они выполняются на устройстве Пользователя; после шага «Место и участок» требуется учётная запись.',
   '<b>Платная часть:</b> монеты (и, после запуска, подписка) — для облачного хранения, операций искусственного интеллекта, экспорта без водяного знака и других операций, указанных на странице цен.',
   'Цены, состав тарифов и стоимость каждой операции в монетах публикуются на страницах <a href="narxlar.html">archemistry.uz/narxlar.html</a> и <a href="narxlar-batafsil.html">narxlar-batafsil.html</a> и являются неотъемлемой частью оферты.']),
  ('3. Цена и оплата', 'ol', [
@@ -133,7 +133,7 @@ def tbl(rows):
     return '<table><thead><tr>' + ''.join(f'<th>{c}</th>' for c in h) + '</tr></thead><tbody>' + ''.join('<tr>' + ''.join(f'<td>{c}</td>' for c in r) + '</tr>' for r in b) + '</tbody></table>'
 
 PRIV = {
-'uz': ('archemistry.uz — shaxsga doir maʼlumotlarni qayta ishlash siyosati', 'Operator: YaTT Soliyev Iskandar Jaxongir oʻgʻli, STIR 563413523, manzil: Toshkent shahri, Yakkasaroy tumani, Kichik xalqa yoʻli, 28-uy, pochta ' + MAIL + '.', [
+'uz': ('archemistry.uz — shaxsga doir maʼlumotlarni qayta ishlash siyosati', 'Operator: YaTT Soliyev Iskandar Jaxongir oʻgʻli, STIR 563413523, manzil: Toshkent shahri, Yakkasaroy tumani, Shota Rustaveli 1-tor koʻchasi, 8-uy, pochta ' + MAIL + '.', [
  ('1. Qanday maʼlumot yigʻiladi', 'raw', [tbl([
   ['Maʼlumot', 'Qachon', 'Nima uchun'],
   ['Pochta manzili', 'pochta kodi yoki Google bilan kirganda', 'hisob ochish, kirish kodi yuborish'],
@@ -161,7 +161,7 @@ PRIV = {
  ('6. Huquqlaringiz', 'p', ['Maʼlumotlaringiz haqida bilish, ularni tuzatish, oʻchirish va qayta ishlashga roziligingizni qaytarib olish huquqingiz bor. Soʻrovni ' + MAIL + ' manziliga yuboring; javob 10 ish kuni ichida beriladi. Hisob oʻchirilsa, kirib boʻlmaydi va ishlatilmagan tangalar yoʻqoladi (<a href="oferta.html">ofertaning 6-boʻlimi</a>dagi qaytarish shartlari bundan mustasno).']),
  ('7. Rozilik', 'p', ['Hisob ochib, Foydalanuvchi ushbu siyosatda koʻrsatilgan maʼlumotlarni koʻrsatilgan maqsadlarda qayta ishlashga rozilik beradi.']),
 ]),
-'en': ('archemistry.uz — personal data processing policy', 'Operator: individual entrepreneur Iskandar Jaxongir oʻgʻli Soliyev, TIN 563413523, address: 28 Kichik Xalqa Yoʻli, Yakkasaroy district, Tashkent, Uzbekistan, email ' + MAIL + '.', [
+'en': ('archemistry.uz — personal data processing policy', 'Operator: individual entrepreneur Iskandar Jaxongir oʻgʻli Soliyev, TIN 563413523, address: 8 Shota Rustaveli 1st Lane, Yakkasaroy district, Tashkent, Uzbekistan, email ' + MAIL + '.', [
  ('1. What data we collect', 'raw', [tbl([
   ['Data', 'When', 'Why'],
   ['Email address', 'when signing in with an email code or Google', 'creating the account, sending sign-in codes'],
@@ -189,7 +189,7 @@ PRIV = {
  ('6. Your rights', 'p', ['You have the right to know about your data, to correct and delete it, and to withdraw your consent to its processing. Send requests to ' + MAIL + '; we respond within 10 business days. If the account is deleted, it can no longer be accessed and unused credits are lost (except for the refund terms in <a href="oferta.html">section 6 of the offer</a>).']),
  ('7. Consent', 'p', ['By creating an account, the User consents to the processing of the data listed in this policy for the stated purposes.']),
 ]),
-'ru': ('archemistry.uz — политика обработки персональных данных', 'Оператор: ИП Солиев Искандар Жахонгир угли, ИНН 563413523, адрес: г. Ташкент, Яккасарайский район, ул. Кичик Халка Йули, 28, эл. почта ' + MAIL + '.', [
+'ru': ('archemistry.uz — политика обработки персональных данных', 'Оператор: ИП Солиев Искандар Жахонгир угли, ИНН 563413523, адрес: г. Ташкент, Яккасарайский район, 1-й тупик Шота Руставели, 8, эл. почта ' + MAIL + '.', [
  ('1. Какие данные собираются', 'raw', [tbl([
   ['Данные', 'Когда', 'Зачем'],
   ['Адрес эл. почты', 'при входе по коду из почты или через Google', 'создание учётной записи, отправка кода входа'],
