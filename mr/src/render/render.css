@@ -159,3 +159,6 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 #ren .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--gold-btn) 88%,#fff)}
 #ren .btn-primary:disabled{background:var(--fill);color:var(--muted);box-shadow:none}
 #ren .eko .svc a.on{box-shadow:inset 0 0 0 1px rgba(var(--gold),.7),0 0 14px -6px rgba(var(--gold),.7)}
+/* 14.11 (egasi): fon (quyosh nurlari) butun sahifa orqasida — sahna yarim shaffof, nur xira va toʻqroq */
+#ren .ren-stage{background:color-mix(in srgb,var(--fill) 62%,transparent)}
+[data-theme="dark"] #ren .ren-stage{background:color-mix(in srgb,var(--fill) 55%,transparent)}

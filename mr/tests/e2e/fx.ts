@@ -35,7 +35,8 @@ export const test = base.extend({
     page.click = (async (sel: string, opts?: Parameters<Page['click']>[1]) => {
       // 31.10 (A variant): Grafika va Chizmadon — «Taqdimot» menyusida, til va tema — «Sozlamalar» (⚙) da: menyu yopiq boʻlsa avval ochiladi
       const host = MENU_HOST[sel];
-      if (host && !(await page.locator(sel).first().isVisible().catch(() => false)) && await page.locator(host).first().waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) await orig(host);
+      // 14.11: avval menyu tugmasi (muharrir ochilgan) kutiladi — loyihalar sahifasida ham «Tungi rejim» tugmasi bor
+      if (host && await page.locator(host).first().waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false) && !(await page.locator(sel).first().isVisible().catch(() => false))) await orig(host);
       if (/^\[data-step=[a-z]+\]$/.test(sel) && (await page.locator(sel).first().getAttribute('aria-expanded', { timeout: 5000 }).catch(() => null)) === 'true') return;
       // 27.10: ikkinchi darajali boshqaruvlar yigʻiq <details> ichida — foydalanuvchi kabi avval ochiladi
       await page.evaluate((q) => { try { const e = document.querySelector(q); if (!e || e.closest('summary')) return; let d = e.closest('details:not([open])'); while (d) { (d as HTMLDetailsElement).open = true; d = d.parentElement?.closest('details:not([open])') ?? null; } } catch { /* Playwright selektori */ } }, sel).catch(() => {});

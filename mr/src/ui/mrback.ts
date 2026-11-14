@@ -7,6 +7,7 @@ import { h, svgIcon } from './dom';
 import { tr } from '../i18n';
 import { ctxProject, projectHref } from '../core/projctx';
 import { svcPickBtn, type SvcId } from './svcpick';
+import { isSvcId } from '../storage/svcprojects';
 
 export interface MrReturn { id: string; name: string; step: string; cam: unknown; at: number; /** loyiha markazi — boshqa xizmatdagi tahlil shu hududdami (chzsend.ts) */ origin?: [number, number]; /** loyihada uchastka chizilganmi — boʻlmasa markaz sukut, ishonchsiz */ hasSite?: boolean }
 const K = 'mr-return', KB = 'mr-back', TTL = 24 * 3600 * 1000;
@@ -29,6 +30,8 @@ export function mrBackBtn(svc?: SvcId): HTMLElement | '' {
   const p = ctxProject(), r = getMrReturn();
   // 14.11: loyiha faqat manzildan (?p=). Eski sessionStorage qaytish manzili ishlatilmaydi — alohida ochilgan xizmat
   // boshqa (oxirgi koʻrilgan) loyihaga qaytarib yuborardi. Xizmatsiz chaqiruvlar uchun avvalgidek.
+  // 14.11: «s_…» — xizmatning oʻz loyihasi (Master reja emas) — oʻz «Loyihalar» oynasi
+  if (svc && isSvcId(p)) return svcPickBtn(svc);
   const id = p ?? (svc ? null : r?.id); if (!id) return svc ? svcPickBtn(svc) : '';
   const nm = h('span', { class: 'nm' }, r && r.id === id ? r.name : '');
   const a = h('a', { class: 'btn btn-sm mr-back', id: 'mrBack', 'data-svc': 'mr', href: projectHref(id), title: tr('Master rejaga qaytish'), onclick: () => { try { sessionStorage.setItem(KB, id); } catch { /* */ } } },

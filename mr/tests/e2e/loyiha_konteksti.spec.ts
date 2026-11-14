@@ -29,17 +29,25 @@ test('loyiha ichidan Joyshunos: ?p= manzilda, «← Master reja» loyihaga qayta
   await expect(p2.locator('#svcPop')).toBeVisible({ timeout: 20_000 });
 });
 
-/** 3b-2: xizmat bosh sahifadan alohida ochilganda — «Loyihalar» tugmasi, yangi loyiha yaratib ichida ochish */
-test('alohida Koʻchasoz: «Loyihalar» → «Yangi loyiha» — xizmat loyiha ichida qayta ochiladi', async ({ page }) => {
+/** 3b-2 → 14.11 (egasi): alohida ochilgan xizmat — oʻz loyihalari (Master rejaga emas): «Loyihalar» oynasi, «Yangi loyiha» */
+test('alohida Koʻchasoz: «Loyihalar» → «Yangi loyiha» — xizmatning oʻz loyihasi (s_…), Master rejaga bogʻlanmaydi', async ({ page }) => {
   test.setTimeout(90_000);
   await page.route(/fonts\.g/, r => r.abort());
   await page.goto('./kochasoz.html');
   await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('#mrBack')).toHaveCount(0);
   await page.click('#svcProj');
-  await expect(page.locator('.svc-pick')).toBeVisible();
-  await page.click('#svcNew');
-  await page.waitForURL(/kochasoz\.html\?p=p_\w+/);
-  await expect(page.locator('#mrBack')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('#svcProj')).toHaveCount(0);
+  await expect(page.locator('#projWin')).toBeVisible();
+  await expect(page.locator('#projWin [data-pw=""]')).toContainText('Asosiy loyiha');
+  await page.click('#pwNew');
+  await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
+  await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#mrBack')).toHaveCount(0);
+  const reg = await page.evaluate(() => JSON.parse(localStorage.getItem('svcp:ks') || '[]'));
+  expect(reg).toHaveLength(1);
+  // roʻyxatda: asosiy + yangi (ochiq), asosiyga qaytish — ?p siz
+  await page.click('#svcProj');
+  await expect(page.locator('#projWin .pw-card')).toHaveCount(2);
+  await page.click('#projWin [data-pw=""]');
+  await page.waitForURL(u => !/\?p=/.test(u.toString()));
 });

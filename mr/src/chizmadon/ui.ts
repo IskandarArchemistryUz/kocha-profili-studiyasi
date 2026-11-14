@@ -32,6 +32,8 @@ import { loadGeo, loadWorld, world, resolve, presets, placeName, rName, dName, a
 import { rebase, reanchor, bindTo } from './bind';
 
 export interface ChHost {
+  /** 14.11: Chizmadonning oʻz loyihasi (alohida kirilgan) — «← Master reja» oʻrniga «Loyihalar» (shu albomlar roʻyxati) */
+  own?: boolean; projects?: () => void;
   /** loyiha nomi va joyi (sarlavha, namunalar) */
   project: string; place: string;
   /** loyiha nuqtasi [uzunlik, kenglik] — «Loyiha hududi» sukuti */
@@ -278,7 +280,9 @@ export function openChizmadon(host: ChHost): void {
   const dlBtn = h('button', { class: 'btn btn-primary', id: 'chDl', onclick: (e: Event) => { e.stopPropagation(); exportMenu(dlBtn); } }, ...icl(I.dl, tr('Yuklab olish')));
   head.append(
     // 18-band: koʻrinadigan matnli tugma — «← Master reja» (avval faqat belgi edi, sezilmasdi)
-    h('button', { class: 'btn btn-sm mr-back', id: 'chBack', title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja'))),
+    host.own && host.projects
+      ? h('button', { class: 'btn btn-sm mr-back', id: 'chProj', title: tr('Chizmadon loyihalari'), onclick: () => host.projects!() }, svgIcon('<path d="M3 7h6l2 2h10v10H3z"/>'), h('span', {}, tr('Loyihalar')))
+      : h('button', { class: 'btn btn-sm mr-back', id: 'chBack', title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja'))),
     h('span', { class: 'brand' }, logoSvg(18), h('b', {}, 'Archemistry Lab')), h('span', { class: 'svcbadge ch-badge' }, h('i'), tr('Chizmadon')),
     h('span', { class: 'sh-name' }, (() => { const i = h('input', { class: 'ch-title', id: 'chTitle', value: d.title, 'aria-label': tr('Albom nomi'), maxlength: 120 }) as HTMLInputElement; i.addEventListener('change', () => { d.title = i.value.trim() || d.title; dirty(); }); return i; })()),
     saveChip, h('span', { class: 'spacer' }), famBtn, fmtSeg, viewSeg, slotsBtn, tabBtn, dlBtn);
@@ -319,7 +323,7 @@ export function openChizmadon(host: ChHost): void {
   const slotUi = h('div', { class: 'ch-slotui', id: 'chSlotUi' });
   slotUi.addEventListener('pointerdown', e => e.stopPropagation());
   stage.append(pageHost, grayHost, over, slotUi); view.append(stage);
-  svcBackdrop('chz', view);   // 4-bosqich: daftar katagi va chizilib paydo boʻladigan rejalar (varaq ostida)
+  svcBackdrop('chz', wrap);   // 4-bosqich: daftar katagi va chizilib paydo boʻladigan rejalar — butun oyna fonida (egasi, 14.11: «fon toʻliq orqaga»)
   const zoomBox = h('div', { class: 'ch-zoom glassbar' });
   const pnav = h('div', { class: 'ch-pnav glassbar', id: 'chPnav' });
   const tools = h('div', { class: 'ch-tools glassbar', role: 'toolbar', 'aria-label': tr('Asboblar') });

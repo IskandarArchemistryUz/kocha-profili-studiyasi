@@ -3,8 +3,8 @@
  */
 import './ui/ds2.css';
 import './ui/style.css';
-import './ui/theme';
-import { blankProject, uid } from './core/doc';
+import { isDark, toggleTheme, onTheme } from './ui/theme';
+import { blankProject, uid, type Project } from './core/doc';
 import { listProjects, getProject, putProject, deleteProject, importJSON, importJSONWithLayers, putLayerData, type ProjectMeta } from './storage/db';
 import * as cloud from './storage/cloud';
 import { check } from './ui/controls';
@@ -59,15 +59,16 @@ async function route(): Promise<void> {
     // boshqa xizmatdan yuborilgan varaq — oʻz loyihasiga yoki yangi alohida loyihaga (ui/chzsend.ts)
     const t = peekInboxTarget();
     if (t?.target === 'new') {
-      const p = blankProject(String(t.newName || tr('Yangi loyiha')).slice(0, 120));
+      const p: Project = { ...blankProject(String(t.newName || tr('Yangi loyiha')).slice(0, 120)), svc: 'chz' };   // alohida albom — Chizmadonning oʻz loyihasi
       if (t.center && t.center.every(Number.isFinite)) p.origin = [t.center[0], t.center[1]];
       await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
     }
     if (t?.target) { let ok = null; try { ok = await getProject(t.target); } catch { /* */ } if (ok) { location.replace(`#/p/${encodeURIComponent(t.target)}/chizmadon`); return; } }
-    let list: ProjectMeta[] = []; try { list = await listProjects(); } catch { /* */ }
+    // 14.11 (egasi): alohida kirilgan Chizmadon — Master reja loyihasiga emas, oʻz loyihalariga (oxirgisi yoki yangi)
+    let list: ProjectMeta[] = []; try { list = (await listProjects()).filter(p => p.svc === 'chz'); } catch { /* */ }
     const last = [...list].sort((a, b) => String(b.updated).localeCompare(String(a.updated)))[0];
     if (last) { location.replace(`#/p/${last.id}/chizmadon`); return; }
-    const p = blankProject(); await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
+    const p: Project = { ...blankProject(tr('Taqdimot albomi')), svc: 'chz' }; await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
   }
   const m = location.hash.match(/^#\/p\/([\w-]+)(\/chizmadon)?$/);
   if (m) {
@@ -96,6 +97,7 @@ function takeKsInbox(): Parameters<Editor['openCh']>[0] {
 
 /** Loyihalar sahifasidagi hisob qatori: kirilmagan — «Kirish», kirgan — ism, tangalar, sotib olish, chiqish. Kirish talab qilinmasa yoki egasi rejimida — yoʻq */
 let offAcct: (() => void) | null = null;
+let offThemeHome: (() => void) | null = null;
 function homeAcct(): HTMLElement {
   const box = h('div', { class: 'home-acct', id: 'homeAcct' });
   const draw = () => {
@@ -140,9 +142,19 @@ async function moveSelected(btn: HTMLButtonElement): Promise<void> {
   void home();
 }
 
+/** Kartaning eskizi: nuqtali toʻr, uchastka chizigʻi va binolar soniga qarab sxematik hajmlar (bezak) */
+function thumb(n: number, site: boolean, inCloud: boolean): HTMLElement {
+  const k = Math.min(n, 9), boxes: string[] = [];
+  for (let i = 0; i < k; i++) { const c = i % 3, r = Math.floor(i / 3); boxes.push(`<rect x="${62 + c * 34}" y="${16 + r * 22}" width="${22 + (i * 7) % 9}" height="${14 + (i * 5) % 6}" rx="2"/>`); }
+  const el = h('span', { class: 'thumb', 'aria-hidden': 'true' });
+  el.innerHTML = `<svg viewBox="0 0 240 92" preserveAspectRatio="xMidYMid slice">${site ? '<path class="st" d="M50 8L196 12L188 84L44 80Z"/>' : ''}<g class="bl">${boxes.join('')}</g></svg>`;
+  if (inCloud) el.append(h('em', { class: 'cl' }, tr('bulutda')));
+  return el;
+}
+
 async function home(): Promise<void> {
   let list: ProjectMeta[] = [];
-  try { list = await listProjects(); } catch (e) { toast('Saqlash ishlamayapti: ' + (e as Error).message); }
+  try { list = (await listProjects()).filter(p => !p.svc); } catch (e) { toast('Saqlash ishlamayapti: ' + (e as Error).message); }   // 14.11: Chizmadonning oʻz loyihalari bu yerda emas
   const cs = await cloudState(list);
   for (const id of [...picked]) if (!list.some(p => p.id === id) || cs.links.has(id)) picked.delete(id);
   const moveBtn = h('button', { class: 'btn btn-primary btn-sm', id: 'cloudMove', disabled: !picked.size, onclick: (e: Event) => void moveSelected(e.currentTarget as HTMLButtonElement) }, picked.size ? tf('Tanlanganlarni bulutga koʻchirish (${n})', { n: picked.size }) : tr('Tanlanganlarni bulutga koʻchirish')) as HTMLButtonElement;
@@ -159,11 +171,18 @@ async function home(): Promise<void> {
   };
   const created = (t: string) => new Date(t).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
   const TRASH = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', OPEN = '<path d="M4 7h6l2 2h8v10H4zM4 7V5h6"/>';
-  root.replaceChildren(h('main', { class: 'home' },
-    h('div', { class: 'home-top' },
+  // 14.11 (egasi): loyihalar sahifasi — kanvas «Oʻtish: boʻlim → loyihalar» dagi loyihalar ekrani: shisha sarlavha, nuqtali fon, eskizli kartalar
+  let first = false; try { first = !sessionStorage.getItem('home-in'); sessionStorage.setItem('home-in', '1'); } catch { /* */ }
+  const themeB = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'homeTheme', type: 'button', 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() },
+    svgIcon(isDark() ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'));
+  offThemeHome?.(); offThemeHome = onTheme(() => { if (location.hash === '' || location.hash === '#/' || location.hash === '#') void home(); });
+  root.replaceChildren(h('main', { class: `home home2${first ? ' enter' : ''}` },
+    h('header', { class: 'home-top home-bar glassbar' },
       h('a', { class: 'btn btn-ghost btn-sm', href: '../index.html', style: 'text-decoration:none' }, ...icl(IC.back, 'Archemistry Lab')),
-      homeAcct()),
-    h('h1', { class: 't-display' }, tr('Master reja')),
+      h('span', { class: 'svcbadge home-svc' }, h('i'), tr('Master reja')),
+      h('span', { class: 'sp' }),
+      homeAcct(), themeB),
+    h('h1', { class: 't-display' }, tr('Master reja'), h('span', { class: 'h1-sub' }, ` · ${tr('loyihalar')}`)),
     h('p', { class: 't-small lead' }, tr('Uchastkadan meʼyoriy tekshiruvgacha — bitta 3D oynada. Har bir koʻrsatkich bitta modeldan hisoblanadi va ShNQ bandiga bogʻlanadi.')),
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
       h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
@@ -172,7 +191,8 @@ async function home(): Promise<void> {
     cs.on ? h('div', { class: 'row', id: 'cloudBar', style: 'gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px' },
       h('span', { class: 't-small' }, cs.usage ? tf('Bulutda: ${n} ta loyiha · ${u} MB', { n: cs.usage.count, u: mb(cs.usage.bytes) }) + (cs.usage.quota ? tf(' / ${q} MB', { q: mb(cs.usage.quota) }) : '') : ''),
       list.some(p => !cs.links.has(p.id)) ? moveBtn : '') : '',
-    list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id },
+    list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map((p, i) => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id, style: `--i:${Math.min(i, 12)}` },
+      thumb(p.buildings, p.hasSite, cs.links.has(p.id)),
       h('b', {}, p.name),
       cs.links.has(p.id) ? h('span', { class: 't-small', 'data-cloud': 'on', style: 'color:var(--ok)' }, tr('bulutda'))
         : cs.on ? (() => {
@@ -186,7 +206,7 @@ async function home(): Promise<void> {
           return c;
         })() : '',
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr(p.hasSite ? 'uchastka bor' : 'uchastka yoʻq')} · ${p.buildings} ${tr('bino')}`),
-      h('button', { class: 'btn btn-danger btn-sm', 'data-del': p.id, onclick: async (e: Event) => {
+      h('button', { class: 'btn btn-danger btn-sm card-del', 'data-del': p.id, onclick: async (e: Event) => {
         e.preventDefault(); e.stopPropagation();
         const inCloud = cs.links.has(p.id);
         if (!confirm(inCloud ? tf('«${n}» oʻchirilsinmi? Bulutdagi nusxa 30 kun savatda turadi.', { n: p.name }) : `«${p.name}» oʻchirilsinmi? Buni qaytarib boʻlmaydi.`)) return;
@@ -196,6 +216,7 @@ async function home(): Promise<void> {
       : h('div', { class: 'empty', style: 'margin-top:16px' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.'))),
     cs.remote.length ? h('h2', { class: 't-title', style: 'margin-top:28px' }, tr('Bulutda, shu brauzerda yoʻq')) : '',
     cs.remote.length ? h('div', { class: 'row3 cards', id: 'cloudCards' }, ...cs.remote.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-cid': p.id },
+      thumb(Number(p.meta?.buildings ?? 0), !!p.meta?.hasSite, true),
       h('b', {}, p.name),
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr('bulutda')}`)))) : '',
     h('p', { class: 't-small', style: 'margin-top:24px' }, cs.on

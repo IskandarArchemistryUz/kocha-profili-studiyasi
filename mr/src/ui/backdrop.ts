@@ -14,7 +14,7 @@ export const NAQSH: Record<NaqshId, { acc: string; op: [number, number] }> = {
   ks: { acc: '76,91,212', op: [.5, .45] },
   dk: { acc: '20,154,166', op: [.35, .4] },
   chz: { acc: '139,74,156', op: [.8, .5] },
-  ren: { acc: '255,197,61', op: [.45, .85] },
+  ren: { acc: '255,197,61', op: [.3, .45] },
   bin: { acc: '255,111,156', op: [.45, .55] },
 };
 export const SRC: Record<NaqshId, () => Promise<{ default: string }>> = {
