@@ -7,7 +7,10 @@
  *   Natija: asl bilan solishtirish, PNG, Chizmadonga, asos yoki referens qilish.
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
-import { scoped, svcHref } from '../core/projctx';
+import { scoped, svcHref, ctxProject } from '../core/projctx';
+import { svcWatch } from '../storage/cloud';
+// 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
+{ const p = ctxProject(); if (p) svcWatch(p); }
 import { langMenu } from '../ui/langmenu';
 import { isOwner } from '../core/wm';
 import '../ui/ds2.css';

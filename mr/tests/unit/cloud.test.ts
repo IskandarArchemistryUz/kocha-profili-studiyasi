@@ -129,3 +129,33 @@ describe('bulut — avtomatik sinxron va ziddiyat', () => {
     expect(saveText('saved', 'conflict').s).toBe('error');
   });
 });
+
+/** 3b-1: xizmatlar holati (`kalit@id`) loyiha bilan bulutga ketadi va boshqa qurilmada tiklanadi */
+class MemLS { m = new Map<string, string>(); get length() { return this.m.size; } key(i: number) { return [...this.m.keys()][i] ?? null; }
+  getItem(k: string) { return this.m.get(k) ?? null; } setItem(k: string, v: string) { this.m.set(k, String(v)); } removeItem(k: string) { this.m.delete(k); } clear() { this.m.clear(); } }
+describe('bulut — xizmatlar holati', () => {
+  it('collect/restore: faqat shu loyiha kalitlari, @id olib tashlanadi', async () => {
+    const { collectSvc, restoreSvc } = await import('../../src/storage/svcstate');
+    const s = new MemLS(); s.setItem('joy-state@p_aaaa1', '{"c":[1]}'); s.setItem('joy-state@p_bbbb2', 'x'); s.setItem('mr-lite', 'sodda');
+    expect(collectSvc('p_aaaa1', s)).toEqual({ 'joy-state': '{"c":[1]}' });
+    const t = new MemLS(); expect(restoreSvc('p_cccc3', { 'kps_site': 'R', 'yomon kalit!': 'x', n: 5 }, t)).toBe(1);
+    expect(t.getItem('kps_site@p_cccc3')).toBe('R');
+  });
+  it('yuklash → boshqa qurilmada tiklanadi; oʻzgarsa svcDirty', async () => {
+    const mem = new MemLS(); (globalThis as any).localStorage = mem;
+    try {
+      const p = blankProject('Tahlil'); await putProject(p);
+      mem.setItem(`joy-state@${p.id}`, '{"on":["relyef"]}'); mem.setItem(`render-base@${p.id}`, 'k1');
+      await cloud.moveToCloud(p.id);
+      expect(await cloud.svcDirty(p.id)).toBe(false);
+      mem.setItem(`render-base@${p.id}`, 'k2');
+      expect(await cloud.svcDirty(p.id)).toBe(true);
+      await cloud.moveToCloud(p.id);
+      await wipe(); mem.clear();   // yangi qurilma
+      await cloud.download(p.id);
+      expect(mem.getItem(`joy-state@${p.id}`)).toBe('{"on":["relyef"]}');
+      expect(mem.getItem(`render-base@${p.id}`)).toBe('k2');
+      expect(await cloud.svcDirty(p.id)).toBe(false);
+    } finally { delete (globalThis as any).localStorage; }
+  });
+});

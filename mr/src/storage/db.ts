@@ -78,10 +78,10 @@ export async function deleteLayerData(project: string, layer: string): Promise<v
 export const FILE_KIND = 'archemistry-master-reja';
 
 /** layers — import qilingan qatlamlar obyektlari (qatlam id → obyektlar): fayl boshqa kompyuterda toʻliq ochilishi uchun */
-export function exportJSON(doc: Project, layers?: Record<string, unknown[]>): string {
+export function exportJSON(doc: Project, layers?: Record<string, unknown[]>, extra?: Record<string, unknown>): string {
   const L = layers && Object.keys(layers).length ? layers : null;
   // katta qatlamlar bilan chiroyli formatlash fayldagi joyni 3 baravar oshiradi — u holda ixcham yoziladi
-  return JSON.stringify({ kind: FILE_KIND, exported: new Date().toISOString(), project: doc, ...(L ? { layers: L } : {}) }, null, L ? 0 : 1);
+  return JSON.stringify({ kind: FILE_KIND, exported: new Date().toISOString(), project: doc, ...(L ? { layers: L } : {}), ...(extra ?? {}) }, null, L || extra ? 0 : 1);
 }
 
 /** Fayldan oʻqish; nusxa sifatida ochish uchun yangi id beriladi (mavjud loyiha ustiga yozilmaydi) */

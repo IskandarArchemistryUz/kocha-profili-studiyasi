@@ -7,6 +7,9 @@
  * Eski toʻliq asboblar (gis, shamol, posadka, ai) — panel pastidagi havolalar orqali ochiq qoladi (0-qoida).
  */
 import { scoped, svcHref, ctxProject, seedSite } from '../core/projctx';
+import { svcWatch } from '../storage/cloud';
+// 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
+{ const p = ctxProject(); if (p) svcWatch(p); }
 import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import './joy.css';

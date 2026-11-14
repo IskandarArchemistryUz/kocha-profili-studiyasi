@@ -17,7 +17,7 @@ import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, putProject, type AutoSaver } from '../storage/db';
-import { cloudSync, getLink, info as cloudInfo, download as cloudDownload, type CloudSync } from '../storage/cloud';
+import { cloudSync, svcDirty, getLink, info as cloudInfo, download as cloudDownload, type CloudSync } from '../storage/cloud';
 import { askConflict, askNewer, saveText } from './cloudui';
 import { Compute, type Computed } from '../workers/compute';
 import { paintLegend, type LegendItem } from '../core/axopaint';
@@ -257,6 +257,8 @@ export class Editor {
       makeCopy: async d => { await putProject({ ...d, id: uid('p_'), name: `${d.name} (${tr('shu qurilmadagi nusxa')})` }); },
     });
     this.off.push(this.store.subscribe(c => this.cloud.push(c.doc)));
+    // 3b-1: xizmatlarda (Joyshunos, Koʻchasoz…) qilingan, bulutga yetmagan oʻzgarish — hujjat bilan yuboriladi
+    void svcDirty(doc.id).then(d => { if (d) this.cloud.push(this.store.doc); });
     this.el.save.addEventListener('click', () => { if (this.cloud.state === 'conflict') void this.onConflict(); });
     void this.checkNewer(doc);
     this.off.push(this.store.subscribe(c => this.onChange(c.doc)));
