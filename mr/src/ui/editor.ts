@@ -2340,6 +2340,8 @@ export class Editor {
             : h('span', { class: `chip ${cls(r.share)[0]}`, 'data-s': cls(r.share)[1] }, `${fmt(r.share * 100, 0)} %`))))))));
       const r = S.res.find(x => x.kind === S.sel)!, def = svcDef(S.sel), far = S.demand.map((_d, i) => r.dist[i] > r.rd[i] ? r.dist[i] : -1).filter(x => x >= 0);
       body.append(h('div', { class: 'col', id: 'svcSt' }, h('b', { style: 'font-size:12.5px' }, `${tr(def.name)}: ${tr(def.note)}`),
+        // 14.11 audit: maʼlumot yoʻq paytda xulosa chiqarilmaydi; topilmasa — «OSM maʼlumotida topilmadi» (11.11 qarori)
+        r.sources === 0 ? h('span', { class: 't-small', id: 'svcNoData' }, tr(!S.poi ? 'OSM maʼlumoti yuklanmadi — xulosa chiqarilmaydi. «Qayta urinish» yoki obyektni xaritaga qoʻshing.' : 'Atrofda OSM maʼlumotida topilmadi — obyekt boʻlsa, xaritaga qoʻshing.')) :
         h('span', { class: 't-small' }, far.length ? tf('${fmt(far.length)} / ${fmt(S.demand.length)} seksiya radiusdan tashqarida, eng uzoq ${Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + \' m\' : \'yetib boʻlmaydi\'}', { 'fmt(far.length)': fmt(far.length), 'fmt(S.demand.length)': fmt(S.demand.length), "Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : 'yetib boʻlmaydi'": Number.isFinite(Math.max(...far)) ? fmt(Math.max(...far), 0) + ' m' : tr('yetib boʻlmaydi') }) : tf('Barcha ${fmt(S.demand.length)} seksiya radius ichida', { 'fmt(S.demand.length)': fmt(S.demand.length) }),
           r.far ? tf(' · ${r.far} ta obyekt tarmoqdan tashqarida (toʻgʻri masofa × 1,3)', { 'r.far': r.far }) : '')),
         this.transitBox(),
