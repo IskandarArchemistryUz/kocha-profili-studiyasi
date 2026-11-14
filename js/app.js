@@ -1657,7 +1657,10 @@ function buildShapes0(){
       /* 1.16.1 (GOST R 51256-2018): oʻqqa 45° qiya polosalar, eni a=0,40 m, oraligʻi c=1,20 m → oʻq boʻylab qadam (a+c)·√2 */
       if(st.k==='hatch'&&st.w>=.8){const W=Math.abs(st.d1-st.d2),aw=.4*Math.SQRT2,pr=1.6*Math.SQRT2,Q=(s,d)=>{const f=frameAt(xy,c,Math.max(0,Math.min(T,s)));return toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);};
         for(let s=1;s+W+aw<T-1;s+=pr)poly([Q(s,st.d1),Q(s+aw,st.d1),Q(s+W+aw,st.d2),Q(s+W,st.d2)],'#fff',null,3.15);mark('1.16');}
-      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=Math.max(4,zoneA+r+1);s<T-Math.max(3,zoneB+r+1);s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const n0=sh.length,cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);for(let i=n0;i<sh.length;i++)sh[i].flat2d=1;}  /* 2D toj — 3D da haqiqiy daraxt bor */sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
+      if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));
+        /* daraxt oʻtish joyi va bekat ustiga tushmaydi — piyoda yoʻli trotuarga ochiq */
+        const skip=[...xws.map(x=>[x.s-x.w/2-r-.5,x.s+x.w/2+r+.5]),...atts.filter(a=>(a.t==='bus'||a.t==='bay')&&Math.sign(st.mid)===(a.side||-1)).map(a=>[a.s-a.len/2-r,a.s+a.len/2+r])];
+        for(let s=Math.max(4,zoneA+r+1);s<T-Math.max(3,zoneB+r+1);s+=8){if(skip.some(([a,b])=>s>a&&s<b))continue;const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const n0=sh.length,cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);for(let i=n0;i<sh.length;i++)sh[i].flat2d=1;}  /* 2D toj — 3D da haqiqiy daraxt bor */sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
       if(st.k==='rain'){[st.d1-.15,st.d2+.15].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#6fb3d9',weight:1.2,dashArray:'4 3'},null,2));for(let s=2;s<T-2;s+=3.5){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],Math.min(.7,st.w/3),o,10),'#3d6b4f',null,2);}}
       if(st.k==='island'){[st.d1-.1,st.d2+.1].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,2));}
       if(st.k==='shared'){for(let s=3;s<T-3;s+=6){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],.6,o,10),'#b8a47e',null,2);}}
@@ -1686,7 +1689,10 @@ function buildShapes0(){
     }
     // zebra: faqat harakat va velo boʻlaklari ustida
     const zebra=(S0,S1)=>{lay.st.forEach(x=>{if(!(DK[x.k].road&&!isPk(x.k))&&x.k!=='bike')return;for(let d=x.d2+.25;d<x.d1-.2;d+=1){const b=band(Math.min(d+.5,x.d1-.05),d,S0,S1);poly(b,WH,null,7);}});
-      lay.st.forEach(x=>{if(['median','green','hatch','buffer','rain','island','furn'].includes(x.k))poly(band(x.d1,x.d2,S0,S1),'#cdbf9f','ped',3);});mark('1.14.1');};
+      lay.st.forEach(x=>{if(['median','green','hatch','buffer','rain','island','furn'].includes(x.k))poly(band(x.d1,x.d2,S0,S1),'#cdbf9f','ped',3);});mark('1.14.1');
+      /* bordyur chetida taktil ogohlantiruvchi polosa 0,6 m, chetdan 0,3 m (ShNQ 2.07.02-24, 12-ilova); bordyur ≤ 2 sm (18-band) */
+      const rd=x=>DK[x.k].road&&x.k!=='hatch';for(let i=0;i<lay.st.length-1;i++){const A=lay.st[i],B=lay.st[i+1];if(rd(A)===rd(B))continue;const d=A.d2,sg2=rd(A)?-1:1;
+        poly(band(d+sg2*.3,d+sg2*.9,S0+.2,S1-.2),'#e3b23c',null,3.3);}mark('taktil');};
     const stopLine=(sStop,dirSel,kind)=>{const inc=lay.road.filter(x=>!isPk(x.k)&&x.dir===dirSel);if(!inc.length)return;const f=frameAt(xy,c,sStop),lo=Math.min(...inc.map(x=>x.d2)),hi=Math.max(...inc.map(x=>x.d1));
       const P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);
       if(kind==='1.12')line([P(lo),P(hi)],{color:'#fff',weight:4},'1.12');else line([P(lo),P(hi)],{color:'#fff',weight:3,dashArray:'4 4'},'1.13');};
@@ -1793,7 +1799,11 @@ function buildShapes0(){
             [[0,'d1'],[X.st.length-1,'d2']].forEach(([i,dk])=>{if(w===1&&SX[i].j>=0)return;line(CV(X,X.st[i][dk],Y,SX[i].y[dk]).map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,3.1);});});
           /* bekatlar orasidagi oʻtish joyi (zebra 1.14.1) shu virtual tugunda */
           if(n._xw){const f=E2[0].f,u=E2[0].u,hw=n._xw/2,rd=E2[0].st.filter(x=>!raised(x.k)),dA=Math.max(...rd.map(x=>x.d1)),dB=Math.min(...rd.map(x=>x.d2)),M=[(E2[0].f.p[0]+E2[1].f.p[0])/2,(E2[0].f.p[1]+E2[1].f.p[1])/2],C=(d,e)=>[M[0]+f.n[0]*d+u[0]*e,M[1]+f.n[1]*d+u[1]*e];
-            for(let d=dA-.3;d>dB+.2;d-=1){poly([C(d,-hw),C(d-.5,-hw),C(d-.5,hw),C(d,hw)].map(q=>toLL(q,o)),'#fff',null,3.2);}mark('1.14.1');}}
+            for(let d=dA-.3;d>dB+.2;d-=1){poly([C(d,-hw),C(d-.5,-hw),C(d-.5,hw),C(d,hw)].map(q=>toLL(q,o)),'#fff',null,3.2);}mark('1.14.1');
+            /* oʻtish joyi trotuarga ulanadi: yoʻldagi gazon/ajratuvchi oʻrnida qoplama; bordyur chetida taktil */
+            const st0=E2[0].st;st0.forEach((x,i)=>{if(!raised(x.k)||x.k==='walk')return;poly([C(x.d1,-hw-.3),C(x.d2,-hw-.3),C(x.d2,hw+.3),C(x.d1,hw+.3)].map(q=>toLL(q,o)),'#cdbf9f','ped',3.0);});
+            for(let i=0;i<st0.length-1;i++){const A=st0[i],Bq=st0[i+1];if(raised(A.k)===raised(Bq.k)||A.k==='hatch'||Bq.k==='hatch')continue;const d=A.d2,sg2=raised(A.k)?1:-1;
+              poly([C(d+sg2*.3,-hw+.2),C(d+sg2*.9,-hw+.2),C(d+sg2*.9,hw-.2),C(d+sg2*.3,hw-.2)].map(q=>toLL(q,o)),'#e3b23c',null,3.3);}}}
         const bnd=a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,om=a.sg._om||st.map((_,i)=>i),res={};
           for(let i=0;i<st.length-1;i++){const x=st[i],y=st[i+1];if(!(DK[x.k].road&&DK[y.k].road)||isPk(x.k)||isPk(y.k)||om[i]<0||om[i+1]<0)continue;
             if(x.dir&&y.dir&&x.dir===y.dir){const P=[f.p[0]+f.n[0]*x.d2,f.p[1]+f.n[1]*x.d2];res[om[i]+'_'+om[i+1]]={P,opp:false};}}
@@ -3009,7 +3019,10 @@ function drawAtts(atts,lay,xy,c,T,band,poly,line,mark,sh,o){
     const zig=(dIn,dOut)=>{const pts=[],hz=Math.abs(dOut-dIn);let k=0;for(let s=S0;s<=S1+1e-6;s+=hz,k++)pts.push(P(s,k%2?dOut:dIn));line(pts,{color:'#f2c230',weight:2},'1.17',6);};
     const shelter=(dd,s)=>{poly(band(dd,dd+sd*1.6,s-4,s+4),'#5a6b7a',null,6);sh.push({t:'box',ll:P(s,dd+sd*.8),w:8,d:1.6,h:2.8,col:'#8ea3b5',ang:AN(s),z:0});};
     const pkIn=pk?(Math.abs(pk.d1)<Math.abs(pk.d2)?pk.d1:pk.d2):null;
-    if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.1,pkIn+sd*1.1);}else zig(curb-sd*.1,curb-sd*1.1);poly(band(curb,out(3),S0,S1),'#cfc2a4','ped',3);shelter(out(2),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8,rot:ROT(a.s)});mark('bekat');}
+    if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.1,pkIn+sd*1.1);}else zig(curb-sd*.1,curb-sd*1.1);
+      /* bekat maydonchasi gazon ichida qolmaydi: bordyurdan trotuargacha butunlay qoplama */
+      {let to=out(3);const side=lay.st.filter(x=>sd>0?x.d2>=curb-.01:x.d1<=curb+.01).sort((x,y)=>sd>0?x.d2-y.d2:y.d1-x.d1);for(const x of side){if(DK[x.k].road)continue;if(x.k==='walk'){to=sd>0?Math.max(to,x.d2+1.5):Math.min(to,x.d1-1.5);break;}to=sd>0?Math.max(to,x.d1):Math.min(to,x.d2);}
+        poly(band(curb,to,S0,S1),'#cfc2a4','ped',3);}shelter(out(2),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8,rot:ROT(a.s)});mark('bekat');}
     if(a.t==='bay'){const dep=3.2,pts=[],pts2=[];for(let s=S0-12;s<=S1+12;s+=1){const k=s<S0?(s-(S0-12))/12:s>S1?1-(s-S1)/12:1;pts.push(P(s,curb));pts2.push(P(s,out(dep*Math.max(0,Math.min(1,k)))));}
       poly([...pts,...pts2.reverse()],DK.lane.col,'car',3.2);if(pk)poly(band(pk.d1,pk.d2,S0-12,S1+12),DK.lane.col,'car',3.1);poly(band(out(dep),out(dep+2.5),S0,S1),'#cfc2a4','ped',3.3);zig(out(.3),out(dep-.3));shelter(out(dep+.8),a.s);sh.push({t:'label',ll:P(a.s,out(dep/2)),txt:'A',z:8,rot:ROT(a.s)});mark('bekat (choʻntak)');}
     if(a.t==='tramstop'){const d0=a.d!=null?a.d:(curb-sd*1.8);poly(band(d0+1.5,d0-1.5,S0,S1),'#cfc2a4','ped',5);line([P(S0,d0+1.5),P(S1,d0+1.5)],{color:'#fff',weight:1.5},null,6);line([P(S0,d0-1.5),P(S1,d0-1.5)],{color:'#fff',weight:1.5},null,6);
