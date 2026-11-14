@@ -859,7 +859,7 @@ function renderLeftH(): void {
       S.site ? h('div', { class: 't-small' }, tf('${a} ga · perimetr ${p} m — xaritada va aksonometriyaning har qatlamida', { a: fmt(ringArea(S.site) / 10000, 2), p: fmt(ringPerim(S.site)) })) : h('div', { class: 't-small' }, tr('Chizilmagan. Chizing yoki 1-qadamdagi hududni oling.')),
       h('div', { class: 'row' },
         h('button', { type: 'button', class: 'btn btn-sm', id: 'tSite', 'aria-pressed': drawing?.kind === 'site', onclick: () => startDraw('site') }, tr(S.site ? 'Qayta chizish' : 'Chizish')),
-        kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'tSiteK', title: tr('Joyshunos va Master rejaning 1-qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) setSite(r, false); } }, tr('1-qadamdan')) : null,
+        kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'tSiteK', title: tr('Joyshunos va Master rejaning «Joy va uchastka» qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) setSite(r, false); } }, tr('Master rejadan')) : null,
         S.site ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'tSiteX', onclick: () => setSite(null, false) }, tr('Tozalash')) : null)),
     /* avvalgi sahifalar hozircha faqat egasiga (js/sinov.js) */
     isOwner() && fly === 'joy' ? h('details', { class: 'joy-old' },
@@ -2395,7 +2395,7 @@ function renderAxo(): void {
       : h('div', { class: 'note', id: 'axNoSite' }, h('b', {}, tr('Uchastka chizilmagan')), h('br'), tr('Shuning uchun aksonometriyada uchastka koʻrinmaydi — faqat tahlil nuqtasi.'),
         h('div', { class: 'row', style: 'margin-top:8px;gap:6px;flex-wrap:wrap' },
           h('button', { type: 'button', class: 'btn btn-sm', id: 'axSiteDraw', onclick: () => { setMode('map'); startDraw('site'); } }, tr('Xaritada chizish')),
-          kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'axSiteK', title: tr('Joyshunos va Master rejaning 1-qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) { setSite(r, false); axBuild(); renderAxo(); } } }, tr('1-qadamdan')) : null)),
+          kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'axSiteK', title: tr('Joyshunos va Master rejaning «Joy va uchastka» qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) { setSite(r, false); axBuild(); renderAxo(); } } }, tr('1-qadamdan')) : null)),
     h('div', { class: 't-small' }, tr('Ushlab suring: quyosh — vaqtni oʻzgartiradi, shamol strelkasi — yoʻnalishni buradi, belgi — joyini koʻchiradi.')),
     h('div', { class: 'row wrap' },
       h('button', { type: 'button', class: 'btn btn-sm btn-ghost', disabled: !a.flowDeg.some(v => v != null), onclick: () => a.resetWind() }, tr('Shamolni tiklash')),

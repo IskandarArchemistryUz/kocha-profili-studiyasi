@@ -570,6 +570,8 @@ export class Editor {
         ['svcKs', './kochasoz.html', 'Koʻchasoz', 'Koʻcha kesimi, harakat va YHQ tekshiruvi'],
         ['svcRen', './render.html', 'Render', 'Shu loyiha kadrini AI bilan render qilish']] as const).map(([id, href, name, note]) =>
         h('button', { class: 'mi', id, onclick: (e: Event) => go(href, e.currentTarget as Element) }, h('b', {}, tr(name)), h('span', {}, tr(note)))),
+      // 14.11 audit: Dizayn-kod ham (hozircha loyihaga bogʻlanmagan alohida sahifa)
+      h('button', { class: 'mi', id: 'svcDk', onclick: () => { this.closePop(); void this.saver.flush().finally(() => { location.href = '../dizaynkod.html'; }); } }, h('b', {}, tr('Dizayn-kod')), h('span', {}, tr('Peshlavha va koʻcha yozuvlari — Toshkent dizayn-kodi'))),
       h('button', { class: 'mi', id: 'svcChz', onclick: (e: Event) => { const t = e.currentTarget as Element; this.closePop(); otishRun('chz', () => this.openCh(), t); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari')))));
     b.className = 'svcbadge svcbtn';
     b.replaceChildren(h('i'), h('span', {}, tr('Master reja')), svgIcon(IC.chevDown));
