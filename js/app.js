@@ -1317,7 +1317,12 @@ function joinDev(n){const a=DS().segs.filter(s=>s.a===n.id||s.b===n.id);if(a.len
   const u=dirOut(a[0]),v=dirOut(a[1]);return Math.PI-Math.acos(Math.max(-1,Math.min(1,u[0]*v[0]+u[1]*v[1])));}
 function nodeR(n){if(n._v)return n._t;const k=nodeKind(n);
   if(k==='round')return n.ri+n.rw;
-  if(k==='x'||k==='sig'){const a=armsOf(n);return Math.max(3,...a.map(x=>x.lay.half))+(n.kr??6);}
+  if(k==='x'||k==='sig'){const a=armsOf(n);let r=Math.max(3,...a.map(x=>x.lay.half))+(n.kr??6);
+    /* oʻtkir burchakli tutashuv: qoʻshni qoʻllar cheti bir-birini kesmasligi uchun radius ≥ h / tan(θ/2) (θ < 60°) */
+    try{const o=n.ll,dir=sg=>{const ll=segLL(sg),q=sg.a===n.id?ll[1]:ll[ll.length-2],v=toXY(q,o),l=Math.hypot(...v)||1;return Math.atan2(v[1]/l,v[0]/l);};
+      const A=a.map(x=>({ang:dir(x.s),h:x.lay.outer||x.lay.half})).sort((x,y)=>x.ang-y.ang);
+      for(let i=0;i<A.length;i++){const p=A[i],q=A[(i+1)%A.length];let th=q.ang-p.ang;if(th<=0)th+=2*Math.PI;if(th<Math.PI/3)r=Math.max(r,Math.min(70,Math.max(p.h,q.h)/Math.tan(th/2)*.8));}}catch(e){}
+    return r;}
   if(k==='join'){const dev=joinDev(n),a=armsOf(n);let r=dev<.2?0:Math.min(40,Math.max(...a.map(x=>x.lay.outer))*Math.tan(Math.min(dev,2.6)/2)+.5);
     // eni har xil koʻchalar ulanganda — silliq oʻtish (taper): har tomonga ~1:5
     if(a.length===2){const dh=Math.abs(a[0].lay.half-a[1].lay.half),dO=Math.abs(a[0].lay.outer-a[1].lay.outer);if(dh>.05||dO>.05)r=Math.max(r,Math.min(30,Math.max(5,dh*5,dO*2.5)));}
