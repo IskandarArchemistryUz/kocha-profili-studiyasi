@@ -45,3 +45,16 @@ test('seysmiklik: Parijda sukut ≤ 6, tanlansa saqlanadi; Toshkentda 8', async 
   await proj(page, [69.2797, 41.3111]);
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.seismic)).toBe(8);
 });
+
+/** 14.11 (egasi): xorijda PGA (g) → taxminiy ball, mamlakat izohi */
+test('seysmiklik: Chilida PGA 0,2 g → 8 ball (taxmin), NCh433 izohi', async ({ page }) => {
+  test.setTimeout(120_000);
+  await proj(page, [-70.6693, -33.4489]);
+  await page.click('[data-step=tekshiruv]');
+  await page.locator('#regSet:visible > summary').first().click();
+  await expect(page.locator('#seisHint:visible').first()).toContainText('NCh433');
+  const pga = page.locator('#seisPga:visible').first();
+  await pga.fill('0.2'); await pga.press('Tab');
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.seismic)).toBe(8);
+  await expect(page.locator('#seisPgaBall:visible').first()).toContainText('8');
+});
