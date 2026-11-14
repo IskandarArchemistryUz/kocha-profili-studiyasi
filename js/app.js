@@ -1676,14 +1676,35 @@ function buildShapes0(){
         const d=L1.d2,ll=offsetLine(mx,d).map(q=>toLL(q,o));
         if(L1.k==='hatch'||R1.k==='hatch'){line(ll,{color:'#fff',weight:2},'1.1');continue;}
         if(L1.k==='turn'||R1.k==='turn'){markOv(mx,d+(L1.k==='turn'?.12:-.12),'1.11');continue;}
+        /* GOST R 52289-2019: 6.2.3 — piyoda oʻtish joyi va 1.12/1.13 oldidan 20 m 1.1 (qayta tizilish taqiqlanadi); 6.2.13 — avtobus boʻlagi chorraha oldidan 40–60 m va keyin 20–40 m 1.11 (avtobus tomonga yaxlit) */
+        const SEG=(a,b,e,opt,code)=>{a=Math.max(ms,a);b=Math.min(me,b);if(b-a<.5)return;line(offsetLine(subLine(xy,a,b),e).map(q=>toLL(q,o)),opt,code);};
+        const runs=(dz)=>{/* dz: +1/−1 yoʻnalish yoki 0 (qarama-qarshi) → [a,b,yaxlit?] */const Z=[];
+          const up=(c0,c1)=>{if(dz>=0)Z.push([c0-20,c0]);if(dz<=0)Z.push([c1,c1+20]);};
+          xws.forEach(x=>up(x.s-x.w/2,x.s+x.w/2));if(isInter(kb)||(B1&&B1._xw))up(me,me+1e3);if(isInter(ka)||(A1&&A1._xw))up(-1e3,ms);
+          const cut=[ms,me,...Z.flat()].filter(v=>v>=ms&&v<=me).sort((a,b)=>a-b),R=[];
+          for(let i=0;i+1<cut.length;i++){const a=cut[i],b=cut[i+1];if(b-a<.01)continue;const m=(a+b)/2;R.push([a,b,Z.some(([z0,z1])=>m>z0&&m<z1)]);}return R;};
+        const W1={color:'#fff',weight:2},W5={color:'#fff',weight:1.5,dashArray:'8 10'};
         if(L1.dir&&R1.dir&&L1.dir!==R1.dir){
           if(L1.k==='tram'&&R1.k==='tram')continue;
           if(lay.lanes>=4){[d-.12,d+.12].forEach(e=>line(offsetLine(mx,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.3},null));mark('1.3');}
-          else line(ll,{color:'#fff',weight:1.5,dashArray:'8 10'},'1.5');}
-        else if(L1.k==='bus'||R1.k==='bus'||L1.k==='tram'||R1.k==='tram')line(ll,{color:'#fff',weight:2},'1.1');
-        else line(ll,{color:'#fff',weight:1.5,dashArray:'8 10'},'1.5');}
+          else runs(0).forEach(([a,b,sol])=>SEG(a,b,d,sol?W1:W5,sol?'1.1':'1.5'));}
+        else if(L1.k==='bus'||R1.k==='bus'||L1.k==='tram'||R1.k==='tram'){
+          const bus=L1.k==='bus'||L1.k==='tram'?L1:R1,car=bus===L1?R1:L1,dv=bus.dir||1,bs=bus===L1?1:-1;
+          if(!(car.k==='lane')||bus.k==='tram'){line(ll,W1,'1.1');continue;}
+          /* 1.11: avtobus tomonga yaxlit, avtomobil tomonga uzuq — oʻngga burilish uchun avtobus boʻlagiga kirish */
+          const Z=[];if(isInter(dv>0?kb:ka)){if(dv>0)Z.push([me-55,me-5]);else Z.push([ms+5,ms+55]);}if(isInter(dv>0?ka:kb)){if(dv>0)Z.push([ms+5,ms+35]);else Z.push([me-35,me-5]);}
+          const cut=[ms,me,...Z.flat()].filter(v=>v>=ms&&v<=me).sort((a,b)=>a-b);
+          for(let i=0;i+1<cut.length;i++){const a=cut[i],b=cut[i+1],m=(a+b)/2;if(b-a<.3)continue;
+            if(Z.some(([z0,z1])=>m>z0&&m<z1)){SEG(a,b,d+bs*.12,W1,null);SEG(a,b,d-bs*.12,W5,null);mark('1.11');}else SEG(a,b,d,W1,'1.1');}}
+        else runs(L1.dir||1).forEach(([a,b,sol])=>SEG(a,b,d,sol?W1:W5,sol?'1.1':'1.5'));}
       const cm=cumLen(mx),Tm=cm[cm.length-1];
-      lay.st.filter(x=>x.k==='bus').forEach(x=>{for(let s=Tm/2;s<Tm;s+=80){const f=frameAt(mx,cm,s);sh.push({t:'label',ll:toLL([f.p[0]+f.n[0]*x.mid,f.p[1]+f.n[1]*x.mid],o),txt:'A',z:8,rot:Math.atan2(f.t[0]*(x.dir||1),f.t[1]*(x.dir||1))});mark('1.23');}});
+      /* 1.23 (GOST R 52289-2019, 6.2.26): chorrahadan keyin 1.11 tugagach 10 m va yana 20 m; bekatdan 15 m keyin; perегonda har 200 m. Asosi shu boʻlakdagi transportga qaragan */
+      lay.st.filter(x=>x.k==='bus').forEach(x=>{const dv=x.dir||1,S=[],stIn=dv>0?(isInter(ka)?ms+45:ms+10):(isInter(kb)?me-45:me-10);
+        for(let k=0;k<40;k++){const v=stIn+dv*(k===0?0:k===1?20:20+200*(k-1));if(v<ms+3||v>me-3)break;S.push(v);}
+        atts.filter(a=>(a.t==='bus'||a.t==='bay')&&Math.sign(x.mid)===(a.side||-1)).forEach(a=>S.push(a.s+dv*(a.len/2+15)));
+        atts.filter(a=>a.t==='tramstop'&&(a.pd||dv)===dv).forEach(a=>S.push(a.s+dv*(a.len/2+15)));
+        S.filter(v=>v>ms+3&&v<me-3&&!xws.some(w=>Math.abs(v-w.s)<w.w/2+3)&&!atts.some(a=>(a.t==='bus'||a.t==='bay'||a.t==='tramstop')&&Math.abs(v-a.s)<a.len/2+2)).forEach(v=>{const f=frameAt(mx,cm,v-ms);
+          sh.push({t:'label',ll:toLL([f.p[0]+f.n[0]*x.mid,f.p[1]+f.n[1]*x.mid],o),txt:'A',z:8,rot:Math.atan2(f.t[0]*dv,f.t[1]*dv)});mark('1.23');});});
       lay.st.filter(x=>x.k==='bike').forEach(x=>{for(let s=Tm/2;s<Tm;s+=60){const f=frameAt(mx,cm,s);[-.55,.55].forEach(e=>{const cc=[f.p[0]+f.n[0]*x.mid+f.t[0]*e,f.p[1]+f.n[1]*x.mid+f.t[1]*e],ring=circleLL(cc,.38,o,14);line(ring.concat([ring[0]]),{color:'#fff',weight:1.2},null);});}});
       lay.st.filter(x=>x.k==='turn').forEach(x=>{for(let s=15;s<Tm-15;s+=30){const f=frameAt(mx,cm,s);[1,-1].forEach(dv=>poly(arrowShape([f.p[0]+f.n[0]*x.mid+f.t[0]*dv*3,f.p[1]+f.n[1]*x.mid+f.t[1]*dv*3],[f.t[0]*dv,f.t[1]*dv],4,o),'#f4f4f0',null,7));}});
     }
@@ -1711,7 +1732,9 @@ function buildShapes0(){
           arrowGlyph(pl.code).forEach(g=>poly(g.map(q=>toLL([cp[0]+dirv[0]*q[0]+lv[0]*q[1],cp[1]+dirv[1]*q[0]+lv[1]*q[1]],o)),'#f4f4f0',null,7));
           if(pl.code!=='none')mark('1.18');if(hit)AR_HITS.push({ll:toLL(cp,o),sg:sg._real??sg.id,end:atB?'b':'a',i:pl.j,code:pl.code});});};
       // chorrahaga yaqin (8 m) va oldindan ogohlantirish (~35 m, joy boʻlsa)
-      place(8,true);
+      /* 1.18 (GOST R 52289-2019, 6.2.21): yaqin strelka asosi 1.1 boshlanishida (toʻxtash chizigʻidan 20 m), keyingisi 20–30 m oraliqda */
+      {const ok=dist=>{const sA=atB?sStop-dist:sStop+dist;return sA>=3&&sA<=T-3&&!(atB?sA<other:sA>other);};
+        if(ok(20)){place(20,true);if(ok(45))place(45,false);}else place(8,true);}
       // qoʻshimcha (choʻntak) boʻlaklar: toʻplanish boshida ham strelka
       if(sg._cfg&&sg._end===(atB?'b':'a')){const dd=atB?sStop-6:T-6-sStop;if(dd>=20)place(dd,true,true);}
       // markaziy burilish boʻlagi: chapga strelka
@@ -3022,10 +3045,12 @@ function drawAtts(atts,lay,xy,c,T,band,poly,line,mark,sh,o){
     if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.1,pkIn+sd*1.1);}else zig(curb-sd*.1,curb-sd*1.1);
       /* bekat maydonchasi gazon ichida qolmaydi: bordyurdan trotuargacha butunlay qoplama */
       {let to=out(3);const side=lay.st.filter(x=>sd>0?x.d2>=curb-.01:x.d1<=curb+.01).sort((x,y)=>sd>0?x.d2-y.d2:y.d1-x.d1);for(const x of side){if(DK[x.k].road)continue;if(x.k==='walk'){to=sd>0?Math.max(to,x.d2+1.5):Math.min(to,x.d1-1.5);break;}to=sd>0?Math.max(to,x.d1):Math.min(to,x.d2);}
-        poly(band(curb,to,S0,S1),'#cfc2a4','ped',3);}shelter(out(2),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8,rot:ROT(a.s)});mark('bekat');}
+        poly(band(curb,to,S0,S1),'#cfc2a4','ped',3);}shelter(out(2),a.s);mark('bekat');/* «A» (1.23) faqat avtobus boʻlagida va bekatdan 15 m keyin — bekat zonasida emas */}
     if(a.t==='bay'){const dep=3.2,pts=[],pts2=[];for(let s=S0-12;s<=S1+12;s+=1){const k=s<S0?(s-(S0-12))/12:s>S1?1-(s-S1)/12:1;pts.push(P(s,curb));pts2.push(P(s,out(dep*Math.max(0,Math.min(1,k)))));}
       poly([...pts,...pts2.reverse()],DK.lane.col,'car',3.2);if(pk)poly(band(pk.d1,pk.d2,S0-12,S1+12),DK.lane.col,'car',3.1);poly(band(out(dep),out(dep+2.5),S0,S1),'#cfc2a4','ped',3.3);zig(out(.3),out(dep-.3));shelter(out(dep+.8),a.s);sh.push({t:'label',ll:P(a.s,out(dep/2)),txt:'A',z:8,rot:ROT(a.s)});mark('bekat (choʻntak)');}
-    if(a.t==='tramstop'){const d0=a.d!=null?a.d:(curb-sd*1.8);poly(band(d0+1.5,d0-1.5,S0,S1),'#cfc2a4','ped',5);line([P(S0,d0+1.5),P(S1,d0+1.5)],{color:'#fff',weight:1.5},null,6);line([P(S0,d0-1.5),P(S1,d0-1.5)],{color:'#fff',weight:1.5},null,6);
+    if(a.t==='tramstop'){const d0=a.d!=null?a.d:(curb-sd*1.8);
+      /* 1.17.1 platforma boʻylab avtobus boʻlagida (GOST R 52289-2019, 6.2.20: uzunligi platformadan kam emas) */
+      lay.st.filter(x=>x.k==='bus').forEach(x=>{const sgn=Math.sign(d0-x.mid);const e=sgn>0?x.d1:x.d2;if(Math.abs(e-d0)>3.2)return;zig(e-sgn*.1,e-sgn*1.1);});poly(band(d0+1.5,d0-1.5,S0,S1),'#cfc2a4','ped',5);line([P(S0,d0+1.5),P(S1,d0+1.5)],{color:'#fff',weight:1.5},null,6);line([P(S0,d0-1.5),P(S1,d0-1.5)],{color:'#fff',weight:1.5},null,6);
       sh.push({t:'box',ll:P(a.s,d0),w:Math.min(12,a.len*.4),d:2,h:3,col:'#8ea3b5',ang:AN(a.s),z:0});mark('orol platforma');}
     if(a.t==='parklet'){const dIn=pk?(Math.abs(pk.d1)<Math.abs(pk.d2)?pk.d1:pk.d2):curb-sd*2.1,dOut=pk?(dIn===pk.d1?pk.d2:pk.d1):curb;
       poly(band(dIn,dOut,S0,S1),'#b08a5a','ped',5);line([P(S0,dIn),P(S1,dIn)],{color:'#7a5a33',weight:2},null,6);
