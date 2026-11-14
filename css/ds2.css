@@ -314,3 +314,7 @@ svg.chev{width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2.2;s
 .lm-pop button:hover{background:var(--fill)}
 .lm-pop button[aria-checked=true]{background:var(--ink);color:var(--surface)}
 .lm-pop .lm-id{font:500 11px/1 var(--mono);text-transform:uppercase;opacity:.7}
+
+/* 3b-2: xizmat eshigi «Loyihalar» — tor ekranda faqat belgi */
+.svc-proj{gap:6px}.svc-proj>span{display:none}
+@media(min-width:1440px){.svc-proj>span{display:inline}}

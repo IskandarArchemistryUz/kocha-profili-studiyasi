@@ -90,7 +90,7 @@ root.append(header, h('div', { class: 'ren-body' }, left, stage, right), over, f
 
 function renderHeader(): void {
   header.replaceChildren(
-    mrBackBtn(),
+    mrBackBtn('render'),
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa') }, logoSvg(20), h('span', {}, 'Archemistry Lab')),
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), s.beta ? h('em', { class: 'beta' }, 'beta') : null))),
