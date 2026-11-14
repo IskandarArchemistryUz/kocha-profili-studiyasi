@@ -1150,6 +1150,14 @@ body:has(.home2){background-color:var(--bg);background-image:radial-gradient(col
 .home2 .card:hover .thumb .bl rect{opacity:1}
 .home2 .card .card-del{background:transparent;color:var(--bad);padding:0 8px;margin-top:2px}
 .home2 .card .card-del:hover{background:var(--bad-soft)}
+/* 14.11 audit: «Oʻchirish» — «⋯» ichida */
+.home2 .card{position:relative}
+.home2 .card .card-more{position:absolute;right:8px;top:8px;margin:0;width:28px;height:28px;padding:0;border-radius:999px;color:var(--muted);background:var(--surface);box-shadow:0 0 0 .5px var(--hairline)}
+.home2 .card .card-more:hover{color:var(--ink)}
+.home2 .card .thumb .cl{right:44px}
+.home2 .card .card-del{display:none;align-self:flex-start}
+.home2 .card.more-on .card-del{display:inline-flex}
+.home2 .card .card-more svg circle{fill:currentColor;stroke:none}
 .home2.enter .card{animation:hcard .44s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 45ms + .15s)}
 @keyframes hcard{from{opacity:0;transform:translateY(12px)}}
 @media (prefers-reduced-motion:reduce){.home2 .card,.home2 .home-bar::after{animation:none}}
