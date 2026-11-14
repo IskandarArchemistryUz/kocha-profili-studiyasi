@@ -1221,10 +1221,46 @@ const PRESETS={
   greenway:P_('Piyoda va velo','Yashil yoʻlak (piyoda + velo)',null),
   bikep:P_('Piyoda va velo','Alohida velo yoʻlak (2 yoʻnalish)',null),
   bike1:P_('Piyoda va velo','Alohida velo yoʻlak (1 yoʻnalish)',null),
+  sq12:P_('ShNQ 2.07.06-24 namunaviy kesimlar','1.2 Mahalla ichki yoʻli (2.25+6.0+2.25)',null),
+  sq14:P_('ShNQ 2.07.06-24 namunaviy kesimlar','1.4 Mahalla ichki yoʻli, 10 m',null),
+  sq25:P_('ShNQ 2.07.06-24 namunaviy kesimlar','2.5 Turar joy koʻchasi + bir tomonlama P, 14 m',null),
+  sq26:P_('ShNQ 2.07.06-24 namunaviy kesimlar','2.6 Turar joy koʻchasi + P ikki tomon, 15.5 m',null),
+  sq61:P_('ShNQ 2.07.06-24 namunaviy kesimlar','6.1 Velo-piyoda yoʻlakli koʻcha, 12.5 m',null),
+  sq82:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.2 Savdo koʻchasi 30 km/h, 23.5 m',null),
+  sq84:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.4 Avtobus koʻchasi, velo + P, 24 m',null),
+  sq85:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.5 Avtobus koʻchasi, velo + ajratuvchi, 24 m',null),
+  sq86:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.6 Avtobus koʻchasi, P + velo, 27.2 m',null),
+  sq88:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.8 Avtobus koʻchasi 4 boʻlak, velo + P, 33 m',null),
+  sq811:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.11 Tramvayli koʻcha, velo + P, 25 m',null),
+  sq813:P_('ShNQ 2.07.06-24 namunaviy kesimlar','8.13 Markaziy tramvay + velo + P, 37 m',null),
+  sq94:P_('ShNQ 2.07.06-24 namunaviy kesimlar','9.4 Jamoat-savdo koʻchasi, P + velo, 21.2 m',null),
+  sq101:P_('ShNQ 2.07.06-24 namunaviy kesimlar','10.1 Tijorat koʻchasi, 23.5 m',null),
+  sq103:P_('ShNQ 2.07.06-24 namunaviy kesimlar','10.3 Tijorat koʻchasi 4 boʻlak, 30 m',null),
+  sq113:P_('ShNQ 2.07.06-24 namunaviy kesimlar','11.3 Avtobus boʻlakli koʻcha, markaziy P, 31.2 m',null),
+  sq114:P_('ShNQ 2.07.06-24 namunaviy kesimlar','11.4 4 boʻlak + velo + P, 28.2 m',null),
   kon:P_('Konstruktor','Konstruktor (oʻz parametrlaringiz)',null),
   custom:P_('Konstruktor','«Koʻcha profili» → Loyiha profili',null),
 };
-const FIXED={shared:[['walk',2],['shared',6],['walk',2]],ped:[['walk',8]],pedT:[['green',2],['walk',8],['green',2]],
+/* ShNQ 2.07.06-24 3–12-ilovalardagi namunaviy kesimlar (rasmdagi oʻlchamlar, m). sd — chetdan markazga bir tomon; d=1 yoʻnalishli. */
+const SQS=(sd,mid=[])=>{const L=sd.map(([k,w,d])=>d?[k,w,-1]:[k,w]),R=sd.slice().reverse().map(([k,w,d])=>d?[k,w,1]:[k,w]);return [...L,...mid,...R];};
+const SQ={
+  sq12:SQS([['walk',2.25],['lane',3,1]]), sq14:SQS([['walk',2.5],['lane',2.5,1]]),
+  sq25:[['walk',3],['park',2,-1],['lane',3,-1],['lane',3,1],['walk',3]],
+  sq26:SQS([['walk',3],['park',2,1],['lane',2.75,1]]), sq61:SQS([['walk',3],['lane',3.25,1]]),
+  sq82:SQS([['walk',5],['park',2,1],['lane',3.5,1]],[['median',2.5]]),
+  sq84:SQS([['walk',4],['bike',2,1],['buffer',.75],['park',2,1],['lane',3.25,1]]),
+  sq85:SQS([['walk',4],['bike',2,1],['buffer',1.5],['lane',3.25,1]],[['median',2.5]]),
+  sq86:SQS([['walk',5],['park',2,1],['bike',2.35,1],['lane',3,1]],[['median',2.5]]),
+  sq88:SQS([['walk',4],['bike',2,1],['buffer',.75],['park',2,1],['lane',3.25,1],['lane',3.25,1]],[['median',2.5]]),
+  sq811:SQS([['walk',4],['bike',2,1],['buffer',.75],['park',2.5,1],['tram',3.25,1]]),
+  sq813:SQS([['walk',4],['bike',2,1],['buffer',.75],['park',2,1],['lane',3.25,1],['lane',3.25,1],['tram',3.25,1]]),
+  sq94:SQS([['walk',3],['park',2,1],['bike',2.35,1],['lane',3.25,1]]),
+  sq101:SQS([['walk',3],['green',2],['park',3,1],['lane',3.75,1]]),
+  sq103:SQS([['walk',5],['park',2.5,1],['lane',3.25,1],['lane',3.25,1]],[['median',2]]),
+  sq113:SQS([['walk',3],['bike',1.6,1],['buffer',1.5],['bus',3.25,1],['lane',3.25,1],['park',3,1]]),
+  sq114:SQS([['walk',2.5],['bike',1.6,1],['buffer',.75],['park',2,1],['lane',3,1],['lane',3,1]],[['median',2.5]]),
+};
+const FIXED={...SQ,shared:[['walk',2],['shared',6],['walk',2]],ped:[['walk',8]],pedT:[['green',2],['walk',8],['green',2]],
   greenway:[['green',1.5],['walk',3],['green',1],['bike',3,0],['green',1.5]],bikep:[['green',1],['bike',3,0],['green',1]],bike1:[['green',1],['bike',2,1],['green',1]]};
 const LIB2DK={walk:'walk',facade:'walk',shared:'shared',furn:'walk',trees:'green',ariq:'green',lawn:'green',median:'median',buffer:'buffer',park:'park',lane:'lane',mixed:'lane',bus:'bus',tram:'tram',bike1:'bike',bike2:'bike',parklet:'furn',busstop:'walk',kiosk:'furn',rain:'rain',water:'rain',bikepark:'furn',bikeprot:'bike',park30:'park30',park45:'park45',park90:'park90',parkkerb:'walk',loading:'park',turn:'turn',hatch:'hatch',brt:'bus',island:'island',shoulder:'buffer',barrier:'buffer'};
 const KON0={pang:0,rain:0,furn:0,oneway:0,f:2,b:2,lw:3.5,med:'none',mw:3,bus:'none',tram:'none',bike:'none',park:'none',service:0,green:2,walk:3};
