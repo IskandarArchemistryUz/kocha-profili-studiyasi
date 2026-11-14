@@ -1,4 +1,7 @@
 import { test, expect } from './fx';
+import { fileURLToPath } from 'node:url';
+
+const SAMPLE = fileURLToPath(new URL('../../../data/namuna-mahalla.archemistry.json', import.meta.url));
 
 /** 14.11 audit (Loyihalar): 6 tadan koʻp loyihada qidiruv va «Boʻsh» saralash; «Oʻchirish» — «⋯» ichida; namuna takrorlanmaydi; sukut nomi joy tanlanganda «joy, sana» */
 test('loyihalar: qidiruv, boʻsh loyihalar, ⋯ ichida oʻchirish', async ({ page }) => {
@@ -25,6 +28,7 @@ test('loyihalar: qidiruv, boʻsh loyihalar, ⋯ ichida oʻchirish', async ({ pag
 
 test('namuna: ikkinchi marta — oʻsha nusxa', async ({ page }) => {
   test.setTimeout(90_000);
+  await page.route('**/data/namuna-mahalla.archemistry.json', r => r.fulfill({ path: SAMPLE, contentType: 'application/json' }));   // vite preview /data/ ni bermaydi
   await page.goto('./#/namuna'); await page.waitForURL(/#\/p\//);
   const a = page.url().split('#/p/')[1];
   await page.goto('./#/'); await page.reload();
