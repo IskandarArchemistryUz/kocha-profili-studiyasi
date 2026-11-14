@@ -318,3 +318,7 @@ svg.chev{width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2.2;s
 /* 3b-2: xizmat eshigi «Loyihalar» — tor ekranda faqat belgi */
 .svc-proj{gap:6px}.svc-proj>span{display:none}
 @media(min-width:1440px){.svc-proj>span{display:inline}}
+/* 3b-3 (14.11): sahifa ochilganda yumshoq paydo boʻlish — bosh sahifa ↔ Master reja ↔ Joyshunos/Koʻchasoz/Render.
+   Faqat shaffoflik (transform fixed panellarni buzadi); View Transitions brauzer konsoliga xato yozgani uchun ishlatilmadi. */
+@media (prefers-reduced-motion:no-preference){body{animation:vt-in .24s cubic-bezier(.2,.8,.2,1) both}}
+@keyframes vt-in{from{opacity:0}}
