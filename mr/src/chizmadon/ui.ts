@@ -10,6 +10,7 @@
  * material katagiga yoki varaqqa bogʻlanadi (bind.ts) — material koʻchsa, birga koʻchadi.
  */
 import { h, svgIcon, icl, IC, toast, download } from '../ui/dom';
+import { svcBackdrop, svcGlow } from '../ui/backdrop';
 import { sw, stepper, seg } from '../ui/controls';
 import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
@@ -261,6 +262,7 @@ export function openChizmadon(host: ChHost): void {
   /* ---------- qobiq ---------- */
   const wrap = h('div', { class: 'gx ch', role: 'dialog', 'aria-label': tr('Chizmadon') });
   const head = h('header', { class: 'sh-top glassbar ch-top' });
+  svcGlow(head);
   const body = h('div', { class: 'ch-body' });
   const startEl = h('div', { class: 'ch-start', hidden: true });
   wrap.append(head, body, startEl);
@@ -317,6 +319,7 @@ export function openChizmadon(host: ChHost): void {
   const slotUi = h('div', { class: 'ch-slotui', id: 'chSlotUi' });
   slotUi.addEventListener('pointerdown', e => e.stopPropagation());
   stage.append(pageHost, grayHost, over, slotUi); view.append(stage);
+  svcBackdrop('chz', view);   // 4-bosqich: daftar katagi va chizilib paydo boʻladigan rejalar (varaq ostida)
   const zoomBox = h('div', { class: 'ch-zoom glassbar' });
   const pnav = h('div', { class: 'ch-pnav glassbar', id: 'chPnav' });
   const tools = h('div', { class: 'ch-tools glassbar', role: 'toolbar', 'aria-label': tr('Asboblar') });

@@ -1117,3 +1117,14 @@ details.sp-lead[open] .sp-more{display:none}
 .ch-top #chFmt{grid-auto-columns:max-content}
 .ch-top #chView{flex:none;grid-auto-columns:36px}.ch-top #chView button{padding:0}
 .ch-top #chSlots,.ch-top #chTab{flex:none;min-width:36px}
+
+/* ===== 4-bosqich (14.11): Chizmadon — kanvas «UI-Chizmadon»: yorugʻ, binafsha aksent, xira loy tugmalar; sahnada daftar katagi va chizilayotgan rejalar ===== */
+.gx.ch{--cz:139,74,156;--cz-clay:#ead6f0;--cz-clay-2:#dfc3e8;--cz-ink:#5c2c6a}
+[data-theme="dark"] .gx.ch{--cz-clay:rgba(139,74,156,.26);--cz-clay-2:rgba(139,74,156,.38);--cz-ink:#e2b8ee}
+.gx.ch .ch-view{background:color-mix(in srgb,var(--bg) 92%,rgb(var(--cz)))}
+.gx.ch .seg button[aria-pressed="true"]{background:var(--cz-clay);color:var(--cz-ink);font-weight:600;box-shadow:inset 0 -3px 0 rgba(var(--cz),.25)}
+.gx.ch .switch.on{background:rgb(var(--cz))}
+.gx.ch .btn-primary{background:var(--cz-clay-2);color:var(--cz-ink);box-shadow:inset 0 -3px 0 rgba(var(--cz),.3)}
+.gx.ch .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--cz-clay-2) 85%,#fff)}
+.gx.ch .btn-primary:active:not(:disabled){box-shadow:inset 0 -1px 0 rgba(var(--cz),.3);transform:translateY(1px)}
+[data-theme="dark"] .gx.ch .seg button[aria-pressed="true"],[data-theme="dark"] .gx.ch .btn-primary{box-shadow:inset 0 0 0 1px rgba(var(--cz),.7),0 0 14px -6px rgba(var(--cz),.8)}

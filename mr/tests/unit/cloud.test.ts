@@ -117,8 +117,8 @@ describe('bulut — avtomatik sinxron va ziddiyat', () => {
     const p = blankProject('A'); await putProject(p); await cloud.moveToCloud(p.id);
     let down = true; cloud._setFetch(((u: any, i: any) => (down ? Promise.reject(new TypeError('net')) : srv.f(u, i))) as typeof fetch);
     const s = cloud.cloudSync(p.id, () => {}, { delay: 5, retryMs: 20 });
-    await tick(10); s.push({ ...p, name: 'B' }); await tick(30);
-    expect(s.state).toBe('offline');
+    await tick(10); s.push({ ...p, name: 'B' });
+    await expect.poll(() => s.state, { timeout: 2000, interval: 5 }).toBe('offline');   // CI sekin — vaqtga emas, holatga qaraymiz
     down = false; await tick(60); await s.flush();
     expect(s.state).toBe('cloud'); expect(srv.rows.get(p.id)!.name).toBe('B'); s.dispose();
   });
