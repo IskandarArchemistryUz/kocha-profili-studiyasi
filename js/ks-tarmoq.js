@@ -152,7 +152,7 @@ function cardHTML(sel){const ds=DS();
       ${(()=>{const L2=issues().out.filter(x=>x.it.id===sg.id);return L2.length?`<div class="lbl" style="color:#b2342a">Tekshiruv · ${L2.length} ta muammo</div>${L2.map(x=>`<div class="kt-iss"><span class="n" style="background:#b2342a">!</span><span class="w">${x.it.why}</span>${x.it.fix?`<button class="kt-btn pr" data-fix="${x.rid}:${x.i}" style="height:28px;padding:0 10px">Tuzatish</button>`:''}</div>`).join('')}`:'';})()}
       ${apprHTML(sg)}
       <div class="lbl">Qoʻshish</div><div class="row"><button class="kt-btn" data-add="xwalk">Oʻtish joyi</button>${midBus(sg)?'<button class="kt-btn pr" data-add="tramstop" title="Avtobus boʻlaklari yoʻl oʻrtasida — bekat ular orasidagi orol platformada">Oʻrtadagi bekat</button>':''}<button class="kt-btn" data-add="bus">Bekat${midBus(sg)?' (chetda)':''}</button><button class="kt-btn" data-add="bay">Choʻntakli bekat</button></div>${midBus(sg)?'<div class="kt-note">Avtobus boʻlagi yoʻl oʻrtasida: chetdagi bekatga avtobus yetib bormaydi — «Oʻrtadagi bekat»ni qoʻying.</div>':''}
-      <div class="row"><button class="kt-btn" data-k="kesim" title="Koʻcha kesimini B rejimida ochish">Kesim (B)</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
+      <div class="row"><button class="kt-btn" data-k="kesim" title="Koʻcha kesimini B rejimida ochish">Kesim (B)</button><button class="kt-btn" data-k="cut" title="Xaritada koʻchaning istalgan joyini bosing — albomda shu joydan koʻndalang kesim chiqadi">✂ Albom kesimi</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
   if(sel.t==='att'||sel.t==='xw'){const sg=segById(sel.id);if(!sg)return null;const it=sel.t==='att'?(sg.att||[])[sel.i]:(sg.xw||[])[sel.i];if(!it)return null;
     anchor=()=>{const ll=segLL(sg);return midLL(ll);};
     const nm=sel.t==='xw'?'Piyoda oʻtish joyi':((ATT[it.t]||{}).n||'Obyekt');
@@ -204,6 +204,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.k==='x'){ds.sel=null;afterDesign();return;}
   if(b.dataset.k==='del'){delSel();return;}
   if(b.dataset.k==='sim'){openSim(sel.id);return;}
+  if(b.dataset.k==='cut'){if(window.KSALB)KSALB.pickCut(sel.id);return;}
   if(b.dataset.k==='kesim'){location.href='app/kochasoz.html#/b';return;}
   if(b.dataset.k==='prir'){setPri(sel.id,null);return;}
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}

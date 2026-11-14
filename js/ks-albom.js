@@ -77,80 +77,241 @@ function sectionDraw(lay,x,y,wMax,title,N0){const W=lay.W,N=N0||[50,100,200,250,
   return {svg:s,h:hh+24};}
 
 /* ---------- varaqlar ---------- */
-function buildSheets(){const ds=DS(),G=exportGeom();if(!G)return [];const sheets=[],J=junctions(),ST=streets();
-  /* umumiy reja */
+/* ---------- kesish joylari (foydalanuvchi ✂ yoki avtomatik) ---------- */
+const DK2LIB={walk:'walk',shared:'shared',green:'trees',median:'median',buffer:'buffer',lane:'lane',turn:'turn',hatch:'hatch',park:'park',park30:'park30',park45:'park45',park90:'park90',
+  bus:'bus',tram:'tram',bike:'bike1',rain:'rain',island:'island',furn:'furn'};
+function nearestOn(xy,P){const c=cumLen(xy);let best={d:1e18,s:0};for(let i=1;i<xy.length;i++){const a=xy[i-1],b=xy[i],vx=b[0]-a[0],vy=b[1]-a[1],L2=vx*vx+vy*vy||1;let t=((P[0]-a[0])*vx+(P[1]-a[1])*vy)/L2;t=Math.max(0,Math.min(1,t));
+  const q=[a[0]+vx*t,a[1]+vy*t],d=(q[0]-P[0])**2+(q[1]-P[1])**2;if(d<best.d)best={d,s:c[i-1]+Math.sqrt(L2)*t};}return {...best,T:c[c.length-1]};}
+function cuts(){const ds=DS(),o=origin();let C=(ds.cuts||[]).filter(c=>ds.segs.some(s=>s.id===c.sg));
+  if(!C.length){/* avtomatik: har koʻcha (nom) eng uzun boʻlagining oʻrtasi + har bekat */const by={};ds.segs.forEach(sg=>{const k=sg.name||sg.id,L=lineLen(segLL(sg));if(!by[k]||by[k].L<L)by[k]={sg,L};});
+    C=Object.values(by).filter(x=>x.L>60).map(x=>({sg:x.sg.id,f:.5,auto:1}));
+    ds.segs.forEach(sg=>(sg.att||[]).forEach(a=>{if(['bus','bay','tramstop'].includes(a.t))C.push({sg:sg.id,f:a.f,auto:1,stop:1});}));}
+  return C.map((c,i)=>{const sg=ds.segs.find(s=>s.id===c.sg),xy=segXY(sg,o),cl=cumLen(xy),T0=cl[cl.length-1],P=pointAt(xy,cl,c.f*T0);
+    const st=withVirtual(()=>{const vs=DS().segs.filter(v=>(v._real??v.id)===c.sg);let b=null;vs.forEach(v=>{const r=nearestOn(segXY(v,o),P);if(!b||r.d<b.d)b={d:r.d,v};});const v=b?b.v:sg;const L=layOf(v);return {st:L.st.map(x=>({k:x.k,w:x.w,dir:x.dir,d1:x.d1,d2:x.d2})),W:L.W,lanes:L.lanes};});
+    const i1=Math.max(1,cl.findIndex(v=>v>=c.f*T0)),a=xy[i1-1],b=xy[i1],u=[b[0]-a[0],b[1]-a[1]],ul=Math.hypot(...u)||1;
+    return {no:i+1,sg,P,u:[u[0]/ul,u[1]/ul],s:c.f*T0,...st,stop:!!c.stop,auto:!!c.auto};});}
+function cutSection(c,x,y,maxW){/* Koʻchasoz kesim grafikasi (sectionSVG) — 1:200: 20 px/m, 4 px = 1 mm */
+  const p=c.st.map(e=>({k:DK2LIB[e.k]||'walk',w:+e.w.toFixed(2)})).filter(e=>e.w>.05),tot=p.reduce((a,e)=>a+e.w,0);
+  let N=200;while(tot*1000/N>maxW-12)N=N===200?250:N===250?500:1000;const sc=20,k=sc*N/1000,Wpx=tot*sc+48,svg=sectionSVG(p,sc,Wpx,{x0:24}),Hpx=(16+9.5*sc)+50;
+  const inner=svg.replace(/^<svg[^>]*>/,`<svg x="${f2(x)}" y="${f2(y)}" width="${f2(Wpx/k)}" height="${f2(Hpx/k)}" viewBox="0 0 ${Wpx} ${Hpx}" font-family="Arial, Helvetica, sans-serif" style="color:#141414" overflow="visible">`);
+  return {svg:inner,w:Wpx/k,h:Hpx/k,N};}
+function pickCut(sgId){toast('✂ Koʻchaning kesim olinadigan joyini xaritada bosing (Esc — bekor).');
+  const on=e=>{map.off('click',on);const ds=DS(),o=origin(),P=toXY([e.latlng.lat,e.latlng.lng],o);let b=null;
+    ds.segs.forEach(sg=>{const r=nearestOn(segXY(sg,o),P);const pen=sg.id===sgId?0:25;if(!b||r.d+pen<b.d)b={...r,d:r.d+pen,sg};});
+    if(!b||Math.sqrt(b.d)>60){toast('Koʻcha topilmadi.');return;}ds.cuts=ds.cuts||[];ds.cuts.push({sg:b.sg.id,f:+(b.s/b.T).toFixed(4)});afterDesign();drawCutMarks();
+    toast(`${ds.cuts.length}-kesim qoʻshildi — albomda «Koʻndalang kesimlar» varagʻida chiqadi.`,()=>{ds.cuts.pop();afterDesign();drawCutMarks();},'Bekor qilish');};
+  setTimeout(()=>map.on('click',on),50);document.addEventListener('keydown',function k(ev){if(ev.key==='Escape'){map.off('click',on);document.removeEventListener('keydown',k);}});}
+let cutL=null;function drawCutMarks(){try{if(!cutL)cutL=L.layerGroup().addTo(map);cutL.clearLayers();const ds=DS();if(!(ds.cuts||[]).length)return;const o=origin();
+  cuts().forEach(c=>{const n=[-c.u[1],c.u[0]],h=c.W/2+3,A=[c.P[0]+n[0]*h,c.P[1]+n[1]*h],B=[c.P[0]-n[0]*h,c.P[1]-n[1]*h];
+    L.polyline([toLL(A,o),toLL(B,o)],{color:'#b2342a',weight:2,dashArray:'10 4 2 4'}).addTo(cutL);
+    [A,B].forEach(q=>L.marker(toLL(q,o),{icon:L.divIcon({className:'',html:`<div style="font:700 12px Archivo,sans-serif;color:#b2342a;background:#fff;border:1.5px solid #b2342a;border-radius:10px;padding:0 5px;transform:translate(-50%,-50%);white-space:nowrap">${c.no}</div>`}),interactive:true})
+      .on('contextmenu',()=>{ds.cuts.splice(c.no-1,1);afterDesign();drawCutMarks();toast('Kesim oʻchirildi.');}).addTo(cutL));});}catch(e){}}
+if(typeof renderDesign==='function'){const _rd=renderDesign;window.renderDesign=function(){const r=_rd.apply(this,arguments);drawCutMarks();return r;};}
+
+/* ---------- razmetka hajmi (uzunlik, m; maydon, m²) ---------- */
+const MW={'1.12':.4,'1.13':.4,'1.3':.1,'1.17':.1,'1.11':.1};
+function markQty(G){const Q={};const add=(k,l,a)=>{Q[k]=Q[k]||{l:0,a:0,n:0};Q[k].l+=l;Q[k].a+=a;Q[k].n++;};
+  const len=xy=>{let s=0;for(let i=1;i<xy.length;i++)s+=Math.hypot(xy[i][0]-xy[i-1][0],xy[i][1]-xy[i-1][1]);return s;};
+  const area=xy=>{let s=0;for(let i=0;i<xy.length;i++){const a=xy[i],b=xy[(i+1)%xy.length];s+=a[0]*b[1]-b[0]*a[1];}return Math.abs(s)/2;};
+  G.items.forEach(it=>{if(it.t==='line'&&it.code){const l=len(it.xy),ds=it.opt.dashArray?String(it.opt.dashArray).split(/[ ,]+/).map(Number):null,r=ds?ds[0]/(ds[0]+ds[1]):1;add(it.code,l,l*r*(MW[it.code]||.1));}
+    else if(it.t==='poly'&&it.code)add(it.code,0,area(it.xy));});
+  /* chiziq kodisiz oq poligonlar: strelkalar (1.18), shtrix (1.16) — rang boʻyicha */
+  G.items.forEach(it=>{if(it.t==='poly'&&!it.code&&(it.col==='#f4f4f0'))add('1.18',0,area(it.xy));if(it.t==='poly'&&!it.code&&it.col==='#fff'&&it.z>=3.1&&it.z<3.2)add('1.16',0,area(it.xy));
+    if(it.t==='poly'&&it.col==='#e3b23c')add('taktil',0,area(it.xy));});
+  return Q;}
+
+/* ---------- harakat sxemalari ---------- */
+const DN=e=>['sharqdan','shimoli-sharqdan','shimoldan','shimoli-gʻarbdan','gʻarbdan','janubi-gʻarbdan','janubdan','janubi-sharqdan'][((Math.round(Math.atan2(e.out[1],e.out[0])/(Math.PI/4))%8)+8)%8];
+const TURN=(e,E,m)=>{/* harakat yoʻnalishiga koʻra chiqish qoʻli: kirish -out, L — chapga */const inc=[-e.out[0],-e.out[1]];let best=null;
+  E.forEach(x=>{if(x===e||!x.exits||!x.exits.length)return;const cr=inc[0]*x.out[1]-inc[1]*x.out[0],dt=inc[0]*x.out[0]+inc[1]*x.out[1],ang=Math.atan2(cr,dt);
+    const want=m==='L'?Math.PI/2:m==='R'?-Math.PI/2:m==='U'?Math.PI:0,sc=Math.abs(Math.atan2(Math.sin(ang-want),Math.cos(ang-want)));if(!best||sc<best.sc)best={sc,x};});return best?best.x:null;};
+function turnDiagram(J,arms,cx,cy,R0){/* sxematik: markaz, har qoʻl yoʻnalishi, egri strelkalar eni ~ hajm */
+  const E=J.E.filter(e=>e.lanes.length||e.exits.length),k=v=>Math.max(.5,Math.min(7,v/180));let s=`<circle cx="${f2(cx)}" cy="${f2(cy)}" r="${f2(R0*.18)}" fill="#efece6" stroke="#999" stroke-width=".2"/>`;
+  E.forEach(e=>{const d=[e.out[0],-e.out[1]];s+=L(cx+d[0]*R0*.18,cy+d[1]*R0*.18,cx+d[0]*R0,cy+d[1]*R0,{s:'#bbb',sw:5})+T(cx+d[0]*(R0+7),cy+d[1]*(R0+7)+1,KSN(e.name)||'',{s:2.4,w:700,a:'middle'});});
+  E.forEach(e=>{const a=arms[`n${J.id}a${e.ai}`];if(!a||!a.mv)return;const d=[e.out[0],-e.out[1]],rt=[-d[1],d[0]],off=2.6;/* kirish oʻng tomonda (oʻng tomonlama harakat) */
+    const p0=[cx+d[0]*R0*.85-rt[0]*off,cy+d[1]*R0*.85-rt[1]*off];let tot=0;
+    Object.entries(a.mv).forEach(([m,v])=>{if(!v)return;tot+=v;const x=TURN(e,E,m);if(!x)return;const dx=[x.out[0],-x.out[1]],rx=[-dx[1],dx[0]],p2=[cx+dx[0]*R0*.85+rx[0]*off,cy+dx[1]*R0*.85+rx[1]*off];
+      const col=m==='L'?'#b2342a':m==='R'?'#2b7449':m==='U'?'#7a5aa0':'#2a6fb0';
+      s+=`<path d="M${f2(p0[0])} ${f2(p0[1])} Q${f2(cx)} ${f2(cy)} ${f2(p2[0])} ${f2(p2[1])}" fill="none" stroke="${col}" stroke-opacity=".55" stroke-width="${f2(k(v))}"/>`;});
+    const lb=[cx+d[0]*R0*.62-rt[0]*9,cy+d[1]*R0*.62-rt[1]*9];
+    s+=`<rect x="${f2(lb[0]-12)}" y="${f2(lb[1]-6.5)}" width="24" height="${(Object.keys(a.mv).length+1)*3.2+2}" fill="#fff" fill-opacity=".9" stroke="#999" stroke-width=".15"/>`;
+    s+=T(lb[0],lb[1]-3.6,`${tot} avt/s`,{s:2.2,w:700,a:'middle'});Object.entries(a.mv).forEach(([m,v],i)=>{s+=T(lb[0],lb[1]-.4+i*3.2,`${{L:'↰ chap',S:'↑ toʻgʻri',R:'↱ oʻng',U:'↶ qayr.'}[m]||m} ${v}`,{s:2,a:'middle',c:m==='L'?'#b2342a':m==='R'?'#2b7449':'#2a6fb0'});});});
+  return s;}
+function phaseBox(J,ph,x,y,w,i,C){const cx=x+w/2,cy=y+w/2,R0=w*.42,E=J.E.filter(e=>e.lanes.length||e.exits.length);let s=R(x,y,w,w,{sw:.25})+T(x+1.5,y+4,`${i+1}-faza · ${ph.g} s`,{s:2.4,w:700});
+  E.forEach(e=>{const d=[e.out[0],-e.out[1]];s+=L(cx+d[0]*R0*.2,cy+d[1]*R0*.2,cx+d[0]*R0,cy+d[1]*R0,{s:'#ccc',sw:3.4});});
+  (ph.arms||[]).forEach(id=>{const e=E.find(e=>`n${J.id}a${e.ai}`===id);if(!e)return;const d=[e.out[0],-e.out[1]],rt=[-d[1],d[0]],p0=[cx+d[0]*R0-rt[0]*1.3,cy+d[1]*R0-rt[1]*1.3];
+    const codes=new Set(e.lanes.flatMap(l=>String(l.code||'S').split('')));const mv=ph.left?['L','U'].filter(m=>codes.has(m)):[...codes].filter(m=>'LSR'.includes(m));
+    mv.forEach(m=>{const t=TURN(e,E,m);if(!t)return;const dx=[t.out[0],-t.out[1]],rx=[-dx[1],dx[0]],p2=[cx+dx[0]*R0*.75+rx[0]*1.3,cy+dx[1]*R0*.75+rx[1]*1.3];
+      s+=`<path d="M${f2(p0[0])} ${f2(p0[1])} Q${f2(cx)} ${f2(cy)} ${f2(p2[0])} ${f2(p2[1])}" fill="none" stroke="${m==='L'?'#b2342a':m==='R'?'#2b7449':'#141414'}" stroke-width=".7" marker-end="url(#ar)"/>`;});});
+  return s;}
+const ARDEF=`<defs><marker id="ak" viewBox="0 0 10 10" refX="6" refY="5" markerUnits="userSpaceOnUse" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>`;
+function cyclogram(sig,J,x,y,w){const C=sig.C,n=sig.ph.length,G=sig.ph.reduce((a,p)=>a+p.g,0),I=Math.max(3,(C-G)/Math.max(1,n)),Y=3,kx=w/C;let s=T(x,y-3,`Siklogramma: sikl ${C} s · oraliq vaqt ${I.toFixed(0)} s (sariq ${Y} s + qizil) · siljish ${sig.off||0} s`,{s:2.5,w:700});
+  let t=0;const rows=sig.ph.map((p,i)=>{const r={i,g0:t,g1:t+p.g};t+=p.g+I;return r;});
+  rows.forEach((r,i)=>{const yy=y+i*6,lab=`${i+1}-faza`+(sig.ph[i].left?' (chap)':'');s+=T(x-1,yy+3.6,lab,{s:2.2,a:'end'});
+    s+=R(x,yy,w,4.4,{f:'#d9534f',sw:.1,s:'#999'})+R(x+r.g0*kx,yy,(r.g1-r.g0)*kx,4.4,{f:'#3f9a5c',sw:.1})+R(x+r.g1*kx,yy,Y*kx,4.4,{f:'#f0c040',sw:.1});});
+  const yb=y+rows.length*6+1;for(let tt=0;tt<=C;tt+=10){s+=L(x+tt*kx,yb,x+tt*kx,yb+1.5,{sw:.15})+T(x+tt*kx,yb+4.2,String(tt),{s:1.8,a:'middle'});}
+  s+=T(x+w,yb+8,'t, s',{s:2,a:'end',c:'#555'});return s;}
+
+function buildSheets(){const ds=DS(),G=exportGeom();if(!G)return [];const sheets=[],J=junctions(),ST=streets(),SA=ds.simAlb||null;
+  const NOTES=[];
+  /* umumiy reja + kesish chiziqlari */
+  const CUTS=cuts();
   {const bw=G.bb[2]-G.bb[0],bh=G.bb[3]-G.bb[1],area={x:WORK.x,y:WORK.y,w:WORK.w-70,h:WORK.h},N=fitScale(bw,bh,area.w,area.h);
-    const pg=planGroup(G,G.bb,area,N);let s=head('Umumiy reja')+pg.svg;
-    ds.segs.forEach(sg=>{if(!sg.name)return;const xy=segXY(sg,G.o),c=cumLen(xy),m=pointAt(xy,c,c[c.length-1]/2),i=Math.max(1,c.findIndex(v=>v>=c[c.length-1]/2)),a=xy[i],b=xy[i-1],q=pg.X(m);let ang=Math.atan2(-(a[1]-b[1]),a[0]-b[0])*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;
-      s+=`<g>${T(q[0],q[1]-4,KSN(sg.name),{s:3,w:700,a:'middle',r:ang,c:'#141414'})}</g>`;});
-    J.forEach((j,i)=>{const q=pg.X(toXY(j.n.ll,G.o));s+=`<circle cx="${f2(q[0])}" cy="${f2(q[1])}" r="3.4" fill="#fff" stroke="#b2342a" stroke-width=".6"/>`+T(q[0],q[1]+1.2,String(i+1),{s:3.4,w:700,a:'middle',c:'#b2342a'});});
+    const pg=planGroup(G,G.bb,area,N);let s=head('Umumiy reja (loyiha holati)')+pg.svg;
+    ds.segs.forEach(sg=>{if(!sg.name)return;const xy=segXY(sg,G.o),c=cumLen(xy);if(c[c.length-1]<80)return;const m=pointAt(xy,c,c[c.length-1]/2),i=Math.max(1,c.findIndex(v=>v>=c[c.length-1]/2)),a=xy[i],b=xy[i-1],q=pg.X(m);let ang=Math.atan2(-(a[1]-b[1]),a[0]-b[0])*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;
+      s+=T(q[0],q[1]-4,KSN(sg.name),{s:3,w:700,a:'middle',r:ang});});
+    CUTS.forEach(c=>{const n=[-c.u[1],c.u[0]],h=c.W/2+12,A=pg.X([c.P[0]+n[0]*h,c.P[1]+n[1]*h]),B=pg.X([c.P[0]-n[0]*h,c.P[1]-n[1]*h]);
+      s+=L(A[0],A[1],B[0],B[1],{s:'#b2342a',sw:.5,d:'3 1 .6 1'})+T(A[0],A[1]-1,String(c.no),{s:2.8,w:700,c:'#b2342a',a:'middle'})+T(B[0],B[1]+3,String(c.no),{s:2.8,w:700,c:'#b2342a',a:'middle'});});
+    J.forEach((j,i)=>{const q=pg.X(toXY(j.n.ll,G.o));s+=`<circle cx="${f2(q[0])}" cy="${f2(q[1])}" r="3.4" fill="#fff" stroke="#141414" stroke-width=".6"/>`+T(q[0],q[1]+1.2,String(i+1),{s:3.4,w:700,a:'middle'});});
     const lx=WORK.x+WORK.w-62;s+=legend(lx,WORK.y+4)+north(lx+50,WORK.y+70)+scaleBar(lx,WORK.y+90,N);
     s+=T(lx,WORK.y+104,'Chorrahalar',{s:2.8,w:700});J.forEach((j,i)=>{s+=T(lx,WORK.y+110+i*5,`${i+1}. ${j.title}`,{s:2.3});});
+    const yk=WORK.y+116+J.length*5;s+=L(lx,yk,lx+8,yk,{s:'#b2342a',sw:.5,d:'3 1 .6 1'})+T(lx+10,yk+1,'Koʻndalang kesim joyi va raqami',{s:2.3});
     sheets.push({title:'Umumiy reja',scale:'1:'+N,body:s});}
-  /* har chorraha */
+  /* har chorraha 1:500 — razmetka va belgilar */
   J.forEach((j,i)=>{const c=toXY(j.n.ll,G.o),area={x:WORK.x,y:WORK.y,w:WORK.w-80,h:WORK.h},N=500,hw=area.w/2*N/1000,hh=area.h/2*N/1000,bb=[c[0]-hw,c[1]-hh,c[0]+hw,c[1]+hh];
-    const pg=planGroup(G,bb,area,N);let s=head(`${i+1}. Chorraha: ${j.title}`)+pg.svg;const lx=WORK.x+WORK.w-72;
+    const pg=planGroup(G,bb,area,N);let s=head(`${i+1}. Chorraha: ${j.title} — razmetka va yoʻl belgilari`)+pg.svg;const lx=WORK.x+WORK.w-72;
+    CUTS.forEach(cu=>{const n=[-cu.u[1],cu.u[0]],h=cu.W/2+4,A=pg.X([cu.P[0]+n[0]*h,cu.P[1]+n[1]*h]),B=pg.X([cu.P[0]-n[0]*h,cu.P[1]-n[1]*h]);if(A[0]<area.x||A[0]>area.x+area.w||A[1]<area.y||A[1]>area.y+area.h)return;
+      s+=L(A[0],A[1],B[0],B[1],{s:'#b2342a',sw:.5,d:'3 1 .6 1'})+T(A[0],A[1]-1,String(cu.no),{s:3,w:700,c:'#b2342a',a:'middle'});});
     s+=T(lx,WORK.y+4,'Turi: '+(KN[j.kind]||j.kind),{s:2.6,w:700});
     const JN=JNET.get(j.n.id);let yy=WORK.y+12;
     if(JN){s+=T(lx,yy,'Kirishlar va boʻlaklar (1.18):',{s:2.5,w:700});yy+=5;
-      JN.E.forEach(e=>{if(!e.lanes.length)return;s+=T(lx,yy,`${KSN(e.name)||'—'}${e.dir?' · '+e.dir:''} → ${e.lanes.length} boʻlak`,{s:2.3});yy+=4;s+=T(lx+3,yy,e.lanes.map(l=>l.code||'S').join('  '),{s:2.3,c:'#555'});yy+=5;});}
+      JN.E.forEach(e=>{if(!e.lanes.length)return;s+=T(lx,yy,`${KSN(e.name)||'—'} (${DN(e)}) → ${e.lanes.length} boʻlak`,{s:2.3});yy+=4;s+=T(lx+3,yy,e.lanes.map(l=>l.code||'S').join('  '),{s:2.3,c:'#555'});yy+=5;});}
     yy+=3;s+=T(lx,yy,'L — chapga, S — toʻgʻri, R — oʻngga, U — qayrilish',{s:2,c:'#666'});
     s+=north(lx+55,WORK.y+150)+scaleBar(lx,WORK.y+172,N)+legend(lx,WORK.y+185);
-    sheets.push({title:`Chorraha ${i+1}`,scale:'1:'+N,body:s});});
-  /* koʻcha kesimlari */
-  {const per=4,Wmax=Math.max(...ST.map(st=>st.lay.W)),NS=[50,100,200,250,500].find(n=>Wmax*1000/n<=WORK.w-20)||500;for(let p=0;p<ST.length;p+=per){let s=head('Koʻchalarning koʻndalang kesimlari')+T(WORK.x+WORK.w-4,FR.y+8.5,'Masshtab 1:'+NS,{s:3,a:'end'}),y=WORK.y+20;
-    ST.slice(p,p+per).forEach(st=>{const d=sectionDraw(st.lay,WORK.x+4,y+6,WORK.w-20,`${st.name} — ${st.mod}`,NS);s+=d.svg;y+=d.h+22;});
-    s+=T(WORK.x+4,WORK.y+WORK.h+STH-4,'↑ / ↓ — harakat yoʻnalishi (koʻcha oʻqi boʻyicha). Oʻlchamlar metrda.',{s:2.2,c:'#555'});
-    sheets.push({title:'Kesimlar'+(ST.length>per?' '+(p/per+1):''),scale:'1:'+NS,body:s});}}
-  /* umumiy maʼlumot jadvali + razmetka */
-  {let s=head('Koʻchalar va tugunlar. Razmetka vedomosti'),y=WORK.y+6;
-    const t1=table(WORK.x,y,[['Koʻcha',70],['Modul',70],['Uzunlik, m',22,'r'],['Eni, m',18,'r'],['Boʻlak',14,'r'],['Oʻtish j.',16,'r'],['Bekat',14,'r']],ST.map(st=>[st.name,st.mod,f1(st.len),f2(st.W),st.lanes,st.xw,st.stops]));
-    s+=t1.svg;y+=t1.h+8;
-    const t2=table(WORK.x,y,[['№',8,'r'],['Chorraha',96],['Turi',60]],J.map((j,i)=>[i+1,j.title,KN[j.kind]||j.kind]));s+=t2.svg;
-    const mk=Object.entries(G.marks||{}).filter(([k])=>k!=='1.16.1'||!(G.marks||{})['1.16']);
-    const t3=table(WORK.x+230,WORK.y+6,[['Kod',18],['Nomi',62],['Soni',14,'r'],['Qoida',50]],mk.map(([k,v])=>[k,MK[k]||k,v,MKSRC[k]||'']));s+=t3.svg;
-    s+=T(WORK.x+230,WORK.y+t3.h+12,'«Soni» — chizmadagi elementlar (chiziq boʻlaklari, strelkalar, belgilar) soni; uzunlik hisobi keyingi bosqichda.',{s:2.1,c:'#555'});
-    const sg2={};(ds.signs||[]).forEach(x=>{sg2[x.c]=sg2[x.c]||{exist:0,new:0,remove:0};sg2[x.c][x.st||'new']++;});
-    const t4=table(WORK.x+230,WORK.y+t3.h+18,[['Belgi',18],['Nomi',72],['Yangi',13,'r'],['Mavjud',13,'r'],['Olinadi',13,'r']],Object.entries(sg2).map(([c,v])=>[c,(signDef(c)||[])[1]||'',v.new,v.exist,v.remove]));
-    s+=Object.keys(sg2).length?t4.svg:T(WORK.x+230,WORK.y+t3.h+22,'Yoʻl belgilari qoʻyilmagan.',{s:2.4});
-    sheets.push({title:'Vedomostlar',scale:'',body:s});}
-  /* bekatlar va oʻtish joylari: normalar */
+    sheets.push({title:`Chorraha ${i+1}: razmetka`,scale:'1:'+N,body:s});});
+  /* koʻndalang kesimlar — Koʻchasoz kesim grafikasi */
+  {let s=null,y=0,page=0;const flush=()=>{if(s){sheets.push({title:'Koʻndalang kesimlar'+(page>1?' ('+page+')':''),scale:'1:200',body:s});s=null;}};
+    CUTS.forEach(c=>{const pr=cutSection(c,0,0,WORK.w);if(!s||y+pr.h+16>WORK.y+WORK.h+STH-4){flush();page++;s=head('Koʻndalang kesimlar')+T(WORK.x+WORK.w-4,FR.y+8.5,(CUTS.some(x=>x.auto)?'joylar avtomatik (koʻcha oʻrtasi, bekatlar); ✂ bilan oʻzingiz tanlang':'joylar ✂ bilan tanlangan'),{s:2.4,a:'end',c:'#555'});y=WORK.y+8;}
+      const lab=`${c.no}–${c.no}. ${c.sg.name||'Koʻcha'}${c.stop?' (bekat)':''} — eni ${f2(c.W)} m, ${c.lanes} boʻlak · 1:${pr.N}`;
+      s+=T(WORK.x+2,y+4,lab,{s:3,w:700});const cs=cutSection(c,WORK.x+2,y+6,WORK.w);s+=cs.svg;y+=cs.h+12;});
+    flush();}
+  /* tarmoq kartogrammasi */
+  {const bw=G.bb[2]-G.bb[0],bh=G.bb[3]-G.bb[1],area={x:WORK.x,y:WORK.y,w:WORK.w-70,h:WORK.h},N=fitScale(bw,bh,area.w,area.h),k=1000/N;
+    let s=head('Harakat jadalligi kartogrammasi (tigʻiz soat, avt/soat)');
+    const G2={...G,items:G.items.filter(it=>it.t==='poly'&&(it.cat==='car'||it.cat==='pt'||it.cat==='ped'||it.cat==='green')).map(it=>({...it,col:it.cat==='car'||it.cat==='pt'?'#d6d3cc':'#efece6'})),signs:[]};
+    const pg=planGroup(G2,G.bb,area,N);s+=pg.svg;
+    if(!SA||!SA.arms){s+=T(area.x+6,area.y+10,'Harakat modeli hisoblanmagan: chorrahani tanlang → «Sinash» → «Hisoblash».',{s:3,c:'#b2342a'});}
+    else{let mx=1;Object.values(SA.arms).forEach(a=>mx=Math.max(mx,a.flow||0));
+      Object.entries(SA.arms).forEach(([id,a])=>{const JN=JNET.get(a.node),e=JN&&JN.E.find(e=>e.ai===a.ai);if(!e||!a.flow)return;const n=DS().nodes.find(n=>n.id===a.node);if(!n)return;
+        const c=toXY(n.ll,G.o),out=e.out,rt=[out[1],-out[0]],w=Math.max(.6,a.flow/mx*7),D0=18/k,D1=(18+26)/k,off=(w/2+1)/k;
+        const P0=pg.X([c[0]+out[0]*D1-rt[0]*off,c[1]+out[1]*D1-rt[1]*off]),P1=pg.X([c[0]+out[0]*D0-rt[0]*off,c[1]+out[1]*D0-rt[1]*off]);
+        const col=a.los&&'EF'.includes(a.los)?'#b2342a':a.los&&'CD'.includes(a.los)?'#c88a1a':'#2a6fb0';
+        s+=`<line x1="${f2(P0[0])}" y1="${f2(P0[1])}" x2="${f2(P1[0])}" y2="${f2(P1[1])}" stroke="${col}" stroke-width="${f2(w)}" stroke-opacity=".8" marker-end="url(#ak)"/>`;
+        s+=T((P0[0]+P1[0])/2+2,(P0[1]+P1[1])/2,String(a.flow),{s:2.4,w:700,c:col});});
+      J.forEach((j,i)=>{const q=pg.X(toXY(j.n.ll,G.o)),r=SA.juncs&&SA.juncs[j.n.id];s+=`<circle cx="${f2(q[0])}" cy="${f2(q[1])}" r="4" fill="#fff" stroke="#141414" stroke-width=".5"/>`+T(q[0],q[1]+1.2,r&&r.los||String(i+1),{s:3.4,w:700,a:'middle',c:r&&'EF'.includes(r.los)?'#b2342a':'#141414'});});}
+    const lx=WORK.x+WORK.w-62;s+=north(lx+50,WORK.y+12)+scaleBar(lx,WORK.y+30,N);
+    s+=T(lx,WORK.y+44,'Strelka eni ~ jadallik (oʻtgan, avt/s)',{s:2.3,w:700});[['#2a6fb0','LOS A–B'],['#c88a1a','LOS C–D'],['#b2342a','LOS E–F']].forEach(([c,t],i)=>{s+=L(lx,WORK.y+50+i*5,lx+10,WORK.y+50+i*5,{s:c,sw:2})+T(lx+12,WORK.y+51+i*5,t,{s:2.3});});
+    s+=T(lx,WORK.y+70,'Doiradagi harf — chorrahaning LOS',{s:2.3});
+    if(SA){s+=T(lx,WORK.y+80,`Talab: ${SA.lvl}`,{s:2.3})+T(lx,WORK.y+85,'Manba: harakat modeli (ANDOZA talab,',{s:2.1,c:'#555'})+T(lx,WORK.y+89,'real sanoq bilan tasdiqlansin)',{s:2.1,c:'#555'});}
+    sheets.push({title:'Kartogramma',scale:'1:'+N,body:ARDEF+s});}
+  /* har svetoforli chorraha: burilish oqimlari + faza sxemasi + siklogramma */
+  J.forEach((j,i)=>{const JN=JNET.get(j.n.id);if(!JN)return;const sig=SA&&SA.sigs&&SA.sigs.find(x=>x.node===j.n.id);
+    let s=ARDEF+head(`${i+1}. ${j.title}: oqimlar${j.kind==='sig'?', svetofor fazalari va siklogramma':''}`);
+    s+=T(WORK.x,WORK.y+4,'Burilish oqimlari, avt/soat (harakat modeli)',{s:3,w:700});
+    if(SA&&SA.arms)s+=turnDiagram(JN,SA.arms,WORK.x+75,WORK.y+95,62);else s+=T(WORK.x,WORK.y+14,'Harakat modeli hisoblanmagan.',{s:2.8,c:'#b2342a'});
+    if(j.kind==='sig'){s+=T(WORK.x+175,WORK.y+4,'Fazalar sxemasi',{s:3,w:700});
+      if(sig){const n=sig.ph.length,bw=Math.min(52,(WORK.w-180)/Math.max(n,1)-4);sig.ph.forEach((p,k2)=>{s+=phaseBox(JN,p,WORK.x+175+k2*(bw+4),WORK.y+8,bw,k2,sig.C);});
+        s+=cyclogram(sig,JN,WORK.x+195,WORK.y+8+bw+18,WORK.w-205);
+        const r=SA.juncs&&SA.juncs[j.n.id];if(r)s+=T(WORK.x+175,WORK.y+8+bw+18+n*6+18,`Chorraha: oʻrtacha kechikish ${r.d} s · LOS ${r.los}`,{s:2.8,w:700,c:'EF'.includes(r.los)?'#b2342a':'#141414'});
+        s+=T(WORK.x+175,WORK.y+8+bw+18+n*6+25,'Piyodalar: har faza davomida harakat kesib oʻtmaydigan qoʻllarda yashil (parallel).',{s:2.2,c:'#555'});}
+      else s+=T(WORK.x+175,WORK.y+14,'Svetofor rejasi hisoblanmagan.',{s:2.8,c:'#b2342a'});}
+    /* qoʻllar boʻyicha jadval */
+    if(SA&&SA.arms){const rows=JN.E.filter(e=>e.lanes.length).map(e=>{const a=SA.arms[`n${j.n.id}a${e.ai}`]||{};return [`${KSN(e.name)||'—'} (${DN(e)})`,e.lanes.length,a.demand??'',a.flow??'',(a.mv&&a.mv.L)||0,(a.mv&&a.mv.S)||0,(a.mv&&a.mv.R)||0,a.delay??'',a.q??'',a.los||''];});
+      const t=table(WORK.x,WORK.y+172,[['Kirish',70],['Boʻlak',14,'r'],['Talab',16,'r'],['Oʻtdi',16,'r'],['↰',14,'r'],['↑',14,'r'],['↱',14,'r'],['Kech., s',18,'r'],['Navbat',16,'r'],['LOS',12]],rows,{col:(r,c,v)=>c===9&&'EF'.includes(v)?'#b2342a':null,rh:5});s+=t.svg;}
+    sheets.push({title:`Oqim va fazalar ${i+1}`,scale:'',body:s});});
+  /* harakat modeli umumiy natija */
+  {let s=head('Harakat modeli: xizmat darajasi (LOS)');const R0=SA;
+    if(!R0){s+=T(WORK.x,WORK.y+10,'Harakat modeli hali hisoblanmagan: chorrahani tanlang → «Sinash» → «Hisoblash». Natija shu varaqqa avtomatik tushadi.',{s:3});}
+    else{let y=WORK.y+6;s+=T(WORK.x,y,`${R0.verdict}`.slice(0,230),{s:2.6,w:700,c:R0.TL&&'EF'.includes(R0.TL)?'#b2342a':'#141414'});y+=6;
+      s+=T(WORK.x,y,`Talab darajasi: ${R0.lvl} · hisob: ${new Date(R0.t).toLocaleString('ru-RU')}${R0.bus?` · avtobus ${Math.round(R0.bus)} avt/s, kechikish ${(R0.busD||0).toFixed(0)} s`:''}${R0.ped?` · piyoda ${Math.round(R0.ped)} kishi/s, kutish ${(R0.pedW||0).toFixed(0)} s`:''}`,{s:2.4,c:'#555'});y+=7;
+      const t=table(WORK.x,y,[['Chorraha / kirish',190],['Talab, avt/s',26,'r'],['Oʻtdi',22,'r'],['Kechikish, s',26,'r'],['LOS',14]],R0.rows,{col:(i,j,v)=>j===4&&'EF'.includes(v)?'#b2342a':j===4&&'AB'.includes(v)?'#2b7449':null,rh:5});s+=t.svg;y+=t.h+6;
+      ['Model: IDM ergashish, svetofor fazalari, piyoda va avtobus; 3 tasodifiy takror × 15 daq. (2 daq. isinish). LOS — HCM chegaralari (svetoforli 10/20/35/55/80 s, svetoforsiz 10/15/25/35/50 s).',
+       'Talab — modeldagi andoza yoki foydalanuvchi kiritgan; real sanoq boʻlmasa natija taxminiy (ANDOZA). Loyiha qarori uchun sanoq bilan tasdiqlang.'].forEach(l=>{s+=T(WORK.x,y,l,{s:2.2,c:'#555'});y+=4.5;});}
+    sheets.push({title:'Harakat modeli (LOS)',scale:'',body:s});}
+  /* jamoat transporti va piyodalar */
+  {const bw=G.bb[2]-G.bb[0],bh=G.bb[3]-G.bb[1],area={x:WORK.x,y:WORK.y,w:WORK.w-150,h:WORK.h},N=fitScale(bw,bh,area.w,area.h),k=1000/N;
+    const G2={...G,items:G.items.filter(it=>it.t==='poly'&&it.cat).map(it=>({...it,col:it.cat==='car'?'#d6d3cc':it.cat==='pt'?'#e8b4ad':'#efece6'})),signs:[]};
+    const pg=planGroup(G2,G.bb,area,N);let s=head('Jamoat transporti va piyoda harakati sxemasi')+pg.svg;const stops=[],xws=[];
+    DS().segs.forEach(sg=>{const xy=segXY(sg,G.o),c=cumLen(xy),T0=c[c.length-1];(sg.att||[]).forEach(a=>{if(!['bus','bay','tramstop'].includes(a.t))return;stops.push({sg,a,P:pointAt(xy,c,a.f*T0),s:a.f*T0});});
+      (sg.xw||[]).forEach(x=>xws.push({sg,x,P:pointAt(xy,c,x.f*T0)}));});
+    stops.forEach((st,i)=>{const q=pg.X(st.P),r=400*k;s+=`<circle cx="${f2(q[0])}" cy="${f2(q[1])}" r="${f2(r)}" fill="#2a6fb0" fill-opacity=".05" stroke="#2a6fb0" stroke-width=".2" stroke-dasharray="1 1"/>`;});
+    stops.forEach((st,i)=>{const q=pg.X(st.P);s+=R(q[0]-2,q[1]-2,4,4,{f:'#2a6fb0',s:'#fff',sw:.3})+T(q[0],q[1]+1,String(i+1),{s:2.4,w:700,c:'#fff',a:'middle'});});
+    J.forEach(j=>{const q=pg.X(toXY(j.n.ll,G.o));s+=`<circle cx="${f2(q[0])}" cy="${f2(q[1])}" r="2.2" fill="#fff" stroke="#141414" stroke-width=".5"/>`;});
+    xws.forEach(x=>{const q=pg.X(x.P);s+=R(q[0]-1.5,q[1]-1.5,3,3,{f:'#fff',s:'#141414',sw:.4})+T(q[0],q[1]+.9,'P',{s:2,w:700,a:'middle'});});
+    /* bekatlar oraligʻi: bir koʻcha, bir tomon */
+    const byS={};stops.forEach((st,i)=>{const key=(st.sg.name||st.sg.id)+'|'+(st.a.side||st.a.pd||0);(byS[key]=byS[key]||[]).push({...st,i});});
+    const rows=[];Object.values(byS).forEach(L2=>{L2.sort((a,b)=>a.s-b.s);L2.forEach((st,k2)=>{const nx=L2[k2+1];const dd=nx?Math.hypot(nx.P[0]-st.P[0],nx.P[1]-st.P[1]):null;
+      rows.push([st.i+1,KSN(st.sg.name)||'—',{bus:'chetda',bay:'choʻntakli',tramstop:'oʻrtada (BRT)'}[st.a.t],st.a.len,dd?Math.round(dd):'—',dd?(dd>=400&&dd<=600?'mos':dd<400?'yaqin':'uzoq'):'']);});});
+    const lx=WORK.x+WORK.w-145;const t=table(lx,WORK.y+4,[['№',8,'r'],['Koʻcha',42],['Turi',26],['L, m',12,'r'],['Keyingisigacha, m',30,'r'],['400–600',18]],rows.sort((a,b)=>a[0]-b[0]),{rh:5,col:(r,c,v)=>c===5&&v!=='mos'&&v?'#b2342a':null});s+=t.svg;
+    let y=WORK.y+t.h+12;[['■','Bekat (raqami)'],['○','400 m piyoda yetish radiusi (ShNQ 2.07.01-23, 382-band)'],['P','Piyodalar oʻtish joyi (koʻcha oʻrtasida)'],['●','Chorraha (oʻtish joylari bilan)']].forEach(([a,b])=>{s+=T(lx,y,a,{s:3,w:700,c:'#2a6fb0'})+T(lx+6,y,b,{s:2.3});y+=5;});
+    s+=T(lx,y+2,'Bekatlar oraligʻi: avtobus/trolleybus 400–600 m (ShNQ 2.07.01-23, 384-band;',{s:2.1,c:'#555'})+T(lx,y+6,'ShNQ 2.07.06-24, 26-band). Masofa toʻgʻri chiziq boʻyicha.',{s:2.1,c:'#555'});
+    if(SA&&SA.ped)s+=T(lx,y+13,`Model: piyodalar ${Math.round(SA.ped)} kishi/soat, oʻrtacha kutish ${(SA.pedW||0).toFixed(0)} s.`,{s:2.3});
+    s+=north(lx+130,WORK.y+WORK.h-30)+scaleBar(lx,WORK.y+WORK.h-12,N);
+    sheets.push({title:'Jamoat transporti va piyodalar',scale:'1:'+N,body:s});}
+  /* bekat va oʻtish joylari normalari */
   {let s=head('Bekatlar va piyoda oʻtish joylari — normalar boʻyicha tekshiruv'),rows=[],rx=[];
     ds.segs.forEach(sg=>{const T0=lineLen(segLL(sg)),A=DS().nodes.find(n=>n.id===sg.a),B=DS().nodes.find(n=>n.id===sg.b),ia=A&&isInter(nodeKind(A)),ib=B&&isInter(nodeKind(B));
       (sg.att||[]).filter(a=>['bus','bay','tramstop'].includes(a.t)).forEach(a=>{const s0=a.f*T0,dA=s0-a.len/2,dB=T0-s0-a.len/2,dmin=Math.min(ia?dA:1e9,ib?dB:1e9);
-        const okL=a.len>=20,okD=dmin>=20;rows.push([KSN(sg.name)||'—',{bus:'Chetda',bay:'Choʻntakli',tramstop:'Oʻrtada (BRT)'}[a.t],f1(s0),a.len,okL?'ha':'yoʻq',dmin>9e8?'—':f1(dmin),dmin>9e8?'—':okD?'ha':'yoʻq',a.t==='tramstop'?(a.xsig?'svetoforli':'svetoforsiz'):'']);});
-      (sg.xw||[]).forEach(x=>{const s0=x.f*T0;rx.push([KSN(sg.name)||'—',{zebra:'Oddiy (1.14.1)',signal:'Svetoforli',raised:'Koʻtarilgan',refuge:'Orolchali'}[x.type]||x.type,f1(s0),x.w||DS().thr.cw]);});});
+        rows.push([KSN(sg.name)||'—',{bus:'Chetda',bay:'Choʻntakli',tramstop:'Oʻrtada (BRT)'}[a.t],f1(s0),a.len,a.len>=20?'ha':'yoʻq',dmin>9e8?'—':f1(dmin),dmin>9e8?'—':dmin>=20?'ha':'yoʻq',a.t==='tramstop'?(a.xsig?'svetoforli':'svetoforsiz'):'']);});
+      (sg.xw||[]).forEach(x=>{rx.push([KSN(sg.name)||'—',{zebra:'Oddiy (1.14.1)',signal:'Svetoforli',raised:'Koʻtarilgan',refuge:'Orolchali'}[x.type]||x.type,f1(x.f*T0),x.w||DS().thr.cw,(x.w||4)>=4?'ha':'yoʻq']);});});
     let y=WORK.y+6;const t1=table(WORK.x,y,[['Koʻcha',55],['Turi',34],['Koʻcha boshidan, m',34,'r'],['Uzunlik, m',22,'r'],['≥ 20 m (394-b.)',28],['Chorrahagacha, m',30,'r'],['≥ 20 m (393-b.)',28],['Oʻtish joyi',30]],rows,{col:(i,j,v)=>v==='yoʻq'?'#b2342a':null});
     s+=rows.length?t1.svg:T(WORK.x,y+4,'Bekat yoʻq.',{s:2.6});y+=(rows.length?t1.h:6)+10;
-    const t2=table(WORK.x,y,[['Koʻcha',55],['Turi',40],['Koʻcha boshidan, m',34,'r'],['Eni, m',20,'r']],rx);s+=rx.length?t2.svg:'';y+=(rx.length?t2.h:0)+10;
-    const notes=['Normalar: ShNQ 2.07.01-23 — 393-band (bekat chorrahadan keyin ≥ 20 m), 394-band (platforma 20 m bir yoʻnalish / ≥ 30 m bir necha yoʻnalish, eni ≥ 1,5 m), 395-band (qatnov qismini toraytirmaslik).',
-      'ShNQ 2.07.02-24 — 192-band (platforma 1,8×12 m / 2,5×24 m / 2,5×36 m), 193-band (≤ 0,20 m baland), 18-band (oʻtish joyida bordyur ≤ 2 sm), 12-ilova (taktil 0,6 m, chetdan 0,3 m).',
-      'GOST R 52289-2019 — 6.2.3 (oʻtish joyidan 20 m oldin 1.1), 6.2.14 (svetoforli oʻtish joyida 1.12 ≥ 1 m oldin), 6.2.20 (1.17 platformadan qisqa emas), 6.2.26 (1.23 bekatdan 15 m keyin).',
-      'Bekat kengayishi (taper) ≥ 30 m — ShNQ 2.07.01-23, 333-band (talqin). 1.16.1: 45°, 0,40/1,20 m — GOST R 51256-2018.'];
-    notes.forEach((t,i)=>{s+=T(WORK.x,y+i*5.5,t,{s:2.3,c:'#333'});});
-    sheets.push({title:'Bekatlar va oʻtish joylari',scale:'',body:s});}
-  /* harakat modeli */
-  {let s=head('Harakat modeli: svetofor rejasi va xizmat darajasi (LOS)');const R0=ds.simAlb;
-    if(!R0){s+=T(WORK.x,WORK.y+10,'Harakat modeli hali hisoblanmagan: chorrahani tanlang → «Sinash» → «Hisoblash». Natija shu varaqqa avtomatik tushadi.',{s:3});}
-    else{let y=WORK.y+6;s+=T(WORK.x,y,`${R0.verdict}`,{s:2.8,w:700,c:R0.TL&&'EF'.includes(R0.TL)?'#b2342a':'#141414'});y+=6;
-      s+=T(WORK.x,y,`Talab darajasi: ${R0.lvl} · ${new Date(R0.t).toLocaleString('ru-RU')}`,{s:2.4,c:'#555'});y+=5;
-      (R0.sig||'').match(/.{1,170}(\s|$)/g)?.forEach(line=>{s+=T(WORK.x,y,line.trim(),{s:2.2,c:'#333'});y+=4.2;});y+=3;
-      const t=table(WORK.x,y,[['Chorraha / kirish',190],['Talab, avt/s',26,'r'],['Oʻtdi',22,'r'],['Kechikish, s',26,'r'],['LOS',14]],R0.rows,{col:(i,j,v)=>j===4&&'EF'.includes(v)?'#b2342a':j===4&&'AB'.includes(v)?'#2b7449':null,rh:5});s+=t.svg;y+=t.h+6;
-      ['Model: IDM ergashish, svetofor fazalari, piyoda va avtobus; 3 tasodifiy takror × 15 daq. LOS — HCM chegaralari (svetoforli 10/20/35/55/80 s).','Talab — modeldagi andoza yoki foydalanuvchi kiritgan; real sanoq boʻlmasa natija taxminiy (ANDOZA). Loyiha qarori uchun sanoq bilan tasdiqlang.'].forEach(l=>{s+=T(WORK.x,y,l,{s:2.2,c:'#555'});y+=4.5;});}
-    sheets.push({title:'Harakat modeli',scale:'',body:s});}
-  /* YHQ tekshiruvi */
+    const t2=table(WORK.x,y,[['Koʻcha',55],['Turi',40],['Koʻcha boshidan, m',34,'r'],['Eni, m',20,'r'],['≥ 4 m (6.2.17)',26]],rx);s+=rx.length?t2.svg:'';y+=(rx.length?t2.h:0)+10;
+    ['ShNQ 2.07.01-23: 382-band (bekatgacha ≤ 400 m), 384-band (bekatlar oraligʻi 400–600 m), 393-band (bekat chorrahadan keyin ≥ 20 m), 394-band (platforma 20 / ≥ 30 m, eni ≥ 1,5 m), 395-band (qatnov qismini toraytirmaslik).',
+     'ShNQ 2.07.02-24: 192-band (platforma 1,8×12 / 2,5×24 / 2,5×36 m), 193-band (≤ 0,20 m), 17-band (oʻtish ≤ 1:10), 18-band (bordyur ≤ 2 sm), 12-ilova (taktil 0,6 m, chetdan 0,3 m).',
+     'GOST R 52289-2019: 6.2.3 (oʻtish joyidan 20 m oldin 1.1), 6.2.14 (1.12 ≥ 1 m oldin), 6.2.17 (1.14.1 eni ≥ 4 m), 6.2.20 (1.17), 6.2.26 (1.23). GOST R 51256-2018: 1.16.1 45°, 0,40/1,20 m.',
+     'Bekat kengayishi (taper) ≥ 30 m — ShNQ 2.07.01-23, 333-band (talqin).'].forEach((t,i)=>{s+=T(WORK.x,y+i*5.5,t,{s:2.3,c:'#333'});});
+    sheets.push({title:'Bekatlar va oʻtish joylari: normalar',scale:'',body:s});}
+  /* vedomostlar: koʻchalar, razmetka hajmi, belgilar */
+  {let s=head('Vedomostlar: koʻchalar, yoʻl razmetkasi, yoʻl belgilari'),y=WORK.y+6;
+    const t1=table(WORK.x,y,[['Koʻcha',62],['Modul',62],['Uzunlik, m',22,'r'],['Eni, m',18,'r'],['Boʻlak',14,'r'],['Oʻtish j.',16,'r'],['Bekat',14,'r']],ST.map(st=>[st.name,st.mod,f1(st.len),f2(st.W),st.lanes,st.xw,st.stops]));s+=t1.svg;y+=t1.h+8;
+    const MQ=markQty(G),mrows=Object.entries(MQ).filter(([k])=>MK[k]).sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true})).map(([k,v])=>[k,MK[k]||k,v.l?f1(v.l):'—',f1(v.a),MKSRC[k]||'']);
+    const tot=mrows.reduce((a,r)=>a+(+r[3]||0),0);mrows.push(['','Jami boʻyoq maydoni','',f1(tot),'']);
+    const t3=table(WORK.x,y,[['Kod',18],['Nomi',72],['Uzunlik, m',24,'r'],['Maydon, m²',24,'r'],['Qoida',70]],mrows,{rh:5});s+=t3.svg;
+    s+=T(WORK.x,y+t3.h+5,'Uzunlik — chiziq oʻqi boʻyicha; maydon — boʻyalgan qism (uzuq chiziqda shtrix ulushi, eni 0,10 m; 1.12/1.13 — 0,40 m). Zebra, strelka, shtrix, taktil — poligon maydoni.',{s:2.1,c:'#555'});
+    const sg2={};(ds.signs||[]).forEach(x=>{sg2[x.c]=sg2[x.c]||{exist:0,new:0,remove:0};sg2[x.c][x.st||'new']++;});
+    const t4=table(WORK.x+250,WORK.y+6,[['Belgi',16],['Nomi',62],['Yangi',13,'r'],['Mavjud',13,'r'],['Olinadi',13,'r']],Object.entries(sg2).map(([c,v])=>[c,(signDef(c)||[])[1]||'',v.new,v.exist,v.remove]),{rh:5});
+    s+=Object.keys(sg2).length?t4.svg:T(WORK.x+250,WORK.y+10,'Yoʻl belgilari qoʻyilmagan.',{s:2.4});
+    sheets.push({title:'Vedomostlar',scale:'',body:s});}
+  /* ishlar hajmi */
+  {let s=head('Asosiy ishlar hajmi (taxminiy, rejadan)');let st=null;try{st=designStats();}catch(e){}
+    const rows=[];if(st&&st.tot)Object.entries(DCAT).forEach(([k,[n]])=>{const m2=st.cnt[k]/st.tot*st.m2;if(m2>1)rows.push([n,Math.round(m2),(st.cnt[k]/st.tot*100).toFixed(1)]);});
+    const trees=(G.sh||[]).filter(x=>x.t==='tree').length,curb=G.items.filter(it=>it.t==='line'&&it.opt&&(it.opt.color==='#f7f5ef'||it.opt.color==='#9a917f')).reduce((a,it)=>{let l=0;for(let i=1;i<it.xy.length;i++)l+=Math.hypot(it.xy[i][0]-it.xy[i-1][0],it.xy[i][1]-it.xy[i-1][1]);return a+l;},0);
+    rows.push(['Daraxtlar (koʻkalamzor tasmalarida), dona',trees,''],['Yoʻl belgilari, dona',(ds.signs||[]).length,''],['Bekatlar, dona',ST.reduce((a,x)=>a+x.stops,0),''],['Piyodalar oʻtish joylari (koʻcha oʻrtasida), dona',ST.reduce((a,x)=>a+x.xw,0),''],['Svetoforli chorrahalar, dona',J.filter(j=>j.kind==='sig').length,'']);
+    const t=table(WORK.x,WORK.y+6,[['Element',120],['Miqdori (m² / m / dona)',40,'r'],['Ulush, %',22,'r']],rows,{rh:5.4});s+=t.svg;
+    s+=T(WORK.x,WORK.y+t.h+12,'Maydonlar loyiha rejasining rastr tahlilidan (ustma-ust qatlamlar hisobga olinmaydi). Smeta uchun DXF asosida aniqlashtiring.',{s:2.2,c:'#555'});
+    sheets.push({title:'Ishlar hajmi',scale:'',body:s});}
+  /* YHQ */
   {let s=head('Yoʻl harakati qoidalari (YHQ) boʻyicha avtomatik tekshiruv');let ck={};try{ck=checkYHQ();}catch(e){}
     const rows=[];try{ckOrder(ck).forEach(q=>{const c=ck[q.id];rows.push([q.t,{ok:'mos',bad:'muammo',auto:'avtomatik',na:'tegishli emas',warn:'diqqat'}[c[0]]||c[0],(c[2]||[]).length?(c[2]||[]).map(x=>x.why).join('; '):(c[1]||'')]);});}catch(e){}
     const t=table(WORK.x,WORK.y+6,[['Qoida',120],['Holat',22],['Izoh',240]],rows.slice(0,40),{col:(i,j,v)=>j===1&&v==='muammo'?'#b2342a':j===1&&v==='mos'?'#2b7449':null,rh:5});s+=rows.length?t.svg:T(WORK.x,WORK.y+10,'Tekshiruv natijasi yoʻq.',{s:2.6});
     s+=T(WORK.x,WORK.y+WORK.h+STH-4,'Qoida mazmuni YHQ ilovalari asosida umumlashtirilgan; band raqamlarini tasdiqlang.',{s:2.2,c:'#555'});
     sheets.push({title:'YHQ tekshiruvi',scale:'',body:s});}
-  /* titul va mundarija (oldiga) */
-  const total=sheets.length+1;
-  {let s=T(PW/2,70,projName(),{s:11,w:700,a:'middle'})+T(PW/2,84,'Koʻcha va chorrahalar loyihasi · Konsepsiya',{s:5,a:'middle',c:'#444'})+T(PW/2,94,(ds.place||'Toshkent shahri'),{s:4,a:'middle',c:'#444'});
-    s+=T(FR.x+40,118,'Mundarija',{s:4,w:700});[['1','Titul. Mundarija'],...sheets.map((x,i)=>[String(i+2),x.title+(x.scale&&x.scale!=='koʻrsatilgan'?' · '+x.scale:'')])].forEach(([n,t],i)=>{s+=T(FR.x+40,127+i*6,n,{s:3})+T(FR.x+52,127+i*6,t,{s:3});});
-    s+=T(FR.x+40,PH-60,'Archemistry Lab · Koʻchasoz · '+new Date().getFullYear(),{s:3,c:'#555'});
+  /* umumiy maʼlumotlar (oldiga) */
+  const total=sheets.length+2;
+  {let s=head('Umumiy maʼlumotlar');
+    const list=[['1','Titul'],['2','Umumiy maʼlumotlar'],...sheets.map((x,i)=>[String(i+3),x.title,x.scale])];
+    const t=table(WORK.x,WORK.y+6,[['Varaq',14,'r'],['Nomi',110],['Masshtab',26]],list.map(r=>[r[0],r[1],r[2]||'']),{rh:4.6,fs:2.3});s+=T(WORK.x,WORK.y+3,'Chizmalar vedomosti',{s:3,w:700})+t.svg;
+    const gx=WORK.x+165;let y=WORK.y+3;s+=T(gx,y,'Umumiy koʻrsatmalar',{s:3,w:700});y+=6;
+    const NT=[`Loyiha: ${projName()}. Joy: ${DS().place||'Toshkent sh.'}. Bosqich — konsepsiya (P).`,
+      'Asos: OpenStreetMap geometriyasi (koʻcha oʻqlari, boʻlaklar soni). Geodezik syomka boʻyicha aniqlashtirilsin.',
+      'Koʻcha kesimlari — Koʻchasoz modullari; ShNQ 2.07.06-24 namunaviy kesimlariga muvofiqligi tekshirilsin.',
+      'Yoʻl razmetkasi YHQ 2-ilovasi (VM 12.04.2022 172-son qarori) va GOST R 51256-2018, GOST R 52289-2019 qoidalari boʻyicha joylashtirilgan.',
+      'Yoʻl belgilari avtomatik joylashtirilgan (YHQ 1-ilova); har biri joyda tasdiqlansin.',
+      'Piyoda oʻtish joylari: zebra, taktil qoplama, pandus — ShNQ 2.07.02-24 (17, 18, 42-bandlar, 12-ilova).',
+      'Bekatlar: ShNQ 2.07.01-23 (382–395-bandlar), ShNQ 2.07.02-24 (190–197-bandlar).',
+      'Harakat modeli (mikromodel): IDM, svetofor fazalari Webster usulida avto tanlangan; talab — andoza (ANDOZA), real sanoq bilan tasdiqlansin.',
+      'Mavjud holat (hozirgi razmetka, belgilar, svetofor rejimi) syomkasi bu albomga kirmagan.'];
+    NT.forEach((t2,i)=>{const lines=t2.match(/.{1,105}(\s|$)/g)||[t2];lines.forEach((ln,k2)=>{s+=T(gx+(k2?4:0),y,(k2?'':(i+1)+'. ')+ln.trim(),{s:2.3});y+=4;});y+=1;});
+    y+=4;s+=T(gx,y,'Normativ hujjatlar',{s:3,w:700});y+=6;
+    ['YHQ — VM 2022-yil 12-apreldagi 172-son qarori bilan tasdiqlangan Yoʻl harakati qoidalari','ShNQ 2.07.01-23 Aholi punktlari hududlarini rejalashtirish','ShNQ 2.07.06-24 Shahar koʻcha-yoʻllari. Loyihalash talablari','ShNQ 2.07.02-24 Nogironligi boʻlgan shaxslar va kekslar ehtiyojlari','GOST R 52289-2019, GOST R 51256-2018 (maʼlumot uchun; Oʻzbekistonda mos standart topilmagan)']
+      .forEach(t2=>{s+=T(gx,y,'— '+t2,{s:2.3});y+=4.5;});
+    y+=4;s+=legend(gx,y);
+    sheets.unshift({title:'Umumiy maʼlumotlar',scale:'',body:s});}
+  {let s=T(PW/2,80,projName(),{s:10,w:700,a:'middle'})+T(PW/2,95,'Koʻcha va chorrahalar loyihasi · Harakatni tashkil etish sxemasi',{s:5,a:'middle',c:'#444'})+T(PW/2,106,(ds.place||'Toshkent shahri'),{s:4,a:'middle',c:'#444'})
+      +T(PW/2,125,'Bosqich: Konsepsiya',{s:4,a:'middle'})+T(PW/2,PH-70,`Archemistry Lab · Koʻchasoz · ${new Date().getFullYear()}`,{s:3.4,a:'middle',c:'#555'})+T(PW/2,PH-63,`${total} varaq · A3`,{s:3,a:'middle',c:'#555'});
     sheets.unshift({title:'Titul',scale:'',body:s});}
-  return sheets.map((x,i)=>({title:x.title,svg:frame(i+1,total,x.title,x.scale,x.body)}));}
+  return sheets.map((x,i)=>({title:x.title,svg:frame(i+1,sheets.length,x.title,x.scale,x.body)}));}
 
 function albumHTML(){const sh=buildSheets();return `<!DOCTYPE html><html lang="uz"><head><meta charset="utf-8"><title>${esc(projName())} — albom</title>
 <style>@page{size:420mm 297mm;margin:0}html,body{margin:0;background:#888}section{width:420mm;height:297mm;margin:0 auto 8mm;background:#fff;page-break-after:always;box-shadow:0 2px 12px rgba(0,0,0,.25)}section svg{display:block;width:420mm;height:297mm}
@@ -162,5 +323,5 @@ ${sh.map(x=>`<section>${x.svg}</section>`).join('\n')}</body></html>`;}
 async function openAlbum(){if(!DS().segs.length){toast('Loyiha boʻsh.');return;}const html=albumHTML(),w=open('','_blank');if(!w){toast('Brauzer yangi oynani bloklad.');return;}w.document.open();w.document.write(html);w.document.close();}
 async function albumToChz(){const sh=buildSheets();let n=0;const t=new Date().toISOString();for(const x of sh){const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x.svg);await kpsMatPut({id:'alb'+Date.now().toString(36)+n,kind:'svg',name:x.title,src,thumb:src,aspect:PW/PH,sub:projName(),t});n++;}
   toast(`${n} ta varaq Chizmadonga yuborildi.`,()=>window.open('app/#/chizmadon','_blank'),'Chizmadonni ochish');}
-window.KSALB={buildSheets,albumHTML,openAlbum,albumToChz};
+window.KSALB={buildSheets,albumHTML,openAlbum,albumToChz,pickCut,cuts,drawCutMarks};
 })();

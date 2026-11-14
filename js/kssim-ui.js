@@ -27,7 +27,7 @@ const PARF=[['V0','Erkin tezlik, km/soat',50,5,'Shahar koʻchasida ruxsat etilga
   ['a','Tezlanish a, m/s²',1.5,.1,'IDM: eng katta tezlanish'],['b','Qulay tormoz b, m/s²',2,.1,'IDM: qulay sekinlanish'],['len','Mashina uzunligi, m',4.6,.1,'Yengil avtomobil'],['alat','Burilishda yon tezlanish, m/s²',2.2,.1,'Burilish tezligi = √(a·R)'],
   ['gapUns','Kritik interval: belgisiz, s',2,.5,'Ikkinchi darajali yoʻldan chiqishda qabul qilinadigan eng kichik boʻshliq'],['gapSig','Kritik interval: svetoforda chapga, s',3.5,.5,'Qarshi oqimda chapga/qayrilish uchun'],['gapRing','Kritik interval: halqaga kirish, s',4,.5,'Halqada aylanayotganlar orasidagi boʻshliq'],['gapRtor','Kritik interval: qizilda oʻngga, s',4,.5,'Yashil oqimdagi mashinalar orasidagi boʻshliq'],
   ['pedV','Piyoda tezligi, m/s',1.3,.1,'Keksalar koʻp joyda 1,0 m/s olinadi'],['dwell','Avtobus bekatda turishi, s',20,5,'Yoʻlovchi almashinuvi; kechikishga qoʻshilmaydi'],['uDiam','Qayrilish: eng kam diametr, m',7,.5,'Koʻndalang masofa shundan kam boʻlsa — tashqi chiqish boʻlagiga qayriladi']];
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=17',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=9',document.baseURI).href);return mod;}
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=18',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=10',document.baseURI).href);return mod;}
 
 /* tugundan boshlab koʻcha orqali bogʻlangan chorrahalar (JNET) */
 function component(nodeId){const all=[...JNET.values()],byReal=new Map();
@@ -133,7 +133,7 @@ window.openSim=async function(nodeId){
     return {N,bound:B.bound,o,nl,bus,anySig};};
   const mk=seed=>{const b=baseOf(),sim=plan.makeSim(b,chosen||plan.defaultCh(b),seed);sigInfo=sim.info;return sim;};
   const runJob=(base,onP)=>new Promise((ok,bad)=>{
-    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=9',document.baseURI),{type:'module'});}}catch(e){WK=null;}
+    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=10',document.baseURI),{type:'module'});}}catch(e){WK=null;}
     if(!WK){setTimeout(()=>{try{ok(plan.evaluate(base,onP));}catch(e){bad(e);}},20);return;}
     const id=++job;WK.onmessage=e=>{const d=e.data;if(d.id!==job)return;if(d.p!=null)onP(d.p);if(d.done)ok(d.done);if(d.err)bad(new Error(d.err));};
     WK.onerror=e=>{WK.terminate();WK=null;try{ok(plan.evaluate(base,onP));}catch(x){bad(x);}};WK.postMessage({id,base});});
@@ -179,7 +179,12 @@ window.openSim=async function(nodeId){
     const cur={t:Date.now(),title,lvl,dem,T,TL,person,pedW,worst:worst?{k:dk(worst[0]),d:worst[1].d,los:worst[1].los}:null,sig:sigInfo.length?sigInfo[0].C+' s':'',arms:Object.fromEntries(Object.entries(A).map(([id,x])=>[dk(id),{d:x.d,los:x.los,q:x.q}])),dq:Object.fromEntries(probe.bound.map(id=>[dk(id),opts().demand[id]||0])),lv:+box.querySelector('[data-lv]').value};
     /* albom uchun oxirgi natija (Koʻchasoz → Loyiha albomi → «Harakat modeli» varagʻi) */
     try{const d1=document.createElement('div');d1.innerHTML=verdict;const d2=document.createElement('div');d2.innerHTML=sigTxt;
-      DS().simAlb={t:Date.now(),TL,T,lvl,verdict:d1.textContent.trim(),sig:d2.textContent.trim(),rows:ROWS.map(r=>r.map(v=>String(v)))};if(typeof save==='function')save();}catch(e){}
+      const AR={};probe.net.arms.forEach(a=>{const J=C.list.find(J=>a.id.startsWith('n'+J.id+'a'));if(!J)return;const ai=+a.id.slice(('n'+J.id+'a').length);
+        const mv={},n0=R.length;R.forEach(r=>{const x=r.arms[a.id];if(x&&x.mv)Object.entries(x.mv).forEach(([k,v])=>mv[k]=(mv[k]||0)+v/n0);});
+        const x0=R[0].arms[a.id]||{};AR[a.id]={node:J.id,ai,name:probe.names[a.id]||a.id,mv:Object.fromEntries(Object.entries(mv).map(([k,v])=>[k,Math.round(v)])),demand:x0.demand,flow:Math.round(avg(r=>(r.arms[a.id]||{}).flow||0)),delay:+avg(r=>(r.arms[a.id]||{}).delay||0).toFixed(1),los:(A[a.id]||{}).los||null,q:Math.round(avg(r=>(r.arms[a.id]||{}).q95||0))};});
+      const JN={};C.list.forEach((J,i)=>{JN[J.id]={label:JL(J,i),los:(Jr[J.id]||{}).los,d:+((Jr[J.id]||{}).d||0).toFixed(1)};});
+      DS().simAlb={t:Date.now(),TL,T,lvl,verdict:d1.textContent.trim(),sig:d2.textContent.trim(),rows:ROWS.map(r=>r.map(v=>String(v))),arms:AR,juncs:JN,
+        sigs:sigInfo.map(x=>({node:+String(x.j).replace(/^n/,''),C:x.C,off:x.off||0,ph:x.ph.map(p=>({left:!!p.left,arms:p.arms,g:p.g}))})),ped:avg(r=>r.ped.flow),pedW:avg(r=>r.ped.wait),bus:avg(r=>r.bus.flow),busD:avg(r=>r.bus.delay)};if(typeof save==='function')save();}catch(e){}
     let cmp='';if(BASE){const pc=(a,b)=>b>0?` (${a<b?'−':'+'}${Math.abs(Math.round((a-b)/b*100))}%)`:'',ln=(n,b,a,u,dig=0)=>a==null||b==null?'':`<tr><td>${n}</td><td class="num">${b.toFixed(dig)}${u}</td><td class="num"><b>${a.toFixed(dig)}${u}</b></td><td class="num" style="color:${Math.abs(a-b)<1?'#777':a<b?'#2b7449':'#b23a2e'}">${a-b>0?'+':''}${(a-b).toFixed(dig)}${pc(a,b)}</td></tr>`;
       const warn=Math.abs(BASE.dem-dem)>Math.max(50,BASE.dem*.03)?`<div class="small" style="color:#b23a2e;margin-top:4px">Diqqat: talab har xil (hozir ${Math.round(BASE.dem)}, loyiha ${Math.round(dem)} avt/soat) — solishtirish adolatli emas.</div>`:'';
       cmp=`<div style="border:1px solid #d8d5ce;border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><b>Hozir ↔ Loyiha</b><button data-bclr class="btn" style="padding:2px 8px;font-size:11px">Hozirni oʻchirish</button></div>

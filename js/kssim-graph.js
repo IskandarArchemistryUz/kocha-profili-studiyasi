@@ -409,7 +409,8 @@ export class GraphSim{
       const fed=this.fed.has(arm),dem=fed?null:(this.o.demand[arm]??500),flow=Math.round(D.length*3600/T),dl=n?sum/n:0,back=A.up&&A.up.length?qn:n-D.length;
       const ok=back<=Math.max(12,.1*(fed?flow:dem)*T/3600);
       const QS=(this.QS||{})[arm],qs=QS?QS.t.filter(x=>x[0]>=from).map(x=>x[1]).sort((a,b)=>a-b):[],q95=qs.length?qs[Math.floor(qs.length*.95)]:0;
-      return {n:D.length,flow,demand:dem,backlog:back,delay:+dl.toFixed(1),los:n?(ok?los(dl,!!J.sig):'F'):'—',q95,queue:(this.pend[arm]||[]).length+this.V.filter(v=>{const ap=this.ap(v);return ap&&ap.arm===arm&&v.v<2;}).length};};
+      const mv={};D.forEach(p=>{const k=p.m||'S';mv[k]=(mv[k]||0)+1;});Object.keys(mv).forEach(k=>mv[k]=Math.round(mv[k]*3600/T));
+      return {mv,n:D.length,flow,demand:dem,backlog:back,delay:+dl.toFixed(1),los:n?(ok?los(dl,!!J.sig):'F'):'—',q95,queue:(this.pend[arm]||[]).length+this.V.filter(v=>{const ap=this.ap(v);return ap&&ap.arm===arm&&v.v<2;}).length};};
     const by={};this.arms.forEach(a=>by[a.id]=agg(a.id));
     /* chorraha boʻyicha (yaqinlashishlar kechikishining oʻrtachasi) */
     const juncs={};Object.values(this.J).forEach(J=>{const ar=this.arms.filter(a=>a.j===J.id).map(a=>by[a.id]),n=ar.reduce((s,r)=>s+r.n,0),d=n?ar.reduce((s,r)=>s+r.delay*r.n,0)/n:0,F=ar.some(r=>r.los==='F');

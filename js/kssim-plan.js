@@ -1,7 +1,7 @@
 /* Koʻchasoz — svetofor rejasi va hisob (asosiy oqimda ham, Web Worker'da ham ishlaydi).
  * base = {N: model tarmogʻi (JSON), bound: [chetki qoʻl id], o: {demand, shares, ped, bus, off, auto, pl, cycle}, nl: {armId: ekvivalent boʻlak}, bus: {armId: avt/soat}, anySig}
  * ch   = {prot: alohida chap faza, cycle: son | null (Webster), eq: fazalarga teng yashil, gw: '0'|'f'|'b' yashil toʻlqin yoʻnalishi} */
-import * as M from './kssim-graph.js?v=17';
+import * as M from './kssim-graph.js?v=18';
 
 const clone=x=>JSON.parse(JSON.stringify(x));
 /* chorraha markazi: kiruvchi boʻlaklar toʻxtash nuqtalarining oʻrtachasi */
