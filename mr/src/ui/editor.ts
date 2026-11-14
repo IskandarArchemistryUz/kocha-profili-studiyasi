@@ -168,9 +168,10 @@ const TOOLS: [ToolMode, string, string][] = [
   ['section', 'Kesim (S)', '<path d="M3 12h18" stroke-dasharray="3 2"/><path d="M6 12V6h12v6M6 12v6h12v-6" opacity=".45"/>'],
   ['pipette', 'Pipetka — uslubni nusxalash (I)', '<path d="M14 4l6 6-2 2-6-6zM12 8l-7 7v4h4l7-7"/>'],
 ];
-const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Klaster', villa: 'Villalar', perimetr: 'Perimetral', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villa', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', ofis_hovli: 'Hovlili ofis', meh_plita: 'Korpus + lobbi', meh_minora: 'Minora + stilobat', savdo_blok: 'Savdo markazi', savdo_minora: 'Savdo + minora', savdo_qator: 'Savdo qatori', ombor: 'Ombor bloki' };
-/** Tipologiya guruhlari (31.10): avto · past qavatli (1–3 qavat) · koʻp qavatli turar joy · jamoat va tijorat */
-const TYPO_GROUPS: [string, Typology[]][] = [['', ['avto']], ['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['perimetr', 'qatorlar', 'blok_villa', 'villa', 'blok_minora', 'minora']], ['Ofis', ['ofis_plita', 'ofis_minora', 'ofis_hovli']], ['Mehmonxona', ['meh_plita', 'meh_minora']], ['Savdo', ['savdo_blok', 'savdo_minora', 'savdo_qator']], ['Ishlab chiqarish', ['ombor']]];
+const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka uylar', taunhaus: 'Taunhauslar', juft: 'Juft uylar', hovli: 'Hovli uylar', klaster: 'Berk koʻcha klasteri', villa: 'Shahar villalari', perimetr: 'Perimetral blok', qatorlar: 'Qatorlar', minora: 'Minoralar', blok_minora: 'Blok + minora', blok_villa: 'Blok + villalar', ofis_plita: 'Ofis plitalari', ofis_minora: 'Ofis minoralari', ofis_hovli: 'Hovlili ofis', meh_plita: 'Mehmonxona korpusi', meh_minora: 'Mehmonxona minorasi', savdo_blok: 'Savdo markazi', savdo_minora: 'Savdo + minora', savdo_qator: 'Savdo qatori', ombor: 'Ombor bloki' };
+/** Tipologiya guruhlari (31.10; 14.11 audit «Hajm» doskasi): 3 guruh — past qavatli (1–3 qavat) · koʻp qavatli turar joy (avto shu yerda) · noturar.
+ *  Parselga mos kelmaydigan plitkalar koʻrsatilmaydi — guruhda faqat mosi (sanoq «N ta» bilan bir xil). */
+const TYPO_GROUPS: [string, Typology[]][] = [['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['avto', 'perimetr', 'qatorlar', 'blok_minora', 'minora', 'villa', 'blok_villa']], ['Noturar', ['ofis_plita', 'ofis_minora', 'ofis_hovli', 'meh_plita', 'meh_minora', 'savdo_blok', 'savdo_minora', 'savdo_qator', 'ombor']]];
 const LOW_T: Typology[] = ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster'];
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
@@ -3095,10 +3096,11 @@ export class Editor {
     const g = this.gen;
     const stp = (id: string, k: string, sub: string, v: number, min: number, max: number, step: number, set: (x: number) => void, unit?: string) =>
       h('div', { class: 'li' }, h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), stepper({ id, label: k, min, max, step, value: v, unit, onchange: x => { set(x); this.renderPanel(); } }));
-    body.append(dropdown({ id: 'genBlock', 'aria-label': tr('Kvartal'), onchange: v => { this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
-        [{ value: '', label: tr('— sahnada bosing yoki tanlang —'), selected: this.selBlock == null },
+    // 14.11 (audit «Hajm»): bitta tanlash joyi — «Daha» yorligʻi + roʻyxat; sahnada bosish — izohda
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Daha'))), dropdown({ id: 'genBlock', 'aria-label': tr('Daha'), onchange: v => { this.selBlock = v === '' ? null : Number(v); this.scene.selectBlock(this.selBlock); this.renderPanel(); } },
+        [{ value: '', label: tr('Dahani tanlang'), selected: this.selBlock == null },
           ...plan.blocks.map((b, i) => ({ value: String(i), label: `${this.unitName(i)} · ${fmt(b.area / 1e4, 2)} ga`, sub: tr(useDef(b.use).name), selected: i === this.selBlock }))]),
-      h('span', { class: 't-small' }, tr('yoki xaritada kvartal ichini bosing')));
+      h('span', { class: 't-small' }, tr('yoki xaritada daha ichini bosing')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): izolyatsiya — «Batafsil» ichida; izolyatsiya yoqiq boʻlsa chiqish tugmasi koʻrinib turadi
     if (this.scene.isolated) body.append(this.isoBtn(this.selBlock));
     const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } const fx = this.repairNorms(); if (fx.length) { this.genNotes = fx; this.renderPanel(); } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
@@ -3125,9 +3127,9 @@ export class Editor {
         h('summary', {}, h('span', { class: 'tp-ic', html: pg('typo', g.typology) }), h('span', { class: 'k' }, h('span', { class: 'sub' }, tf('Tipologiya · ${n} ta', { n: okT.length })), h('b', {}, tr(TYPO_NAME[g.typology]))), h('span', { class: 'btn btn-sm tp-ch' }, tr('Almashtirish'))));
       typoPick.append(
         // tipologiyalar guruhlab (egasi, 31.10: bitta joyda, intuitiv): past qavatli — 1–3 qavat (ShNQ 2.07.01-23, 2-band), uylar qatori shu yerda
-        ...TYPO_GROUPS.filter(([, ks]) => ks.some(k => okT.includes(k))).flatMap(([gname, ks]) => [
-          ...(gname ? [h('div', { class: 'glabel' }, h('span', {}, tr(gname)), gname === 'Past qavatli' ? h('span', {}, tr('1–3 qavat')) : '')] : [h('div', { class: 'glabel' }, h('span', {}, tr('Tipologiya')), h('span', {}, `${okT.length} ta`))]),
-          h('div', { class: 'tiles', role: 'group', 'aria-label': tr(gname || 'Tipologiya') }, ...ks.map(k => { const ok = okT.includes(k); return h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, disabled: !ok, title: ok ? tr(TYPO_NAME[k]) : tf('«${u}» parseliga mos emas', { u: tr(useDef(selUse!).name) }), onclick: () => { g.typology = k; this.openDet.delete('typoPick');   /* tanlangach roʻyxat yopiladi (keepDetails) */ if (LOW_T.includes(k) && g.maxF > 3) { g.maxF = LOW[k as LowKind].floors; g.minF = Math.min(g.minF, g.maxF); } this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` }); }))]));
+        ...TYPO_GROUPS.map(([gname, ks]) => [gname, ks.filter(k => okT.includes(k))] as const).filter(([, ks]) => ks.length).flatMap(([gname, ks]) => [
+          h('div', { class: 'glabel' }, h('span', {}, tr(gname)), h('span', {}, gname === 'Past qavatli' ? tr('1–3 qavat') : `${ks.length} ta`)),
+          h('div', { class: 'tiles', role: 'group', 'aria-label': tr(gname) }, ...ks.map(k => h('button', { class: 'tile', 'aria-pressed': g.typology === k, 'data-typ': k, title: tr(TYPO_NAME[k]), onclick: () => { g.typology = k; this.openDet.delete('typoPick');   /* tanlangach roʻyxat yopiladi (keepDetails) */ if (LOW_T.includes(k) && g.maxF > 3) { g.maxF = LOW[k as LowKind].floors; g.minF = Math.min(g.minF, g.maxF); } this.renderPanel(); }, html: pg('typo', k) + `<span>${tr(TYPO_SHORT[k])}</span>` })))]));
       // asosiy parametrlar ochiq; qolganlari «Qoʻshimcha» ichida (A variant) — id lar va funksiyalar saqlangan
       const farRow = isLow ? [] : [
         h('div', { class: 'row' }, h('span', { class: 't-small', style: 'flex:none' }, tr('Maqsadli UMN (FAR)')), h('div', { class: 'grow' }, range({ min: 0, max: 6, step: 0.1, value: g.far ?? 0, id: 'gFar', 'aria-label': tr('Maqsadli UMN (FAR)'), oninput: v => { g.far = v; ft.textContent = v > 0 ? fmt(v, 1) : tr('oʻchiq'); } })), ft),
