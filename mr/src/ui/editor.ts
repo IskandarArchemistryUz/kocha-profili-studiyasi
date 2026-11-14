@@ -156,7 +156,7 @@ import { mrTools, type MrHost } from '../agent/tools-mr';
 import { quote as quoteApi } from '../account/session';
 import { pgaToBall, SEIS_HINT, SCALE_TXT } from '../core/seismichint';
 import { suggestBall } from '../core/seismicgrid';
-import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
+import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, itemTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 /** yer sathi xaritasi legendasi (Qatlamlar paneli va varaq) */
 type MapInfo = { title: string; bins: { color: number; label: string }[]; stats: string[]; note: string };
@@ -495,7 +495,7 @@ export class Editor {
       b.classList.add('acct-me'); b.querySelector('span')!.textContent = (who[0] ?? '?').toUpperCase(); b.title = who;
       box.replaceChildren(b);
     };
-    draw(); this.off.push(onAuth(draw)); this.off.push(onPrices(() => this.root.querySelectorAll<HTMLElement>('[data-ptag]').forEach(el => { el.textContent = priceTag(el.dataset.ptag as Parameters<typeof priceTag>[0]); el.hidden = !el.textContent; })));   // faqat yozuvlar — panel qayta chizilmaydi (kiritilgan qiymatlar saqlanadi)
+    draw(); this.off.push(onAuth(draw)); this.off.push(onPrices(() => { this.root.querySelectorAll<HTMLElement>('[data-ptag]').forEach(el => { el.textContent = priceTag(el.dataset.ptag as Parameters<typeof priceTag>[0]); el.hidden = !el.textContent; }); this.root.querySelectorAll<HTMLElement>('[data-itag]').forEach(el => { el.textContent = itemTag(el.dataset.itag!); el.hidden = !el.textContent; }); }));   // faqat yozuvlar — panel qayta chizilmaydi (kiritilgan qiymatlar saqlanadi)
     if (authRequired() && !isLinkOwner()) void checkAuth();
     return box;
   }
@@ -1447,6 +1447,11 @@ export class Editor {
   }
 
   /** Tugmadagi narx yozuvi (pullik hisob): «5 t» / «bepul»; egasi va hisob oʻchiq — yoʻq */
+  /** Eksport narxi (narx roʻyxati id si, masalan 'mr.dxf'; 'free' — bepul) — narxlar yuklanganda yangilanadi */
+  private itag(id: string): HTMLElement {
+    const t = itemTag(id);
+    return h('span', { class: 'ptag', 'data-itag': id, hidden: !t }, t);
+  }
   private ptag(kind: Parameters<typeof priceTag>[0]): HTMLElement | string {
     const t = priceTag(kind);
     return h('span', { class: 'ptag', 'data-ptag': kind, hidden: !t }, t);
@@ -4937,45 +4942,51 @@ export class Editor {
     if (s.id === 'yashil') this.yashilPanel(body);
     if (s.id === 'tekshiruv') body.append(this.register());
     if (s.id === 'eksport') {
+      // 14.11 (audit «Eksport» doskasi): 3 guruh — Taqdimot · Chizma va BIM · Maʼlumot; narx — tugmaning oʻzida (28.10 qarori);
+      // keyin «Boshqa xizmatda davom ettirish». id lar oʻzgarmagan.
       const keep = new Set(doc.keep);
-      const row = (id: string, icon: string, k: string, sub: string, fmtL: string, act: () => void) => h('div', { class: 'li' }, svgIcon(icon), h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), h('span', { class: 'norm' }, fmtL),
-        h('button', { class: 'btn btn-ghost icon-btn btn-sm', id, 'aria-label': `${tr('Yuklab olish')}: ${k} (${fmtL})`, title: tr('Yuklab olish'), onclick: act }, svgIcon(DL)));
+      const row = (id: string, icon: string, k: string, sub: string, fmtL: string, item: string, act: () => void) => h('div', { class: 'li' }, svgIcon(icon), h('span', { class: 'k' }, k, sub ? h('span', { class: 'sub' }, sub) : ''), h('span', { class: 'norm' }, fmtL),
+        h('button', { class: 'btn btn-ghost btn-sm ex-dl', id, 'aria-label': `${tr('Yuklab olish')}: ${k} (${fmtL})`, title: tr('Yuklab olish'), onclick: act }, this.itag(item), svgIcon(DL)));
       const glb = (ctx: boolean) => () => void this.scene.exportGLB(ctx).then(b => download(`${safe(doc.name)}${ctx ? '_atrof' : ''}.glb`, b)).catch(e => toast(`GLB: ${(e as Error).message}`));
       const CUBE = '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>', IMG = '<path d="M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 8.5h.01"/>';
+      const svc = (id: string, name: string, title: string, act: (el: Element) => void) => h('button', { class: 'btn grow', id, title: tr(title), onclick: (e: Event) => act(e.currentTarget as Element) }, tr(name));
       body.append(
-        h('button', { class: 'btn btn-primary btn-lg btn-block', id: 'exPdf', onclick: () => this.openReport() }, ...icl('<path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/>', tr('Hisobot (PDF)'))),
-        h('span', { class: 't-small' }, tr('Yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi.')),
-        h('div', { class: 'glabel' }, h('span', {}, tr('Loyiha'))),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Taqdimot'))),
         h('div', { class: 'group' },
-          row('exJson', '<path d="M6 3h8l5 5v13H6zM14 3v5h5"/>', tr('Loyiha fayli'), tr('boshqa kompyuterda «Fayldan ochish»'), 'JSON', () => void this.ul.exportData(this.store.doc).then(L => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc, L)))),
-          row('exXlsx', '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>', tr('TEP va reyestr'), tr('TEP · Binolar · Reyestr · Maʼlumot'), 'XLSX', () => download(`${safe(doc.name)}_TEP.xlsx`, new Blob([this.tepXlsx() as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))),
-          row('exPng', IMG, tr('Sahna rasmi'), '', 'PNG', () => download(`${safe(doc.name)}.png`, this.scene.snapshot()))),
-        h('div', { class: 'glabel' }, h('span', {}, tr('Chizmalar'))),
+          row('exGx', IMG, tr('Varaqlar'), tr('bosh reja, zonalash… · har varaq'), 'SVG · PNG', 'mr.sheet', () => this.openGraphics()),
+          row('exCh', '<path d="M4 4h16v16H4zM8 15l3-3 2 2 3-4"/>', tr('Chizmadon albomi'), tr('erkin varaqlar, diagrammalar, namunalar'), 'PDF · PPTX', 'chz.album', () => this.openCh()),
+          row('exPdf', '<path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/>', tr('Meʼyoriy hisobot'), tr('koʻrinishlar, TEP, reyestr — yangi oynada'), 'PDF', 'free', () => this.openReport()),
+          row('exAi', '<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>', tr('Illustrator: bosh reja'), tr('qatlamli'), 'SVG', 'mr.sheet', () => downloadIllustrator(this.store.doc, this.sheetCtx()))),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Chizma va BIM'))),
         h('div', { class: 'group' },
-          row('exGx', IMG, tr('Varaqlar: bosh reja, zonalash…'), tr('Grafika oynasini ochadi'), 'SVG · PNG', () => this.openGraphics()),
-          row('exCh', '<path d="M4 4h16v16H4zM8 15l3-3 2 2 3-4"/>', tr('Chizmadon: taqdimot albomi'), tr('erkin varaqlar, diagrammalar, namunalar'), 'PDF · PPTX', () => this.openCh()),
-          row('exAi', '<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>', tr('Illustrator: bosh reja'), tr('qatlamli'), 'SVG', () => downloadIllustrator(this.store.doc, this.sheetCtx())),
-          row('exDxf', '<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>', tr('Reja va hajmlar'), tr('mahalliy metr, qatlamlar'), 'DXF', () => download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf'))),
-        h('div', { class: 'glabel' }, h('span', {}, tr('3D va BIM'))),
+          row('exDxf', '<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>', tr('Reja va hajmlar'), tr('mahalliy metr, qatlamlar'), 'DXF', 'mr.dxf', () => download(`${safe(doc.name)}.dxf`, toDxf(this.store.doc, this.scene.inSite.filter(b => keep.has(b.id))), 'application/dxf')),
+          row('exIfc', '<path d="M5 21V8l7-4 7 4v13M10 21v-5h4v5M3 21h18"/>', 'BIM', 'ArchiCAD, Revit', 'IFC4', 'mr.ifc', () => download(`${safe(doc.name)}.ifc`, toIfc(this.store.doc), 'application/x-step')),
+          row('exGlb', CUBE, tr('3D model'), 'Blender, SketchUp, Rhino', 'GLB', 'mr.glb', glb(false)),
+          row('exObj', CUBE, tr('3D model'), '', 'OBJ', 'mr.glb', () => void this.scene.exportOBJ(false).then(t => download(`${safe(doc.name)}.obj`, t, 'text/plain')).catch(e => toast(`OBJ: ${(e as Error).message}`))),
+          this.scene.hasContext ? row('exGlbCtx', CUBE, tr('3D model atrof bilan'), '', 'GLB', 'mr.glb', glb(true)) : ''),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Maʼlumot'))),
         h('div', { class: 'group' },
-          row('exGlb', CUBE, tr('3D model'), 'Blender, SketchUp, Rhino', 'GLB', glb(false)),
-          row('exObj', CUBE, tr('3D model'), '', 'OBJ', () => void this.scene.exportOBJ(false).then(t => download(`${safe(doc.name)}.obj`, t, 'text/plain')).catch(e => toast(`OBJ: ${(e as Error).message}`))),
-          row('exIfc', '<path d="M5 21V8l7-4 7 4v13M10 21v-5h4v5M3 21h18"/>', 'BIM', 'ArchiCAD, Revit', 'IFC4', () => download(`${safe(doc.name)}.ifc`, toIfc(this.store.doc), 'application/x-step'))),
-        this.scene.hasContext ? h('div', { class: 'group' }, row('exGlbCtx', CUBE, tr('3D model atrof bilan'), '', 'GLB', glb(true))) : '',
-        h('button', { class: 'btn btn-block', id: 'exJoy', title: tr('Loyiha modeli Joyshunos aksonometriyasida: quyosh yoʻli, soyalar, shamol va atrof bilan'), onclick: () => void (async () => {
-          // 18-band: funksiya ranglarida va soddalashtirilgan (fasad tafsilotisiz) — Joyshunosda rangli, yorugʻ
-          const sc = this.scene, prevD = sc.detail;
-          sc.setStyle('funksiya'); sc.setDetail(false);
-          try {
-            const b = await sc.exportGLB(false);
-            await cachePut('joy-inbox', { name: `${safe(doc.name)}.glb`, buf: await b.arrayBuffer(), origin: doc.origin, colors: true });
-            location.href = svcHref('./joyshunos.html#/axo', doc.id);
-          } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); }
-        })().catch(e => toast(`Joyshunos: ${(e as Error).message}`)) }, ...icl(CUBE, tr('Joyshunosga yuborish (diagramma)'))),
-        h('button', { class: 'btn btn-block', id: 'exRen', title: tr('Joriy 3D koʻrinish (kamera, uslub, quyosh) Render studiyasida asos rasm boʻladi — AI render, referenslar bilan'), onclick: () => void (async () => {
-          const img = this.scene.snapshot(); const { sendToRender } = await import('../render/inbox');
-          await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img }, svcHref('./render.html', doc.id));
-        })().catch(e => toast(`Render: ${(e as Error).message}`)) }, ...icl('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>', tr('Render studiyasiga (joriy kadr)'))),
+          row('exXlsx', '<path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14"/>', tr('TEP va reyestr'), tr('TEP · Binolar · Reyestr · Maʼlumot'), 'XLSX', 'mr.tik', () => download(`${safe(doc.name)}_TEP.xlsx`, new Blob([this.tepXlsx() as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))),
+          row('exPng', IMG, tr('Sahna rasmi'), '', 'PNG', 'mr.png', () => download(`${safe(doc.name)}.png`, this.scene.snapshot())),
+          row('exJson', '<path d="M6 3h8l5 5v13H6zM14 3v5h5"/>', tr('Loyiha fayli'), tr('boshqa kompyuterda «Fayldan ochish»'), 'JSON', 'free', () => void this.ul.exportData(this.store.doc).then(L => download(`${safe(doc.name)}.archemistry.json`, exportJSON(this.store.doc, L))))),
+        h('div', { class: 'glabel' }, h('span', {}, tr('Boshqa xizmatda davom ettirish'))),
+        h('div', { class: 'row', style: 'flex-wrap:wrap' },
+          svc('exKs', 'Koʻchasoz', 'Koʻcha kesimi, harakat va YHQ tekshiruvi', el => void this.saver.flush().finally(() => otishTo('ks', svcHref('./kochasoz.html', doc.id), el))),
+          svc('exJoy', 'Joyshunos', 'Loyiha modeli Joyshunos aksonometriyasida: quyosh yoʻli, soyalar, shamol va atrof bilan', () => void (async () => {
+            // 18-band: funksiya ranglarida va soddalashtirilgan (fasad tafsilotisiz) — Joyshunosda rangli, yorugʻ
+            const sc = this.scene, prevD = sc.detail;
+            sc.setStyle('funksiya'); sc.setDetail(false);
+            try {
+              const b = await sc.exportGLB(false);
+              await cachePut('joy-inbox', { name: `${safe(doc.name)}.glb`, buf: await b.arrayBuffer(), origin: doc.origin, colors: true });
+              location.href = svcHref('./joyshunos.html#/axo', doc.id);
+            } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); }
+          })().catch(e => toast(`Joyshunos: ${(e as Error).message}`))),
+          svc('exDk', 'Dizayn-kod', 'Peshlavha va koʻcha yozuvlari — Toshkent dizayn-kodi', () => void this.saver.flush().finally(() => { location.href = '../dizaynkod.html'; })),
+          svc('exRen', 'Render', 'Joriy 3D koʻrinish (kamera, uslub, quyosh) Render studiyasida asos rasm boʻladi — AI render, referenslar bilan', () => void (async () => {
+            const img = this.scene.snapshot(); const { sendToRender } = await import('../render/inbox');
+            await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img }, svcHref('./render.html', doc.id));
+          })().catch(e => toast(`Render: ${(e as Error).message}`)))),
         h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Fayllar haqida')), h('div', {}, tr('Hisobot — yangi oynada: koʻrinishlar, TEP, meʼyoriy reyestr va taxminlar; «PDF saqlash» tugmasi A4 formatida saqlaydi. Excel — TEP, binolar va reyestr varaqlari. Kvartiralar va xizmatlar natijalari — tegishli qadamda hisoblangan boʻlsa qoʻshiladi. Loyiha fayli — toʻliq nusxa: boshqa kompyuterda «Fayldan ochish» bilan ochiladi. DXF — mahalliy metrda (markaz koordinatasi faylda yozilgan), qatlamlar: uchastka, qizil chiziqlar, kvartallar funksiya boʻyicha, binolar balandligi bilan (AutoCAD/ArchiCAD da 3D). GLB — Blender, SketchUp, Rhino, ArchiCAD ochadi. OBJ — har qanday 3D dastur (Rhino, SketchUp, 3ds Max). IFC4 — har seksiya IfcBuilding, har qavat IfcBuildingStorey va hajm (IfcBuildingElementProxy), «Archemistry_Bino» xususiyatlari: funksiya, qavatlar, GFA, material, tom; uchastka WGS84 koordinatasi bilan.'))));
     }
   }
