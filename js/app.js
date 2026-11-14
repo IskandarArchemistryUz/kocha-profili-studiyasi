@@ -1474,7 +1474,7 @@ function virtualNet(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();le
     const vA=cA?mkNode(cut0(cutA),cA):null,vB=cB?mkNode(cut0(cutB),cB):null;
     function cut0(sx){const c=cumLen(raw);return toLL(pointAt(raw,c,sx),o);}
     // segment boʻyidagi obyektlar
-    const T0=cumLen(segXY(sg,o)).pop(),place=(arr,s1,s2)=>(arr||[]).map(x=>({...x,s:x.f*T0})).filter(x=>x.s>=s1&&x.s<s2).map(x=>{const y={...x,f:(x.s-s1)/Math.max(1,s2-s1)};delete y.s;return y;});
+    const T0=cumLen(segXY(sg,o)).pop(),place=(arr,s1,s2)=>(arr||[]).map(x=>({...x,s:x.f*T0})).filter(x=>x.s>=s1&&x.s<s2).map(x=>{const y={...x,f:(x.s-s1)/Math.max(1,Math.min(s2,T0)-s1)};delete y.s;return y;});
     const endPiece=(end,c,vn)=>{const ps=pocketStrips(base,end,c);if(!ps)return null;
       const dirSel=end==='b'?1:-1,iO=base.findIndex(x=>(x[0]==='lane'||x[0]==='bus')&&(x[2]||0)===dirSel),iE=ps.om.indexOf(iO);
       const d1M=layM.st[iO].d1,d1E0=stripsLayout(ps.st,0).st[iE].d1,shift=+((d1M-d1E0)-autoOff(ps.st)).toFixed(3);
@@ -1700,6 +1700,12 @@ function buildShapes0(){
       const exits=lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===outDir).map(x=>({x,P:pt(fE,x.mid),pts:axis(x.mid,z)}))
         .sort((p,q)=>((q.P[0]-fE.p[0])*lv[0]+(q.P[1]-fE.p[1])*lv[1])-((p.P[0]-fE.p[0])*lv[0]+(p.P[1]-fE.p[1])*lv[1]));
       const lanes=arrowPlan(a.sg,!a.atA).map(pl=>({x:pl.x,code:pl.code||'',P:pt(fS,pl.x.mid),pts:axis(pl.x.mid,z+1).reverse()}));
+      /* bekatlar → harakat modeli: boʻlak boshidan masofa (avtobus shu yerda toʻxtaydi). Chetdagi bekat — oʻsha tomondagi eng chetki boʻlak; oʻrtadagi platforma — avtobus boʻlaklari */
+      {const rs=a.sg,Tr=T,fromA=a.atA,
+        bl=lanes.filter(l=>l.x.k==='bus'),out2=lanes.length?lanes.reduce((m,l)=>Math.abs(l.x.mid)>Math.abs(m.x.mid)?l:m,lanes[0]):null;
+        (rs.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=fromA?at.f*Tr:Tr-at.f*Tr,sl=sMax-d;if(d<z+6||sl<5)return;
+          const tg=at.t==='tramstop'?(bl.length?bl:lanes.slice(0,1)):(out2&&Math.sign(out2.x.mid)===(at.side||-1)?[out2]:[]);
+          tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});}
       const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(z0+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
       return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||'',real:a.sg._real??a.sg.id,key:armKey(a.sg,!a.atA)};});
     const C=laneConnections(E);
@@ -2854,7 +2860,7 @@ function drawAtts(atts,lay,xy,c,T,band,poly,line,mark,sh,o){
 function placeAtt(ll){const ds=DS(),o=origin(),q=toXY([ll.lat,ll.lng],o);let best=null;
   ds.segs.forEach(sg=>{const xy=segXY(sg,o),c=cumLen(xy),pr=project(xy,q),T=c[c.length-1];if(pr.d<layOf(sg).outer+3&&(!best||pr.d<best.d)){const f=frameAt(xy,c,pr.s),d=(q[0]-f.p[0])*f.n[0]+(q[1]-f.p[1])*f.n[1];best={sg,s:pr.s,T,d,dd:d};}});
   if(!best){toast('Obyektni koʻcha yoniga bosing.');return;}
-  const t=ds.attType||'bus',sg=best.sg;sg.att=sg.att||[];const a={t,f:best.s/best.T,side:best.d>=0?1:-1,len:ATT[t].len};if(t==='tramstop')a.d=best.d;
+  const t=ds.attType||'bus',sg=best.sg;sg.att=sg.att||[];const a={t,f:best.s/best.T,side:best.d>=0?1:-1,len:ATT[t].len};if(t==='tramstop'){a.d=best.d;const bs=layOf(sg).st.filter(x=>x.k==='bus'||x.k==='brt'||x.k==='tram').map(x=>x.mid).sort((p,q)=>Math.abs(p-best.d)-Math.abs(q-best.d));if(bs.length>1&&Math.sign(bs[0])!==Math.sign(bs[1]))a.d=+((bs[0]+bs[1])/2).toFixed(2);else if(bs.length)a.d=bs[0]>best.d?bs[0]-3.25:bs[0]+3.25;}
   sg.att.push(a);ds.sel={t:'att',id:sg.id,i:sg.att.length-1};afterDesign();}
 function attHTML(sel){const sg=segById(sel.id),a=sg&&sg.att&&sg.att[sel.i];if(!a)return '';
   return `<div class="card" style="padding:10px"><h3>${ATT[a.t].n}</h3><div class="selbox"><select id="atT">${Object.entries(ATT).map(([k,v])=>`<option value="${k}" ${a.t===k?'selected':''}>${v.n}</option>`).join('')}</select>

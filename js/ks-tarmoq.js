@@ -66,6 +66,8 @@ window.openMenu=function(){};
 
 /* --- Fayl: nom, saqlash/ochish, eksport (PNG, SVG, DXF, GeoJSON, CSV), Albomga, yangi loyiha --- */
 const fileP=el(`<div class="kt-ui kt-pn kt-card kt-file" hidden></div>`);document.body.append(fileP);
+/* koʻchada avtobus boʻlagi oʻrtadami (chetida oddiy boʻlak bor) */
+function midBus(sg){if(!sg)return false;const st=layOf(sg).st,bus=st.filter(x=>x.k==='bus'),rd=st.filter(x=>x.k==='lane'||x.k==='mixed');return bus.some(b=>rd.some(l=>Math.sign(l.mid)===Math.sign(b.mid)&&Math.abs(l.mid)>Math.abs(b.mid)));}
 function toggleFile(btn){if(!fileP.hidden){fileP.hidden=true;return;}const ds=DS(),r=btn.getBoundingClientRect();
   fileP.innerHTML=`<button class="x" data-f="x" aria-label="Yopish">${IC.x}</button><span class="eb">FAYL</span>
     <div class="lbl">Loyiha nomi</div><input data-f="name" value="${esc(projName())}" style="height:36px;border:0;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #ebe8e2,0 2px 0 #e2dfd8;padding:0 12px;font:600 13px Archivo,sans-serif">
@@ -148,7 +150,7 @@ function cardHTML(sel){const ds=DS();
       <div class="lbl">Modul</div><select data-k="pre">${sg.st?'<option value="" selected>Tahrirlangan</option>':''}${Object.entries(groups).map(([g,it])=>`<optgroup label="${esc(g)}">${it.map(([k,n])=>`<option value="${k}"${!sg.st&&sg.p===k?' selected':''}>${esc(n)}</option>`).join('')}</optgroup>`).join('')}</select>
       ${(()=>{const L2=issues().out.filter(x=>x.it.id===sg.id);return L2.length?`<div class="lbl" style="color:#b2342a">Tekshiruv · ${L2.length} ta muammo</div>${L2.map(x=>`<div class="kt-iss"><span class="n" style="background:#b2342a">!</span><span class="w">${x.it.why}</span>${x.it.fix?`<button class="kt-btn pr" data-fix="${x.rid}:${x.i}" style="height:28px;padding:0 10px">Tuzatish</button>`:''}</div>`).join('')}`:'';})()}
       ${apprHTML(sg)}
-      <div class="lbl">Qoʻshish</div><div class="row"><button class="kt-btn" data-add="xwalk">Oʻtish joyi</button><button class="kt-btn" data-add="bus">Bekat</button><button class="kt-btn" data-add="bay">Choʻntakli bekat</button></div>
+      <div class="lbl">Qoʻshish</div><div class="row"><button class="kt-btn" data-add="xwalk">Oʻtish joyi</button>${midBus(sg)?'<button class="kt-btn pr" data-add="tramstop" title="Avtobus boʻlaklari yoʻl oʻrtasida — bekat ular orasidagi orol platformada">Oʻrtadagi bekat</button>':''}<button class="kt-btn" data-add="bus">Bekat${midBus(sg)?' (chetda)':''}</button><button class="kt-btn" data-add="bay">Choʻntakli bekat</button></div>${midBus(sg)?'<div class="kt-note">Avtobus boʻlagi yoʻl oʻrtasida: chetdagi bekatga avtobus yetib bormaydi — «Oʻrtadagi bekat»ni qoʻying.</div>':''}
       <div class="row"><button class="kt-btn" data-k="kesim" title="Koʻcha kesimini B rejimida ochish">Kesim (B)</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
   if(sel.t==='att'||sel.t==='xw'){const sg=segById(sel.id);if(!sg)return null;const it=sel.t==='att'?(sg.att||[])[sel.i]:(sg.xw||[])[sel.i];if(!it)return null;
     anchor=()=>{const ll=segLL(sg);return midLL(ll);};

@@ -1,12 +1,12 @@
 export type XY = [number, number];
 export type Phase = string[] | { arms: string[]; mv: Record<string, string> };
 export interface Signal { cycle: number; phases: Phase[]; offset?: number; split?: number[] }
-export interface Arm { id: string; j?: string; sig?: boolean; hin: XY; cross?: [XY, XY]; lanes: { id: string; pts: XY[]; codes: string; mid?: number; bus?: boolean }[]; exits: { id: string; pts: XY[]; mid?: number; bus?: boolean }[] }
+export interface Arm { id: string; j?: string; sig?: boolean; hin: XY; cross?: [XY, XY]; lanes: { id: string; pts: XY[]; codes: string; mid?: number; bus?: boolean; stops?: number[] }[]; exits: { id: string; pts: XY[]; mid?: number; bus?: boolean }[] }
 export interface Conn { id: string; from: string; to: string; m: 'L' | 'S' | 'R' | 'U'; pts: XY[] }
 export interface Net { ring?: { c: XY; r: number } | null; juncs?: { id: string; signal?: Signal | null; ring?: { c: XY; r: number } | null; main?: string[]; stop?: string[]; rtor?: boolean }[]; links?: { from: string; to: string[] }[]; arms: Arm[]; conns: Conn[]; signal?: Signal | null; main?: string[]; yUp?: boolean }
 export interface ArmRes { q95: number; n: number; flow: number; delay: number; los: string; queue: number }
 export function autoConnect(arms: Arm[], yUp?: boolean): Conn[];
-export const PAR_DEF: { a: number; b: number; T: number; s0: number; V0: number; len: number; alat: number; gapUns: number; gapSig: number; gapRing: number; gapRtor: number; pedV: number; uDiam: number; rtorStop: number };
+export const PAR_DEF: { a: number; b: number; T: number; s0: number; V0: number; len: number; alat: number; gapUns: number; gapSig: number; gapRing: number; gapRtor: number; pedV: number; uDiam: number; rtorStop: number; dwell: number };
 export function uConn(e: Arm, dmin?: number): Omit<Conn, 'id'> | null;
 export function uPath(A: XY, h: XY, B: XY): XY[];
 export function connPath(A: XY, ha: XY, B: XY, hb: XY): XY[];

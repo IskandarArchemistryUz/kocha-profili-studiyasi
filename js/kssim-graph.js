@@ -14,7 +14,7 @@
  */
 const IDM={a:1.5,b:2.0,T:1.3,s0:2.0,d:4};let LEN=4.6,V0=13.9,ALAT=2.2;const AMBER=3,ALLRED=2;
 /* Foydalanuvchi oʻzgartira oladigan model parametrlari (ANDOZA qiymatlar). GraphSim(opt.par) har yangi modelda shulardan boshlaydi. */
-export const PAR_DEF={a:1.5,b:2.0,T:1.3,s0:2.0,V0:13.9,len:4.6,alat:2.2,gapUns:2.0,gapSig:3.5,gapRing:4.0,gapRtor:4.0,pedV:1.3,uDiam:7,rtorStop:1};
+export const PAR_DEF={a:1.5,b:2.0,T:1.3,s0:2.0,V0:13.9,len:4.6,alat:2.2,gapUns:2.0,gapSig:3.5,gapRing:4.0,gapRtor:4.0,pedV:1.3,uDiam:7,rtorStop:1,dwell:20};
 let PAR={...PAR_DEF};
 function setPar(p){PAR={...PAR_DEF};for(const k in p||{}){const v=+p[k];if(k in PAR_DEF&&isFinite(v))PAR[k]=v;}
   IDM.a=PAR.a;IDM.b=PAR.b;IDM.T=PAR.T;IDM.s0=PAR.s0;V0=PAR.V0;LEN=PAR.len;ALAT=PAR.alat;}
@@ -150,7 +150,7 @@ export class GraphSim{
     /* bitta chorrahali eski API uchun */
     const j0=this.J[J0];this.sig=j0.sig;this.plan=j0.plan;this.ring=Object.keys(this.J).length===1?j0.ring:null;this.main=j0.main;
     this.link={};const add=(id,pts,kind,arm,extra)=>{const c=cum(pts);this.link[id]={id,pts,c,len:c[c.length-1],kind,arm,j:arm?this.armById[arm].j:null,...extra};};
-    this.arms.forEach(a=>{a.lanes.forEach(l=>add(l.id,l.pts,'in',a.id,{codes:l.codes,bus:!!l.bus}));a.exits.forEach(x=>add(x.id,x.pts,'out',a.id,{bus:!!x.bus}));});
+    this.arms.forEach(a=>{a.lanes.forEach(l=>add(l.id,l.pts,'in',a.id,{codes:l.codes,bus:!!l.bus,stops:(l.stops||[]).slice().sort((x,y)=>x-y)}));a.exits.forEach(x=>add(x.id,x.pts,'out',a.id,{bus:!!x.bus}));});
     /* qayrilish: halqasiz chorrahada «U» boʻlak boʻlsa — ulagich joriy diametr parametri bilan qayta quriladi */
     {const ringL=new Set(net.conns.filter(c=>c.ring).map(c=>c.from)),keep=net.conns.filter(c=>!(c.m==='U'&&!c.ring)),add2=[];
       this.arms.forEach(a=>{if(a.lanes.some(l=>ringL.has(l.id))||(this.J[a.j]&&this.J[a.j].ring))return;const u=uConn(a,PAR.uDiam);if(u)add2.push({id:'u_'+a.id,...u});});
@@ -337,6 +337,13 @@ export class GraphSim{
       keep.push(p);}
     this.P=keep;}
   /* mashina oldidagi oʻtish joyi: piyoda boʻlsa yoki kirmoqchi boʻlsa — toʻxtaydi (YHQ: burilishda piyodaga yoʻl berish) */
+  /* avtobus bekati: boʻlakdagi bekat nuqtasida toʻxtaydi, PAR.dwell s turadi (yoʻlovchi almashinuvi), keyin davom etadi */
+  busStop(v){const L=this.cur(v);if(!L.stops||!L.stops.length)return 1e9;v.sv=v.sv||new Set();
+    for(let i=0;i<L.stops.length;i++){const k=L.id+':'+i,s0=L.stops[i];if(v.sv.has(k))continue;const g=s0-v.s;if(g<-2){v.sv.add(k);continue;}
+      if(v.dwT!=null&&v.dwK===k){if(this.t>=v.dwT){v.sv.add(k);v.dwT=null;v.ff+=PAR.dwell;v.nst=(v.nst||0)+1;continue;}return 0;}
+      if(g<IDM.s0+1.2&&v.v<.5){v.dwK=k;v.dwT=this.t+PAR.dwell;return 0;}
+      return Math.max(0,g);}
+    return 1e9;}
   pedStop(v,gA=1e9,vA=99){if(!this.X.length)return 1e9;const pb=this.pedBase(v);if(!pb)return 1e9;const pts=this.pc[pb[0]]||[];
     /* piyoda nuqtaga mashina uni toʻliq oʻtib ketguncha yetib keladimi (vaqt boʻyicha; kamida 6 m) */
     const busy=(c,myD)=>{const clr=Math.max(6,PAR.pedV*((Math.max(0,myD)+v.len+2)/Math.max(v.v,2)+1));
@@ -357,7 +364,7 @@ export class GraphSim{
     this.admit();this.index();
     const acc=new Map();
     for(const v of this.V){const lk=this.cur(v),vmax=lk.kind==='conn'?lk.vmax:V0;
-      let [gap,vl]=this.ahead(v);const sd=Math.min(this.stopDist(v),this.pedStop(v,gap,vl));if(sd<gap){gap=sd;vl=0;}
+      let [gap,vl]=this.ahead(v);if(v.bus){const bs=this.busStop(v);if(bs<gap){gap=bs;vl=0;}}const sd=Math.min(this.stopDist(v),this.pedStop(v,gap,vl));if(sd<gap){gap=sd;vl=0;}
       const v0=Math.min(vmax,V0),ss=IDM.s0+Math.max(0,v.v*IDM.T+v.v*(v.v-vl)/(2*Math.sqrt(IDM.a*IDM.b)));
       const aM=v.bus?1.0:IDM.a,v0b=v.bus?Math.min(v0,11):v0;let a=aM*(1-Math.pow(v.v/v0b,IDM.d)-Math.pow(ss/Math.max(gap,.1),2));
       const ap=this.ap(v);if(ap){const c=this.link[ap.cid],dc=ap.toStop,vc=!ap.J.sig&&!ap.J.main.has(ap.arm)?Math.min(c.vmax,8):c.vmax; // svetoforsizda ikkinchi darajali/teng yoʻlda sekinlashib yaqinlashadi

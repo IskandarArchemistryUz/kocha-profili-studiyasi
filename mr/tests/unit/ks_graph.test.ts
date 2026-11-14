@@ -125,6 +125,17 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     expect(to(7).every((t) => t.endsWith('o1'))).toBe(true);    // 7 m — tashqi boʻlakka
   }, 60_000);
 
+  it('avtobus bekati: avtobus bekatda PAR.dwell s turadi, kechikishga kirmaydi', () => {
+    const N = net([0, 90, 180, 270], true);
+    N.arms.forEach((a) => { a.lanes[1] = { ...a.lanes[1], stops: [80] } as never; });
+    const sim = new GraphSim(N, { demand: { a0: 400, a1: 400, a2: 400, a3: 400 }, bus: { a0: 40, a2: 40 }, seed: 2, par: { dwell: 25 } });
+    const seen = new Set<number>(); let maxHold = 0; const t0 = new Map<number, number>();
+    for (let k = 0; k < 9000; k++) { sim.step(0.1); for (const v of sim.V as unknown as { id: number; bus?: number; dwT?: number | null }[]) { if (v.bus && v.dwT != null) { if (!t0.has(v.id)) t0.set(v.id, sim.t); seen.add(v.id); maxHold = Math.max(maxHold, sim.t - t0.get(v.id)!); } } }
+    expect(seen.size).toBeGreaterThan(10);
+    expect(maxHold).toBeGreaterThan(24);
+    expect(sim.result(120).bus.delay).toBeLessThan(60);
+  }, 60_000);
+
   it('avtobus: avtobus boʻlagi avtobus boʻlagiga ulanadi, umumiy boʻlak unga tushmaydi; odam-kechikish hisoblanadi', () => {
     const N = net([0, 90, 180, 270], true);
     const A = N.arms.map((a) => ({ ...a, lanes: [...a.lanes, { id: a.id + 'b', mid: 8.75, bus: true, codes: 'S', pts: a.lanes[1].pts.map((p) => [p[0] + (a.lanes[1].pts[0][0] - a.lanes[0].pts[0][0]) * 2, p[1] + (a.lanes[1].pts[0][1] - a.lanes[0].pts[0][1]) * 2] as XY) }],
