@@ -25,7 +25,7 @@ test('Chizmadon «Loyihadan»: Master reja rejalari materiallar sifatida', async
   // 02.11: sukut boʻyicha yoqilgan barcha materiallarga albomda joy topiladi (sahifalar soni materiallarga qarab)
   await expect(page.locator('.ch-banner')).not.toContainText(/Kvartirografiya|Uy rejasi|Qavatlar soni|Landshaft/);
   // albom varaqlarida rejalar chizilgan: vektor xarita (ichki svg) va kvartira ranglari
-  const svgs = async () => page.evaluate(() => Array.from(document.querySelectorAll('.ch-body svg')).map(s => s.outerHTML).join(''));
+  const svgs = async () => page.evaluate(() => Array.from(document.querySelectorAll('.ch-body svg:not(.nq svg)')).map(s => s.outerHTML).join(''));
   await expect.poll(async () => (await svgs()).length).toBeGreaterThan(1000);
   let found = false;
   for (let i = 0; i < 6 && !found; i++) { found = /#f6d58f|#f4b08a|#9bd3b8|#8fa5cc/i.test(await svgs()); if (!found) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(400); } }
