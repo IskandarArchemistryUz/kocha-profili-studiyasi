@@ -1113,3 +1113,7 @@ details.sp-lead[open] .sp-more{display:none}
 #frKind .tile>span{overflow-wrap:normal;word-break:normal;hyphens:manual;font-size:11.5px;line-height:1.2;max-width:100%}
 #frKind .tile{padding:6px 4px}
 .panel[data-mode=frame] footer{gap:6px}.panel[data-mode=frame] footer .btn{flex:0 0 auto;min-width:0;padding-inline:12px}.panel[data-mode=frame] footer .btn-primary{flex:1 1 auto}
+/* 14.11: Chizmadon sarlavhasi — format segmenti ixcham, «Bitta varaq / Hamma varaqlar» va asbob tugmalari siqilib qolmasin */
+.ch-top #chFmt{grid-auto-columns:max-content}
+.ch-top #chView{flex:none;grid-auto-columns:36px}.ch-top #chView button{padding:0}
+.ch-top #chSlots,.ch-top #chTab{flex:none;min-width:36px}
