@@ -1457,7 +1457,36 @@ function cutSeg(ll,rad,s1,s2,o){const P=ll.map(q=>toXY(q,o)),c=cumLen(P),pts=[],
 function remapMk(mk,om){if(!mk)return undefined;const m={};Object.entries(mk).forEach(([i,v])=>{i=+i;const j=om.findIndex((x,k)=>x===i&&om[k+1]===i+1);if(j>=0)m[j]=v;});return m;}
 /* chizish uchun virtual tarmoq: choʻntakli koʻchalar uch qismga ajraladi */
 let VNET=null;
-function virtualNet(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();let vid=-1,changed=false;
+function virtualNet(){const V=virtualNet0(),ds=DS(),B=V||{segs:ds.segs.slice(),nodes:ds.nodes.slice()};let ch=false;const R0={segs:ds.segs,nodes:ds.nodes};ds.segs=B.segs;ds.nodes=B.nodes;try{ch=stationSplit(B);}catch(e){console.error(e);}finally{ds.segs=R0.segs;ds.nodes=R0.nodes;}return V||ch?B:null;}
+/* BRT bekati (orol platforma) koʻchani kengaytiradi: platforma oraligʻi alohida virtual boʻlak boʻladi —
+   avtobus boʻlaklari orasidagi ajratuvchi oʻrniga platforma (andoza 4 m, «BRT bekati kesimi» kabi), ikki tomonda taper. */
+const ST_W=4,ST_TAPER=20;
+function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>n.id))-1,changed=false;const out=[];
+  B.segs.forEach(sg=>{const st0=segStrips(sg),stops=(sg.att||[]).filter(a=>a.t==='tramstop');if(!stops.length){out.push(sg);return;}
+    const lay=layOf(sg),ll=segLL(sg),raw=ll.map(q=>toXY(q,o)),T=cumLen(raw).pop();
+    /* qarama-qarshi yoʻnalishdagi ikki avtobus boʻlagi va ular orasidagi tor qism */
+    const bi=st0.map((x,i)=>x[0]==='bus'?i:-1).filter(i=>i>=0);let pair=null;
+    for(let k=0;k+1<bi.length;k++){const i=bi[k],j=bi[k+1];if((st0[i][2]||0)!==(st0[j][2]||0)&&st0.slice(i+1,j).every(x=>!DK[x[0]]||!DK[x[0]].road||x[0]==='hatch')){pair=[i,j];break;}}
+    if(!pair){out.push(sg);return;}
+    const midW=st0.slice(pair[0]+1,pair[1]).reduce((a,x)=>a+x[1],0);if(midW>=ST_W-.01){out.push(sg);return;}
+    const st2=[...st0.slice(0,pair[0]+1),['walk',ST_W],...st0.slice(pair[1])];
+    const dM=(lay.st[pair[0]].mid+lay.st[pair[1]].mid)/2,L0=stripsLayout(st2,0),pM=(L0.st[pair[0]].mid+L0.st[pair[0]+2].mid)/2,shift=+((dM-pM)-autoOff(st2)).toFixed(3);
+    /* platforma oraliqlari (ustma-ust tushganlari birlashadi), uchlaridan taper+2 m uzoqda boʻlishi shart */
+    let R=stops.map(a=>[a.f*T-a.len/2-ST_TAPER/2,a.f*T+a.len/2+ST_TAPER/2]).filter(r=>r[0]>ST_TAPER/2+2&&r[1]<T-ST_TAPER/2-2).sort((a,b)=>a[0]-b[0]);
+    const M=[];R.forEach(r=>{if(M.length&&r[0]<=M[M.length-1][1]+ST_TAPER)M[M.length-1][1]=Math.max(M[M.length-1][1],r[1]);else M.push(r.slice());});
+    if(!M.length){out.push(sg);return;}
+    changed=true;const cuts=[0];M.forEach(r=>cuts.push(r[0],r[1]));cuts.push(T);
+    const nodeAt=sx=>{const n={id:vid--,ll:toLL(pointAt(raw,cumLen(raw),sx),o),type:'auto',_v:1,_t:ST_TAPER/2};B.nodes.push(n);return n;};
+    const N=cuts.map((c,i)=>i===0?sg.a:i===cuts.length-1?sg.b:nodeAt(c).id);
+    const place=(arr,s1,s2)=>(arr||[]).filter(x=>x.f*T>=s1&&x.f*T<s2).map(x=>({...x,f:(x.f*T-s1)/Math.max(1,s2-s1)}));
+    for(let i=0;i+1<cuts.length;i++){const s1=cuts[i],s2=cuts[i+1],isSt=i%2===1,cm=cutSeg(ll,sg.rad,s1,s2,o);
+      const pc=Object.assign({},sg,{id:sg.id+':s'+i,a:N[i],b:N[i+1],pts:cm.pts,rad:cm.rad,_real:sg._real??sg.id,xw:place(sg.xw,s1,s2),att:place(sg.att,s1,s2),
+        cwA:i===0?sg.cwA:false,cwB:i===cuts.length-2?sg.cwB:false});
+      if(isSt){pc.st=st2;pc.shift=shift;pc.mk=undefined;pc._station=1;pc._om=st2.map((_,q)=>{const og=q<=pair[0]?q:q===pair[0]+1?-1:pair[1]+(q-pair[0]-2);return og<0?-1:sg._om?sg._om[og]:og;});pc.att=pc.att.map(a=>a.t==='tramstop'?{...a,d:dM}:a);}
+      if(sg._end&&!(sg._end==='a'?i===0:i===cuts.length-2))delete pc._end;
+      out.push(pc);}});
+  if(changed)B.segs=out;return changed;}
+function virtualNet0(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();let vid=-1,changed=false;
   ds.segs.forEach(sg=>{const A=nodeById(sg.a),B=nodeById(sg.b);if(!A||!B){segs.push(sg);return;}
     let cA=apprCfg(sg,'a'),cB=apprCfg(sg,'b');if(!cA&&!cB){segs.push(sg);return;}
     const ll=segLL(sg),raw=ll.map(q=>toXY(q,o)),Tr=cumLen(raw).pop(),hM=layOf(sg).half;
@@ -1575,7 +1604,7 @@ function buildShapes0(){
         else if(L1.k==='bus'||R1.k==='bus'||L1.k==='tram'||R1.k==='tram')line(ll,{color:'#fff',weight:2},'1.1');
         else line(ll,{color:'#fff',weight:1.5,dashArray:'8 10'},'1.5');}
       const cm=cumLen(mx),Tm=cm[cm.length-1];
-      lay.st.filter(x=>x.k==='bus').forEach(x=>{for(let s=Tm/2;s<Tm;s+=80){const f=frameAt(mx,cm,s);sh.push({t:'label',ll:toLL([f.p[0]+f.n[0]*x.mid,f.p[1]+f.n[1]*x.mid],o),txt:'A',z:8});mark('1.23');}});
+      lay.st.filter(x=>x.k==='bus').forEach(x=>{for(let s=Tm/2;s<Tm;s+=80){const f=frameAt(mx,cm,s);sh.push({t:'label',ll:toLL([f.p[0]+f.n[0]*x.mid,f.p[1]+f.n[1]*x.mid],o),txt:'A',z:8,rot:Math.atan2(f.t[0]*(x.dir||1),f.t[1]*(x.dir||1))});mark('1.23');}});
       lay.st.filter(x=>x.k==='bike').forEach(x=>{for(let s=Tm/2;s<Tm;s+=60){const f=frameAt(mx,cm,s);[-.55,.55].forEach(e=>{const cc=[f.p[0]+f.n[0]*x.mid+f.t[0]*e,f.p[1]+f.n[1]*x.mid+f.t[1]*e],ring=circleLL(cc,.38,o,14);line(ring.concat([ring[0]]),{color:'#fff',weight:1.2},null);});}});
       lay.st.filter(x=>x.k==='turn').forEach(x=>{for(let s=15;s<Tm-15;s+=30){const f=frameAt(mx,cm,s);[1,-1].forEach(dv=>poly(arrowShape([f.p[0]+f.n[0]*x.mid+f.t[0]*dv*3,f.p[1]+f.n[1]*x.mid+f.t[1]*dv*3],[f.t[0]*dv,f.t[1]*dv],4,o),'#f4f4f0',null,7));}});
     }
@@ -1649,6 +1678,15 @@ function buildShapes0(){
       if(k!=='join'){const pl2=build('inn');line([...pl2,pl2[0]],{color:'#f7f5ef',weight:1.4},null,3.05);}
       else if(A2.length===2&&n._v){// choʻntak boshlanishi: bordyur va boʻlak chiziqlari davom etadi
         L2.forEach((a,i)=>{const b=L2[(i+1)%L2.length];line([a.inn[1],b.inn[0]].map(q=>toLL(q,o)),{color:'#f7f5ef',weight:1.4},null,3.05);line([a.out[1],b.out[0]].map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,2.8);});
+        /* oʻtish (taper): har tasma ikki boʻlak orasida uzluksiz — mos tasmalar toʻrtburchak, yangi qoʻshilgani (karman, platforma) noldan kengayadi */
+        {const E2=A2.map(a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st;return {f,st,om:a.sg._om||st.map((_,i)=>i)};});
+          const P=(e,d)=>[e.f.p[0]+e.f.n[0]*d,e.f.p[1]+e.f.n[1]*d];
+          const side=(X,Y)=>X.st.map((x,i)=>{const j=X.om[i]>=0?Y.om.indexOf(X.om[i]):-1;if(j>=0)return {i,j,x,y:Y.st[j]};
+            /* moslik yoʻq: qoʻshni mos tasma chegarasidan boshlanadi */
+            let k0=i-1;while(k0>=0&&(X.om[k0]<0||Y.om.indexOf(X.om[k0])<0))k0--;let k1=i+1;while(k1<X.st.length&&(X.om[k1]<0||Y.om.indexOf(X.om[k1])<0))k1++;
+            const d=k0>=0?Y.st[Y.om.indexOf(X.om[k0])].d2:k1<X.st.length?Y.st[Y.om.indexOf(X.om[k1])].d1:0;return {i,j:-1,x,y:{d1:d,d2:d}};});
+          [[E2[0],E2[1]],[E2[1],E2[0]]].forEach(([X,Y],w)=>side(X,Y).forEach(m=>{if(w===1&&m.j>=0)return;const k=DK[m.x.k];if(!k)return;
+            poly([P(X,m.x.d1),P(X,m.x.d2),P(Y,m.y.d2),P(Y,m.y.d1)].map(q=>toLL(q,o)),isPk(m.x.k)?DK.walk.col:k.col,isPk(m.x.k)?'ped':k.cat,3.02);}));}
         const bnd=a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,om=a.sg._om||st.map((_,i)=>i),res={};
           for(let i=0;i<st.length-1;i++){const x=st[i],y=st[i+1];if(!(DK[x.k].road&&DK[y.k].road)||isPk(x.k)||isPk(y.k)||om[i]<0||om[i+1]<0)continue;
             if(x.dir&&y.dir&&x.dir===y.dir){const P=[f.p[0]+f.n[0]*x.d2,f.p[1]+f.n[1]*x.d2];res[om[i]+'_'+om[i+1]]={P,opp:false};}}
@@ -1706,8 +1744,25 @@ function buildShapes0(){
         (rs.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=fromA?at.f*Tr:Tr-at.f*Tr,sl=sMax-d;if(d<z+6||sl<5)return;
           const tg=at.t==='tramstop'?(bl.length?bl:lanes.slice(0,1)):(out2&&Math.sign(out2.x.mid)===(at.side||-1)?[out2]:[]);
           tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});}
+      /* karman boshidan narigi (choʻntaksiz) boʻlak: model uchun «yuqori oqim» boʻlaklari — mashina shu yerdan kirib, karmanga oʻtadi; uzoqdagi bekatlar ham shu yerda */
+      let up=null;
+      if(far&&far._v&&!farJ){/* virtual tugunlar (karman, bekat) orqali 240 m gacha orqaga: boʻlaklar ichkaridan tashqariga tartib bilan ulanadi */
+        const segsUp=[];let prevSg=a.sg,node=far,acc=0;
+        while(node&&node._v&&acc<240&&segsUp.length<6){const U=(arms[node.id]||[]).find(b=>b.sg!==prevSg);if(!U)break;
+          const ucc=cumLen(U.xy),UT=ucc[ucc.length-1],nx=nodeById(U.atA?U.sg.b:U.sg.a),endJ=nx&&isInter(nodeKind(nx)),len=Math.min(240-acc,endJ?UT/2-4:nx&&nx._v?UT:UT-3);if(len<4)break;
+          segsUp.push({U,ucc,UT,len,acc});acc+=len+2*(node._t||0);prevSg=U.sg;node=nx;}
+        if(segsUp.length&&acc>10){const lanesOf=G=>G.U.lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===(G.U.atA?-1:1)).sort((p,q)=>Math.abs(p.mid)-Math.abs(q.mid));
+          const L0=lanesOf(segsUp[0]),tot=segsUp[segsUp.length-1].acc+segsUp[segsUp.length-1].len;
+          up=L0.map((x,k)=>{const P=[];for(let gi=segsUp.length-1;gi>=0;gi--){const G=segsUp[gi],Lk=lanesOf(G),xk=Lk[Math.min(k,Lk.length-1)]||x,fU=s=>frameAt(G.U.xy,G.ucc,G.U.atA?s:G.UT-s);
+            for(let s=G.len;s>0;s-=4)P.push(pt(fU(s),xk.mid));P.push(pt(fU(0),xk.mid));}return {x,pts:P};});
+          /* bekatlar: har boʻlakdagi masofa → umumiy yuqori oqim boʻlagi boʻyicha (boshidan) */
+          segsUp.forEach(G=>{const Lk=lanesOf(G),ubl=up.filter((l,k)=>(Lk[Math.min(k,Lk.length-1)]||l.x).k==='bus'),uo=up[up.length-1];
+            (G.U.sg.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=G.U.atA?at.f*G.UT:G.UT-at.f*G.UT;if(d<0||d>G.len)return;const sl=tot-(G.acc+d);if(sl<5)return;
+              const tg=at.t==='tramstop'?(ubl.length?ubl:up.slice(0,1)):(uo&&Math.sign((Lk[Lk.length-1]||uo.x).mid)===(at.side||-1)?[uo]:[]);
+              tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});});
+          if(!up.length)up=null;}}
       const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(z0+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
-      return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||'',real:a.sg._real??a.sg.id,key:armKey(a.sg,!a.atA)};});
+      return {a,ai,hin,out,lanes,exits,cross,up,name:a.sg.name||'',real:a.sg._real??a.sg.id,key:armKey(a.sg,!a.atA)};});
     const C=laneConnections(E);
     if(n.lc&&k!=='round'){const on=new Set(n.lcArms||[]);for(let i=C.length-1;i>=0;i--)if(on.has(C[i].from.key))C.splice(i,1);
       n.lc.forEach(c=>{const e=E.find(x=>x.key===c.f),f=E.find(x=>x.key===c.t),s2=e&&e.lanes[c.fl],d=f&&f.exits[c.tl];if(s2&&d)C.push({from:e,to:f,m:c.m,s:s2,d,man:1});});}C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
@@ -1743,7 +1798,7 @@ function renderDesign(){
     else if(x.t==='car'&&zk>=.45){const P=toXY(x.ll,oc),ca=Math.cos(x.h),sa=Math.sin(x.h),R=(u,v)=>toLL([P[0]+u*ca-v*sa,P[1]+u*sa+v*ca],oc);
       L.polygon([R(-2.2,-.85),R(1.9,-.85),R(2.2,-.6),R(2.2,.6),R(1.9,.85),R(-2.2,.85)],{pane:'design',renderer:DR,color:'#8a8d94',weight:Math.max(.5,zk),fillColor:'#f3f3f0',fillOpacity:1,interactive:false}).addTo(designL);
       L.polygon([R(-1.1,-.72),R(.9,-.72),R(.9,.72),R(-1.1,.72)],{pane:'design',renderer:DR,stroke:false,fillColor:'#cfd6de',fillOpacity:1,interactive:false}).addTo(designL);}
-    else if(x.t==='label')L.marker(x.ll,{pane:'design',interactive:false,icon:L.divIcon({className:'',html:`<b style="color:#fff;white-space:nowrap;font:700 ${x.sm?10:12}px var(--sans)">${x.txt}</b>`,iconSize:null,iconAnchor:[4,8]})}).addTo(designL);
+    else if(x.t==='label')L.marker(x.ll,{pane:'design',interactive:false,icon:L.divIcon({className:'',html:x.rot!=null?`<b style="display:block;width:14px;height:16px;line-height:16px;text-align:center;color:#fff;font:700 ${x.sm?10:12}px var(--sans);transform:rotate(${x.rot}rad)">${x.txt}</b>`:`<b style="color:#fff;white-space:nowrap;font:700 ${x.sm?10:12}px var(--sans)">${x.txt}</b>`,iconSize:x.rot!=null?[14,16]:null,iconAnchor:x.rot!=null?[7,8]:[4,8]})}).addTo(designL);
   });
   const sel=DS().sel;
   DS().segs.forEach(sg=>{const A1=nodeById(sg.a),B1=nodeById(sg.b);if(!A1||!B1)return;
@@ -2842,12 +2897,13 @@ function attEdges(lay,side,d){const rd=lay.road.filter(x=>side>0?x.mid>0:x.mid<0
 function drawAtts(atts,lay,xy,c,T,band,poly,line,mark,sh,o){
   const P=(s,d)=>{const f=frameAt(xy,c,s);return toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);},AN=s=>{const f=frameAt(xy,c,s);return Math.atan2(f.t[1],f.t[0]);};
   atts.forEach(a=>{const sd=a.side||-1,{curb,edge,pk}=attEdges(lay,sd,0),S0=Math.max(0,a.s-a.len/2),S1=Math.min(T,a.s+a.len/2),out=v=>curb+sd*v;
+    const ROT=s=>{const f=frameAt(xy,c,s),dv=(lay.st.find(x=>(x.k==='lane'||x.k==='bus')&&Math.sign(x.mid)===sd)||{}).dir||1;return Math.atan2(f.t[0]*dv,f.t[1]*dv);};
     const zig=(dIn,dOut)=>{const pts=[];let k=0;for(let s=S0;s<=S1;s+=2,k++)pts.push(P(s,k%2?dOut:dIn));line(pts,{color:'#f2c230',weight:2},'1.17',6);};
     const shelter=(dd,s)=>{poly(band(dd,dd+sd*1.6,s-4,s+4),'#5a6b7a',null,6);sh.push({t:'box',ll:P(s,dd+sd*.8),w:8,d:1.6,h:2.8,col:'#8ea3b5',ang:AN(s),z:0});};
     const pkIn=pk?(Math.abs(pk.d1)<Math.abs(pk.d2)?pk.d1:pk.d2):null;
-    if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.3,pkIn+sd*1.6);}else zig(curb-sd*.3,curb-sd*1.6);poly(band(curb,out(3),S0,S1),'#cfc2a4','ped',3);shelter(out(1.4),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8});mark('bekat');}
+    if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.3,pkIn+sd*1.6);}else zig(curb-sd*.3,curb-sd*1.6);poly(band(curb,out(3),S0,S1),'#cfc2a4','ped',3);shelter(out(1.4),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8,rot:ROT(a.s)});mark('bekat');}
     if(a.t==='bay'){const dep=3.2,pts=[],pts2=[];for(let s=S0-12;s<=S1+12;s+=1){const k=s<S0?(s-(S0-12))/12:s>S1?1-(s-S1)/12:1;pts.push(P(s,curb));pts2.push(P(s,out(dep*Math.max(0,Math.min(1,k)))));}
-      poly([...pts,...pts2.reverse()],DK.lane.col,'car',3.2);if(pk)poly(band(pk.d1,pk.d2,S0-12,S1+12),DK.lane.col,'car',3.1);poly(band(out(dep),out(dep+2.5),S0,S1),'#cfc2a4','ped',3.3);zig(out(.3),out(dep-.3));shelter(out(dep+.8),a.s);sh.push({t:'label',ll:P(a.s,out(dep/2)),txt:'A',z:8});mark('bekat (choʻntak)');}
+      poly([...pts,...pts2.reverse()],DK.lane.col,'car',3.2);if(pk)poly(band(pk.d1,pk.d2,S0-12,S1+12),DK.lane.col,'car',3.1);poly(band(out(dep),out(dep+2.5),S0,S1),'#cfc2a4','ped',3.3);zig(out(.3),out(dep-.3));shelter(out(dep+.8),a.s);sh.push({t:'label',ll:P(a.s,out(dep/2)),txt:'A',z:8,rot:ROT(a.s)});mark('bekat (choʻntak)');}
     if(a.t==='tramstop'){const d0=a.d!=null?a.d:(curb-sd*1.8);poly(band(d0+1.5,d0-1.5,S0,S1),'#cfc2a4','ped',5);line([P(S0,d0+1.5),P(S1,d0+1.5)],{color:'#fff',weight:1.5},null,6);line([P(S0,d0-1.5),P(S1,d0-1.5)],{color:'#fff',weight:1.5},null,6);
       sh.push({t:'box',ll:P(a.s,d0),w:Math.min(12,a.len*.4),d:2,h:3,col:'#8ea3b5',ang:AN(a.s),z:0});mark('orol platforma');}
     if(a.t==='parklet'){const dIn=pk?(Math.abs(pk.d1)<Math.abs(pk.d2)?pk.d1:pk.d2):curb-sd*2.1,dOut=pk?(dIn===pk.d1?pk.d2:pk.d1):curb;
@@ -2961,7 +3017,7 @@ async function exportPNG(ppm,withSat){const g=exportGeom();if(!g){toast('Loyiha 
     const sx=gxf(bb.w,z)-im.ox,sy=gyf(bb.n,z)-im.oy,sw=gxf(bb.e,z)-gxf(bb.w,z),shh=gyf(bb.s,z)-gyf(bb.n,z);x.drawImage(im.cv,sx,sy,sw,shh,p0[0],p0[1],p1[0]-p0[0],p1[1]-p0[1]);}}
   g.items.forEach(it=>{if(it.t==='poly'){x.fillStyle=it.col;x.beginPath();it.xy.forEach((p,i)=>{const q=X(p);i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]);});x.closePath();x.fill();}
     else if(it.t==='line'){x.strokeStyle=it.opt.color;x.lineWidth=widthM(it.opt.weight)*ppm;x.setLineDash((dashM(it.opt.dashArray)||[]).map(v=>v*ppm));x.beginPath();it.xy.forEach((p,i)=>{const q=X(p);i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]);});x.stroke();}
-    else{const q=X(it.xy[0]);x.fillStyle='#fff';x.font=`700 ${Math.max(9,1.6*ppm)}px Arial`;x.textAlign='center';x.fillText(it.txt,q[0],q[1]+.6*ppm);}});
+    else{const q=X(it.xy[0]);x.save();x.translate(q[0],q[1]);if(it.rot!=null)x.rotate(it.rot);x.fillStyle='#fff';x.font=`700 ${Math.max(9,1.6*ppm)}px Arial`;x.textAlign='center';x.fillText(it.txt,0,.6*ppm);x.restore();}});
   x.setLineDash([]);
   const cache={};for(const sn of g.signs){const key=sn.c+'|'+(sn.val||'');if(!(key in cache))cache[key]=await signImg(sn.c,sn.val);const im=cache[key];if(!im)continue;const q=X(toXY(sn.ll,g.o)),sz=Math.max(12,2.6*ppm);
     x.save();x.translate(q[0],q[1]);x.rotate((sn.rot||0)*Math.PI/180);x.globalAlpha=sn.st==='remove'?.45:1;x.drawImage(im,-sz/2,-sz/2,sz,sz);x.restore();
@@ -2977,7 +3033,7 @@ async function exportSVG(withSat){const g=exportGeom();if(!g){toast('Loyiha boʻ
   const add=(k,s)=>{(groups[k]=groups[k]||[]).push(s);};
   g.items.forEach(it=>{if(it.t==='poly')add(it.cat?LAY[it.cat]:'Chiziqlar_va_belgilar',`<polygon points="${it.xy.map(X).join(' ')}" fill="${it.col}"/>`);
     else if(it.t==='line')add('Chiziqlar_va_belgilar',`<polyline points="${it.xy.map(X).join(' ')}" fill="none" stroke="${it.opt.color}" stroke-width="${widthM(it.opt.weight).toFixed(2)}"${it.opt.dashArray?` stroke-dasharray="${dashM(it.opt.dashArray).join(' ')}"`:''}/>`);
-    else add('Chiziqlar_va_belgilar',`<text x="${X(it.xy[0]).split(',')[0]}" y="${+X(it.xy[0]).split(',')[1]+.6}" font-size="1.6" font-family="Arial" font-weight="700" fill="#fff" text-anchor="middle">${it.txt}</text>`);});
+    else{const [tx,ty]=X(it.xy[0]).split(',').map(Number);add('Chiziqlar_va_belgilar',`<text x="${tx}" y="${ty+.6}" font-size="1.6" font-family="Arial" font-weight="700" fill="#fff" text-anchor="middle"${it.rot!=null?` transform="rotate(${(it.rot*180/Math.PI).toFixed(1)} ${tx} ${ty})"`:''}>${it.txt}</text>`);}});
   g.signs.forEach(sn=>{const [px,py]=X(toXY(sn.ll,g.o)).split(',').map(Number),sz=2.6;add('Yol_belgilari',`<g transform="translate(${px} ${py}) rotate(${sn.rot||0})"${sn.st==='remove'?' opacity=".45"':''}><title>${sn.c} ${signDef(sn.c)[1]} (${ST_LBL[sn.st]})</title>${signSVG(sn.c,sn.val).replace('<svg ',`<svg x="${-sz/2}" y="${-sz/2}" width="${sz}" height="${sz}" `).replace(/ style="[^"]*"/,'')}</g>`);});
   let bg='';if(withSat){const s=await satForBBox(g);if(s){const {im,z,bb}=s;const c2=document.createElement('canvas'),sw=gxf(bb.e,z)-gxf(bb.w,z),shh=gyf(bb.s,z)-gyf(bb.n,z);c2.width=Math.round(sw);c2.height=Math.round(shh);c2.getContext('2d').drawImage(im.cv,gxf(bb.w,z)-im.ox,gyf(bb.n,z)-im.oy,sw,shh,0,0,c2.width,c2.height);
     const p0=X(toXY([bb.n,bb.w],g.o)).split(',').map(Number),p1=X(toXY([bb.s,bb.e],g.o)).split(',').map(Number);bg=`<g id="Sunʼiy_yoʻldosh" inkscape:groupmode="layer" inkscape:label="Sunʼiy yoʻldosh"><image x="${p0[0]}" y="${p0[1]}" width="${p1[0]-p0[0]}" height="${p1[1]-p0[1]}" href="${c2.toDataURL('image/jpeg',.85)}"/></g>`;}}
