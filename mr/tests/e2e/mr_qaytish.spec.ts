@@ -26,7 +26,8 @@ test('Master rejaga qaytish: Joyshunos va Koʻchasoz sarlavhasida tugma, qadam v
   const shots = process.env.SHOTS;
   if (shots) await page.screenshot({ path: `${shots}/joy-model.png` });
   // Koʻchasoz ham shu tugmani koʻrsatadi
-  await page.goto('./kochasoz.html'); await expect(page.locator('#mrBack')).toBeVisible();
+  // 14.11: qaytish faqat loyiha manzilda boʻlsa (?p=) — eski sessionStorage boshqa loyihaga olib ketardi
+  await page.goto(`./kochasoz.html?p=${id}`); await expect(page.locator('#mrBack')).toBeVisible();
   if (shots) await page.screenshot({ path: `${shots}/ks-back.png` });
   await page.click('#mrBack');
   await page.waitForFunction(() => !!(window as any).__mr?.store);

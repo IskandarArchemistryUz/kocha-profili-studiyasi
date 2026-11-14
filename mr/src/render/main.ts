@@ -17,6 +17,7 @@ import '../ui/ds2.css';
 import './render.css';
 import { h, svgIcon, toast } from '../ui/dom';
 import { svcBackdrop, svcGlow } from '../ui/backdrop';
+import { otishEnter, otishLinks } from '../ui/otish';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
@@ -81,6 +82,7 @@ const save = () => saveState(A);
 /* ---------------- qobiq ---------------- */
 const root = document.getElementById('ren')!;
 const header = h('header', { class: 'eko glass' });
+otishEnter('ren'); otishLinks();   // boʻlimga oʻtish: kirishda xizmat foni va naqsh bir lahza, menyu havolalari — kengayish bilan
 // 4-bosqich: xizmatning jonli fon naqshi va sarlavha ostidagi yonuvchi chiziq
 svcGlow(header);
 const left = h('aside', { class: 'ren-lp panel', id: 'renLeft', 'aria-label': tr('Kiritish') });

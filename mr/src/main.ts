@@ -22,6 +22,15 @@ import { loginDialog } from './account/login';
 import { ownerPage } from './account/owner';
 import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
+import { otishEnter, otishTo } from './ui/otish';
+// 14.11: boʻlimga oʻtish — boshqa xizmatdan kelinsa Master reja foni bir lahza; loyiha kartasi ekranga kengayib ochiladi
+otishEnter(/chizmadon/.test(location.hash) ? 'chz' : 'mr');
+document.addEventListener('click', ev => {
+  const e = ev as MouseEvent; if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const a = (e.target as Element)?.closest?.('a.card[href^="#/p/"]') as HTMLAnchorElement | null; if (!a) return;
+  if ((e.target as Element).closest('button,input,label,.check')) return;
+  e.preventDefault(); otishTo('mr', a.getAttribute('href')!, a);
+});
 initStats('mr', /chizmadon/.test(location.hash) ? 'chizmadon' : '');
 autoTranslate();
 initTips();

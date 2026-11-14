@@ -27,9 +27,11 @@ export function consumeMrBack(id: string): MrReturn | null {
  */
 export function mrBackBtn(svc?: SvcId): HTMLElement | '' {
   const p = ctxProject(), r = getMrReturn();
-  const id = p ?? r?.id; if (!id) return svc ? svcPickBtn(svc) : '';   // 3b-2: alohida ochilgan — shu xizmatning loyihalari
+  // 14.11: loyiha faqat manzildan (?p=). Eski sessionStorage qaytish manzili ishlatilmaydi — alohida ochilgan xizmat
+  // boshqa (oxirgi koʻrilgan) loyihaga qaytarib yuborardi. Xizmatsiz chaqiruvlar uchun avvalgidek.
+  const id = p ?? (svc ? null : r?.id); if (!id) return svc ? svcPickBtn(svc) : '';
   const nm = h('span', { class: 'nm' }, r && r.id === id ? r.name : '');
-  const a = h('a', { class: 'btn btn-sm mr-back', id: 'mrBack', href: projectHref(id), title: tr('Master rejaga qaytish'), onclick: () => { try { sessionStorage.setItem(KB, id); } catch { /* */ } } },
+  const a = h('a', { class: 'btn btn-sm mr-back', id: 'mrBack', 'data-svc': 'mr', href: projectHref(id), title: tr('Master rejaga qaytish'), onclick: () => { try { sessionStorage.setItem(KB, id); } catch { /* */ } } },
     svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja')), nm);
   if (p && !(r && r.id === p)) void import('../storage/db').then(m => m.getProject(p)).then(d => { if (d) { nm.textContent = d.name; a.title = `${tr('Master rejaga qaytish')}: ${d.name}`; } }).catch(() => {});
   else if (r) a.title = `${tr('Master rejaga qaytish')}: ${r.name}`;

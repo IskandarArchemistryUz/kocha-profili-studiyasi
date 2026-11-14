@@ -48,3 +48,15 @@
 .svc-glow::after{content:'';position:absolute;left:24px;right:24px;bottom:-1px;height:2px;border-radius:2px;pointer-events:none;background:rgb(var(--acc));box-shadow:0 0 12px 1px rgba(var(--acc),.6);transform-origin:left;animation:glowin .52s cubic-bezier(.65,0,.25,1) .42s both}
 @keyframes glowin{from{transform:scaleX(0);opacity:0}}
 @media (prefers-reduced-motion:reduce){.nq,.svc-glow::after{animation:none}}
+/* 14.11 (egasi): naqsh faqat kirganda bir necha soniya harakatlanadi, keyin toʻxtaydi */
+.nq.still *,.nq.still{animation-play-state:paused!important}
+/* boʻlimga oʻtish: karta ekranga kengayadi (chiqish) va ochilgan sahifada xizmat foni + naqsh soʻnadi (kirish) */
+.otish{position:fixed;inset:0;z-index:2147483000;pointer-events:none;overflow:hidden;background:var(--ot-bg);color:var(--ot-fg)}
+.otish .lv{opacity:var(--ot-op,.6)}
+.otish.out{animation:otgrow .42s cubic-bezier(.65,0,.25,1) both}
+@keyframes otgrow{from{clip-path:inset(var(--ot-from) round 16px)}to{clip-path:inset(0 round 0)}}
+.otish.in{animation:otfade .55s ease .5s both}
+@keyframes otfade{to{opacity:0;visibility:hidden}}
+.otish .ot-dots{position:absolute;inset:0;background-image:radial-gradient(color-mix(in srgb,var(--ot-fg) 22%,transparent) 1px,transparent 1.4px);background-size:22px 22px}
+.otish .ot-line{position:absolute;left:24px;right:24px;top:62px;height:2px;border-radius:2px;background:rgb(var(--acc));box-shadow:0 0 12px 1px rgba(var(--acc),.6);transform-origin:left;animation:glowin .5s cubic-bezier(.65,0,.25,1) .15s both}
+@media (prefers-reduced-motion:reduce){.otish{display:none}}

@@ -17,7 +17,7 @@ export const NAQSH: Record<NaqshId, { acc: string; op: [number, number] }> = {
   ren: { acc: '255,197,61', op: [.45, .85] },
   bin: { acc: '255,111,156', op: [.45, .55] },
 };
-const SRC: Record<NaqshId, () => Promise<{ default: string }>> = {
+export const SRC: Record<NaqshId, () => Promise<{ default: string }>> = {
   joy: () => import('./naqsh/joy.svg?raw'),
   ks: () => import('./naqsh/ks.svg?raw'),
   dk: () => import('./naqsh/dk.svg?raw'),
@@ -39,6 +39,8 @@ export function svcBackdrop(id: NaqshId, host: HTMLElement = document.body): () 
   const mo = host === document.body ? null : new MutationObserver(() => { if (el.parentNode !== host) host.prepend(el); });
   mo?.observe(host, { childList: true });
   let dead = false;
+  // 14.11 (egasi): animatsiya faqat kirganda — 3 s dan keyin toʻxtaydi, ishga xalaqit bermaydi
+  setTimeout(() => el.classList.add('still'), 3200);
   void SRC[id]().then(m => { if (!dead) el.innerHTML = m.default; }).catch(() => { /* naqshsiz ham ishlaydi */ });
   return () => { dead = true; mo?.disconnect(); el.remove(); };
 }
