@@ -566,3 +566,13 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 @media (max-width:1240px){.eko .brand span{display:none}}
 @media (max-width:1100px){.joy-mode .seg{width:160px}.joy-mode .seg .l{display:none}.joy-mode .seg .s{display:inline}}
 @media (max-width:1000px){.eko .svc a{font-size:0;gap:0;width:30px;justify-content:center;padding:0}.eko .svc a i{width:10px;height:10px;border-radius:5px}}
+
+/* ===== 4-bosqich (14.11): Joyshunos — kanvas «UI-Joyshunos»: sukut tungi, terrakota aksent; xira qora kartalar + yonuvchan chet ===== */
+#joy{--jc:240,138,93;--jc-ink:#f6a985;--jc-btn:#f6a985;--jc-btn-ink:#2a140a}
+:root:not([data-theme="dark"]) #joy{--jc:192,100,58;--jc-ink:#9a4a25;--jc-btn:#e98a5f;--jc-btn-ink:#1d0d05}
+#joy .seg button[aria-pressed="true"],#joy .tile[aria-pressed=true]{background:rgba(var(--jc),.12);color:var(--jc-ink);font-weight:600;box-shadow:inset 0 0 0 1px rgba(var(--jc),.75),0 0 16px -6px rgba(var(--jc),.75)}
+#joy .joy-rail .jr[aria-pressed="true"]{background:rgba(var(--jc),.14);color:var(--jc-ink);box-shadow:inset 0 0 0 1px rgba(var(--jc),.75),0 0 16px -6px rgba(var(--jc),.75)}
+#joy .switch.on{background:rgb(var(--jc));box-shadow:0 0 12px -3px rgba(var(--jc),.8)}
+#joy .btn-primary{background:var(--jc-btn);color:var(--jc-btn-ink);box-shadow:0 0 0 .5px rgba(var(--jc),.6),0 10px 28px -12px rgba(var(--jc),.75)}
+#joy .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--jc-btn) 88%,#fff)}
+#joy .eko .svc a.on{box-shadow:inset 0 0 0 1px rgba(var(--jc),.7),0 0 14px -6px rgba(var(--jc),.7)}
