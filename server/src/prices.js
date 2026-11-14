@@ -6,7 +6,7 @@
  *  - har amal = asosiy narx × k, k = max(1, √(uchastka ga / 3)) — Master reja amallari (mr: true);
  *  - Koʻchasoz va Joyshunos — koeffitsiyentsiz;
  *  - loyiha shifti: bitta loyihada jami sarf PROJECT_CAP dan oshmaydi, undan keyin — bepul;
- *  - haftasiga 1 ta ogʻir hisob bepul; generatsiya — har loyihada 3 tasi bepul.
+ *  - haftasiga 3 ta ogʻir hisob bepul (14.11; oldin 1); generatsiya — har loyihada 3 tasi bepul.
  * id → { coins, mr }
  */
 export const ITEMS = Object.freeze({
@@ -44,12 +44,12 @@ export const ITEMS = Object.freeze({
 export const TRIALS = Object.freeze({
   'wind':  { coins: 5, mr: true },  // shamol oqimi
   'sun':   { coins: 4, mr: true },  // insolyatsiya / soya
-  'flats': { coins: 6, mr: true },  // xonadonlar hisobi
+  'flats': { coins: 4, mr: true },  // xonadonlar hisobi — 14.11: 6 → 4 (insolyatsiya bilan teng; hisob brauzerda)
   'area':  { coins: 1, mr: false }, // yangi hudud (Joyshunos)
   'gen':   { coins: 1, mr: true },  // «Variant taklif qil»
   'view':  { coins: 2, mr: true },  // koʻrinish tekshiruvi — hozir ↔ loyiha (VGA), 13.11
 });
-export const TRIALS_PER_WEEK = 1;
+export const TRIALS_PER_WEEK = 3;   // 14.11: egasi qarori (oldin 1)
 export const GEN_FREE = 3;
 
 /**

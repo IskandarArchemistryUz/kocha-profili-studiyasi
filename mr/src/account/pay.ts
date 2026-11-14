@@ -3,7 +3,7 @@
  *  1) Toza yuklash — har bir fayl uchun «Belgi bilan — bepul» yoki «Toza — N tanga».
  *     DXF, IFC, GLB/OBJ, Excel, PPTX — faqat toza (tanga bilan). Narx serverda (/quote, /export/ticket — server/src/prices.js).
  *     Shu holatni (fayl mazmuni xeshi) qayta yuklash — bepul (server «repeat»).
- *  2) Ogʻir hisoblar (shamol, insolyatsiya, xonadonlar): haftasiga 1 tasi bepul; generatsiya — har loyihada 3 tasi bepul;
+ *  2) Ogʻir hisoblar (shamol, insolyatsiya, xonadonlar): haftasiga 3 tasi bepul (14.11); generatsiya — har loyihada 3 tasi bepul;
  *     keyin narx × k (k = √(ga/3)), loyiha shifti bilan (/trial). Narx doim koʻrinadi; «bu loyihada soʻramasdan yechilsin» — ixtiyoriy.
  *  (Narx modeli D, egasi tasdiqladi 28.10.2026.)
  *  3) Mening tangalarim — balans va sarf tarixi (/me/history).
@@ -185,7 +185,7 @@ const TRIAL_NAME: Record<Heavy, string> = { wind: 'Shamol oqimi', sun: 'Insolyat
  */
 export async function useHeavy(kind: Heavy, ref?: string): Promise<boolean> {
   if (freeMode()) return true;
-  if (!await ensureLogin(undefined, 'Bu hisob uchun kiring. Hisob bepul — haftasiga 1 ta ogʻir hisob bepul.')) return false;
+  if (!await ensureLogin(undefined, tf('Bu hisob uchun kiring. Hisob bepul — haftasiga ${n} ta ogʻir hisob bepul.', { n: PR?.trialsPerWeek ?? 3 }))) return false;
   const me = current() ?? await check();
   if (!me) return false;
   await loadPrices();
@@ -212,7 +212,7 @@ export async function useHeavy(kind: Heavy, ref?: string): Promise<boolean> {
     let ok = false, busy = false, auto = false;
     const D = dialog('kdTrial', tr(TRIAL_NAME[kind]), kind === 'gen'
       ? tf('Har loyihada ${n} ta generatsiya bepul. Keyingilari — maydonga qarab.', { n: PR?.genFree ?? 3 })
-      : tr('Haftasiga 1 ta ogʻir hisob bepul (shamol, insolyatsiya yoki xonadonlar). Dushanba kuni yangilanadi.'));
+      : tf('Haftasiga ${n} ta ogʻir hisob bepul (shamol, insolyatsiya yoki xonadonlar). Dushanba kuni yangilanadi.', { n: PR?.trialsPerWeek ?? 3 }));
     const go = opt('kdTrialGo', 'pri', tr('Hisoblash'), area > 3 ? tf('uchastka ${a} ga · ×${k}', { a: fmt(area, 1), k: String(kOf(area)).replace('.', ',') }) : tr('shu loyiha uchun'), tf('${n} tanga', { n: fmt(price) }), async () => {
       if (busy) return; busy = true; go.disabled = true; D.msg.hidden = true;
       if (pid && auto) setAutoPay(pid, true);
