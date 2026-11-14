@@ -82,6 +82,37 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     expect(on.r.total.flow).toBeGreaterThan(1000);
   }, 60_000);
 
+  it('piyodaga yoʻl berish (YHQ 96): oʻngga buriluvchi, qizilda oʻngga ham — piyoda mashina ichidan oʻtmaydi', () => {
+    for (const rtor of [false, true]) {
+      const N = net([0, 90, 180, 270], false);
+      N.arms.forEach((a) => { const u = [-a.hin[0], -a.hin[1]], rin = [u[1], -u[0]], P = (s: number, o: number): XY => [u[0] * s + rin[0] * o, u[1] * s + rin[1] * o]; (a as { cross?: XY[] }).cross = [P(11.5, -8), P(11.5, 8)]; (a as { j?: string }).j = 'J'; });
+      N.juncs = [{ id: 'J', signal: { cycle: 80, phases: autoPhases(N.arms), offset: 0 }, rtor } as never];
+      const sh = { L: .1, S: .3, R: .6 };
+      const sim = new GraphSim(N, { demand: { a0: 300, a1: 300, a2: 300, a3: 300 }, armShares: { a0: sh, a1: sh, a2: sh, a3: sh }, ped: 600, seed: 3 });
+      let bad = 0;
+      for (let k = 0; k < 6000; k++) { sim.step(0.1); if (k % 2) continue; const S = sim.snapshot();
+        for (const p of sim.P) { if (!p.walk) continue; const x = sim.X[p.k], px = x.A[0] + x.u[0] * p.pos, py = x.A[1] + x.u[1] * p.pos;
+          for (const s of S) { const c = Math.cos(s.h), n = Math.sin(s.h), lx = (px - s.x) * c + (py - s.y) * n, ly = -(px - s.x) * n + (py - s.y) * c; if (lx > -s.len && lx < .3 && Math.abs(ly) < 1.1) bad++; } } }
+      expect(bad).toBe(0);
+      expect(sim.pdone.length).toBeGreaterThan(300);
+    }
+  }, 60_000);
+  it('qayrilish (↶): «U» strelkali boʻlakdan oʻz koʻchasiga qaytadi, ustma-ust tushmaydi', () => {
+    for (const sig of [false, true]) {
+      const N = net([0, 90, 180, 270], sig);
+      N.arms.forEach((a) => { a.lanes[0].codes = 'ULS'; });
+      N.conns = autoConnect(N.arms, false);
+      const U = N.conns.filter((c) => c.m === 'U');
+      expect(U.length).toBe(4);
+      const sh = { L: .15, S: .55, R: .2, U: .1 };
+      const sim = new GraphSim(N, { demand: { a0: 250, a1: 250, a2: 250, a3: 250 }, armShares: { a0: sh, a1: sh, a2: sh, a3: sh }, seed: 4 });
+      let g = 1e9; for (let k = 0; k < 9000; k++) { sim.step(0.1); if (k % 5 === 0) g = Math.min(g, minGap(sim)); }
+      expect(sim.pass.filter((p) => p.m === 'U').length).toBeGreaterThan(15);
+      expect(g).toBeGreaterThan(1.0);
+      expect(sim.result(120).total.flow).toBeGreaterThan(850);
+    }
+  }, 60_000);
+
   it('avtobus: avtobus boʻlagi avtobus boʻlagiga ulanadi, umumiy boʻlak unga tushmaydi; odam-kechikish hisoblanadi', () => {
     const N = net([0, 90, 180, 270], true);
     const A = N.arms.map((a) => ({ ...a, lanes: [...a.lanes, { id: a.id + 'b', mid: 8.75, bus: true, codes: 'S', pts: a.lanes[1].pts.map((p) => [p[0] + (a.lanes[1].pts[0][0] - a.lanes[0].pts[0][0]) * 2, p[1] + (a.lanes[1].pts[0][1] - a.lanes[0].pts[0][1]) * 2] as XY) }],

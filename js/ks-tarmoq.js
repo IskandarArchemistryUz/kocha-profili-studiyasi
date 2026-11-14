@@ -164,7 +164,7 @@ function cardHTML(sel){const ds=DS();
     return `<span class="eb">CHORRAHA</span><div class="ti">${esc(names.length?names.slice(0,3).join(' × '):'Chorraha')}</div>
       <div class="kt-seg" role="group" aria-label="Turi" style="align-self:flex-start">${ty}</div>${pri}
       ${k==='sig'?`<div class="kt-arm"><span>Qizilda oʻngga burilish</span><button class="kt-pri${n.rtor?'':' on'}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-rt="0">Yoʻq</button><button class="kt-pri${n.rtor?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-rt="1">Strelka bilan</button></div>
-      <div class="kt-note">Qoʻshimcha seksiyadagi yashil strelka: toʻliq toʻxtab, yashil oqim va piyodalarga yoʻl berib oʻngga buriladi (TALQIN — YHQ bandini tasdiqlang).</div>`:''}
+      <div class="kt-note">Qoʻshimcha seksiyadagi yashil strelka (YHQ 100-band): boshqa yoʻnalishdagi transportga yoʻl beriladi; piyodaga — 96-band. Modelda mashina avval toʻxtash chizigʻida toʻxtaydi (TALQIN).</div>`:''}
       <div class="row"><button class="kt-btn pr" data-k="sim">▶ Harakatni sinash</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
   return null;}
 /* koʻchaning chorraha tomonidagi uchlari: karman (qoʻshimcha burilish polosasi) */

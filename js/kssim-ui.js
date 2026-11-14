@@ -73,7 +73,7 @@ window.openSim=async function(nodeId){
     ${multi?'<div class="small" style="color:#555;margin:6px 0">Koʻcha bilan bogʻlangan chorrahalar birga hisoblanadi: bir chorrahadan chiqqan mashina keyingisiga yetib boradi. Talab — faqat chetki kirishlarga.</div>':''}
     <table style="width:100%;border-collapse:collapse;margin-top:4px"><tbody>${rows}</tbody></table>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center">
-      <span class="small">Ulush, %:</span> ↰ <input type="number" data-s="L" value="20" min="0" max="100" style="width:48px"> ↑ <input type="number" data-s="S" value="65" min="0" max="100" style="width:48px"> ↱ <input type="number" data-s="R" value="15" min="0" max="100" style="width:48px">
+      <span class="small">Ulush, %:</span> ↰ <input type="number" data-s="L" value="20" min="0" max="100" style="width:48px"> ↑ <input type="number" data-s="S" value="65" min="0" max="100" style="width:48px"> ↱ <input type="number" data-s="R" value="15" min="0" max="100" style="width:48px"> ↶ <input type="number" data-s="U" value="0" min="0" max="100" style="width:48px" title="Qayrilish — faqat «↶» strelkali boʻlak boʻlsa">
       <span class="small">Avtobus, avt/soat</span> <input type="number" data-b value="0" min="0" max="200" step="5" style="width:52px" title="Avtobus boʻlagi bor kirishlarga, boʻlmasa — hammasiga">
       <span class="small">Piyoda, kishi/soat</span> <input type="number" data-p value="100" min="0" max="2000" step="50" style="width:60px">
       ${anySig?`<span class="small">Sikl</span> <select data-cm title="Webster (1958): C=(1,5L+5)/(1−Y), yashil talabga mutanosib"><option value="a" selected>Avto (Webster)</option><option value="m">Qoʻlda</option></select> <input type="number" data-c value="90" min="40" max="180" step="5" style="width:56px" disabled> <span class="small">s</span>
@@ -81,7 +81,7 @@ window.openSim=async function(nodeId){
       ${anySig&&multi?`<span class="small">Yashil toʻlqin, s</span> <input type="number" data-o value="0" min="0" max="180" step="5" style="width:56px" title="Har keyingi svetoforning siljishi (offset)">`:''}
     </div>
     <div class="small" style="color:#555;margin:6px 0 2px">Burilish ulushlari har kirish uchun, % (boʻsh — yuqoridagi umumiy):</div>
-    <table style="width:100%;border-collapse:collapse"><tbody>${probe.net.arms.filter(a=>a.lanes.some(l=>!l.bus)).map(a=>`<tr><td class="small">${esc(probe.names[a.id]||a.id)}</td><td style="white-space:nowrap">↰<input type="number" data-as="${a.id}" data-m="L" min="0" max="100" style="width:42px"> ↑<input type="number" data-as="${a.id}" data-m="S" min="0" max="100" style="width:42px"> ↱<input type="number" data-as="${a.id}" data-m="R" min="0" max="100" style="width:42px"></td></tr>`).join('')}</tbody></table>
+    <table style="width:100%;border-collapse:collapse"><tbody>${probe.net.arms.filter(a=>a.lanes.some(l=>!l.bus)).map(a=>`<tr><td class="small">${esc(probe.names[a.id]||a.id)}</td><td style="white-space:nowrap">↰<input type="number" data-as="${a.id}" data-m="L" min="0" max="100" style="width:42px"> ↑<input type="number" data-as="${a.id}" data-m="S" min="0" max="100" style="width:42px"> ↱<input type="number" data-as="${a.id}" data-m="R" min="0" max="100" style="width:42px"> ↶<input type="number" data-as="${a.id}" data-m="U" min="0" max="100" style="width:42px"></td></tr>`).join('')}</tbody></table>
     </details>
     <div data-out class="small" style="color:#555">Vaqtni tanlang va «Hisoblash»ni bosing — natija xaritada rang bilan chiqadi. Beta: natijalar taxminiy, loyiha qarori uchun tasdiqlangan model emas. Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (YHQ: chapga buriluvchi qarshidagiga, svetoforsizda oʻngdan kelayotganga, halqada — aylanayotganlarga), burilishda piyodaga yoʻl berish.</div>`;
   host.appendChild(box);
@@ -102,7 +102,7 @@ window.openSim=async function(nodeId){
     const cm=box.querySelector('[data-cm]'),pl=box.querySelector('[data-pl]');
     /* har kirish ulushlari: kamida bittasi kiritilgan boʻlsa — qolganlari umumiydan; yigʻindi 1 ga keltiriladi */
     const AS={};box.querySelectorAll('[data-as]').forEach(i=>{if(i.value==='')return;(AS[i.dataset.as]=AS[i.dataset.as]||{})[i.dataset.m]=Math.max(0,+i.value||0)/100;});
-    const armShares={};Object.entries(AS).forEach(([id,v])=>{const x={L:v.L??sh.L,S:v.S??sh.S,R:v.R??sh.R},t=x.L+x.S+x.R||1;armShares[id]={L:x.L/t,S:x.S/t,R:x.R/t};});
+    const armShares={};Object.entries(AS).forEach(([id,v])=>{const x={L:v.L??sh.L,S:v.S??sh.S,R:v.R??sh.R,U:v.U??sh.U??0},t=x.L+x.S+x.R+x.U||1;armShares[id]={L:x.L/t,S:x.S/t,R:x.R/t,U:x.U/t};});
     return {demand,shares:sh,armShares,cycle:Math.max(40,num('[data-c]',90)||90),auto:!cm||cm.value==='a',pl:pl?pl.value:'a',ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
   if(box.querySelector('[data-cm]'))box.querySelector('[data-cm]').onchange=e=>{box.querySelector('[data-c]').disabled=e.target.value==='a';};
   /* svetofor rejasi: chap faza qarori (koʻpaytma mezoni) + Webster sikli; koridorda umumiy sikl (yashil toʻlqin uchun) */
