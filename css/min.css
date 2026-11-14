@@ -140,6 +140,19 @@ body{margin:0}
 .st .dots:hover .lbl{opacity:1}
 @media (prefers-reduced-motion:reduce){.st .dots *{transition:none!important;animation:none!important}.st .dots .pv svg *{stroke-dashoffset:0}}
 .st .dots a.d,.st .dots a.d *{text-decoration:none!important}
+/* Binokor va Bogʻshunos — xizmatga xos qisqa animatsiya (faqat hover, ~1,6 s, keyin toʻxtaydi) */
+.st .dots .d:nth-child(6) .nm{transition-delay:.15s}.st .dots .d:nth-child(7) .nm{transition-delay:.18s}.st .dots .d:nth-child(8) .nm{transition-delay:.21s}
+.st .dots .bk .pv .bk-w1,.st .dots .bk .pv .bk-w2{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0)}
+.st .dots .bk:hover .pv .bk-w1{animation:bkUp .5s .35s cubic-bezier(.2,.8,.2,1) forwards,drw .9s cubic-bezier(.4,0,.2,1) forwards}
+.st .dots .bk:hover .pv .bk-w2{animation:bkUp .5s .8s cubic-bezier(.2,.8,.2,1) forwards,drw .9s .3s cubic-bezier(.4,0,.2,1) forwards}
+.st .dots .bk .pv .bk-o{opacity:0}.st .dots .bk:hover .pv .bk-o{animation:bkIn .35s 1.2s ease forwards}
+.st .dots .bg .pv .bg-t{transform-box:fill-box;transform-origin:50% 50%;transform:scale(0)}
+.st .dots .bg:hover .pv .bg-t{animation:bkGrow .45s cubic-bezier(.2,1.4,.4,1) forwards}
+.st .dots .bg:hover .pv .bg-t:nth-of-type(1){animation-delay:.45s}.st .dots .bg:hover .pv .bg-t:nth-of-type(2){animation-delay:.57s}.st .dots .bg:hover .pv .bg-t:nth-of-type(3){animation-delay:.69s}.st .dots .bg:hover .pv .bg-t:nth-of-type(4){animation-delay:.81s}.st .dots .bg:hover .pv .bg-t:nth-of-type(5){animation-delay:.93s}.st .dots .bg:hover .pv .bg-t:nth-of-type(6){animation-delay:1.05s}.st .dots .bg:hover .pv .bg-t:nth-of-type(7){animation-delay:1.17s}
+.st .dots span.d.bg{cursor:default}
+@keyframes bkUp{to{transform:scaleY(1)}}@keyframes bkIn{to{opacity:1}}@keyframes bkGrow{to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.st .dots .bk .pv .bk-w1,.st .dots .bk .pv .bk-w2,.st .dots .bg .pv .bg-t{transform:none}.st .dots .bk .pv .bk-o{opacity:1}}
+
 .st.th .dots .d .nm{color:var(--fg)!important}
 .st.th .dots:hover .d:not(:hover) .nm{color:var(--mut2)!important}
 .st.th .pnl .row .mono{font-size:11.5px!important;word-break:break-all;text-align:right}
