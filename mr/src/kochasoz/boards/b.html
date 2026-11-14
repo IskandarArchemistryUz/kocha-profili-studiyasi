@@ -1,6 +1,6 @@
 <div class="ws ws-b {{pCls}}">
   <div class="mtabs {{mtCls}}" style="position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(236,235,232,.9); z-index: 3;">
-    <sc-for list="{{modes}}" as="m"><button class="mtab" aria-pressed="{{m.p}}" aria-disabled="{{m.dis}}">{{m.n}}<em class="soon">{{m.soon}}</em></button></sc-for>
+    <sc-for list="{{modes}}" as="m"><button class="mtab" data-k="{{m.k}}" aria-pressed="{{m.p}}" aria-disabled="{{m.dis}}">{{m.n}}<em class="soon">{{m.soon}}</em></button></sc-for>
   </div>
   <button class="ks-ptog l" type="button" data-ptog="l" aria-pressed="{{pLoff}}" aria-label="{{pLlab}}" title="{{pLlab}}" onClick="{{pLt}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><path d="M9.5 4.5v15"></path><path class="ar" d="M14 10l2 2-2 2"></path></svg></button>
   <button class="ks-ptog r" type="button" data-ptog="r" aria-pressed="{{pRoff}}" aria-label="{{pRlab}}" title="{{pRlab}}" onClick="{{pRt}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><path d="M14.5 4.5v15"></path><path class="ar" d="M10 10l-2 2 2 2"></path></svg></button>

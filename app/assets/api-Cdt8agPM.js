@@ -1,1 +1,0 @@
-export{s as toUpload}from"./api-yON-dJX7.js";

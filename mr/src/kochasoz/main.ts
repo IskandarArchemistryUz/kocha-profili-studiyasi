@@ -319,9 +319,9 @@ stage.addEventListener('click', e => {
   const t = e.target as HTMLElement;
   const tab = t.closest('.mtab');
   if (tab) {
-    const k = MODE_KEY[tab.querySelector('b')?.textContent?.trim() ?? ''];
+    const k = MODE_KEY[(tab as HTMLElement).dataset.k ?? ''];
     if (tab.getAttribute('aria-disabled') === 'true') { toast(tr('Tez orada — bu boʻlim hali ishlab chiqilmoqda')); return; }
-    if (k === 'd') { toast(tr('D · Koʻcha muhiti — maketi hali chizilmagan')); return; }
+    if (k === 'd') { toast(tr('Koʻcha muhiti — maketi hali chizilmagan')); return; }
     if (k === 'a' && !BETA) { location.href = '../tarmoq.html'; return; }   // Tarmoq — yangi sahifa (14.11: noldan interfeys, studiya dvigateli)
     if (k) go(k);
     return;
