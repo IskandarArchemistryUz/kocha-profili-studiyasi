@@ -28,3 +28,18 @@ test('loyiha ichidan Joyshunos: ?p= manzilda, «← Master reja» loyihaga qayta
   await p2.waitForURL(new RegExp(`#/p/${pid}$`));
   await expect(p2.locator('#svcPop')).toBeVisible({ timeout: 20_000 });
 });
+
+/** 3b-2: xizmat bosh sahifadan alohida ochilganda — «Loyihalar» tugmasi, yangi loyiha yaratib ichida ochish */
+test('alohida Koʻchasoz: «Loyihalar» → «Yangi loyiha» — xizmat loyiha ichida qayta ochiladi', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.goto('./kochasoz.html');
+  await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#mrBack')).toHaveCount(0);
+  await page.click('#svcProj');
+  await expect(page.locator('.svc-pick')).toBeVisible();
+  await page.click('#svcNew');
+  await page.waitForURL(/kochasoz\.html\?p=p_\w+/);
+  await expect(page.locator('#mrBack')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#svcProj')).toHaveCount(0);
+});

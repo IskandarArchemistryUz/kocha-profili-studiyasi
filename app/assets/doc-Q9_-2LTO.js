@@ -1,0 +1,1 @@
+export{s as blankProject}from"./doc-ClS7g5zx.js";
