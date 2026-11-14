@@ -3,7 +3,8 @@
 var LANGS=['uz','en','ru','es','pt','fr','az','uk','tr','kk'],EXTL={es:1,pt:1,fr:1,az:1,uk:1,tr:1,kk:1};
 var NAT={uz:'Oʻzbekcha',en:'English',ru:'Русский',es:'Español',pt:'Português (BR)',fr:'Français',az:'Azərbaycanca',uk:'Українська',tr:'Türkçe',kk:'Қазақша'};
 var BASE=((document.currentScript&&document.currentScript.src)||'js/i18n.js').replace(/[?#].*$/,'').replace(/[^\/]*$/,'');   // yangi tillar lugʻati: <BASE>i18n/<til>.json
-var L='en';try{L=localStorage.getItem('kps_lang')||localStorage.getItem('mr-lang')||'en';}catch(e){}if(LANGS.indexOf(L)<0)L='en';window.KPS_LANG=L;window.KPS_LANGS=LANGS;window.KPS_NAT=NAT;
+/* til: foydalanuvchi tanlagan boʻlsa — shu; boʻlmasa brauzer tili (uz/ru/…; qirgʻiz, tojik, turkman, belarus — ru), qolganlari — en */
+var BRL=(function(){var a=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||''],S=['uz','ru','en','es','pt','fr','az','uk','tr','kk'];for(var i=0;i<a.length;i++){var b=String(a[i]||'').toLowerCase().split(/[-_]/)[0];if(S.indexOf(b)>=0)return b;if(b==='ky'||b==='tg'||b==='tk'||b==='be')return 'ru';}return 'en';})();var L=BRL;try{L=localStorage.getItem('kps_lang')||localStorage.getItem('mr-lang')||BRL;}catch(e){}if(LANGS.indexOf(L)<0)L='en';window.KPS_LANG=L;window.KPS_LANGS=LANGS;window.KPS_NAT=NAT;
 function sw(){if(document.getElementById('kpsLang'))return;var h=document.querySelector('header');if(!h)return;var d=document.createElement('div');d.id='kpsLang';d.setAttribute('data-noi18n','');
   d.style.cssText='position:relative;margin:0 6px;flex:none';
   var b=document.createElement('button');b.type='button';b.className='kl-btn';b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');b.setAttribute('aria-label','Til / Language / Язык');b.textContent=L.toUpperCase()+' ▾';

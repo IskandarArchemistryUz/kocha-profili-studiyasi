@@ -32,7 +32,12 @@ async function ensure(l: Lang): Promise<void> {
   try { EXT[l] = (await LOAD[l as Ext]()).default; } catch { EXT[l] = {}; }   // yuklanmasa — inglizcha zaxira
 }
 
-let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (isLang(v)) return v; } catch { /* */ } return 'en'; })();   // sukut — inglizcha; foydalanuvchi tanlovi saqlanadi
+/** brauzer tili: navigator.languages tartibida birinchi qoʻllab-quvvatlanadigani; qirgʻiz, tojik, turkman, belarus — ru (TALQIN: mintaqada ikkinchi til); boshqasi — en */
+export function browserLang(): Lang {
+  try { const a = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
+    for (const x of a) { const b = String(x || '').toLowerCase().split(/[-_]/)[0]; if (isLang(b)) return b; if (['ky', 'tg', 'tk', 'be'].includes(b)) return 'ru'; } } catch { /* */ }
+  return 'en'; }
+let lang: Lang = (() => { try { const v = localStorage.getItem(KEY) ?? localStorage.getItem('kps_lang'); if (isLang(v)) return v; } catch { /* */ } return browserLang(); })();   // sukut — brauzer tili; foydalanuvchi tanlovi saqlanadi
 await ensure(lang);   // yangi tillar: lugʻat sahifa chizilishidan oldin yuklanadi
 const subs = new Set<() => void>();
 
