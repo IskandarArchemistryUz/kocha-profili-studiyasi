@@ -65,8 +65,8 @@ export const decl = (n: number): number => 23.44 * Math.sin(2 * Math.PI * (284 +
 const MID = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349];
 type TF = (k: string, v: Record<string, unknown>) => string;
 const tf0: TF = (k, v) => k.replace(/\$\{(\w+)\}/g, (_m, n: string) => String(v[n] ?? ''));
-/** «9 s 01 daq» (tf — tarjima bilan) */
-export const hm = (h: number, tf: TF = tf0): string => { let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return tf('${h} s ${m} daq', { h: H, m: String(M).padStart(2, '0') }); };
+/** «9 soat 01 daq» (chizmada joy tor) (tf — tarjima bilan) */
+export const hm = (h: number, tf: TF = tf0): string => { let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return tf('${h} soat ${m} daq', { h: H, m: String(M).padStart(2, '0') }); };
 export const f1 = (x: number): string => x.toFixed(1).replace('.', ',');
 
 /* ---------- til ---------- */

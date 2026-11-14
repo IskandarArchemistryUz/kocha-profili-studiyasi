@@ -1,1 +1,0 @@
-export{s as toUpload}from"./api-lGTuJ8WA.js";

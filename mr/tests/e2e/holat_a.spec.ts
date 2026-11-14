@@ -13,7 +13,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`meʼyor ho
   // 13.11: belgi reyestr va Maslahatchi bilan bir xil toʻplamni sanaydi (allRules; xonadon rejasi qoidalari — keshda boʻlsa)
   const fails = await page.evaluate(() => (window as any).__mr.allRules(true).filter((r: any) => r.status === 'fail').length);
   expect(fails).toBeGreaterThan(0);
-  await expect.poll(async () => Number(await st.textContent())).toBe(fails);
+  // 14.11 audit: belgi «N mos emas» — son matn boshida
+  await expect.poll(async () => parseInt(await st.textContent() ?? '', 10)).toBe(fails);
+  await expect(st).toContainText('mos emas');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/holat_a_${w}${dark ? 'd' : 'l'}.png` });
   await page.click('#kMore');
   await expect(page.locator('.drawer')).toBeVisible();
