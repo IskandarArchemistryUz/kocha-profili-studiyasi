@@ -1498,7 +1498,8 @@ function virtualNet(){const V=virtualNet0(),ds=DS(),B=V||{segs:ds.segs.slice(),n
    door 'right' (andoza, oddiy oʻng eshikli avtobus): har yoʻnalishga alohida platforma, transport boʻlagining oʻng (tashqi) tomonida,
    siljitilgan — dumi dumiga, oʻrtada oʻtish joyi: har avtobus oʻtish joyidan keyin toʻxtaydi, yoʻlovchi avtobus orqasidan oʻtadi (ITDP 25.5, NACTO median right-side boarding).
    door 'left': bitta markaziy orol (chap eshikli avtobus yoki tramvay). Platforma eni ST_W (ITDP: ≥ 4 m, afzal 5 m; markaziy ≥ 6 m). */
-const ST_W=4,ST_WC=6,ST_TAPER=20,ST_GAP=6;
+/* ST_TAPER: oʻtish uzunligi ≥ 30 m (ShNQ 2.07.01-23, 333-band — qoʻshimcha tasmaga oʻtish va qaytishni toʻgʻrilash) */
+const ST_W=4,ST_WC=6,ST_TAPER=30,ST_GAP=6;
 function stationPlatforms(a,T){const s=a.f*T,L=a.len||30;
   if(a.door==='left')return [{s1:s-L/2,s2:s+L/2,k:'c'}];
   return [{s1:s+ST_GAP/2,s2:s+ST_GAP/2+L,k:'p'},{s1:s-ST_GAP/2-L,s2:s-ST_GAP/2,k:'m'}];}
@@ -1517,7 +1518,8 @@ function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>
     const build=K=>{const st=[],om=[],put=(x,og,id)=>{st.push(x);om.push(id??(og<0?-1:sg._om?sg._om[og]:og));};
       const outer=d=>(d===1?K.has('p'):K.has('m'));
       /* alohida platformalarda koʻcha eni bekat boʻylab oʻzgarmaydi: platforma yoʻq tomonda — 1.16 shtrixli orol (qatorlar dumi-dumiga oʻtish joyida siljimaydi) */
-      const side=d=>outer(d)?put(['walk',ST_W],-1,d===dir0?9001:9002):!K.has('c')?put(['hatch',ST_W],-1,d===dir0?9001:9002):0;
+      const fk={green:'median',rain:'rain'}[(stops[0]||{}).fill]||'hatch';
+      const side=d=>outer(d)?put(['walk',ST_W],-1,d===dir0?9001:9002):!K.has('c')?put([fk,ST_W],-1,d===dir0?9001:9002):0;
       for(let q=0;q<pair[0];q++)put(st0[q],q);
       side(dir0);
       put(st0[pair[0]],pair[0]);
@@ -1652,7 +1654,9 @@ function buildShapes0(){
         if(za)poly(band(st.d1,st.d2,0,za),DK.walk.col,'ped',1);if(zb)poly(band(st.d1,st.d2,T-zb,T),DK.walk.col,'ped',1);}
       else poly(band(st.d1,st.d2),k.col,k.cat,1);
       if(st.k==='tram'){[-.72,.72].forEach(e=>line(offsetLine(xy,st.mid+e).map(q=>toLL(q,o)),{color:'#9ea1a8',weight:1.2}));}
-      if(st.k==='hatch'&&st.w>=.8){for(let s=2;s<T-2;s+=4){const f=frameAt(xy,c,s),g=frameAt(xy,c,s+1.8);line([toLL([f.p[0]+f.n[0]*st.d1,f.p[1]+f.n[1]*st.d1],o),toLL([g.p[0]+g.n[0]*st.d2,g.p[1]+g.n[1]*st.d2],o)],{color:'#fff',weight:1});}mark('1.16');}
+      /* 1.16.1 (GOST R 51256-2018): oʻqqa 45° qiya polosalar, eni a=0,40 m, oraligʻi c=1,20 m → oʻq boʻylab qadam (a+c)·√2 */
+      if(st.k==='hatch'&&st.w>=.8){const W=Math.abs(st.d1-st.d2),aw=.4*Math.SQRT2,pr=1.6*Math.SQRT2,Q=(s,d)=>{const f=frameAt(xy,c,Math.max(0,Math.min(T,s)));return toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);};
+        for(let s=1;s+W+aw<T-1;s+=pr)poly([Q(s,st.d1),Q(s+aw,st.d1),Q(s+W+aw,st.d2),Q(s+W,st.d2)],'#fff',null,3.15);mark('1.16');}
       if((st.k==='green'||st.k==='median')&&st.w>=1.4&&!sg.noTrees){const r=Math.min(3.2,Math.max(1.9,st.w*.95));for(let s=Math.max(4,zoneA+r+1);s<T-Math.max(3,zoneB+r+1);s+=8){const f=frameAt(xy,c,s),P2=[f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid];{const n0=sh.length,cr=circleLL(P2,r,o,24);poly(cr,'#6e9c50',null,7.2,.82);poly(circleLL([P2[0]-r*.2,P2[1]+r*.2],r*.6,o,18),'#96c173',null,7.25,.75);line([...cr,cr[0]],{color:'#48703a',weight:1},null,7.3);for(let i=n0;i<sh.length;i++)sh[i].flat2d=1;}  /* 2D toj — 3D da haqiqiy daraxt bor */sh.push({t:'tree',ll:toLL(P2,o),r,z:0});}}
       if(st.k==='rain'){[st.d1-.15,st.d2+.15].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#6fb3d9',weight:1.2,dashArray:'4 3'},null,2));for(let s=2;s<T-2;s+=3.5){const f=frameAt(xy,c,s);poly(circleLL([f.p[0]+f.n[0]*st.mid,f.p[1]+f.n[1]*st.mid],Math.min(.7,st.w/3),o,10),'#3d6b4f',null,2);}}
       if(st.k==='island'){[st.d1-.1,st.d2+.1].forEach(e=>line(offsetLine(xy,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,2));}
@@ -1769,7 +1773,13 @@ function buildShapes0(){
           [[E2[0],E2[1],S0],[E2[1],E2[0],S1]].forEach(([X,Y,SX],w)=>SX.forEach(m=>{if(w===1&&m.j>=0)return;const k=DK[m.x.k];if(!k)return;
             const q4=Q4(X,m.x.d1,m.x.d2,Y,m.y.d1,m.y.d2);
             if(m.j<0&&inner(X,m.i)){poly(q4,DK.lane.col,'car',1);const a1=P(X,m.x.d1),a2=P(X,m.x.d2),b0=P(Y,m.y.d1);for(let t=.25;t<.8;t+=.25){const u=[a1[0]+(a2[0]-a1[0])*t,a1[1]+(a2[1]-a1[1])*t],v=[u[0]+(b0[0]-u[0])*.45,u[1]+(b0[1]-u[1])*.45];line([u,v].map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,3.1);}mark('1.16.1');return;}
-            if(m.j>=0&&m.y.k!==m.x.k&&(raised(m.x.k)||raised(m.y.k))){poly(q4,DK.lane.col,'car',1);return;}
+            if(m.j>=0&&m.y.k!==m.x.k&&(raised(m.x.k)||raised(m.y.k))){poly(q4,DK.lane.col,'car',1);
+              /* oʻtish joyida platforma uchi pasaytirilgan (pandus, bordyur ≤ 2 sm — ShNQ 2.07.02-24, 18-band): bordyur chizigʻi yoʻq, uchida tactil polosa 0,6 m, chetdan 0,3 m (12-ilova) */
+              if(n._xw){sh[sh.length-1].flat2d=1;[[X,m.x],[Y,m.y]].forEach(([Z,zs])=>{if(!raised(zs.k)||Math.abs(zs.d2-zs.d1)<1)return;const Tq=(d,e)=>toLL([Z.f.p[0]+Z.f.n[0]*d+Z.u[0]*e,Z.f.p[1]+Z.f.n[1]*d+Z.u[1]*e],o),a1=Math.max(zs.d1,zs.d2)-.15,a2=Math.min(zs.d1,zs.d2)+.15;
+                /* bordyur chizigʻining burchak "ilgagi" koʻrinmasin — platforma uchini pandus sifatida yopamiz */
+                poly([Tq(a1+.4,-.05),Tq(a2-.4,-.05),Tq(a2-.4,.6),Tq(a1+.4,.6)],DK.walk.col,'ped',.97);sh[sh.length-1].flat2d=1;
+                poly([Tq(a1,.3),Tq(a2,.3),Tq(a2,.9),Tq(a1,.9)],'#e3b23c',null,3.3);});mark('taktil');}
+              return;}
             poly(q4,isPk(m.x.k)?DK.walk.col:k.col,isPk(m.x.k)?'ped':k.cat,1);}));
           /* chegaralar: har qoʻshni tasmalar orasidagi chiziq taper boʻylab davom etadi (boʻlaklar orasidagi qoidalar bilan bir xil) */
           const lanes4=Math.max(A2[0].lay.lanes||0,A2[1].lay.lanes||0)>=4;
@@ -2995,10 +3005,11 @@ function drawAtts(atts,lay,xy,c,T,band,poly,line,mark,sh,o){
   const P=(s,d)=>{const f=frameAt(xy,c,s);return toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);},AN=s=>{const f=frameAt(xy,c,s);return Math.atan2(f.t[1],f.t[0]);};
   atts.forEach(a=>{const sd=a.side||-1,{curb,edge,pk}=attEdges(lay,sd,0),S0=Math.max(0,a.s-a.len/2),S1=Math.min(T,a.s+a.len/2),out=v=>curb+sd*v;
     const ROT=s=>{const f=frameAt(xy,c,s),dv=(lay.st.find(x=>(x.k==='lane'||x.k==='bus')&&Math.sign(x.mid)===sd)||{}).dir||1;return Math.atan2(f.t[0]*dv,f.t[1]*dv);};
-    const zig=(dIn,dOut)=>{const pts=[];let k=0;for(let s=S0;s<=S1;s+=2,k++)pts.push(P(s,k%2?dOut:dIn));line(pts,{color:'#f2c230',weight:2},'1.17',6);};
+    /* 1.17 sariq zigzag: bekat zonasi boʻylab; zvenolar 45° (oʻq boʻylab qadam = balandlik 1,0 m — ANDOZA, GOST R 51256-2018 B.4 rasmidagi aniq oʻlchov tekshirilmagan) */
+    const zig=(dIn,dOut)=>{const pts=[],hz=Math.abs(dOut-dIn);let k=0;for(let s=S0;s<=S1+1e-6;s+=hz,k++)pts.push(P(s,k%2?dOut:dIn));line(pts,{color:'#f2c230',weight:2},'1.17',6);};
     const shelter=(dd,s)=>{poly(band(dd,dd+sd*1.6,s-4,s+4),'#5a6b7a',null,6);sh.push({t:'box',ll:P(s,dd+sd*.8),w:8,d:1.6,h:2.8,col:'#8ea3b5',ang:AN(s),z:0});};
     const pkIn=pk?(Math.abs(pk.d1)<Math.abs(pk.d2)?pk.d1:pk.d2):null;
-    if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.3,pkIn+sd*1.6);}else zig(curb-sd*.3,curb-sd*1.6);poly(band(curb,out(3),S0,S1),'#cfc2a4','ped',3);shelter(out(1.4),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8,rot:ROT(a.s)});mark('bekat');}
+    if(a.t==='bus'){if(pk){poly(band(pk.d1,pk.d2,S0-5,S1+5),DK.lane.col,'car',3);zig(pkIn+sd*.1,pkIn+sd*1.1);}else zig(curb-sd*.1,curb-sd*1.1);poly(band(curb,out(3),S0,S1),'#cfc2a4','ped',3);shelter(out(2),a.s);sh.push({t:'label',ll:P(a.s,curb-sd*1.7),txt:'A',z:8,rot:ROT(a.s)});mark('bekat');}
     if(a.t==='bay'){const dep=3.2,pts=[],pts2=[];for(let s=S0-12;s<=S1+12;s+=1){const k=s<S0?(s-(S0-12))/12:s>S1?1-(s-S1)/12:1;pts.push(P(s,curb));pts2.push(P(s,out(dep*Math.max(0,Math.min(1,k)))));}
       poly([...pts,...pts2.reverse()],DK.lane.col,'car',3.2);if(pk)poly(band(pk.d1,pk.d2,S0-12,S1+12),DK.lane.col,'car',3.1);poly(band(out(dep),out(dep+2.5),S0,S1),'#cfc2a4','ped',3.3);zig(out(.3),out(dep-.3));shelter(out(dep+.8),a.s);sh.push({t:'label',ll:P(a.s,out(dep/2)),txt:'A',z:8,rot:ROT(a.s)});mark('bekat (choʻntak)');}
     if(a.t==='tramstop'){const d0=a.d!=null?a.d:(curb-sd*1.8);poly(band(d0+1.5,d0-1.5,S0,S1),'#cfc2a4','ped',5);line([P(S0,d0+1.5),P(S1,d0+1.5)],{color:'#fff',weight:1.5},null,6);line([P(S0,d0-1.5),P(S1,d0-1.5)],{color:'#fff',weight:1.5},null,6);
