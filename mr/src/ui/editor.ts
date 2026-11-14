@@ -234,6 +234,7 @@ export class Editor {
 
   constructor(host: HTMLElement, doc: Project, private onExit: () => void) {
     this.store = new Store(doc); this.prevDoc = doc;
+    this.syncSeismic();   // 14.11: xorijiy loyihada seysmiklik sukuti — 6
     this.step = STEPS.find(s => s.id === (doc.site ? 'hajm' : 'uchastka'))!;
     // kirish talab qilinsa: sessiya aniqlanguncha 3-qadamdan keyingisi ochilmaydi (Uchastka koʻrsatiladi)
     if (needsLogin(this.step.id)) { const want = this.step; this.step = STEPS.find(s => s.id === 'uchastka')!; void checkAuth().then(m => { if (m && this.step.id === 'uchastka') this.go(want); }); }
@@ -394,6 +395,8 @@ export class Editor {
     // faqat varaqlar oʻzgargan boʻlsa (Varaqlar oynasi) — sahna va panel qayta chizilmaydi
     // 02.11: ikkala hujjat kalitlari — kalit butunlay oʻchirilsa ham (masalan, oxirgi cheklov: `limits` yoʻqoladi) oʻzgarish sezilsin
     if (([...new Set([...Object.keys(p), ...Object.keys(doc)])] as (keyof Project)[]).every(k => k === 'sheets' || k === 'sheetStyles' || k === 'updated' || p[k] === doc[k])) return;
+    // 14.11: joy yoki meʼyor toʻplami oʻzgarsa — seysmiklik sukuti (xorijda 6); har qanday yoʻl bilan (qidiruv, xarita, API)
+    if (p.origin !== doc.origin || p.settings.normSet !== doc.settings.normSet) queueMicrotask(() => this.syncSeismic());
     // loyiha markazi koʻchdi (uchastka chizilgach, qidiruv, bekor qilish) — kamera va fon yerda joyida qoladi, sahna «sakramaydi»
     if (p.origin !== doc.origin) { const d = frame(p.origin).toLocal(doc.origin); if (Math.hypot(d[0], d[1]) < 60000) this.scene.shiftOrigin(d); }
     if (p.origin !== doc.origin || p.context !== doc.context || p.site !== doc.site || p.removed !== doc.removed || p.roadEdits !== doc.roadEdits || p.removedRoads !== doc.removedRoads || p.gstyle !== doc.gstyle) void this.ensureContext();
@@ -1344,7 +1347,7 @@ export class Editor {
     if (carry === null && (doc.site || doc.buildings.length)) { this.search.pending = p; this.renderPanel(); return; }
     this.search.pending = null; this.search.res = [];
     this.framedCtx = false;
-    this.run(() => { this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }); if (doc.context.area) this.store.dispatch({ type: 'setContext', patch: { area: null, radius: 500 } }); });
+    this.run(() => { this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }); if (doc.context.area) this.store.dispatch({ type: 'setContext', patch: { area: null, radius: 500 } }); this.syncSeismic(); });
     if (halfW) { this.scene.frameView(0, 0, halfW); this.framedCtx = true; }   // dunyo xaritasidan — oʻsha masshtabda, fon chizilgach qayta moslanmaydi
     else this.scene.frameRadius(doc.site && carry ? 0 : 250);
     if (doc.site && carry) this.scene.frameDoc(this.store.doc);
@@ -1387,7 +1390,7 @@ export class Editor {
     if (F.radius > CTX_R_MAX) { toast(tf('Hudud juda katta: ${a} km. Brauzerda ${m} km gacha yuklanadi — chegarani kichikroq qismlarga boʻling.', { a: fmt(2 * F.radius / 1000, 1), m: fmt(2 * CTX_R_MAX / 1000, 0) })); return; }
     this.framedCtx = false;
     this.run(() => {
-      if (!doc.site && !doc.buildings.length) this.store.dispatch({ type: 'moveProject', origin: F.center, carry: false });
+      if (!doc.site && !doc.buildings.length) { this.store.dispatch({ type: 'moveProject', origin: F.center, carry: false }); this.syncSeismic(); }
       this.store.dispatch({ type: 'setContext', patch: { area: ring.map(p => [p[0], p[1]] as LngLat), radius: Math.max(CTX_R_MIN, F.radius), loaded: true } });
     });
   }
@@ -1481,7 +1484,7 @@ export class Editor {
     else if (!cs.loaded) body.append(h('button', { class: 'btn btn-primary btn-block btn-lg', id: 'ctxLoad', onclick: () => this.run(() => {
       // xarita surilgan boʻlsa — loyiha markazi ekran markaziga koʻchadi (atrof shu yerda yuklanadi), aks holda eski markaz (Amir Temur) qolib ketardi
       const c = this.scene.viewExtent().c;
-      if (!doc.site && !doc.buildings.length && Math.hypot(c[0], c[1]) > 60) { this.framedCtx = false; this.store.dispatch({ type: 'moveProject', origin: frame(doc.origin).toGeo(c), carry: false }); }
+      if (!doc.site && !doc.buildings.length && Math.hypot(c[0], c[1]) > 60) { this.framedCtx = false; this.store.dispatch({ type: 'moveProject', origin: frame(doc.origin).toGeo(c), carry: false }); this.syncSeismic(); }
       this.store.dispatch({ type: 'setContext', patch: { loaded: true } });
     }) }, tr('Atrofni yuklash (OSM, relyef, sunʼiy yoʻldosh)')), h('span', { class: 't-small' }, tr('Atrof ekran markazidagi joy atrofida yuklanadi — xaritani kerakli joyga suring.')));
     if (this.ctx.err) body.append(h('div', { class: 'note bad', id: 'ctxErr' }, this.ctx.err, ' ', h('button', { class: 'btn btn-sm', onclick: () => void this.ensureContext(true) }, tr('Qayta urinish'))));
@@ -2367,6 +2370,12 @@ export class Editor {
   /** generator uchun toʻplam: konsepsiya rejimida — xalqaro andoza geometriyasi (ADG 3F-1, qoʻlda chekinish) */
   private genNorms(): NormSet { return this.concept() ? 'intl' : this.normSet(); }
   private normSet(): NormSet { const o = this.store.doc.origin; return this.store.doc.settings.normSet ?? placeOf(o[0], o[1]).norms; }
+  /** 14.11 (egasi): ball tanlanmagan boʻlsa — xorijda 6 (seysmik emas, foydalanuvchi oʻzi tanlaydi), Oʻzbekistonga qaytsa — 8 */
+  private syncSeismic(): void {
+    const S = this.store.doc.settings; if (S.seismicSet) return;
+    const want = this.normSet() === 'UZ' ? (S.seismic < 7 ? 8 : S.seismic) : 6;
+    if (want !== S.seismic) this.store.dispatch({ type: 'setSettings', patch: { seismic: want } });
+  }
   /** 13.11: xonadon rejasi tekshiruvlari (50 binoda ~5 s) — hujjat 0,8 s tinchigach Web Worker da oldindan hisoblanadi;
    *  shunda pastki «Meʼyorlar» soni, reyestr va Maslahatchi asosiy oqimni qotirmaydi */
   private chkW: Worker | null = null;
@@ -3833,7 +3842,7 @@ export class Editor {
   private normsBlock(): HTMLElement {
     const doc = this.store.doc, place = placeOf(doc.origin[0], doc.origin[1]), auto = place.norms, cur = this.normSet();
     const cn = placeLabel(place, getLang()).split(' · ')[0] || '—';
-    const pick = (v: NormSet) => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { normSet: v === auto ? undefined : v } }));
+    const pick = (v: NormSet) => this.run(() => { this.store.dispatch({ type: 'setSettings', patch: { normSet: v === auto ? undefined : v } }); this.syncSeismic(); });
     const opt = (v: NormSet, t: string, sub: string) => h('button', { type: 'button', role: 'radio', 'data-norms': v, 'aria-checked': v === cur, 'aria-pressed': v === cur, onclick: () => pick(v) },
       h('span', {}, tr(t), v !== auto ? h('span', { class: 't-small' }, ` · ${tr('taqqoslash uchun')}`) : ''), h('small', {}, tr(sub)));
     const cnt = { majburiy: 0, tavsiya: 0, ochiq: 0 } as Record<string, number>;
@@ -5350,13 +5359,14 @@ export class Editor {
 
   /** Seysmik boʻlmalar sozlamasi (QMQ 2.01.03-19): maydon balli (SMT xaritasi yoki grunt toifasi, 1.6-band) va yuk koʻtaruvchi tizim (3.1-jadval) */
   private seismicRow(): HTMLElement {
-    const S0 = this.store.doc.settings, sys = S0.construct ?? 'monolit', lim = lenLimit(sys, S0.seismic);
+    const S0 = this.store.doc.settings, sys = S0.construct ?? 'monolit', lim = lenLimit(sys, S0.seismic), abroad = this.normSet() !== 'UZ';
     const set = (patch: Partial<typeof S0>) => this.run(() => this.store.dispatch({ type: 'setSettings', patch }));
     return h('div', { class: 'group', id: 'seisRow' },
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
         h('span', { class: 'k' }, tr('Seysmik boʻlmalar'), h('span', { class: 'sub' }, tr('Maydon seysmikligi — SMT xaritasi yoki grunt toifasi boʻyicha (1.6-band, 1.1-jadval). Boʻlma uzunligi — 3.1-jadval.'))),
-        h('div', { class: 'seg sm', role: 'group', id: 'seisBall', 'aria-label': tr('Seysmiklik, ball') }, ...[7, 8, 9, 10].map(b => h('button', { 'aria-pressed': S0.seismic === b, 'data-ball': b, onclick: () => set({ seismic: b }) }, b > 9 ? '>9' : `${b}`)))),   // 04.11: 3.1-jadval «>9» ustuni
-      this.seisPlaceRow(),
+        ...(abroad ? [h('span', { class: 't-small', id: 'seisAbroad', style: 'flex-basis:100%' }, tr('Xorijiy loyiha: ballni oʻz mamlakatingiz meʼyori boʻyicha tanlang. ≤ 6 — seysmik cheklovlar qoʻllanmaydi; 7 va undan yuqori — QMQ 2.01.03-19 chegaralari andoza sifatida.'))] : []),
+        h('div', { class: 'seg sm', role: 'group', id: 'seisBall', 'aria-label': tr('Seysmiklik, ball') }, ...(abroad ? [6, 7, 8, 9, 10] : [7, 8, 9, 10]).map(b => h('button', { 'aria-pressed': b === 6 ? S0.seismic < 7 : S0.seismic === b, 'data-ball': b, onclick: () => set({ seismic: b, seismicSet: true }) }, b > 9 ? '>9' : b < 7 ? '≤ 6' : `${b}`)))),   // 04.11: 3.1-jadval «>9» ustuni; 14.11: xorijda «≤ 6»
+      abroad ? '' : this.seisPlaceRow(),
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
         h('div', { class: 'seg sm', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim'), style: 'flex-wrap:wrap' }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
         h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
@@ -5374,7 +5384,7 @@ export class Editor {
     const S0 = this.store.doc.settings, cur = seisByKey(S0.seisPlace) ?? seisForDistrict(S0.district), ru = ['ru', 'uk', 'kk'].includes(getLang());
     const nm = (p: (typeof SEIS_PLACES)[number]) => (ru ? p.ru : p.n);
     const regs = [...new Set(SEIS_PLACES.map(p => p.r))];
-    const sel = dropdown({ id: 'seisPlace', 'aria-label': tr('Aholi punkti (1-ilova)'), onchange: v => { const p = seisByKey(v); if (p) this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seisPlace: seisKey(p), seismic: p.b } })); } }, [
+    const sel = dropdown({ id: 'seisPlace', 'aria-label': tr('Aholi punkti (1-ilova)'), onchange: v => { const p = seisByKey(v); if (p) this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seismicSet: true, seisPlace: seisKey(p), seismic: p.b } })); } }, [
       ...(cur ? [] : [{ value: '', label: tr('Aholi punktini tanlang'), selected: true, disabled: true }]),
       ...regs.flatMap(r => { const g = (demoRow(r)?.name ?? r).replace(/\s+/g, ' '); return SEIS_PLACES.filter(p => p.r === r).sort((a, b) => nm(a).localeCompare(nm(b))).map(p => ({ value: seisKey(p), label: `${nm(p)} — ${p.b}${p.z ? '*' : ''}`, selected: !!cur && seisKey(p) === seisKey(cur), group: g })); })]);
     const diff = cur && cur.b !== S0.seismic;
@@ -5426,7 +5436,7 @@ export class Editor {
       // 04.11 (egasi: interfeysni soddalashtirish, A): hisob shartlari — «Qoʻshimcha» ichida, ekranda — joriy qiymatlar qisqa satrda; jadval darhol koʻrinadi
       (() => { const S0 = this.store.doc.settings, n = 4 + (this.fireLowRow() ? 1 : 0);
         const d = h('details', { class: 'gen-more', id: 'regSet', open: this.openDet.has('regSet') }, h('summary', {}, h('span', { style: 'white-space:nowrap' }, tf('Qoʻshimcha · ${n}', { n })),
-          h('span', { class: 't-small', id: 'regSetSum', style: 'margin-left:8px' }, [S0.recon ? tr('Rekonstruksiya') : '', `${S0.seismic > 9 ? '>9' : S0.seismic} ${tr('ball')}`, tr(SYS[S0.construct ?? 'monolit'].name), `${S0.m2PerPerson} m²/${tr('kishi')}`].filter(Boolean).join(' · '))),
+          h('span', { class: 't-small', id: 'regSetSum', style: 'margin-left:8px' }, [S0.recon ? tr('Rekonstruksiya') : '', (S0.seismic < 7 ? tr('seysmik emas') : `${S0.seismic > 9 ? '>9' : S0.seismic} ${tr('ball')}`), tr(SYS[S0.construct ?? 'monolit'].name), `${S0.m2PerPerson} m²/${tr('kishi')}`].filter(Boolean).join(' · '))),
         h('div', { class: 'group', id: 'reconRow' }, h('div', { class: 'li' },
         h('span', { class: 'k' }, tr('Rekonstruksiya / renovatsiya'), h('span', { class: 'sub' }, tr('79-band, 2-jadval, 7-izoh: rekonstruksiya, renovatsiya va murakkab shaharsozlik sharoitida insolyatsiya taʼminlansa jadval masofalari ikki barobargacha qisqaradi (≥ 6 m). Seysmik 2·Hmax (8-izoh) ham yarmiga — TALQIN. Yongʻin masofalari qisqarmaydi.'))),
         sw({ id: 'reconOn', label: tr('Rekonstruksiya / renovatsiya'), on: this.store.doc.settings.recon === true, onchange: v => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { recon: v } })) }))),
