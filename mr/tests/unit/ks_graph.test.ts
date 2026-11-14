@@ -113,6 +113,18 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     }
   }, 60_000);
 
+  it('model parametrlari (opt.par): foydalanuvchi qiymati taʼsir qiladi, keyingi modelda andoza tiklanadi', () => {
+    const N = net([0, 90, 180, 270], true);
+    const q = (par?: Record<string, number>) => new GraphSim(N, { demand: { a0: 700, a1: 700, a2: 700, a3: 700 }, seed: 2, par }).run(900).result(120).total.flow;
+    const base = q(), slow = q({ T: 2.2, s0: 3 }), again = q();
+    expect(slow).toBeLessThan(base * 0.92);
+    expect(again).toBe(base);
+    N.arms.forEach((a) => { a.lanes[0].codes = 'ULS'; });
+    const to = (d: number) => new GraphSim(N, { par: { uDiam: d } }).conns.filter((c) => c.m === 'U').map((c) => c.to);
+    expect(to(3).every((t) => t.endsWith('o0'))).toBe(true);    // koʻndalang 3,5 m yetadi — ichki boʻlakka
+    expect(to(7).every((t) => t.endsWith('o1'))).toBe(true);    // 7 m — tashqi boʻlakka
+  }, 60_000);
+
   it('avtobus: avtobus boʻlagi avtobus boʻlagiga ulanadi, umumiy boʻlak unga tushmaydi; odam-kechikish hisoblanadi', () => {
     const N = net([0, 90, 180, 270], true);
     const A = N.arms.map((a) => ({ ...a, lanes: [...a.lanes, { id: a.id + 'b', mid: 8.75, bus: true, codes: 'S', pts: a.lanes[1].pts.map((p) => [p[0] + (a.lanes[1].pts[0][0] - a.lanes[0].pts[0][0]) * 2, p[1] + (a.lanes[1].pts[0][1] - a.lanes[0].pts[0][1]) * 2] as XY) }],
