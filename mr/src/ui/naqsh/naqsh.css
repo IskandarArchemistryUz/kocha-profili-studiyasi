@@ -83,3 +83,22 @@
 .pw-del{align-self:flex-start;background:transparent!important;color:var(--bad);padding:0 8px;gap:6px}
 .pw-del svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7}
 @media (prefers-reduced-motion:reduce){.pw,.pw-card,.pw-bar::after{animation:none}}
+/* Archemistry yuklanish belgisi (ui/kolba.ts) — kanvas «Fon naqshlari va yuklanish» */
+.kolba .kb-o{fill:currentColor;fill-opacity:.82}
+.kolba .kb-w{fill:rgb(var(--kb))}
+.kolba .kb-f{animation:kbrise 3.2s cubic-bezier(.45,0,.25,1) infinite}
+.kolba .kb-w{animation:kbwave 1.6s linear infinite}
+.kolba .kb-b{fill:#fff;opacity:0;animation:kbbub 3.2s ease-in infinite}.kolba .b2{animation-delay:.6s}.kolba .b3{animation-delay:1.3s}
+@keyframes kbrise{0%{transform:translateY(100px)}80%,100%{transform:translateY(12px)}}
+@keyframes kbwave{to{transform:translateX(55px)}}
+@keyframes kbbub{0%{transform:translateY(0);opacity:0}20%{opacity:.7}100%{transform:translateY(-70px);opacity:0}}
+.sirkul{flex:none;vertical-align:-3px}
+.sirkul .sk-a{fill:none;stroke:currentColor;stroke-width:6;stroke-linecap:round;stroke-dasharray:.28 .72;transform-origin:52px 52px;animation:skspin .9s linear infinite}
+@keyframes skspin{to{transform:rotate(360deg)}}
+.kb-busy{gap:8px}
+.kb-ov{position:fixed;inset:0;z-index:2500;display:grid;place-content:center;justify-items:center;gap:14px;pointer-events:none;font:600 14px var(--sans,system-ui);color:var(--ink,#141414);background:color-mix(in srgb,var(--bg,#f2f1ee) 55%,transparent);animation:kbin .25s ease both}
+.kb-ov.out{animation:kbin .2s ease reverse both}
+@keyframes kbin{from{opacity:0}}
+.otish .kolba{position:absolute;left:50%;top:50%;margin:-42px 0 0 -42px;opacity:0;animation:kbshow .3s ease .6s forwards}
+@keyframes kbshow{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.kolba *,.sirkul *{animation:none!important}.kolba .kb-f{transform:translateY(40px)}}

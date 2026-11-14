@@ -11,6 +11,7 @@
  */
 import { h, svgIcon, icl, IC, toast, download } from '../ui/dom';
 import { svcBackdrop, svcGlow } from '../ui/backdrop';
+import { btnBusy } from '../ui/kolba';
 import { sw, stepper, seg } from '../ui/controls';
 import { tr, tf, trSvg, getLang } from '../i18n';
 import { logoSvg } from '../ui/logo';
@@ -1548,17 +1549,19 @@ export function openChizmadon(host: ChHost): void {
       const blob = await pp.write({ outputType: 'blob' }) as Blob; download(`${safe(d.title)}.pptx`, blob);
     } catch (e) { toast(`PowerPoint: ${(e as Error).message}`); }
   }
+  /** 14.11: uzoq eksport paytida «Yuklab olish» tugmasida Archemistry sirkuli (ui/kolba.ts) */
+  async function busy(fn: () => unknown): Promise<void> { const done = btnBusy(dlBtn); try { await fn(); } finally { done(); } }
   function exportMenu(anchor: HTMLElement): void {
     wrap.querySelector('.ch-menu')?.remove();
     const n = allPages().length;
     const it = (id: string, label: string, sub: string, fn: () => void) => h('button', { class: 'mi', id, disabled: !n && id !== 'chImJson', onclick: () => { m.remove(); fn(); } }, h('span', {}, label), h('span', { class: 'd' }, sub));
     const m = h('div', { class: 'menu ch-menu', role: 'menu', id: 'chDlMenu' },
       h('div', { class: 'mh' }, tr('Yuklab olish')),
-      it('chExPdf', tr('PDF — vektor, qatlamli'), tf('${n} varaq', { n }), () => void exportPdf()),
-      it('chExPptx', 'PowerPoint (.pptx)', tr('har varaq — slayd'), () => void exportPptx()),
+      it('chExPdf', tr('PDF — vektor, qatlamli'), tf('${n} varaq', { n }), () => void busy(exportPdf)),
+      it('chExPptx', 'PowerPoint (.pptx)', tr('har varaq — slayd'), () => void busy(exportPptx)),
       it('chExSvg', tr('SVG — Illustrator uchun'), tr('joriy varaq'), exportSvg),
-      it('chExPng', 'PNG 150 dpi', tr('joriy varaq'), () => void exportPng(150)),
-      it('chExPng3', 'PNG 300 dpi', tr('joriy varaq'), () => void exportPng(300)),
+      it('chExPng', 'PNG 150 dpi', tr('joriy varaq'), () => void busy(() => exportPng(150))),
+      it('chExPng3', 'PNG 300 dpi', tr('joriy varaq'), () => void busy(() => exportPng(300))),
       h('hr'),
       it('chExJson', tr('Albomni faylga saqlash (.json)'), '', () => { writeBack(); download(`${safe(d.title)}.chizmadon.json`, JSON.stringify(d), 'application/json'); }),
       it('chImJson', tr('Albomni fayldan ochish'), '', () => { jsonIn.value = ''; jsonIn.onchange = async () => { const f = jsonIn.files?.[0]; if (!f) return; try { commit(); d = normDoc(JSON.parse(await f.text()), d.title); d.auto.started = true; sel.clear(); matSel = null; zoom = 0; relayout(false); dirty(); renderAll(); toast(tr('Albom ochildi')); } catch { toast(tr('Fayl oʻqilmadi')); } }; jsonIn.click(); }));

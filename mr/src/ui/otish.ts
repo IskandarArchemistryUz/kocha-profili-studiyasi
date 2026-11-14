@@ -6,6 +6,7 @@
  */
 import './naqsh/naqsh.css';
 import { SRC, NAQSH, type NaqshId } from './backdrop';
+import { kolba } from './kolba';
 
 export type OtId = NaqshId | 'mr';
 /** fon (kunduz, tun), sukut tungi xizmatmi */
@@ -33,6 +34,8 @@ function layer(id: OtId, cls: 'out' | 'in'): HTMLElement {
   if (id === 'mr') el.append(Object.assign(document.createElement('div'), { className: 'ot-dots' }));
   else void SRC[id as NaqshId]().then(m => { el.insertAdjacentHTML('afterbegin', m.default); }).catch(() => {});
   el.append(Object.assign(document.createElement('div'), { className: 'ot-line' }));
+  // sahifa sekin ochilsa (0,6 s dan keyin) — Archemistry kolbasi xizmat rangida toʻladi
+  if (cls === 'out') el.append(kolba(p.acc, 84));
   return el;
 }
 
