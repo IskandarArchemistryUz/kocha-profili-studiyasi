@@ -1607,7 +1607,7 @@ function buildShapes0(){
   /* sath (−1 tunnel, 0 yer, +1/+2 koʻprik/estakada): har shaklga joriy sath yoziladi, oxirida z va shaffoflik shunga qarab */
   let CUR_LV=0,CUR_SID=null;sh.push=function(...a){a.forEach(x=>{if(x.lv==null)x.lv=CUR_LV;if(x.sid==null&&CUR_SID!=null)x.sid=CUR_SID;});return Array.prototype.push.apply(this,a);};
   const poly=(ll,col,cat,z,op)=>{if(ll&&ll.length>2)sh.push({t:'poly',ll,col,cat,z,op});};
-  const line=(ll,opt,code,z=6)=>{sh.push({t:'line',ll,opt,z});if(code)marks[code]=(marks[code]||0)+1;};
+  const line=(ll,opt,code,z=6)=>{sh.push({t:'line',ll,opt,z,code:code||undefined});if(code)marks[code]=(marks[code]||0)+1;};
   const mark=c=>marks[c]=(marks[c]||0)+1;
   const markOv=(mx,d,code)=>{if(code==='none')return;const LL=e=>offsetLine(mx,d+e).map(q=>toLL(q,o));const W1={color:'#fff',weight:1.3};
     if(code==='1.1'||code==='1.2')line(LL(0),{color:'#fff',weight:2},code);
@@ -1713,7 +1713,7 @@ function buildShapes0(){
       lay.st.filter(x=>x.k==='turn').forEach(x=>{for(let s=15;s<Tm-15;s+=30){const f=frameAt(mx,cm,s);[1,-1].forEach(dv=>poly(arrowShape([f.p[0]+f.n[0]*x.mid+f.t[0]*dv*3,f.p[1]+f.n[1]*x.mid+f.t[1]*dv*3],[f.t[0]*dv,f.t[1]*dv],4,o),'#f4f4f0',null,7));}});
     }
     // zebra: faqat harakat va velo boʻlaklari ustida
-    const zebra=(S0,S1)=>{lay.st.forEach(x=>{if(!(DK[x.k].road&&!isPk(x.k))&&x.k!=='bike')return;for(let d=x.d2+.25;d<x.d1-.2;d+=1){const b=band(Math.min(d+.5,x.d1-.05),d,S0,S1);poly(b,WH,null,7);}});
+    const zebra=(S0,S1)=>{lay.st.forEach(x=>{if(!(DK[x.k].road&&!isPk(x.k))&&x.k!=='bike')return;for(let d=x.d2+.25;d<x.d1-.2;d+=1){const b=band(Math.min(d+.5,x.d1-.05),d,S0,S1);poly(b,WH,null,7);if(sh.length)sh[sh.length-1].code='1.14.1';}});
       lay.st.forEach(x=>{if(['median','green','hatch','buffer','rain','island','furn'].includes(x.k))poly(band(x.d1,x.d2,S0,S1),'#cdbf9f','ped',3);});mark('1.14.1');
       /* bordyur chetida taktil ogohlantiruvchi polosa 0,6 m, chetdan 0,3 m (ShNQ 2.07.02-24, 12-ilova); bordyur ≤ 2 sm (18-band) */
       const rd=x=>DK[x.k].road&&x.k!=='hatch';for(let i=0;i<lay.st.length-1;i++){const A=lay.st[i],B=lay.st[i+1];if(rd(A)===rd(B))continue;const d=A.d2,sg2=rd(A)?-1:1;
