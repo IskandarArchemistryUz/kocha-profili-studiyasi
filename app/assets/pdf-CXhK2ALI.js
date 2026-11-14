@@ -1,1 +1,0 @@
-export{t as svgPdf}from"./pdf-OKRaccV2.js";

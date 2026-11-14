@@ -38,6 +38,10 @@ test('Parij: 9-qadamda «Toshkent shahri» yoʻq, 3-qadamda koʻchirish xarajati
   // 14.11: xorijda qadam izohida Oʻzbekiston meʼyori yoʻq
   await page.click('[data-step=yashil]');
   await expect(page.locator('body')).not.toContainText('ShNQ 2.07.01-23, 86-band ≥ 30 %');
+  // 14.11: koʻcha profillari belgisi xorijda — «andoza ✓», «ShNQ ✓» emas
+  await page.click('[data-step=kocha]'); await page.click('[data-ktab=prof]');
+  await expect(page.locator('[data-prof]').first()).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('ShNQ ✓');
 });
 
 /** 14.11 (egasi): xorijda seysmiklik sukuti — 6 (seysmik emas), foydalanuvchi tanlaydi; Toshkentda — 8 */
