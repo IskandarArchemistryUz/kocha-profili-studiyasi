@@ -18,6 +18,8 @@ export interface KsWinOpts {
   street: string; same: string[];
   /** foydalanuvchi profili (doc.profiles) boʻlsa — «barcha koʻchalar» uni oʻz joyida yangilaydi */
   isUser: boolean;
+  /** xorijiy loyiha (meʼyor toʻplami ≠ UZ) — belgi «andoza» */
+  intl?: boolean;
   /** profil faqat shu koʻchaga tegishli boʻlsa — «Faqat shu koʻcha» ham oʻz joyida yangilaydi */
   onApply: (p: Profile, streets: string[], scope: KsScope) => void;
   /** Koʻchasozni toʻliq oynada ochish (eski yoʻl — saqlanadi) */
@@ -53,7 +55,7 @@ export function openKsWindow(o: KsWinOpts): void {
   function renderChecks(): void {
     const p = conv() ?? o.base, iss = checkProfile(p), W = profileWidth(p), cat = CATS[p.cat];
     checks.replaceChildren(
-      row(true, cat.name, 'ShNQ'),
+      row(true, cat.name, o.intl ? tr('andoza') : 'ShNQ'),
       ...(iss.length ? iss.map(x => row(false, `${x.what}: ${x.value}`, x.norm)) : [row(true, tr('Meʼyorga mos.'), /\d+-jadval/.exec(cat.clause)?.[0] ?? '2.07.01-23')]),
       row(Math.abs(W - W0) < 0.01 ? true : 'warn', tr('Jami = qizil chiziqlar orasi'), `${fmt(W, 1)} / ${fmt(W0, 1)}`));
     status.textContent = dirty ? tr('Oʻzgarishlar Master rejaga qoʻllanmagan') : tr('Oʻzgarish yoʻq');

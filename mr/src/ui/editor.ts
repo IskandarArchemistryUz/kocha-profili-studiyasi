@@ -3700,7 +3700,7 @@ export class Editor {
     const mainSel = dropdown({ id: 'gridMain', 'aria-label': tr('Asosiy koʻchalar'), onchange: v => { g.mainEvery = Number(v); this.renderPanel(); } }, [[0, 'Hammasi ikkilamchi'], [2, 'Har 2-chisi asosiy'], [3, 'Har 3-chisi asosiy'], [4, 'Har 4-chisi asosiy']].map(([v, t]) => ({ value: String(v), label: tr(t as string), selected: g.mainEvery === v })));
     const profRow = (key: 'main' | 'minor', lbl: string) => { const p = profileById(g.profiles[key]), iss = checkProfile(p).length;
       const sel = dropdown({ 'aria-label': lbl, onchange: v => { g.profiles = { ...g.profiles, [key]: v }; this.renderPanel(); } }, PROFILES.map(x => ({ value: x.id, label: `${x.name} · ${fmt(profileWidth(x), 0)} m`, selected: g.profiles[key] === x.id })));
-      return h('div', { class: 'li prof-row', style: 'flex-wrap:wrap' }, h('span', { class: 'chip' }, lbl), h('span', { style: 'flex:1' }), h('span', { class: iss ? 'chip warn' : 'chip ok' }, h('i'), iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'), h('span', { class: 'v' }, `${fmt(profileWidth(p), 0)} m`), h('span', { class: 'k', style: 'flex-basis:100%' }, p.name, h('span', { class: 'sub' }, p.note)), h('div', { style: 'flex-basis:100%' }, sel)); };
+      return h('div', { class: 'li prof-row', style: 'flex-wrap:wrap' }, h('span', { class: 'chip' }, lbl), h('span', { style: 'flex:1' }), h('span', { class: iss ? 'chip warn' : 'chip ok' }, h('i'), iss ? `${iss} ${tr('chetlanish')}` : this.profOk()), h('span', { class: 'v' }, `${fmt(profileWidth(p), 0)} m`), h('span', { class: 'k', style: 'flex-basis:100%' }, p.name, h('span', { class: 'sub' }, p.note)), h('div', { style: 'flex-basis:100%' }, sel)); };
     box.append(
       h('div', { class: 'glabel' }, h('span', {}, tr('Blok moduli')), h('span', {}, pre ? `${pre.name} · ${g.w} × ${g.h} m` : `${g.w} × ${g.h} m`)),
       h('div', { class: 'tiles c4', role: 'listbox', 'aria-label': tr('Blok modullari') }, ...GRID_PRESETS.map(p => h('button', { class: 'tile', 'data-gpre': p.id, 'aria-pressed': this.gridPreset === p.id, title: `${p.note} · ${p.src}`, onclick: () => { this.gridPreset = p.id; g.w = p.w; g.h = p.h; this.renderPanel(); } },
@@ -4114,7 +4114,7 @@ export class Editor {
       h('div', { class: 'secsvg', html: sectionSvg(p0.parts, 300, 0, true, false) })));
     if (stSel) {
       const iss = checkProfile(p0);
-      body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, `${tr('Tanlangan')}: ${p0.name} · ${fmt(profileWidth(p0), 0)} m`, h('span', { class: 'sub' }, `ShNQ 2.07.01-23, ${CATS[p0.cat].clause}${stSel.osm != null ? ' · OSM' : ''}`)), h('span', { class: iss.length ? 'chip bad' : 'chip ok' }, h('i'), iss.length ? `${iss.length} ${tr('chetlanish')}` : tr('mos')))),
+      body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, `${tr('Tanlangan')}: ${p0.name} · ${fmt(profileWidth(p0), 0)} m`, h('span', { class: 'sub' }, `${this.profSrc(CATS[p0.cat].clause)}${stSel.osm != null ? ' · OSM' : ''}`)), h('span', { class: iss.length ? 'chip bad' : 'chip ok' }, h('i'), iss.length ? `${iss.length} ${tr('chetlanish')}` : tr('mos')))),
         h('span', { class: 't-small', id: 'stEditHint' }, tr('Nuqtalarni sudrang · oraliq nuqta — burilish · 2× bosish — oʻchirish · Delete — oʻchirish')));
       body.append(h('div', { class: 'row', style: 'gap:6px' }, this.cutBtn()));
       if (this.selVtx != null) body.append(this.vtxPanel(stSel.axis.length));
@@ -4144,6 +4144,10 @@ export class Editor {
     if (this.kochaTab === 'chiz') this.drawTab(body, fr, drawing);
   }
 
+  /** 14.11 audit: koʻcha profili tekshiruvi belgisi — xorijda ShNQ emas, andoza */
+  private profOk(): string { return this.normSet() === 'UZ' ? 'ShNQ ✓' : tr('andoza ✓'); }
+  private profSrc(clause: string): string { return this.normSet() === 'UZ' ? `ShNQ 2.07.01-23, ${clause}` : tr('andoza (ShNQ 2.07.01-23 asosida)'); }
+
   /** Profillar yorligʻi: qidiruv, guruh filtrlari, kartochkalar (nom, kenglik, meʼyor chipi, mini kesim) */
   private profilesTab(body: HTMLElement, selId: string | null): void {
     const mine = this.store.doc.profiles ?? [];
@@ -4165,7 +4169,7 @@ export class Editor {
         h('div', { class: 'gc2', role: 'listbox', 'aria-label': g.name }, ...list.map(p => { const iss = checkProfile(p).length, piy = p.cat === 'piyoda';
           return h('button', { class: 'gcard2', role: 'option', 'aria-selected': this.profile === p.id, 'aria-pressed': this.profile === p.id, 'data-prof': p.id, title: `${CATS[p.cat].name} · ${p.note}`, onclick: () => pick(p) },
             h('b', {}, p.name), this.profileBar(p.id),
-            h('span', { class: 'pm' }, h('span', { class: 'num' }, `${fmt(profileWidth(p), 1)} m`), h('span', { class: piy ? 'chip warn' : iss ? 'chip warn' : 'chip ok' }, piy ? tr('hisob boʻyicha') : iss ? `${iss} ${tr('chetlanish')}` : 'ShNQ ✓'))); })));
+            h('span', { class: 'pm' }, h('span', { class: 'num' }, `${fmt(profileWidth(p), 1)} m`), h('span', { class: piy ? 'chip warn' : iss ? 'chip warn' : 'chip ok' }, piy ? tr('hisob boʻyicha') : iss ? `${iss} ${tr('chetlanish')}` : this.profOk()))); })));
     }
     if (!shown) body.append(h('div', { class: 'empty' }, h('span', {}, tr('Hech narsa topilmadi'))));
     body.append(h('span', { class: 't-small' }, tr('Koʻcha tanlangan boʻlsa — bosilgan profil shu koʻchaga qoʻllanadi; aks holda yangi koʻcha uchun.')));
@@ -4257,7 +4261,7 @@ export class Editor {
         })));
       if (this.selStreet) {
         const st = doc.streets.find(x => x.id === this.selStreet), p = st && profileById(st.profile), iss = p ? checkProfile(p) : [];
-        if (p) body.append(h('div', { class: iss.length ? 'note bad' : 'note ok', id: 'stNorm' }, h('b', {}, `${CATS[p.cat].name}`), ` · ShNQ 2.07.01-23, ${CATS[p.cat].clause}`, h('br'),
+        if (p) body.append(h('div', { class: iss.length ? 'note bad' : 'note ok', id: 'stNorm' }, h('b', {}, `${CATS[p.cat].name}`), ` · ${this.profSrc(CATS[p.cat].clause)}`, h('br'),
           ...(iss.length ? iss.map(x => h('div', {}, `${x.what}: ${x.value} — ${tr('meʼyor')} ${x.norm}`)) : [tr('Meʼyorga mos.')])));
         if (p) body.append(h('button', { class: 'btn btn-block', id: 'stKs', title: tr('Koʻchasoz: kesim muharriri — Dizayn-kod zonalari, muhandislik tarmoqlari, reja, aksonometriya, albom varagʻi'), onclick: () => this.openKsWin(st!, p, doc.streets.indexOf(st!)) },
           h('i', { style: 'width:8px;height:8px;border-radius:4px;background:var(--svc-ks);flex:none' }), tr('Koʻchasozda tahrirlash')));
@@ -4265,13 +4269,13 @@ export class Editor {
       }
       this.endsPanel(body);
     } else body.append(h('div', { class: 'note' }, tr('Koʻchalar yoʻq. Uchastkani kesib oʻtadigan oʻqni chizing — kvartallar avtomatik hosil boʻladi.')));
-    body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr('Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.'))));
+    body.append(h('details', { class: 'how' }, h('summary', {}, svgIcon(IC.info), tr('Mavjud koʻchani tahrirlash')), h('div', {}, tr(this.normSet() === 'UZ' ? 'Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; har profil ShNQ 2.07.01-23 20-jadvali (310-band) va 1-izohi bilan tekshiriladi.' : 'Mavjud koʻchani tahrirlash: sahnada OSM koʻchasini bosing → «Loyihaga olish». Qizil chiziqlar orasidagi kenglik = profil kengligi; profil andoza bilan tekshiriladi (ShNQ 2.07.01-23 asosida) — mahalliy meʼyor bilan solishtiring.'))));
   }
 
   /** Koʻchasoz oynasi (MR ichida): tahrirlangan kesim loyiha profili boʻlib qaytadi va koʻcha(lar)ga beriladi — bitta qadam */
   private openKsWin(st: Street, p: Profile, k: number): void {
     const doc = this.store.doc, same = doc.streets.filter(x => x.profile === st.profile).map(x => x.id);
-    openKsWindow({ base: p, label: tf('Koʻcha ${n}', { n: k + 1 }), street: st.id, same, isUser: !!doc.profiles?.some(x => x.id === p.id), name: `${doc.name} · ${p.name}`,
+    openKsWindow({ base: p, label: tf('Koʻcha ${n}', { n: k + 1 }), street: st.id, same, isUser: !!doc.profiles?.some(x => x.id === p.id), intl: this.normSet() !== 'UZ', name: `${doc.name} · ${p.name}`,
       onApply: (np, streets, scope) => {
         const prev = this.plan();
         this.run(() => this.store.dispatch({ type: 'applyProfile', profile: np, streets }));
