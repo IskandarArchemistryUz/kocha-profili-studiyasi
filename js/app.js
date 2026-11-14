@@ -1706,7 +1706,7 @@ function buildShapes0(){
     if(n.lc&&k!=='round'){const on=new Set(n.lcArms||[]);for(let i=C.length-1;i>=0;i--)if(on.has(C[i].from.key))C.splice(i,1);
       n.lc.forEach(c=>{const e=E.find(x=>x.key===c.f),f=E.find(x=>x.key===c.t),s2=e&&e.lanes[c.fl],d=f&&f.exits[c.tl];if(s2&&d)C.push({from:e,to:f,m:c.m,s:s2,d,man:1});});}C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));
     const ring=k==='round'?{c:toXY(n.ll,o),r:(n.ri||12)+(n.rw||6)/2}:null;
-    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id,pri:k==='x'&&n.pri?Object.fromEntries(E.map(e=>[e.key,priOf(n,e.key)])):null});
+    JNET.set(n.id,{E,C,o,sig:k==='sig',ring,id:n.id,pri:k==='x'&&n.pri?Object.fromEntries(E.map(e=>[e.key,priOf(n,e.key)])):null,rtor:k==='sig'&&!!n.rtor});
     if(ds.conn&&!ring)C.forEach(c=>line(c.pts.map(q=>toLL(q,o)),{color:c.m==='L'?'#8f9bff':c.m==='R'?'#ff9a5c':c.s.x.k==='bus'?'#6fb3ff':'#f2d27a',weight:1.6,opacity:.95},null,7.5));
   });
   CUR_LV=0;freeShapes(ds,o,poly,line,mark);

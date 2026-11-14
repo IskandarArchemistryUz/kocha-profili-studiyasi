@@ -163,6 +163,8 @@ function cardHTML(sel){const ds=DS();
       ${n.pri?'<button class="kt-btn" data-k="prir" style="align-self:flex-start">YHQ andozasiga qaytarish</button>':'<div class="kt-note">Bitta yon koʻchaga «Yoʻl bering» qoʻysangiz, qolganlari asosiy yoʻl boʻladi.</div>'}`:'';
     return `<span class="eb">CHORRAHA</span><div class="ti">${esc(names.length?names.slice(0,3).join(' × '):'Chorraha')}</div>
       <div class="kt-seg" role="group" aria-label="Turi" style="align-self:flex-start">${ty}</div>${pri}
+      ${k==='sig'?`<div class="kt-arm"><span>Qizilda oʻngga burilish</span><button class="kt-pri${n.rtor?'':' on'}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-rt="0">Yoʻq</button><button class="kt-pri${n.rtor?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-rt="1">Strelka bilan</button></div>
+      <div class="kt-note">Qoʻshimcha seksiyadagi yashil strelka: toʻliq toʻxtab, yashil oqim va piyodalarga yoʻl berib oʻngga buriladi (TALQIN — YHQ bandini tasdiqlang).</div>`:''}
       <div class="row"><button class="kt-btn pr" data-k="sim">▶ Harakatni sinash</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
   return null;}
 /* koʻchaning chorraha tomonidagi uchlari: karman (qoʻshimcha burilish polosasi) */
@@ -192,6 +194,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.k==='kesim'){location.href='app/kochasoz.html#/b';return;}
   if(b.dataset.k==='prir'){setPri(sel.id,null);return;}
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}
+  if(b.dataset.rt){const n=nodeById(sel.id);if(b.dataset.rt==='1')n.rtor=1;else delete n.rtor;afterDesign();return;}
   if(b.dataset.fix){const [r1,i1]=b.dataset.fix.split(':');fixIssue(r1,+i1);return;}
   if(b.dataset.add){const a=b.dataset.add;if(a==='xwalk')pickTool('xwalk');else{ds.attType=a;pickTool('obj');}return;}
   if(b.dataset.apm){const sg=segById(sel.id),k=b.dataset.apm;if(b.dataset.v==='auto'){if(sg.appr)delete sg.appr[k];if(sg.arr)delete sg.arr[k];afterDesign();}else setAppr(sg,k,()=>{});return;}
@@ -221,7 +224,7 @@ function refresh(){const ds=DS(),t=ds.tool||'select';
   acts.querySelector('[data-a="fun"]').classList.toggle('on',S.dsty==='line');
   {const n=issues().out.length,c=acts.querySelector('.kt-cnt');c.hidden=!n;c.textContent=n;if(!chkP.hidden)drawChk();}
   const sel=t==='select'&&!D.start&&chkP.hidden?ds.sel:null,h=sel&&cardHTML(sel);
-  if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type:'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
+  if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type+((nodeById(sel.id)||{}).rtor?'r':''):'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
     if(card.dataset.k!==k){card.innerHTML=`<button class="x" data-k="x" aria-label="Yopish">${IC.x}</button>`+h;card.dataset.k=k;}card.hidden=false;placeCard();}
   else{card.hidden=true;card.dataset.k='';anchor=null;}
   drawSigns();}
