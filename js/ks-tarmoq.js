@@ -65,6 +65,10 @@ window.openHelp=function(){const m=document.getElementById('helpModal'),b=docume
 window.openMenu=function(){};
 
 /* --- Fayl: nom, saqlash/ochish, eksport (PNG, SVG, DXF, GeoJSON, CSV), Albomga, yangi loyiha --- */
+/* ochiladigan panel tugma ostida; oʻngdagi inspektor kartasi koʻrinib tursa — uning chap yoniga (ustma-ust tushmasin) */
+function placeBy(pn,r){let x=Math.max(16,Math.min(innerWidth-pn.offsetWidth-16,r.right-pn.offsetWidth));const c=card.getBoundingClientRect();
+  if(!card.hidden&&c.width>0&&c.height>0&&getComputedStyle(card).display!=='none'&&x+pn.offsetWidth>c.left-8&&x<c.right)x=Math.max(16,c.left-pn.offsetWidth-12);
+  pn.style.left=x+'px';pn.style.top=(r.bottom+14)+'px';}
 const fileP=el(`<div class="kt-ui kt-pn kt-card kt-file" hidden></div>`);document.body.append(fileP);
 /* koʻchada avtobus boʻlagi oʻrtadami (chetida oddiy boʻlak bor) */
 function midBus(sg){if(!sg)return false;const st=layOf(sg).st,bus=st.filter(x=>x.k==='bus'||x.k==='tram'),rd=st.filter(x=>x.k==='lane'||x.k==='mixed');return bus.some(b=>rd.some(l=>Math.sign(l.mid)===Math.sign(b.mid)&&Math.abs(l.mid)>Math.abs(b.mid)));}
@@ -79,7 +83,7 @@ function toggleFile(btn){if(!fileP.hidden){fileP.hidden=true;return;}const ds=DS
     <div class="kt-note">Titul, vaziyat sxemasi, mavjud holat va taqqoslash, umumiy reja, chorrahalar (1:500/1:1000), koʻrinish uchburchaklari, kesimlar, kartogramma, oqimlar va siklogramma, piyoda/JT, velo, yoritish va drenaj, vedomostlar, ishlar hajmi, vaqtinchalik TT, YHQ tekshiruvi. Koʻcha nomlarini kiriting — varaqlarda shu nomlar chiqadi.</div>
     <div class="kt-note">DXF — qatlamlar bilan (ArchiCAD, AutoCAD, QGIS). Loyiha shu brauzerda avtomatik saqlanadi.</div>
     <div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-f="clr">Yangi loyiha (tozalash)</button></div>`;
-  fileP.hidden=false;fileP.style.left=Math.max(16,Math.min(innerWidth-fileP.offsetWidth-16,r.right-fileP.offsetWidth))+'px';fileP.style.top=(r.bottom+14)+'px';}
+  fileP.hidden=false;placeBy(fileP,r);}
 fileP.addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b||b.tagName==='INPUT')return;const f=b.dataset.f,ds=DS();
   if(f==='x'){fileP.hidden=true;return;}
   if(f==='save')saveProjectFile();else if(f==='png')exportPNG(4,/^img/.test(S.base||''));else if(f==='svg')exportSVG(false);
@@ -95,12 +99,14 @@ function issues(){let ck={};try{ck=checkYHQ();}catch(e){}const out=[];ckOrder(ck
 function chkHTML(){const {ck,out}=issues(),ds=DS();if(!ds.segs.length)return '<div class="kt-note">Hali koʻcha chizilmagan.</div>';
   const nok=Object.values(ck).filter(x=>x[0]==='ok').length;
   return (out.length?`<div class="kt-note" style="color:#b2342a;font-weight:600">${out.length} ta muammo — bosing, xaritada koʻrsatiladi</div>`:`<div class="kt-note" style="color:#2b7449;font-weight:600">${nok} ta qoida tekshirildi — muammo yoʻq</div>`)
-    +out.map((x,n)=>{const sg=segById(x.it.id);return `<div class="kt-iss" data-iss="${x.rid}:${x.i}"><span class="n">${n+1}</span><span class="w"><b>${esc(x.t)}</b><br>${sg?esc(segTitle(sg))+' · ':''}${x.it.why}</span>${x.it.fix?`<button class="kt-btn pr" data-fix="${x.rid}:${x.i}" style="height:28px;padding:0 10px">Tuzatish</button>`:''}</div>`;}).join('')
+    /* bir qoida — bitta sarlavha, ostida muammolar (takror sarlavha shovqin qilmasin) */
+    +(()=>{let h='',last=null;out.forEach((x,n)=>{if(x.rid!==last){last=x.rid;h+=`<div class="kt-note" style="font-weight:600;color:#141414;margin:6px 0 -4px">${esc(x.t)}</div>`;}
+      const sg=segById(x.it.id);h+=`<div class="kt-iss" data-iss="${x.rid}:${x.i}"><span class="n">${n+1}</span><span class="w">${sg?'<b>'+esc(segTitle(sg))+'</b> · ':''}${x.it.why}</span>${x.it.fix?`<button class="kt-btn pr" data-fix="${x.rid}:${x.i}" style="height:28px;padding:0 10px">Tuzatish</button>`:''}</div>`;});return h;})()
     +`<div class="row" style="margin-top:4px"><button class="kt-btn" data-auto>Yoʻl belgilarini avtomatik qoʻyish</button></div><div class="kt-note">Qoida mazmuni YHQ ilovalari asosida umumlashtirilgan; band raqamini tasdiqlang. Faqat koʻcha kesimi va tugunlar tekshiriladi.</div>`;}
 function drawChk(){chkP.innerHTML=`<button class="x" data-c="x" aria-label="Yopish">${IC.x}</button><span class="eb">TEKSHIRUV · YHQ</span>`+chkHTML();}
 function toggleChk(btn){const ds=DS();if(!chkP.hidden){chkP.hidden=true;ds.itab='prop';ds.ckF=null;renderCheckMarks();refresh();return;}
   fileP.hidden=true;ds.itab='check';drawChk();chkP.hidden=false;renderCheckMarks();const r=btn.getBoundingClientRect();
-  chkP.style.left=Math.max(16,Math.min(innerWidth-chkP.offsetWidth-16,r.right-chkP.offsetWidth))+'px';chkP.style.top=(r.bottom+14)+'px';}
+  placeBy(chkP,r);}
 chkP.addEventListener('click',e=>{const ds=DS();if(e.target.closest('[data-c="x"]')){chkP.hidden=true;ds.itab='prop';ds.ckF=null;renderCheckMarks();refresh();return;}
   const f=e.target.closest('[data-fix]');if(f){const [r1,i1]=f.dataset.fix.split(':');fixIssue(r1,+i1);drawChk();return;}
   if(e.target.closest('[data-auto]')){autoSigns();drawChk();return;}

@@ -2233,6 +2233,7 @@ const YHQ=[
   {id:'bus',t:'Yoʻnalishli transport boʻlagi chekkadagi oʻng boʻlakda yoki markazda ajratilgan'},
   {id:'bike',t:'Velosiped boʻlagida harakat yonidagi avtomobil oqimi bilan bir yoʻnalishda'},
   {id:'lanew',t:'Harakat boʻlagi kengligi belgilangan chegarada'},
+  {id:'stray',t:'Chizma: koʻchalardan 300 m dan uzoqda qolgan erkin shakl, belgi yoki chiziq yoʻq (3D va albom chegarasini buzadi)'},
   {id:'refuge',t:'Chorrahada piyoda oʻtish joyida xavfsizlik orolchasi ≥ 2 m (ShNQ 2.07.02-24, 24- va 19-bandlar; 2 boʻlakdan ortiq yoʻnalishda — TALQIN)'},
   {id:'ramp',t:'Rampa nishabi ShNQ 2.07.01-23, 20-jadval chegarasida (sathlar orasi — andoza 6 m)'},
 ];
@@ -2257,7 +2258,7 @@ function checkYHQ(){
       let best=0,run=0,inside=false;for(let i=0;i<st.length;i++){const x=st[i],rd=DK[x[0]]&&DK[x[0]].road&&x[0]!=='hatch';
         if(rd){if(inside&&run>0)best=Math.max(best,run);run=0;inside=true;}/* ShNQ 2.07.02-24 taʼrifi: harakat tasmalarini ajratuvchi (yoʻnalishidan qatʼi nazar) */
         else if(inside&&REFUGE_K.includes(x[0]))run+=x[1];else run=0;}
-      if(best<REFUGE_W-.01)add('refuge',s,{end:e,why:`${segTitle(s)}, ${e==='a'?'boshlanish':'tugash'} uchidagi chorrahada orolcha ${best>0?f2(best)+' m':'yoʻq'} (${nf}+${nb} boʻlak kesib oʻtiladi)`});});
+      if(best<REFUGE_W-.01)add('refuge',s,{end:e,why:`${e==='a'?'Boshlanish':'Tugash'} uchidagi chorrahada orolcha ${best>0?f2(best)+' m':'yoʻq'} (${nf}+${nb} boʻlak kesib oʻtiladi)`});});
   });
   const u=a=>[...new Set(a)];
   /* holatlar: ok — tekshirildi va mos; bad — muammo; auto — chizish qoidasi bilan taʼminlanadi (tekshiruv emas); na — qoʻllanilmaydi / tekshiradigan narsa yoʻq */
@@ -2271,15 +2272,20 @@ function checkYHQ(){
   r.bike=bad.bike.length?['bad',`${u(bad.bike).length} ta koʻcha`]:segs.some(x=>x.lay.st.some(y=>y.k==='bike'&&y.dir))?['ok','mos']:['na','velo boʻlagi yoʻq'];
   {const R=ds.segs.filter(isRamp);R.forEach(sg=>{const ri=rampInfo(sg);if(!ri.ok)add('ramp',sg,{why:`Rampa nishabi ${Math.round(ri.pm)} ‰ > ${ri.max} ‰ (${ri.v} km/soat); uzunlik ≥ ${Math.ceil(ri.need)} m kerak`});});
     r.ramp=!R.length?NA:bad.ramp.length?['bad',`${bad.ramp.length} ta rampa`]:['ok',`${R.length} ta rampa ≤ chegara`];}
+  {const o=origin(),SB=has?focusBB({o}):null,far=p=>{const q=toXY(p,o);return q[0]<SB[0]-300||q[0]>SB[2]+300||q[1]<SB[1]-300||q[1]>SB[3]+300;},st=[];
+    if(SB){(ds.shapes||[]).forEach(x=>{if((x.pts||[]).some(far))st.push({r:'stray',id:null,shape:x.id,ll:x.pts[0],why:`Erkin shakl «${(typeof SHP!=='undefined'&&SHP[x.k]?SHP[x.k].n:x.k)}» koʻchalardan uzoqda`});});
+      (ds.signs||[]).forEach(x=>{if(far(x.ll))st.push({r:'stray',id:null,ll:x.ll,why:`Yoʻl belgisi ${x.c} koʻchalardan uzoqda`});});
+      (ds.lines||[]).forEach(x=>{if((x.pts||[]).some(far))st.push({r:'stray',id:null,ll:x.pts[0],why:'Yoʻl chizigʻi koʻchalardan uzoqda'});});}
+    r.stray=!has?NA:st.length?['bad',`${st.length} ta obyekt`,st]:['ok','yoʻq',[]];}
   r.refuge=!has?NA:bad.refuge.length?['bad',`${bad.refuge.length} ta kirishda < 2 m`]:['ok','mos'];
   r.lanew=!has?NA:bad.lanew.length?['bad',`${bad.lanew.length} ta boʻlak`]:['ok',`${f2(ds.thr.laneMin)}–${f2(ds.thr.laneMax)} m`];
-  Object.keys(r).forEach(k=>r[k][2]=iss[k]||[]);
+  Object.keys(r).forEach(k=>{if(!r[k][2])r[k][2]=iss[k]||[];});
   return r;
 }
 /* tekshiruv xatolarini xaritada koʻrsatish */
 const ckOrder=ck=>[...YHQ].sort((a,b)=>(ck[a.id][0]==='bad'?0:1)-(ck[b.id][0]==='bad'?0:1));
 const ckL=L.layerGroup();let CKR=null;
-function issGeom(it,k=0,nk=1){const sg=segById(it.id);if(!sg)return null;const o=origin(),xy=segXY(sg,o),c=cumLen(xy),T=c[c.length-1],lay=layOf(sg);
+function issGeom(it,k=0,nk=1){if(it.ll&&it.id==null)return {pt:it.ll,poly:null,node:it.ll,sg:null};const sg=segById(it.id);if(!sg)return null;const o=origin(),xy=segXY(sg,o),c=cumLen(xy),T=c[c.length-1],lay=layOf(sg);
   if(it.end){const n=nodeById(sg[it.end]);const f=frameAt(xy,c,it.end==='a'?Math.min(T*.25,14):Math.max(T*.75,T-14));return {pt:toLL(f.p,o),poly:null,node:n&&n.ll,sg};}
   const st=it.strip!=null&&lay.st[it.strip];
   const f=frameAt(xy,c,T*Math.max(.12,Math.min(.88,.5+(k-(nk-1)/2)*.22))),mid=st?st.mid:0;
@@ -2297,8 +2303,8 @@ function renderCheckMarks(){
     m.on('click',e=>{L.DomEvent.stop(e);focusIssue(rid,i);});});
 }
 function focusIssue(rid,i){const ds=DS(),it=(checkYHQ()[rid][2]||[])[i];if(!it)return;const g=issGeom(it);if(!g)return;
-  ds.ckF=[rid,i];ds.sel={t:'seg',id:it.id,strip:it.strip??null};renderDesignPanel._last=JSON.stringify(['seg',it.id,undefined]);
-  const b=L.latLngBounds(g.poly||segLL(g.sg));if(g.node)b.extend(g.node);
+  ds.ckF=[rid,i];if(it.shape!=null)ds.sel={t:'shape',id:it.shape};else if(it.id!=null){ds.sel={t:'seg',id:it.id,strip:it.strip??null};renderDesignPanel._last=JSON.stringify(['seg',it.id,undefined]);}
+  const b=g.sg||g.poly?L.latLngBounds(g.poly||segLL(g.sg)):L.latLngBounds([g.pt,g.pt]);if(g.node)b.extend(g.node);
   map.flyToBounds(b.pad(.15),{maxZoom:19,duration:.6});afterDesign();}
 function fixIssue(rid,i){const ds=DS(),it=(checkYHQ()[rid][2]||[])[i];if(!it)return;const sg=segById(it.id);if(!sg)return;
   if(it.fix==='cross')sg[it.end==='a'?'cwA':'cwB']=true;
@@ -2484,7 +2490,10 @@ function renderEditHandles(){
   if(sel.t!=='seg')return;const sg=segById(sel.id);if(!sg)return;
   {const xy0=segXY(sg,o),c0=cumLen(xy0),T0=c0[c0.length-1],f0=frameAt(xy0,c0,T0/2);L.polygon(arrowShape(f0.p,f0.t,Math.min(12,T0/3),o),{pane:'designEdit',interactive:false,color:'#1c2628',weight:1,fillColor:'#f4c542',fillOpacity:1}).addTo(editL);}
   const ll=segLL(sg),xy=segXY(sg,o),c=cumLen(xy),T=c[c.length-1],lay=layOf(sg);
-  if(sel.strip!=null&&lay.st[sel.strip]){const st=lay.st[sel.strip];L.polygon([...offsetLine(xy,st.d1),...offsetLine(xy,st.d2).reverse()].map(q=>toLL(q,o)),{pane:'designEdit',interactive:false,color:'#f4c542',weight:3,fill:false}).addTo(editL);}
+  /* tanlangan boʻlak chegarasi — chorraha ichiga kirmasin: uchlari tugun radiusi boʻyicha kesiladi */
+  const trimE=n=>{const k=n&&nodeKind(n);return k==='x'||k==='sig'||k==='round'?Math.max(0,nodeR(n,sg)):0;},tA=Math.min(T*.45,trimE(nodeById(sg.a))),tB=Math.min(T*.45,trimE(nodeById(sg.b)));
+  const xyT=[pointAt(xy,c,tA),...xy.filter((_,i)=>c[i]>tA+.01&&c[i]<T-tB-.01),pointAt(xy,c,T-tB)];
+  if(sel.strip!=null&&lay.st[sel.strip]){const st=lay.st[sel.strip];L.polygon([...offsetLine(xyT,st.d1),...offsetLine(xyT,st.d2).reverse()].map(q=>toLL(q,o)),{pane:'designEdit',interactive:false,color:'#f4c542',weight:3,fill:false}).addTo(editL);}
   // shakl nuqtalari (bosish — radiusni tanlash, sudrash — koʻchirish, oʻng tugma — oʻchirish)
   ll.forEach((p,i)=>{const isNode=i===0||i===ll.length-1,vi=i-1,on=sel.v===vi&&!isNode;
     const m=L.marker(p,{pane:'designEdit',draggable:true,icon:handleIcon('c',isNode?'#f4c542':on?'#f4c542':'#fff',isNode?'':'R'),title:isNode?'Tugun':`Burilish nuqtasi · radius ${f1(effRad(sg,vi))} m (bosing — oʻzgartirish)`}).addTo(editL);
@@ -2495,7 +2504,9 @@ function renderEditHandles(){
     m.on('click',()=>{sg.pts.splice(i,0,mp);sg.rad=sg.rad||[];while(sg.rad.length<sg.pts.length-1)sg.rad.push(0);sg.rad.splice(i,0,ds.drawR||0);ds.sel.v=i;afterDesign();});}
   const f=frameAt(xy,c,T/2),P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);
   const bounds=[lay.st[0].d1,...lay.st.map(x=>x.d2)];
-  bounds.forEach((d0,b)=>{let dOld=d0;const m=L.marker(P(d0),{pane:'designEdit',draggable:true,icon:handleIcon('s'),title:'Chegarani sudrang'}).addTo(editL);
+  /* kichik masshtabda tutqichlar bir-biriga yopishib qoladi — oraliq < 14 px boʻlsa faqat ikki chetdagisi koʻrsatiladi */
+  const ppm=1/(156543.03392*Math.cos(ll[0][0]*Math.PI/180)/Math.pow(2,map.getZoom())),dense=lay.W*ppm/Math.max(1,bounds.length-1)<14;
+  bounds.forEach((d0,b)=>{if(dense&&b>0&&b<bounds.length-1)return;let dOld=d0;const m=L.marker(P(d0),{pane:'designEdit',draggable:true,icon:handleIcon('s'),title:'Chegarani sudrang'}).addTo(editL);
     const tipB=b=>{const st=segStrips(sg);return (b>0?`${DK[st[b-1][0]].n}: ${f2(st[b-1][1])} m`:'')+(b>0&&b<st.length?' | ':'')+(b<st.length?`${DK[st[b][0]].n}: ${f2(st[b][1])} m`:'');};
     m.bindTooltip(tipB(b),{direction:'top',offset:[0,-8]});
     m.on('drag',e=>{const g=e.target.getLatLng(),q=toXY([g.lat,g.lng],o),dNew=(q[0]-f.p[0])*f.n[0]+(q[1]-f.p[1])*f.n[1];ensureSt(sg);const st=sg.st,n=st.length;
@@ -3270,6 +3281,9 @@ function exportCSV(){const ds=DS(),o=origin(),st=designStats(),{marks}=buildShap
    ===================================================================== */
 function loadScript(src){return new Promise((res,rej)=>{if([...document.scripts].some(s=>s.src===src)){res();return;}const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('yuklanmadi: '+src));document.head.appendChild(s);});}
 let V3=null;
+/* koʻchalar va tugunlar chegarasi (xy, origin boʻyicha); koʻcha boʻlmasa — butun geometriya */
+function focusBB(g){const ds=DS();if(!ds.segs.length)return g.bb;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  ds.segs.forEach(sg=>{const w=(layOf(sg).outer||10);segXY(sg,g.o).forEach(p=>{x0=Math.min(x0,p[0]-w);y0=Math.min(y0,p[1]-w);x1=Math.max(x1,p[0]+w);y1=Math.max(y1,p[1]+w);});});return [x0,y0,x1,y1];}
 async function open3D(){
   const g=exportGeom();if(!g){toast('Loyiha boʻsh — avval koʻcha chizing.');return;}
   let ov=document.getElementById('v3d');
@@ -3286,17 +3300,18 @@ async function open3D(){
   const host=ov.querySelector('#v3c');host.innerHTML='';
   const W=host.clientWidth,H=host.clientHeight,TH=THREE;
   const ren=new TH.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});ren.setPixelRatio(Math.min(2,devicePixelRatio));ren.setSize(W,H);ren.shadowMap.enabled=true;host.appendChild(ren.domElement);
-  const scene=new TH.Scene();scene.background=new TH.Color('#cfdbe3');scene.fog=new TH.Fog('#cfdbe3',600,2500);
-  const cx=(g.bb[0]+g.bb[2])/2,cy=(g.bb[1]+g.bb[3])/2,span=Math.max(g.bb[2]-g.bb[0],g.bb[3]-g.bb[1]);
-  const cam=new TH.PerspectiveCamera(45,W/H,.3,6000);cam.position.set(cx+span*.35,span*.55,-(cy)+span*.75);
+  /* kamera koʻchalarga qaratiladi (uzoqda qolgan shakl/belgi chegarani choʻzib, sahnani tumanga koʻmib qoʻymasin); tuman — masshtabga bogʻliq */
+  const fb=focusBB(g);const cx=(fb[0]+fb[2])/2,cy=(fb[1]+fb[3])/2,span=Math.max(60,fb[2]-fb[0],fb[3]-fb[1]);
+  const scene=new TH.Scene();scene.background=new TH.Color('#cfdbe3');scene.fog=new TH.Fog('#cfdbe3',span*1.6,span*5);
+  const cam=new TH.PerspectiveCamera(45,W/H,.3,Math.max(6000,span*12));cam.position.set(cx+span*.35,span*.55,-(cy)+span*.75);
   const ctl=new TH.OrbitControls(cam,ren.domElement);ctl.target.set(cx,0,-cy);ctl.maxPolarAngle=Math.PI/2.05;ctl.enableDamping=true;ctl.update();
   scene.add(new TH.HemisphereLight('#ffffff','#8a8272',.75));const sun=new TH.DirectionalLight('#fff6e8',.85);sun.position.set(cx-span*.4,span*.9,-cy+span*.5);sun.target.position.set(cx,0,-cy);
   sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);const sc=sun.shadow.camera;sc.left=-span*.8;sc.right=span*.8;sc.top=span*.8;sc.bottom=-span*.8;sc.far=span*4;scene.add(sun,sun.target);
   const model=new TH.Group();model.name='loyiha';scene.add(model);
   const mats={};const mat=(col,opt={})=>{const k=col+JSON.stringify(opt);return mats[k]||(mats[k]=new TH.MeshLambertMaterial(Object.assign({color:col},opt)));};
   // yer
-  const gw=(g.bb[2]-g.bb[0])+80,gh=(g.bb[3]-g.bb[1])+80;const ground=new TH.Mesh(new TH.PlaneGeometry(gw,gh),mat('#d8d1c1'));ground.rotation.x=-Math.PI/2;ground.position.set(cx,-.02,-cy);ground.receiveShadow=true;ground.name='yer';scene.add(ground);
-  (async()=>{const s=await satForBBox({...g,bb:[g.bb[0]-40,g.bb[1]-40,g.bb[2]+40,g.bb[3]+40]});if(!s)return;const {im,z,bb}=s,c2=document.createElement('canvas'),sw=gxf(bb.e,z)-gxf(bb.w,z),shh=gyf(bb.s,z)-gyf(bb.n,z);
+  const gw=(fb[2]-fb[0])+80,gh=(fb[3]-fb[1])+80;const ground=new TH.Mesh(new TH.PlaneGeometry(gw,gh),mat('#d8d1c1'));ground.rotation.x=-Math.PI/2;ground.position.set(cx,-.02,-cy);ground.receiveShadow=true;ground.name='yer';scene.add(ground);
+  (async()=>{const s=await satForBBox({...g,bb:[fb[0]-40,fb[1]-40,fb[2]+40,fb[3]+40]});if(!s)return;const {im,z,bb}=s,c2=document.createElement('canvas'),sw=gxf(bb.e,z)-gxf(bb.w,z),shh=gyf(bb.s,z)-gyf(bb.n,z);
     c2.width=Math.round(sw);c2.height=Math.round(shh);c2.getContext('2d').drawImage(im.cv,gxf(bb.w,z)-im.ox,gyf(bb.n,z)-im.oy,sw,shh,0,0,c2.width,c2.height);
     const tex=new TH.CanvasTexture(c2);const p0=toXY([bb.n,bb.w],g.o),p1=toXY([bb.s,bb.e],g.o);const sat=new TH.Mesh(new TH.PlaneGeometry(p1[0]-p0[0],p0[1]-p1[1]),new TH.MeshBasicMaterial({map:tex}));
     sat.rotation.x=-Math.PI/2;sat.position.set((p0[0]+p1[0])/2,-.01,-(p0[1]+p1[1])/2);sat.name='sputnik';scene.add(sat);ground.visible=false;

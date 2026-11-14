@@ -183,7 +183,8 @@ async function tileMosaic(bbLL,z,src){/* Esri koʻcha xaritasi plitkalari → da
   await Promise.race([Promise.all(jobs),new Promise(r=>setTimeout(r,15000))]);if(!ok)return null;
   try{return {url:cv.toDataURL('image/jpeg',.82),px0:x0*TS,py0:y0*TS,z,W:cv.width,H:cv.height};}catch(e){return null;}}
 let SIT=null;
-async function prepAlbum(){SIT=null;try{const G=exportGeom();if(!G)return;const sw=toLL([G.bb[0],G.bb[1]],G.o),ne=toLL([G.bb[2],G.bb[3]],G.o),cLat=(sw[0]+ne[0])/2,cLon=(sw[1]+ne[1])/2,dLat=2500/111320,dLon=2500/(111320*Math.cos(cLat*Math.PI/180));
+const geomF=()=>{const G=exportGeom();if(G&&typeof focusBB==='function')G.bb=focusBB(G);return G;};/* chegaralar — koʻchalar boʻyicha (uzoqda qolgan shakl albomni kichraytirmasin) */
+async function prepAlbum(){SIT=null;try{const G=geomF();if(!G)return;const sw=toLL([G.bb[0],G.bb[1]],G.o),ne=toLL([G.bb[2],G.bb[3]],G.o),cLat=(sw[0]+ne[0])/2,cLon=(sw[1]+ne[1])/2,dLat=2500/111320,dLon=2500/(111320*Math.cos(cLat*Math.PI/180));
   SIT=await tileMosaic({s:cLat-dLat,n:cLat+dLat,w:cLon-dLon*1.4,e:cLon+dLon*1.4},14);if(SIT)SIT.c=[cLat,cLon];}catch(e){SIT=null;}}
 function sitSheet(G,J){let s=head('Vaziyat sxemasi');const area={x:WORK.x,y:WORK.y,w:WORK.w-70,h:WORK.h};
   const sw=toLL([G.bb[0],G.bb[1]],G.o),ne=toLL([G.bb[2],G.bb[3]],G.o);
@@ -265,7 +266,7 @@ function tmSheet(st){let s=`<defs><pattern id="hz" width="3" height="3" patternU
    'Piyodalar: yopilgan trotuar uchun kamida 1,5 m vaqtinchalik yoʻlak, toʻsiq bilan; bekatlar vaqtincha koʻchiriladi. Har bosqich YHXBB bilan kelishiladi.','Qolgan boʻlaklar soni bilan oʻtkazish qobiliyati harakat modelida qayta tekshirilsin (bosqich → «Sinash»).'].forEach(l=>{s+=T(WORK.x,y,l,{s:2.2,c:'#333'});y+=4.6;});
   return s;}
 function existSheets(G){const ds=DS(),ex=ds.exist;if(!ex||!ex.segs)return [];const keep={segs:ds.segs,nodes:ds.nodes,signs:ds.signs};let GE=null,STE=null;
-  try{ds.segs=JSON.parse(JSON.stringify(ex.segs));ds.segs.forEach(e=>{if(!e.name){const q=keep.segs.find(x=>x.id===e.id);if(q&&q.name)e.name=q.name;}});/* nom keyin berilgan boʻlsa — mavjud holatda ham shu nom */ds.nodes=JSON.parse(JSON.stringify(ex.nodes));ds.signs=JSON.parse(JSON.stringify(ex.signs||[]));try{renderDesign();}catch(e){}GE=exportGeom();STE=streets();}finally{ds.segs=keep.segs;ds.nodes=keep.nodes;ds.signs=keep.signs;try{renderDesign();}catch(e){}} /* afterDesign emas: tarix va saqlashga mavjud holat tushmasin */
+  try{ds.segs=JSON.parse(JSON.stringify(ex.segs));ds.segs.forEach(e=>{if(!e.name){const q=keep.segs.find(x=>x.id===e.id);if(q&&q.name)e.name=q.name;}});/* nom keyin berilgan boʻlsa — mavjud holatda ham shu nom */ds.nodes=JSON.parse(JSON.stringify(ex.nodes));ds.signs=JSON.parse(JSON.stringify(ex.signs||[]));try{renderDesign();}catch(e){}GE=geomF();STE=streets();}finally{ds.segs=keep.segs;ds.nodes=keep.nodes;ds.signs=keep.signs;try{renderDesign();}catch(e){}} /* afterDesign emas: tarix va saqlashga mavjud holat tushmasin */
   if(!GE)return [];const out=[];
   {const bw=GE.bb[2]-GE.bb[0],bh=GE.bb[3]-GE.bb[1],area={x:WORK.x,y:WORK.y,w:WORK.w-70,h:WORK.h},N=fitScale(bw,bh,area.w,area.h);const pg=planGroup(GE,GE.bb,area,N);
     let s=head('Mavjud holat sxemasi')+pg.svg;const lx=WORK.x+WORK.w-62;s+=legend(lx,WORK.y+4)+north(lx+50,WORK.y+70)+scaleBar(lx,WORK.y+90,N)+T(lx,WORK.y+104,`Saqlangan: ${new Date(ex.t||Date.now()).toLocaleDateString('ru-RU')}`,{s:2.3})+T(lx,WORK.y+109,ex.src||'manba: foydalanuvchi chizmasi / syomka',{s:2.1,c:'#555'});
@@ -280,7 +281,7 @@ function existSheets(G){const ds=DS(),ex=ds.exist;if(!ex||!ex.segs)return [];con
     out.push({title:'Mavjud ↔ loyiha',scale:'',body:s});}
   return out;}
 
-function buildSheets(){const ds=DS(),G=exportGeom();if(!G)return [];const sheets=[],J=junctions(),ST=streets(),SA=ds.simAlb||null;
+function buildSheets(){const ds=DS(),G=geomF();if(!G)return [];const sheets=[],J=junctions(),ST=streets(),SA=ds.simAlb||null;
   const NOTES=[];
   /* umumiy reja + kesish chiziqlari */
   const CUTS=cuts();
@@ -423,7 +424,7 @@ function buildSheets(){const ds=DS(),G=exportGeom();if(!G)return [];const sheets
   ST.filter(st=>st.lanes>=4&&st.len>150).forEach(st=>sheets.push({title:'Vaqtinchalik TT: '+KSN(st.name),scale:'sxematik',body:tmSheet(st)}));
   /* YHQ */
   {let s=head('Yoʻl harakati qoidalari (YHQ) boʻyicha avtomatik tekshiruv');let ck={};try{ck=checkYHQ();}catch(e){}
-    const rows=[];try{ckOrder(ck).forEach(q=>{const c=ck[q.id];rows.push([q.t,{ok:'mos',bad:'muammo',auto:'avtomatik',na:'tegishli emas',warn:'diqqat'}[c[0]]||c[0],(c[2]||[]).length?(()=>{const w=[...new Set((c[2]||[]).map(x=>x.why))],t0=w.slice(0,2).join('; ');return (t0.length>150?t0.slice(0,147)+'…':t0)+(w.length>2?` (+${w.length-2})`:'');})():(c[1]||'')]);/* izoh jadvaldan chiqmasin */});}catch(e){}
+    const rows=[];try{ckOrder(ck).forEach(q=>{const c=ck[q.id];rows.push([q.t,{ok:'mos',bad:'muammo',auto:'avtomatik',na:'tegishli emas',warn:'diqqat'}[c[0]]||c[0],(c[2]||[]).length?(()=>{const w=[...new Set((c[2]||[]).map(x=>{const sg=x.id!=null&&segById(x.id);return (sg?sgName(sg)+': ':'')+x.why;}))],t0=w.slice(0,2).join('; ');return (t0.length>150?t0.slice(0,147)+'…':t0)+(w.length>2?` (+${w.length-2})`:'');})():(c[1]||'')]);/* izoh jadvaldan chiqmasin */});}catch(e){}
     const t=table(WORK.x,WORK.y+6,[['Qoida',120],['Holat',22],['Izoh',240]],rows.slice(0,40),{col:(i,j,v)=>j===1&&v==='muammo'?'#b2342a':j===1&&v==='mos'?'#2b7449':null,rh:5});s+=rows.length?t.svg:T(WORK.x,WORK.y+10,'Tekshiruv natijasi yoʻq.',{s:2.6});
     s+=T(WORK.x,WORK.y+WORK.h+STH-4,'Qoida mazmuni YHQ ilovalari asosida umumlashtirilgan; band raqamlarini tasdiqlang.',{s:2.2,c:'#555'});
     sheets.push({title:'YHQ tekshiruvi',scale:'',body:s});}
@@ -465,7 +466,8 @@ ${sh.map(x=>`<section>${x.svg}</section>`).join('\n')}</body></html>`;}
    Davom etish tugmasi — yangi foydalanuvchi bosishi: popup bloklanmaydi. */
 function needInfo(){const ds=DS();return !ds.name||!ds.place||ds.segs.some(sg=>!sg.name);}
 function infoForm(go){const ds=DS(),un=ds.segs.filter(sg=>!sg.name);let hl=null;const old=document.getElementById('ks-alb-info');if(old)old.remove();
-  const el=document.createElement('div');el.id='ks-alb-info';el.className='kt-ui kt-card';el.style.cssText='position:fixed;left:50%;top:80px;transform:translateX(-50%);z-index:1300;width:420px;max-height:75vh;overflow:auto;padding:16px;font:13px Archivo,sans-serif';
+  document.querySelectorAll('.kt-file,.kt-chk').forEach(x=>x.hidden=true);/* boshqa panellar yopiladi */
+  const el=document.createElement('div');el.id='ks-alb-info';el.className='kt-ui kt-card';el.style.cssText='position:fixed;left:calc(50% - 210px);top:132px;z-index:1300;width:420px;max-height:75vh;overflow:auto;padding:16px;font:13px Archivo,sans-serif';
   const inp='style="width:100%;height:34px;border:0;border-radius:10px;box-shadow:inset 0 0 0 1px #ebe8e2;padding:0 10px;font:13px Archivo,sans-serif;margin:4px 0 10px"';
   el.innerHTML=`<div style="font-weight:700;font-size:15px;margin-bottom:6px">Albom uchun maʼlumot</div><div class="small" style="color:#666;margin-bottom:10px">Varaqlarning asosiy yozuvi va sarlavhalarida shu nomlar chiqadi.</div>
     <label>Loyiha nomi<input data-n="name" ${inp} value="${esc(ds.name||'')}" placeholder="masalan: Shota Rustaveli koʻchasi rekonstruksiyasi"></label>
