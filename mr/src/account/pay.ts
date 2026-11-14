@@ -332,6 +332,15 @@ export function coinLabel(base: string, id: string): { text: string; title: stri
   const n = itemPrice(id); if (n == null || !n) return { text: base, title: null };
   return { text: `${base} · ${tf('${n} tanga', { n: fmt(n) })}`, title: tf('≈ ${s} soʻm — toza fayl (belgisiz). Bepul — belgili rasm.', { s: fmt(n * UZS_PER_COIN) }) };
 }
+/** 14.11 (audit «Eksport»): tugmadagi narx yorligʻi — «12 t», shift toʻlgan boʻlsa «bepul»; id 'free' — doim bepul; egasi rejimida — boʻsh */
+export function itemTag(id: string): string {
+  if (freeMode()) return '';
+  if (id === 'free') return tr('bepul');
+  const n = itemPrice(id); if (n == null) return '';
+  const pid = exportProject();
+  if (PI && pid && PI.id === pid && PI.spent >= PI.cap) return tr('bepul');
+  return tf('${n} t', { n: fmt(n) });
+}
 export function itemPrice(id: string): number | null {
   if (freeMode()) return null;
   const t = PR?.items[id]; if (!t) { void loadPrices(); return null; }
