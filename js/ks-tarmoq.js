@@ -189,12 +189,12 @@ function apprCur(sg,k){const u=sg.appr&&sg.appr[k];if(u&&u.man)return {man:1,L:u
 function apprHTML(sg){const ends=['a','b'].filter(k=>{const n=nodeById(k==='a'?sg.a:sg.b);return n&&isInter(nodeKind(n))&&nodeKind(n)!=='round';});if(!ends.length)return '';
   return ends.map(k=>{const c=apprCur(sg,k),ch=(key,v,t)=>`<button class="kt-pri${String(c[key])===String(v)?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-ap="${k}" data-apk="${key}" data-apv="${v}">${t}</button>`;
     return `<div class="lbl">Karman · ${esc(endName(sg,k))}</div>
-    <div class="kt-seg" style="align-self:flex-start"><button data-apm="${k}" data-v="auto" class="${c.man?'':'on'}">Avto</button><button data-apm="${k}" data-v="man" class="${c.man?'on':''}">Qoʻlda</button></div>
+    <div class="kt-seg" style="align-self:flex-start"><button data-apm="${k}" data-v="auto" class="${c.man?'':'on'}">Avtomatik</button><button data-apm="${k}" data-v="man" class="${c.man?'on':''}">Qoʻlda</button></div>
     <div class="kt-arm"><span>Chapga burilish</span>${ch('L',0,'0')}${ch('L',1,'1')}${ch('L',2,'2')}</div>
     <div class="kt-arm"><span>Oʻngga burilish</span>${ch('R',0,'0')}${ch('R',1,'1')}</div>
     <div class="kt-arm"><span>Qayrilish</span>${ch('U','none','yoʻq')}${ch('U','lane','chapdan')}${ch('U','sep','alohida')}</div>
     <div class="kt-arm"><span>Uzunligi, m</span><input type="number" data-apn="${k}" data-apk="Ls" value="${c.Ls}" min="10" step="5" style="width:64px;height:30px;border:0;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px #ebe8e2,0 1px 0 #e2dfd8;padding:0 8px;font:500 13px 'IBM Plex Mono',monospace"><span style="flex:0 0 auto" class="kt-mut kt-mono">+ ${c.Lt} m taper</span></div>`;}).join('')
-    +`<div class="kt-note">Avto — polosa soni va burilishlarga qarab. Uzunlik — namuna: navbat uzunligi boʻyicha tasdiqlang.</div>`;}
+    +`<div class="kt-note">Avtomatik — boʻlaklar soni va burilishlarga qarab (chapga choʻntak — yoʻnalishda 2+ umumiy boʻlak boʻlsa); modul almashtirilsa qayta hisoblanadi. Qiymatni saqlab qolish uchun — «Qoʻlda». Uzunlik — namuna: navbat uzunligi boʻyicha tasdiqlang.</div>`;}
 function setAppr(sg,k,fn){const c=apprCur(sg,k);const u={man:1,L:c.L,R:c.R,U:c.U,Ls:c.Ls,Lt:c.Lt};fn(u);sg.appr=sg.appr||{};sg.appr[k]=u;if(sg.arr)delete sg.arr[k];afterDesign();}
 function midLL(ll){let L=0;const d=[];for(let i=1;i<ll.length;i++){const s=map.distance(ll[i-1],ll[i]);d.push(s);L+=s;}let h=L/2;for(let i=0;i<d.length;i++){if(h<=d[i]){const t=h/(d[i]||1);return [ll[i][0]+(ll[i+1][0]-ll[i][0])*t,ll[i][1]+(ll[i+1][1]-ll[i][1])*t];}h-=d[i];}return ll[0];}
 /* karta oʻngda qotirilgan (inspektor) — chizilayotgan joy ustiga chiqmaydi; tanlangan obyekt karta ostida qolsa, xarita bir marta suriladi */

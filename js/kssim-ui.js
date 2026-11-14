@@ -9,7 +9,12 @@ if(typeof JNET==='undefined'||typeof map==='undefined')return;
 let mod=null,box=null,cv=null,raf=0,st=null,res=null,WK=null;
 /* «Hozir» (asos) natijasi — loyiha bilan solishtirish uchun; brauzerda saqlanadi */
 const BKEY='kssim-hozir-v1';let BASE=null;try{BASE=JSON.parse(localStorage.getItem(BKEY)||'null');}catch(e){}
-const saveBase=b=>{BASE=b;try{b?localStorage.setItem(BKEY,JSON.stringify(b)):localStorage.removeItem(BKEY);}catch(e){}};
+/* «hozir» = loyihaning mavjud holati (Fayl → Mavjud holat bilan bitta tushuncha): natija va talab ds.exist.sim.base da saqlanadi.
+   Eski brauzer-darajasidagi kssim-hozir-v1 kaliti endi ishlatilmaydi (boshqa loyihaga oʻtib ketardi). */
+const projBase=()=>{try{const e=DS().exist;return e&&e.sim&&e.sim.base||null;}catch(e){return null;}};
+const saveBase=b=>{try{localStorage.removeItem(BKEY);}catch(e){}const ds=DS(),cp=x=>JSON.parse(JSON.stringify(x||[]));
+  if(b){if(window.KSMAV)KSMAV.saveExist();else{ds.exist={t:Date.now(),segs:cp(ds.segs),nodes:cp(ds.nodes),signs:cp(ds.signs),sim:ds.simAlb?JSON.parse(JSON.stringify(ds.simAlb)):{base:b},src:'foydalanuvchi chizmasi'};try{save();}catch(e){}}}
+  else{if(window.KSMAV)KSMAV.clearExist();else{delete ds.exist;try{save();}catch(e){}}}BASE=projBase();};/* studio.html da ks-mavjud yoʻq — shu yerda saqlanadi */
 /* talab darajasi: bitta umumiy boʻlakka avt/soat (yaqinlashish) */
 const LV=[['past','Past (tun, dam olish)',150],['orta','Oʻrtacha (kunduz)',300],['tigiz','Tigʻiz soat',450],['eng','Eng tigʻiz',600]];
 const LCOL={A:'#2b7449',B:'#2b7449',C:'#95620f',D:'#95620f',E:'#b23a2e',F:'#b23a2e'};
@@ -62,7 +67,7 @@ function buildNet(C,cycle){const arms=[],conns=[],juncs=[],links=[],names={},bou
 function close(){cancelAnimationFrame(raf);raf=0;if(WK){WK.terminate();WK=null;}if(box)box.remove();if(cv)cv.remove();box=cv=st=res=null;map.off('move zoom resize',draw);}
 
 window.openSim=async function(nodeId){
-  close();await loadMod();
+  close();await loadMod();BASE=projBase();
   const C=component(nodeId);
   if(!C.list.length||!C.list.some(J=>J.C.length||J.ring)){if(typeof toast==='function')toast('Bu chorrahada boʻlak ulanishlari yoʻq — koʻchalarni tekshiring.');return;}
   const probe=buildNet(C,90),multi=C.list.length>1;
@@ -109,10 +114,10 @@ window.openSim=async function(nodeId){
   box.addEventListener('change',()=>{chosen=null;});box.addEventListener('input',()=>{chosen=null;});
   lvSel.onchange=()=>{const v=LV[+lvSel.value][2];box.querySelectorAll('[data-q]').forEach(i=>{if(!i.dataset.man)i.value=Math.round(nLanes(i.dataset.q)*v/50)*50;});lvH();};lvH();
   /* «hozir» saqlangan boʻlsa — loyiha oʻsha talab bilan hisoblanadi (yoʻnalish nomi boʻyicha), aks holda solishtirish adolatsiz */
-  if(BASE&&BASE.dq){const key=id=>(probe.names[id]||id).replace(/^\d+-tugun · /,'').split(' · ').pop();let n=0;
+  if(BASE&&BASE.dq){const key=id=>probe.names[id]||id;/* toʻliq nom: chorraha · koʻcha · yoʻnalish (bir nechta chorrahada «gʻarbdan» takrorlanadi) */let n=0;
     if(BASE.lv!=null){lvSel.value=BASE.lv;lvH();}
     box.querySelectorAll('[data-q]').forEach(i=>{const v=BASE.dq[key(i.dataset.q)];if(v!=null){i.value=v;i.dataset.man='1';n++;}});
-    if(n)box.querySelector('[data-lvh]').textContent=`Talab «hozir»dan olindi (${n} ta yoʻnalish) — solishtirish uchun. Oʻzgartirish — «Batafsil»da.`;}
+    if(n)box.querySelector('[data-lvh]').textContent=`Talab mavjud holatdan olindi (${n} ta yoʻnalish) — taqqoslash bir xil talab bilan. Oʻzgartirish — «Batafsil»da.`;}
   const num=(sel,d)=>{const i=box.querySelector(sel);return i?Math.max(0,+i.value||0):d;};
   const opts=()=>{const demand={},sh={};box.querySelectorAll('[data-q]').forEach(i=>demand[i.dataset.q]=Math.max(0,+i.value||0));
     box.querySelectorAll('[data-s]').forEach(i=>sh[i.dataset.s]=Math.max(0,+i.value||0)/100);
@@ -150,7 +155,7 @@ window.openSim=async function(nodeId){
   map.on('move zoom resize',draw);
   function show(R){const avg=f=>R.reduce((s,r)=>s+f(r),0)/R.length,LS=[10,20,35,55,80],LU=[10,15,25,35,50],los=(d,sg,F)=>F?'F':('ABCDE'[(sg?LS:LU).findIndex(x=>d<=x)]||'F');
     const col=l=>({A:'#2b7449',B:'#2b7449',C:'#95620f',D:'#95620f',E:'#b23a2e',F:'#b23a2e'}[l]||'#555');
-    const dk=id=>(probe.names[id]||id).replace(/^\d+-tugun · /,'').split(' · ').pop();   // yoʻnalish nomi — hozir/loyiha moslash kaliti
+    const dk=id=>probe.names[id]||id;   // yoʻnalish nomi — hozir/loyiha moslash kaliti
     const DL=(d,b)=>{if(b==null)return '';const x=d-b,c=Math.abs(x)<1?'#777':x<0?'#2b7449':'#b23a2e';return `<span class="small" style="color:${c};margin-left:4px">${x>0?'+':''}${x.toFixed(0)}</span>`;};
     const row=(name,get,sg,dem=true,bk)=>{const d=avg(r=>get(r).delay),fl=avg(r=>get(r).flow),dm=get(R[0]).demand,F=R.filter(r=>get(r).los==='F').length>=2,l=los(d,sg,F),b=BASE&&bk!=null?(bk==='*'?BASE.T:(BASE.arms[bk]||{}).d):null;
       ROWS.push([name,dem&&dm!=null?Math.round(dm):'',Math.round(fl),d.toFixed(1)+(b!=null?` (${d-b>0?'+':''}${(d-b).toFixed(0)})`:''),l]);
@@ -183,20 +188,20 @@ window.openSim=async function(nodeId){
         const mv={},n0=R.length;R.forEach(r=>{const x=r.arms[a.id];if(x&&x.mv)Object.entries(x.mv).forEach(([k,v])=>mv[k]=(mv[k]||0)+v/n0);});
         const x0=R[0].arms[a.id]||{};AR[a.id]={node:J.id,ai,name:probe.names[a.id]||a.id,mv:Object.fromEntries(Object.entries(mv).map(([k,v])=>[k,Math.round(v)])),demand:x0.demand,flow:Math.round(avg(r=>(r.arms[a.id]||{}).flow||0)),delay:+avg(r=>(r.arms[a.id]||{}).delay||0).toFixed(1),los:(A[a.id]||{}).los||null,q:Math.round(avg(r=>(r.arms[a.id]||{}).q95||0))};});
       const JN={};C.list.forEach((J,i)=>{JN[J.id]={label:JL(J,i),los:(Jr[J.id]||{}).los,d:+((Jr[J.id]||{}).d||0).toFixed(1)};});
-      DS().simAlb={man:[...box.querySelectorAll('[data-q]')].some(i=>i.dataset.man),t:Date.now(),TL,T,lvl,verdict:d1.textContent.trim(),sig:d2.textContent.trim(),rows:ROWS.map(r=>r.map(v=>String(v))),arms:AR,juncs:JN,
+      DS().simAlb={base:cur,man:[...box.querySelectorAll('[data-q]')].some(i=>i.dataset.man),t:Date.now(),TL,T,lvl,verdict:d1.textContent.trim(),sig:d2.textContent.trim(),rows:ROWS.map(r=>r.map(v=>String(v))),arms:AR,juncs:JN,
         sigs:sigInfo.map(x=>({node:+String(x.j).replace(/^n/,''),C:x.C,off:x.off||0,ph:x.ph.map(p=>({left:!!p.left,arms:p.arms,g:p.g}))})),ped:avg(r=>r.ped.flow),pedW:avg(r=>r.ped.wait),bus:avg(r=>r.bus.flow),busD:avg(r=>r.bus.delay)};if(typeof save==='function')save();}catch(e){}
     let cmp='';if(BASE){const pc=(a,b)=>b>0?` (${a<b?'−':'+'}${Math.abs(Math.round((a-b)/b*100))}%)`:'',ln=(n,b,a,u,dig=0)=>a==null||b==null?'':`<tr><td>${n}</td><td class="num">${b.toFixed(dig)}${u}</td><td class="num"><b>${a.toFixed(dig)}${u}</b></td><td class="num" style="color:${Math.abs(a-b)<1?'#777':a<b?'#2b7449':'#b23a2e'}">${a-b>0?'+':''}${(a-b).toFixed(dig)}${pc(a,b)}</td></tr>`;
-      const warn=Math.abs(BASE.dem-dem)>Math.max(50,BASE.dem*.03)?`<div class="small" style="color:#b23a2e;margin-top:4px">Diqqat: talab har xil (hozir ${Math.round(BASE.dem)}, loyiha ${Math.round(dem)} avt/soat) — solishtirish adolatli emas.</div>`:'';
-      cmp=`<div style="border:1px solid #d8d5ce;border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><b>Hozir ↔ Loyiha</b><button data-bclr class="btn" style="padding:2px 8px;font-size:11px">Hozirni oʻchirish</button></div>
-        <div class="small" style="color:#555;margin:2px 0 4px">Hozir: ${esc(BASE.title)}, ${esc(BASE.lvl)}${BASE.sig?', sikl '+BASE.sig:''} · Loyiha: ${esc(title)}, ${esc(lvl)}${cur.sig?', sikl '+cur.sig:''}. Ikkalasi bir xil tasodif urugʻlari (1–3) bilan.</div>
-        <table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:#777"><th></th><th>Hozir</th><th>Loyiha</th><th>Farq</th></tr></thead><tbody>
+      const warn=Math.abs(BASE.dem-dem)>Math.max(50,BASE.dem*.03)?`<div class="small" style="color:#b23a2e;margin-top:4px">Diqqat: talab har xil (mavjud ${Math.round(BASE.dem)}, loyiha ${Math.round(dem)} avt/soat) — solishtirish adolatli emas.</div>`:'';
+      cmp=`<div style="border:1px solid #d8d5ce;border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><b>Mavjud ↔ Loyiha</b><button data-bclr class="btn" style="padding:2px 8px;font-size:11px">Mavjud holatni oʻchirish</button></div>
+        <div class="small" style="color:#555;margin:2px 0 4px">Mavjud: ${esc(BASE.title)}, ${esc(BASE.lvl)}${BASE.sig?', sikl '+BASE.sig:''} · Loyiha: ${esc(title)}, ${esc(lvl)}${cur.sig?', sikl '+cur.sig:''}. Ikkalasi bir xil tasodif urugʻlari (1–3) bilan.</div>
+        <table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:#777"><th></th><th>Mavjud</th><th>Loyiha</th><th>Farq</th></tr></thead><tbody>
         <tr><td>LOS</td><td class="num">${BASE.TL}</td><td class="num"><b style="color:${LCOL[TL]}">${TL}</b></td><td></td></tr>${ln('Oʻrtacha kechikish',BASE.T,T,' s')}${ln('Odam boshiga',BASE.person,person,' s')}${ln('Piyoda kutishi',BASE.pedW,pedW,' s')}</tbody></table>${warn}</div>`;}
-    const saveBtn=`<div style="margin:6px 0 2px"><button data-bsave class="btn" title="Shu natijani «hozir» deb eslab qoladi; keyin geometriyani oʻzgartirib qayta hisoblang">📌 ${BASE?'Shuni yangi «hozir» qilish':'Shuni «hozir» deb saqlash'}</button>${BASE?'':' <span class="small" style="color:#777">keyin koʻchani oʻzgartiring va qayta hisoblang — farq chiqadi</span>'}</div>`;
+    const saveBtn=`<div style="margin:6px 0 2px"><button data-bsave class="btn" title="Joriy chizma va shu natija loyihaning «mavjud holati» boʻladi (Fayl → Mavjud holat bilan bir xil)">📌 ${BASE?'Mavjud holatni shu bilan yangilash':'Mavjud holat deb saqlash'}</button>${BASE?' <a href="#" data-bclr class="small">mavjud holatni oʻchirish</a>':' <span class="small" style="color:#777">chizma va natija saqlanadi; keyin koʻchani oʻzgartiring va qayta hisoblang — albomda taqqoslash chiqadi</span>'}</div>`;
     box.querySelector('[data-out]').innerHTML=verdict+cmp+sigTxt+`<table style="width:100%;border-collapse:collapse;color:#141414"><thead><tr style="text-align:left;color:#777"><th></th><th>Talab</th><th>Oʻtdi</th><th>Kechikish, s</th><th>LOS</th></tr></thead><tbody>${body}</tbody></table>
       <div style="margin-top:6px">3 ta tasodifiy takror × 15 daq. (birinchi 2 daq. — isinish). Kechikish — erkin harakatga nisbatan, navbatda qolganlar ham hisobga olingan${multi?'; tugun boʻyicha — shu chorrahaga yaqinlashish va undan oʻtish, jami — butun sayohat':''}. LOS — HCM (svetoforli: 10/20/35/55/80 s, svetoforsiz va halqa: 10/15/25/35/50 s); talab bajarilmasa — F.</div>`;
     const o2=box.querySelector('[data-out]');o2.insertAdjacentHTML('beforeend',saveBtn);
-    o2.querySelector('[data-bsave]').onclick=()=>{saveBase(cur);show(R);};
-    if(o2.querySelector('[data-bclr]'))o2.querySelector('[data-bclr]').onclick=()=>{saveBase(null);show(R);};
+    o2.querySelector('[data-bsave]').onclick=()=>{saveBase(cur);show(R);};/* simAlb.base=cur oldinroq yozilgan — saveExist uni oladi */
+    if(o2.querySelector('[data-bclr]'))o2.querySelector('[data-bclr]').onclick=e=>{e.preventDefault();saveBase(null);show(R);};
     /* varaq: chizma + natija belgilari + jadval → PNG yoki Chizmadon albomi */
     const plain=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent.replace(/\s+/g,' ').trim();};
     const SH={title:`Harakatni sinash · ${title}`,verdict:plain(verdict),sig:plain(sigTxt),cmp:BASE?{base:BASE,cur}:null,rows:ROWS,note:`${lvl} · 3 takror × 15 daq. · LOS — HCM · Archemistry Lab, Koʻchasoz (BETA, kalibrlanmagan)`};
@@ -242,7 +247,7 @@ async function sheet(SH){const W=1800,H=1100,L0=1080,cv=document.createElement('
   /* oʻng panel */
   let y=50;const x0=L0+10,wr=W-x0-30,txt=(t,f,c,lh)=>{g.font=f;g.fillStyle=c;g.textAlign='left';const words=String(t).split(' ');let line='';for(const w of words){const tt=line?line+' '+w:w;if(g.measureText(tt).width>wr&&line){g.fillText(line,x0,y);y+=lh;line=w;}else line=tt;}if(line){g.fillText(line,x0,y);y+=lh;}};
   txt(SH.title,'700 24px Archivo,Arial','#141414',30);y+=6;txt(SH.verdict,'500 16px Archivo,Arial','#141414',22);y+=6;if(SH.sig)txt(SH.sig,'13px Archivo,Arial','#555',18);y+=10;
-  if(SH.cmp){const b=SH.cmp.base,c=SH.cmp.cur,f=(a,v)=>a==null?'—':a.toFixed(0)+' s';txt('Hozir ↔ Loyiha','700 16px Archivo,Arial','#141414',22);
+  if(SH.cmp){const b=SH.cmp.base,c=SH.cmp.cur,f=(a,v)=>a==null?'—':a.toFixed(0)+' s';txt('Mavjud ↔ Loyiha','700 16px Archivo,Arial','#141414',22);
     [['LOS',b.TL,c.TL],['Oʻrtacha kechikish',f(b.T),f(c.T)],['Odam boshiga',f(b.person),f(c.person)],['Piyoda kutishi',f(b.pedW),f(c.pedW)]].forEach(r=>{g.font='14px Archivo,Arial';g.fillStyle='#141414';g.fillText(r[0],x0,y);g.textAlign='right';g.fillText(r[1],x0+wr-170,y);g.font='700 14px Archivo,Arial';g.fillText(r[2],x0+wr-40,y);g.textAlign='left';y+=20;});y+=10;}
   const cx=[0,wr-300,wr-200,wr-60,wr];g.font='600 12px Archivo,Arial';g.fillStyle='#777';['','Talab','Oʻtdi','Kechikish, s','LOS'].forEach((h,i)=>{g.textAlign=i?'right':'left';g.fillText(h,x0+cx[i],y);});y+=8;
   g.strokeStyle='#ddd';g.beginPath();g.moveTo(x0,y);g.lineTo(x0+wr,y);g.stroke();y+=18;
@@ -256,13 +261,16 @@ function drawRes(g,P,ppm){
     g.fillStyle='#fff';g.font=`600 ${Math.round(r*1.15)}px Archivo,system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(txt,c[0],c[1]+.5);};
   const along=(pts,from,len)=>{/* pts: uzoqdan toʻxtash chizigʻiga; oxiridan orqaga len m */const out=[pts[pts.length-1]];let rem=len;
     for(let i=pts.length-1;i>0&&rem>0;i--){const p=pts[i],q=pts[i-1],d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d>=rem){const t=rem/d;out.push([p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t]);rem=0;}else{out.push(q);rem-=d;}}return out;};
+  const placed=[];/* yorliqlar ustma-ust tushmasin: kichik masshtabda 14 m bir necha pikselga teng — kamida 64 px chetga, toʻqnashsa yana suriladi */
   Object.values(res.A).forEach(x=>{if(!x.e)return;const L=x.e.lanes.filter(l=>l.x.k!=='bus'),n=Math.max(1,L.length),qm=Math.max(0,x.q/n*7);
     g.lineCap='round';g.strokeStyle=LCOL[x.los]||'#555';g.globalAlpha=.55;g.lineWidth=Math.max(3,ppm*2.6);
     L.forEach(l=>{if(qm<1)return;const s=along(l.pts,0,qm).map(P);g.beginPath();s.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.stroke();});g.globalAlpha=1;
-    const m=x.e.lanes.reduce((s,l)=>[s[0]+l.P[0]/x.e.lanes.length,s[1]+l.P[1]/x.e.lanes.length],[0,0]),c=P([m[0]+x.e.out[0]*14,m[1]+x.e.out[1]*14]);
+    const m=x.e.lanes.reduce((s,l)=>[s[0]+l.P[0]/x.e.lanes.length,s[1]+l.P[1]/x.e.lanes.length],[0,0]),p0=P(m),p1=P([m[0]+x.e.out[0]*14,m[1]+x.e.out[1]*14]);
+    let dx=p1[0]-p0[0],dy=p1[1]-p0[1];const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;let dd=Math.max(dl,64),c=[p0[0]+dx*dd,p0[1]+dy*dd];
     /* belgi: LOS + navbat (mashina) — toʻxtash chizigʻidan 14 m orqada */
     /* 14.11 yagona uslub: och pill, chapda LOS doirachasi, toʻq matn */
-    const txt=`${Math.round(x.d)} s · navbat ${Math.round(x.q)}`;g.font='600 12px Archivo,system-ui,sans-serif';const tw=g.measureText(txt).width,w=tw+40,x0=c[0]-w/2;
+    const txt=`${Math.round(x.d)} s · navbat ${Math.round(x.q)}`;g.font='600 12px Archivo,system-ui,sans-serif';const tw=g.measureText(txt).width,w=tw+40;
+    const hit=q=>placed.some(r=>Math.abs(r[0]-q[0])<(r[2]+w)/2+4&&Math.abs(r[1]-q[1])<30);for(let k=0;k<8&&hit(c);k++){dd+=30;c=[p0[0]+dx*dd,p0[1]+dy*dd];}placed.push([c[0],c[1],w]);const x0=c[0]-w/2;
     g.save();g.shadowColor='rgba(0,0,0,.18)';g.shadowBlur=10;g.shadowOffsetY=2;g.fillStyle='rgba(250,249,246,.97)';g.beginPath();g.roundRect(x0,c[1]-13,w,26,13);g.fill();g.restore();
     g.fillStyle='#dcd9d2';g.beginPath();g.roundRect(x0,c[1]+11,w,2,1);g.fill();
     g.fillStyle=LCOL[x.los]||'#555';g.beginPath();g.arc(x0+13,c[1],9,0,7);g.fill();
