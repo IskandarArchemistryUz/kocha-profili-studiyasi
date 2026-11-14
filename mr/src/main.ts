@@ -23,6 +23,7 @@ import { ownerPage } from './account/owner';
 import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
 import { otishEnter, otishTo } from './ui/otish';
+import { kolbaOverlay } from './ui/kolba';
 // 14.11: boʻlimga oʻtish — boshqa xizmatdan kelinsa Master reja foni bir lahza; loyiha kartasi ekranga kengayib ochiladi
 otishEnter(/chizmadon/.test(location.hash) ? 'chz' : 'mr');
 document.addEventListener('click', ev => {
@@ -72,6 +73,16 @@ async function route(): Promise<void> {
   }
   const m = location.hash.match(/^#\/p\/([\w-]+)(\/chizmadon)?$/);
   if (m) {
+    // 14.11: loyiha sekin ochilsa (0,3 s+) — markazda Archemistry kolbasi
+    const kb = kolbaOverlay(tr('Loyiha ochilmoqda…'), '20,20,20');
+    try { await openRoute(m); } finally { kb(); }
+    return;
+  }
+  document.title = 'Archemistry Lab · Master reja';
+  await home();
+}
+async function openRoute(m: RegExpMatchArray): Promise<void> {
+  {
     let doc = null;
     try { doc = await getProject(m[1]); } catch (e) { console.error(e); toast('Loyihani ochib boʻlmadi: ' + (e as Error).message); }
     // boshqa qurilmada: brauzerda yoʻq — bulutdan (hisobga kirilgan boʻlsa)
@@ -81,10 +92,7 @@ async function route(): Promise<void> {
     editor = new Editor(root, doc, () => { location.hash = '#/'; });
     (window as any).__mr = editor; // e2e testlar uchun
     if (m[2]) editor.openCh(takeKsInbox());
-    return;
   }
-  document.title = 'Archemistry Lab · Master reja';
-  await home();
 }
 
 /** Koʻchasozdan kelgan varaq (app/kochasoz.html → «Chizmadonga yuborish») — bir marta olinadi */

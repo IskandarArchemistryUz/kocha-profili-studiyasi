@@ -16,6 +16,7 @@ import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
 import './render.css';
 import { h, svgIcon, toast } from '../ui/dom';
+import { kolba, sirkul } from '../ui/kolba';
 import { svcBackdrop, svcGlow } from '../ui/backdrop';
 import { otishEnter, otishLinks } from '../ui/otish';
 import { mrBackBtn } from '../ui/mrback';
@@ -187,7 +188,7 @@ function renderStage(): void {
     h('div', { class: 'ren-tools glass' },
       h('button', { type: 'button', class: 'btn btn-sm', disabled: true, title: tr('Tez orada') }, tr('Hudud belgilash'), h('em', { class: 'soon' }, tr('tez orada'))),
       h('button', { type: 'button', class: 'btn btn-sm', id: 'stUp', disabled: !o?.job || !!upBusy, title: tr('Oxirgi natijani 2 marta kattalashtirish'), onclick: () => { if (o) void upscale(o, 'up2'); } }, tr('Kattalashtirish ×2'))),
-    ...(busy ? [h('div', { class: 'ren-busy', role: 'status' }, h('span', { class: 'spin' }), prog)] : []),
+    ...(busy ? [h('div', { class: 'ren-busy', role: 'status' }, kolba('255,197,61', 44), prog)] : []),   // 14.11: Archemistry kolbasi oltin rangda toʻladi
   );
 }
 
@@ -216,7 +217,7 @@ function renderRight(): void {
     h('div', { class: 'ren-row' }, h('span', { class: 'glabel' }, h('span', {}, tr('Variantlar'))),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Variantlar soni'), id: 'nVar' }, ...[1, 2, 4].map(n => h('button', { type: 'button', 'aria-pressed': A.n === n, onclick: () => { A.n = n; save(); renderRight(); } }, String(n))))),
     ...(off ? [h('p', { class: 'note warn', id: 'renOff', role: 'status' }, tr('Render vaqtincha ishlamayapti'))] : []),
-    h('button', { type: 'button', class: 'btn btn-primary btn-lg btn-block', id: 'renGo', disabled: busy || !b || off, onclick: () => void go() }, ic(ICON.spark),
+    h('button', { type: 'button', class: 'btn btn-primary btn-lg btn-block', id: 'renGo', disabled: busy || !b || off, onclick: () => void go() }, busy ? sirkul(16) : ic(ICON.spark),
       busy ? prog : A.n! > 1 ? tf('Render qilish · ${n} variant', { n: A.n! }) : tr('Render qilish'),
       busy || own ? null : h('em', { class: 'ren-price' }, tf('${c} tanga', { c: price }))),
     ...(err ? [h('p', { class: 'note bad', id: 'renErr', role: 'alert' }, err)] : []),
