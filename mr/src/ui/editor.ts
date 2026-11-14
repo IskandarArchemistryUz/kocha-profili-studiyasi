@@ -152,6 +152,7 @@ import { AgentPanel, agentIntro, agentSeen, markAgentSeen, type Quick } from '..
 import { agentConfig, agentApi } from '../agent/api';
 import { mrTools, type MrHost } from '../agent/tools-mr';
 import { quote as quoteApi } from '../account/session';
+import { pgaToBall, SEIS_HINT, SCALE_TXT } from '../core/seismichint';
 import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 /** yer sathi xaritasi legendasi (Qatlamlar paneli va varaq) */
@@ -5365,11 +5366,23 @@ export class Editor {
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
         h('span', { class: 'k' }, tr('Seysmik boʻlmalar'), h('span', { class: 'sub' }, tr('Maydon seysmikligi — SMT xaritasi yoki grunt toifasi boʻyicha (1.6-band, 1.1-jadval). Boʻlma uzunligi — 3.1-jadval.'))),
         ...(abroad ? [h('span', { class: 't-small', id: 'seisAbroad', style: 'flex-basis:100%' }, tr('Xorijiy loyiha: ballni oʻz mamlakatingiz meʼyori boʻyicha tanlang. ≤ 6 — seysmik cheklovlar qoʻllanmaydi; 7 va undan yuqori — QMQ 2.01.03-19 chegaralari andoza sifatida.'))] : []),
-        h('div', { class: 'seg sm', role: 'group', id: 'seisBall', 'aria-label': tr('Seysmiklik, ball') }, ...(abroad ? [6, 7, 8, 9, 10] : [7, 8, 9, 10]).map(b => h('button', { 'aria-pressed': b === 6 ? S0.seismic < 7 : S0.seismic === b, 'data-ball': b, onclick: () => set({ seismic: b, seismicSet: true }) }, b > 9 ? '>9' : b < 7 ? '≤ 6' : `${b}`)))),   // 04.11: 3.1-jadval «>9» ustuni; 14.11: xorijda «≤ 6»
+        h('div', { class: 'seg sm', role: 'group', id: 'seisBall', 'aria-label': tr('Seysmiklik, ball') }, ...(abroad ? [6, 7, 8, 9, 10] : [7, 8, 9, 10]).map(b => h('button', { 'aria-pressed': b === 6 ? S0.seismic < 7 : S0.seismic === b, 'data-ball': b, onclick: () => set({ seismic: b, seismicSet: true, seismicPga: undefined }) }, b > 9 ? '>9' : b < 7 ? '≤ 6' : `${b}`)))),   // 04.11: 3.1-jadval «>9» ustuni; 14.11: xorijda «≤ 6»
+      abroad ? this.seisPgaRow() : '',
       abroad ? '' : this.seisPlaceRow(),
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
         h('div', { class: 'seg sm', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim'), style: 'flex-wrap:wrap' }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
         h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
+  }
+  /** 14.11 (egasi): xorijda PGA (g) → taxminiy ball (core/seismichint) va mamlakat izohi */
+  private seisPgaRow(): HTMLElement {
+    const S0 = this.store.doc.settings, o = this.store.doc.origin, cc = placeOf(o[0], o[1]).country, hint = cc ? SEIS_HINT[cc] : undefined;
+    const inp = h('input', { type: 'number', class: 'input', id: 'seisPga', min: 0, max: 2, step: 0.01, value: S0.seismicPga ?? '', placeholder: '0,20', 'aria-label': tr('PGA, g') }) as HTMLInputElement;
+    inp.onchange = () => { const g = Number(String(inp.value).replace(',', '.')); if (!(g > 0 && g <= 2)) return;
+      this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seismicPga: g, seismic: pgaToBall(g), seismicSet: true } })); };
+    return h('div', { class: 'li', id: 'seisPgaRow', style: 'flex-wrap:wrap;gap:8px' },
+      h('span', { class: 'k' }, tr('PGA, g'), h('span', { class: 'sub', id: 'seisHint' }, hint ? (hint.code ? `${hint.code}: ` : '') + tr(SCALE_TXT[hint.scale]) : tr('Mamlakat meʼyoridagi PGA (g) yoki ballni kiriting'))),
+      h('span', { class: 'unit', style: 'width:96px' }, inp, h('span', {}, 'g')),
+      S0.seismicPga != null ? h('span', { class: 'chip warn', id: 'seisPgaBall' }, tf('≈ ${b} · taxmin', { b: S0.seismic < 7 ? '≤ 6' : S0.seismic > 9 ? '>9' : String(S0.seismic) })) : '');
   }
   /** 04.11 (egasi): past uylar olovbardoshligi — ShNQ 2.07.01-23, 56-jadval ustunlari; faqat past uylar boʻlsa koʻrinadi */
   private fireLowRow(): HTMLElement | string {
