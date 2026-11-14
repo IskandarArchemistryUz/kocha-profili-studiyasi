@@ -155,11 +155,13 @@ function cardHTML(sel){const ds=DS();
   if(sel.t==='att'||sel.t==='xw'){const sg=segById(sel.id);if(!sg)return null;const it=sel.t==='att'?(sg.att||[])[sel.i]:(sg.xw||[])[sel.i];if(!it)return null;
     anchor=()=>{const ll=segLL(sg);return midLL(ll);};
     const nm=sel.t==='xw'?'Piyoda oʻtish joyi':((ATT[it.t]||{}).n||'Obyekt');
-    const ts=sel.t==='att'&&it.t==='tramstop',dr=it.door||'right',ch=(k2,v,t)=>`<button class="kt-pri${(k2==='door'?dr:k2==='fill'?(it.fill||'hatch'):String(it.len||30))===v?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-ts="${k2}" data-v="${v}">${t}</button>`;
+    const ts=sel.t==='att'&&it.t==='tramstop',dr=it.door||'right',ch=(k2,v,t)=>`<button class="kt-pri${(k2==='door'?dr:k2==='fill'?(it.fill||'hatch'):k2==='xsig'?(it.xsig?'1':'0'):String(it.len||30))===v?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-ts="${k2}" data-v="${v}">${t}</button>`;
     const tsH=ts?`<div class="kt-arm"><span>Eshik</span>${ch('door','right','Oʻngda')}${ch('door','left','Chapda')}</div>
       <div class="kt-note">${dr==='right'?'Oddiy avtobus va trolleybus: har yoʻnalishga alohida platforma, transport boʻlagining oʻng tomonida; platformalar dumi dumiga, oʻrtada oʻtish joyi — avtobus oʻtish joyidan keyin toʻxtaydi (ITDP, NACTO).':'Chap eshikli avtobus yoki tramvay: ikki yoʻnalishga bitta markaziy orol, eni ≥ 6 m (ITDP).'}</div>
       <div class="kt-arm"><span>Uzunligi</span>${ch('len','20','20 m')}${ch('len','30','30 m')}${ch('len','40','40 m')}</div>
       <div class="kt-note">ShNQ 2.07.01-23, 394-band: bir yoʻnalishli bekat 20 m, bir necha yoʻnalishli — kamida 30 m. Platforma eni 4 m (ITDP: ≥ 4, afzal 5 m). Pavilyon uchun ajratuvchi ≥ 5 m (344-band).</div>
+      <div class="kt-arm"><span>Oʻtish joyi</span>${ch('xsig','0','Svetoforsiz')}${ch('xsig','1','Svetoforli')}</div>
+      <div class="kt-note">${it.xsig?'Svetoforli: har yondashuvda 1.12 toʻxtash chizigʻi zebradan ≥ 1 m oldin (GOST R 52289-2019, 6.2.14).':'Svetoforsiz: 1.12 chizilmaydi; zebradan 20 m oldin boʻlak chiziqlari 1.1 (6.2.3).'}</div>
       ${dr==='right'?`<div class="kt-arm"><span>Qarshisi</span>${ch('fill','hatch','1.16')}${ch('fill','green','Yashil')}${ch('fill','rain','Yomgʻir bogʻi')}</div>
       <div class="kt-note">Platformasiz tomondagi 4 m orol. 1.16.1: 45° chiziqlar, eni 0,40 m, oraligʻi 1,20 m (GOST R 51256-2018). Koʻtarilgan orol uchida — 1.16 tumshugʻi.</div>`:''}`:'';
     return `<span class="eb">${sel.t==='xw'?'OʻTISH JOYI':'KOʻCHA OBYEKTI'}</span><div class="ti">${esc(nm)}</div>${tsH}<div class="kt-note">Xaritada sudrab koʻchiring.</div><div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
@@ -204,7 +206,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.k==='kesim'){location.href='app/kochasoz.html#/b';return;}
   if(b.dataset.k==='prir'){setPri(sel.id,null);return;}
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}
-  if(b.dataset.ts){const sg=segById(sel.id),it=sg&&(sg.att||[])[sel.i];if(it){if(b.dataset.ts==='door')it.door=b.dataset.v;else if(b.dataset.ts==='fill')it.fill=b.dataset.v;else it.len=+b.dataset.v;afterDesign();}return;}
+  if(b.dataset.ts){const sg=segById(sel.id),it=sg&&(sg.att||[])[sel.i];if(it){if(b.dataset.ts==='door')it.door=b.dataset.v;else if(b.dataset.ts==='fill')it.fill=b.dataset.v;else if(b.dataset.ts==='xsig')it.xsig=b.dataset.v==='1';else it.len=+b.dataset.v;afterDesign();}return;}
   if(b.dataset.rt){const n=nodeById(sel.id);if(b.dataset.rt==='1')n.rtor=1;else delete n.rtor;afterDesign();return;}
   if(b.dataset.fix){const [r1,i1]=b.dataset.fix.split(':');fixIssue(r1,+i1);return;}
   if(b.dataset.add){const a=b.dataset.add;if(a==='xwalk')pickTool('xwalk');else{ds.attType=a;pickTool('obj');}return;}

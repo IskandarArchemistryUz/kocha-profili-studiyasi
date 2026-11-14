@@ -1540,14 +1540,16 @@ function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>
     I.forEach((iv,k)=>{const prev=I[k-1];
       /* oʻtish joyi (virtual): alohida platformalarda — ular orasida; markaziy orolda — ikki uchida (ITDP: kirish platforma uchlarida) */
       const cw=DS().thr.cw||4,ctr=iv.K.has('c');
-      if(prev&&iv.s1-prev.s2<TP+4){cuts.pop();const g=iv.s1-prev.s2;cuts.push({s:(iv.s1+prev.s2)/2,t:Math.max(1.5,g/2),xw:cw});}
+      if(prev&&iv.s1-prev.s2<TP+4){cuts.pop();const g=iv.s1-prev.s2;cuts.push({s:(iv.s1+prev.s2)/2,t:Math.max(1.5,g/2),xw:cw,sig:[...prev.P,...iv.P].some(p=>p.a.xsig)});}
       else cuts.push({s:iv.s1-TP/2,t:TP/2,xw:ctr?cw:0});
       cuts.push({s:iv.s2+TP/2,t:TP/2,K:null,xw:ctr?cw:0});
       cuts[cuts.length-2].K=iv.K;cuts[cuts.length-2].iv=iv;});
     cuts.push({s:T});
     changed=true;
-    const nodeAt=(sx,t,xw)=>{const n={id:vid--,ll:toLL(pointAt(raw,cumLen(raw),sx),o),type:'auto',_v:1,_t:t};if(xw)n._xw=xw;B.nodes.push(n);return n;};
-    const N=cuts.map((c,i)=>i===0?sg.a:i===cuts.length-1?sg.b:nodeAt(c.s,c.t,c.xw).id);
+    const nodeAt=(sx,t,xw,sig)=>{const n={id:vid--,ll:toLL(pointAt(raw,cumLen(raw),sx),o),type:'auto',_v:1,_t:t};if(xw)n._xw=xw;if(xw&&sig)n._xsig=1;B.nodes.push(n);return n;};
+    const N=cuts.map((c,i)=>i===0?sg.a:i===cuts.length-1?sg.b:nodeAt(c.s,c.t,c.xw,c.sig||(c.xw&&stops.some(a=>a.xsig))).id);
+    /* 1.23: bekatdan 15 m keyin (GOST R 52289-2019, 6.2.26) — qaysi boʻlakka tushsa, oʻsha boʻlakka belgi */
+    const A123=[];I.forEach(iv=>iv.P.forEach(p=>{if(p.k!=='m')A123.push({s:p.s2+15,pd:1});if(p.k!=='p')A123.push({s:p.s1-15,pd:-1});}));
     const place=(arr,s1,s2)=>(arr||[]).filter(x=>x.f*T>=s1&&x.f*T<s2).map(x=>({...x,f:(x.f*T-s1)/Math.max(1,s2-s1)}));
     for(let i=0;i+1<cuts.length;i++){const s1=cuts[i].s,s2=cuts[i+1].s,K=cuts[i].K,cm=cutSeg(ll,sg.rad,s1,s2,o);
       const pc=Object.assign({},sg,{id:sg.id+':s'+i,a:N[i],b:N[i+1],pts:cm.pts,rad:cm.rad,_real:sg._real??sg.id,xw:place(sg.xw,s1,s2),att:place((sg.att||[]).filter(a=>a.t!=='tramstop'),s1,s2),
@@ -1558,6 +1560,7 @@ function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>
         cuts[i].iv.P.forEach(p=>{const pd=p.k==='p'?1:p.k==='m'?-1:0,w=walks.find(w2=>pd===0?true:(pd===dir0?w2.q<b.st.indexOf(st0[pair[0]]):w2.q>b.st.indexOf(st0[pair[1]])));
           pc.att.push({t:'tramstop',f:((p.s1+p.s2)/2-s1)/Math.max(1,s2-s1),len:p.s2-p.s1,d:w?w.x.mid:0,pd,door:p.a.door||'right',_src:sg.id});});}
       if(sg._end&&!(sg._end==='a'?i===0:i===cuts.length-2))delete pc._end;
+      A123.forEach(m=>{if(m.s>=s1&&m.s<s2)pc.att.push({t:'a123',f:(m.s-s1)/Math.max(1,s2-s1),pd:m.pd});});
       out.push(pc);}});
   if(changed)B.segs=out;return changed;}
 function virtualNet0(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();let vid=-1,changed=false;
@@ -1703,6 +1706,7 @@ function buildShapes0(){
         for(let k=0;k<40;k++){const v=stIn+dv*(k===0?0:k===1?20:20+200*(k-1));if(v<ms+3||v>me-3)break;S.push(v);}
         atts.filter(a=>(a.t==='bus'||a.t==='bay')&&Math.sign(x.mid)===(a.side||-1)).forEach(a=>S.push(a.s+dv*(a.len/2+15)));
         atts.filter(a=>a.t==='tramstop'&&(a.pd||dv)===dv).forEach(a=>S.push(a.s+dv*(a.len/2+15)));
+        atts.filter(a=>a.t==='a123'&&a.pd===dv).forEach(a=>S.push(a.s));
         S.filter(v=>v>ms+3&&v<me-3&&!xws.some(w=>Math.abs(v-w.s)<w.w/2+3)&&!atts.some(a=>(a.t==='bus'||a.t==='bay'||a.t==='tramstop')&&Math.abs(v-a.s)<a.len/2+2)).forEach(v=>{const f=frameAt(mx,cm,v-ms);
           sh.push({t:'label',ll:toLL([f.p[0]+f.n[0]*x.mid,f.p[1]+f.n[1]*x.mid],o),txt:'A',z:8,rot:Math.atan2(f.t[0]*dv,f.t[1]*dv)});mark('1.23');});});
       lay.st.filter(x=>x.k==='bike').forEach(x=>{for(let s=Tm/2;s<Tm;s+=60){const f=frameAt(mx,cm,s);[-.55,.55].forEach(e=>{const cc=[f.p[0]+f.n[0]*x.mid+f.t[0]*e,f.p[1]+f.n[1]*x.mid+f.t[1]*e],ring=circleLL(cc,.38,o,14);line(ring.concat([ring[0]]),{color:'#fff',weight:1.2},null);});}});
@@ -1713,7 +1717,12 @@ function buildShapes0(){
       lay.st.forEach(x=>{if(['median','green','hatch','buffer','rain','island','furn'].includes(x.k))poly(band(x.d1,x.d2,S0,S1),'#cdbf9f','ped',3);});mark('1.14.1');
       /* bordyur chetida taktil ogohlantiruvchi polosa 0,6 m, chetdan 0,3 m (ShNQ 2.07.02-24, 12-ilova); bordyur ≤ 2 sm (18-band) */
       const rd=x=>DK[x.k].road&&x.k!=='hatch';for(let i=0;i<lay.st.length-1;i++){const A=lay.st[i],B=lay.st[i+1];if(rd(A)===rd(B))continue;const d=A.d2,sg2=rd(A)?-1:1;
-        poly(band(d+sg2*.3,d+sg2*.9,S0+.2,S1-.2),'#e3b23c',null,3.3);}mark('taktil');};
+        poly(band(d+sg2*.3,d+sg2*.9,S0+.2,S1-.2),'#e3b23c',null,3.3);
+        /* «konvert» pandus: trotuar bordyur balandligidan ≤ 2 sm gacha pasayadi (ShNQ 2.07.02-24, 18-band); asosiy qism 1:12,5 (42-band) → 1,6 m, yon qanotlar 1:10 (17-band) → 1,3 m */
+        /* pandus chuqurligi uchun bordyurdan keyingi butun koʻtarilgan guruh (gazon + trotuar) eni */
+        let gw=0;for(let j=rd(A)?i+1:i;j>=0&&j<lay.st.length&&!rd(lay.st[j]);j+=rd(A)?1:-1)gw+=Math.abs(lay.st[j].d1-lay.st[j].d2);
+        if(gw>=3.4){const PT=(ss,dd)=>{const f=frameAt(xy,c,Math.max(0,Math.min(T,ss)));return toLL([f.p[0]+f.n[0]*dd,f.p[1]+f.n[1]*dd],o);},dp=d+sg2*1.6;
+          poly([PT(S0-1.3,d),PT(S1+1.3,d),PT(S1,dp),PT(S0,dp)],'#d9cfb8','ped',3.05);line([PT(S0-1.3,d),PT(S0,dp),PT(S1,dp),PT(S1+1.3,d)],{color:'#9a917f',weight:1},null,3.06);line([PT(S0,d),PT(S0,dp)],{color:'#9a917f',weight:.8},null,3.06);line([PT(S1,d),PT(S1,dp)],{color:'#9a917f',weight:.8},null,3.06);mark('pandus');}}mark('taktil');};
     const stopLine=(sStop,dirSel,kind)=>{const inc=lay.road.filter(x=>!isPk(x.k)&&x.dir===dirSel);if(!inc.length)return;const f=frameAt(xy,c,sStop),lo=Math.min(...inc.map(x=>x.d2)),hi=Math.max(...inc.map(x=>x.d1));
       const P=d=>toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);
       if(kind==='1.12')line([P(lo),P(hi)],{color:'#fff',weight:4},'1.12');else line([P(lo),P(hi)],{color:'#fff',weight:3,dashArray:'4 4'},'1.13');};
@@ -1824,9 +1833,17 @@ function buildShapes0(){
           if(n._xw){const f=E2[0].f,u=E2[0].u,hw=n._xw/2,rd=E2[0].st.filter(x=>!raised(x.k)),dA=Math.max(...rd.map(x=>x.d1)),dB=Math.min(...rd.map(x=>x.d2)),M=[(E2[0].f.p[0]+E2[1].f.p[0])/2,(E2[0].f.p[1]+E2[1].f.p[1])/2],C=(d,e)=>[M[0]+f.n[0]*d+u[0]*e,M[1]+f.n[1]*d+u[1]*e];
             for(let d=dA-.3;d>dB+.2;d-=1){poly([C(d,-hw),C(d-.5,-hw),C(d-.5,hw),C(d,hw)].map(q=>toLL(q,o)),'#fff',null,3.2);}mark('1.14.1');
             /* oʻtish joyi trotuarga ulanadi: yoʻldagi gazon/ajratuvchi oʻrnida qoplama; bordyur chetida taktil */
-            const st0=E2[0].st;st0.forEach((x,i)=>{if(!raised(x.k)||x.k==='walk')return;poly([C(x.d1,-hw-.3),C(x.d2,-hw-.3),C(x.d2,hw+.3),C(x.d1,hw+.3)].map(q=>toLL(q,o)),'#cdbf9f','ped',3.0);});
+            const st0=E2[0].st;st0.forEach((x,i)=>{if(!raised(x.k)||x.k==='walk')return;const ee=Math.abs(x.d1-x.d2)<1.6?Math.max(hw+.3,(n._t||0)+.4):hw+.3;poly([C(x.d1,-ee),C(x.d2,-ee),C(x.d2,ee),C(x.d1,ee)].map(q=>toLL(q,o)),'#cdbf9f','ped',3.0);});
+            /* svetoforli oʻtish joyi: har yondashuvda 1.12, zebradan ≥ 1 m oldin (GOST R 52289-2019, 6.2.14) */
+            if(n._xsig){const ft=E2[0].f.t,tu=ft[0]*u[0]+ft[1]*u[1];st0.forEach(x=>{if(!(x.k==='lane'||x.k==='bus'||x.k==='tram')||!x.dir)return;const e=(x.dir*tu<0?1:-1)*(hw+1.2);
+              line([C(x.d1-.05,e),C(x.d2+.05,e)].map(q=>toLL(q,o)),{color:'#fff',weight:4},null,3.3);});mark('1.12');mark('svetofor');}
             for(let i=0;i<st0.length-1;i++){const A=st0[i],Bq=st0[i+1];if(raised(A.k)===raised(Bq.k)||A.k==='hatch'||Bq.k==='hatch')continue;const d=A.d2,sg2=raised(A.k)?1:-1;
-              poly([C(d+sg2*.3,-hw+.2),C(d+sg2*.9,-hw+.2),C(d+sg2*.9,hw-.2),C(d+sg2*.3,hw-.2)].map(q=>toLL(q,o)),'#e3b23c',null,3.3);}}}
+              poly([C(d+sg2*.3,-hw+.2),C(d+sg2*.9,-hw+.2),C(d+sg2*.9,hw-.2),C(d+sg2*.3,hw-.2)].map(q=>toLL(q,o)),'#e3b23c',null,3.3);
+              /* «konvert» pandus trotuar tomonda (platforma emas) */
+              const ri=raised(A.k)?i:i+1;let gw=0,j=ri;for(;j>=0&&j<st0.length&&raised(st0[j].k);j+=raised(A.k)?-1:1)gw+=Math.abs(st0[j].d1-st0[j].d2);
+              /* faqat koʻcha chetidagi trotuar guruhi (ichki orol/platforma emas) */
+              if((j<0||j>=st0.length)&&gw>=3.4){const dp=d+sg2*1.6,Q=a=>a.map(q=>toLL(q,o));
+                poly(Q([C(d,-hw-1.3),C(d,hw+1.3),C(dp,hw),C(dp,-hw)]),'#d9cfb8','ped',3.05);line(Q([C(d,-hw-1.3),C(dp,-hw),C(dp,hw),C(d,hw+1.3)]),{color:'#9a917f',weight:1},null,3.06);mark('pandus');}}}}
         const bnd=a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,om=a.sg._om||st.map((_,i)=>i),res={};
           for(let i=0;i<st.length-1;i++){const x=st[i],y=st[i+1];if(!(DK[x.k].road&&DK[y.k].road)||isPk(x.k)||isPk(y.k)||om[i]<0||om[i+1]<0)continue;
             if(x.dir&&y.dir&&x.dir===y.dir){const P=[f.p[0]+f.n[0]*x.d2,f.p[1]+f.n[1]*x.d2];res[om[i]+'_'+om[i+1]]={P,opp:false};}}
