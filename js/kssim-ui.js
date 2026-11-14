@@ -19,7 +19,12 @@ const dirName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.P
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const KT=J=>J.ring?'halqa':J.sig?'svetofor':'belgisiz';
 let plan=null;
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=14',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=6',document.baseURI).href);return mod;}
+/* foydalanuvchi oʻzgartira oladigan model parametrlari: [kalit, nom, andoza, qadam, izoh] — andozalar kssim-graph PAR_DEF bilan bir xil */
+const PARF=[['V0','Erkin tezlik, km/soat',50,5,'Shahar koʻchasida ruxsat etilgan tezlik (andoza 13,9 m/s)'],['T','Vaqt oraligʻi T, s',1.3,.1,'IDM: oldingi mashinagacha xohlangan vaqt oraligʻi'],['s0','Turgandagi oraliq s0, m',2,.5,'IDM: tiqilinchda mashinalar orasidagi masofa'],
+  ['a','Tezlanish a, m/s²',1.5,.1,'IDM: eng katta tezlanish'],['b','Qulay tormoz b, m/s²',2,.1,'IDM: qulay sekinlanish'],['len','Mashina uzunligi, m',4.6,.1,'Yengil avtomobil'],['alat','Burilishda yon tezlanish, m/s²',2.2,.1,'Burilish tezligi = √(a·R)'],
+  ['gapUns','Kritik interval: belgisiz, s',2,.5,'Ikkinchi darajali yoʻldan chiqishda qabul qilinadigan eng kichik boʻshliq'],['gapSig','Kritik interval: svetoforda chapga, s',3.5,.5,'Qarshi oqimda chapga/qayrilish uchun'],['gapRing','Kritik interval: halqaga kirish, s',4,.5,'Halqada aylanayotganlar orasidagi boʻshliq'],['gapRtor','Kritik interval: qizilda oʻngga, s',4,.5,'Yashil oqimdagi mashinalar orasidagi boʻshliq'],
+  ['pedV','Piyoda tezligi, m/s',1.3,.1,'Keksalar koʻp joyda 1,0 m/s olinadi'],['uDiam','Qayrilish: eng kam diametr, m',7,.5,'Koʻndalang masofa shundan kam boʻlsa — tashqi chiqish boʻlagiga qayriladi']];
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=15',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=7',document.baseURI).href);return mod;}
 
 /* tugundan boshlab koʻcha orqali bogʻlangan chorrahalar (JNET) */
 function component(nodeId){const all=[...JNET.values()],byReal=new Map();
@@ -80,11 +85,19 @@ window.openSim=async function(nodeId){
       <span class="small">Chap faza</span> <select data-pl title="Avto: oddiy 2 fazali sxema toʻyinsa (Y>0,85) va alohida chap faza yengilroq boʻlsa"><option value="a" selected>Avto</option><option value="y">Har doim alohida</option><option value="n">Yoʻq (ruxsat etilgan)</option></select>`:''}
       ${anySig&&multi?`<span class="small">Yashil toʻlqin, s</span> <input type="number" data-o value="0" min="0" max="180" step="5" style="width:56px" title="Har keyingi svetoforning siljishi (offset)">`:''}
     </div>
+    <details data-pard style="margin:8px 0"><summary class="small" style="cursor:pointer;color:#555">Model parametrlari (andoza qiymatlar — oʻzingiznikini kiriting)</summary>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center;margin-top:6px">${PARF.map(f=>`<label class="small" for="kp_${f[0]}" title="${esc(f[4])}">${f[1]}</label><input id="kp_${f[0]}" type="number" data-par="${f[0]}" step="${f[3]}" placeholder="${f[2]}" style="width:64px">`).join('')}
+      <label class="small" for="kp_rtorStop">Qizilda oʻngga: avval toʻliq toʻxtash</label><select id="kp_rtorStop" data-par="rtorStop"><option value="">Ha (andoza)</option><option value="0">Yoʻq</option></select></div>
+    <div class="small" style="color:#777;margin-top:4px">Boʻsh katak — andoza qiymat. Qiymatlar shu brauzerda eslab qolinadi. <button type="button" class="btn" data-parr style="padding:2px 8px">Andozaga qaytarish</button></div></details>
     <div class="small" style="color:#555;margin:6px 0 2px">Burilish ulushlari har kirish uchun, % (boʻsh — yuqoridagi umumiy):</div>
     <table style="width:100%;border-collapse:collapse"><tbody>${probe.net.arms.filter(a=>a.lanes.some(l=>!l.bus)).map(a=>`<tr><td class="small">${esc(probe.names[a.id]||a.id)}</td><td style="white-space:nowrap">↰<input type="number" data-as="${a.id}" data-m="L" min="0" max="100" style="width:42px"> ↑<input type="number" data-as="${a.id}" data-m="S" min="0" max="100" style="width:42px"> ↱<input type="number" data-as="${a.id}" data-m="R" min="0" max="100" style="width:42px"> ↶<input type="number" data-as="${a.id}" data-m="U" min="0" max="100" style="width:42px"></td></tr>`).join('')}</tbody></table>
     </details>
     <div data-out class="small" style="color:#555">Vaqtni tanlang va «Hisoblash»ni bosing — natija xaritada rang bilan chiqadi. Beta: natijalar taxminiy, loyiha qarori uchun tasdiqlangan model emas. Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (YHQ: chapga buriluvchi qarshidagiga, svetoforsizda oʻngdan kelayotganga, halqada — aylanayotganlarga), burilishda piyodaga yoʻl berish.</div>`;
   host.appendChild(box);
+  {let sv={};try{sv=JSON.parse(localStorage.getItem('kssim-par')||'{}')||{};}catch(e){}
+    box.querySelectorAll('[data-par]').forEach(i=>{const v=sv[i.dataset.par];if(v!=null)i.value=i.dataset.par==='V0'?Math.round(v*3.6):v;});
+    if(Object.keys(sv).length)box.querySelector('[data-pard]').open=true;
+    box.querySelector('[data-parr]').onclick=()=>{box.querySelectorAll('[data-par]').forEach(i=>i.value='');try{localStorage.removeItem('kssim-par');}catch(e){}box.dispatchEvent(new Event('input'));};}
   ['mousedown','dblclick','wheel','click','contextmenu'].forEach(ev=>box.addEventListener(ev,e=>e.stopPropagation()));
   box.querySelector('[data-x]').onclick=close;
   const lvSel=box.querySelector('[data-lv]'),lvH=()=>{const v=LV[+lvSel.value][2];box.querySelector('[data-lvh]').textContent=`≈ ${v} avt/soat toʻgʻri boʻlakka (burilish choʻntagi — yarmi); kirishlar boʻlak soniga qarab (qoʻlda oʻzgartirish — «Batafsil»da).`;};
@@ -103,7 +116,8 @@ window.openSim=async function(nodeId){
     /* har kirish ulushlari: kamida bittasi kiritilgan boʻlsa — qolganlari umumiydan; yigʻindi 1 ga keltiriladi */
     const AS={};box.querySelectorAll('[data-as]').forEach(i=>{if(i.value==='')return;(AS[i.dataset.as]=AS[i.dataset.as]||{})[i.dataset.m]=Math.max(0,+i.value||0)/100;});
     const armShares={};Object.entries(AS).forEach(([id,v])=>{const x={L:v.L??sh.L,S:v.S??sh.S,R:v.R??sh.R,U:v.U??sh.U??0},t=x.L+x.S+x.R+x.U||1;armShares[id]={L:x.L/t,S:x.S/t,R:x.R/t,U:x.U/t};});
-    return {demand,shares:sh,armShares,cycle:Math.max(40,num('[data-c]',90)||90),auto:!cm||cm.value==='a',pl:pl?pl.value:'a',ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
+    const par={};box.querySelectorAll('[data-par]').forEach(i=>{if(i.value==='')return;const v=+i.value;if(!isFinite(v))return;par[i.dataset.par]=i.dataset.par==='V0'?v/3.6:v;});try{localStorage.setItem('kssim-par',JSON.stringify(par));}catch(e){}
+    return {par,demand,shares:sh,armShares,cycle:Math.max(40,num('[data-c]',90)||90),auto:!cm||cm.value==='a',pl:pl?pl.value:'a',ped:num('[data-p]',0),bus:num('[data-b]',0),off:num('[data-o]',0)};};
   if(box.querySelector('[data-cm]'))box.querySelector('[data-cm]').onchange=e=>{box.querySelector('[data-c]').disabled=e.target.value==='a';};
   /* svetofor rejasi: chap faza qarori (koʻpaytma mezoni) + Webster sikli; koridorda umumiy sikl (yashil toʻlqin uchun) */
 
@@ -115,7 +129,7 @@ window.openSim=async function(nodeId){
     return {N,bound:B.bound,o,nl,bus,anySig};};
   const mk=seed=>{const b=baseOf(),sim=plan.makeSim(b,chosen||plan.defaultCh(b),seed);sigInfo=sim.info;return sim;};
   const runJob=(base,onP)=>new Promise((ok,bad)=>{
-    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=6',document.baseURI),{type:'module'});}}catch(e){WK=null;}
+    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=7',document.baseURI),{type:'module'});}}catch(e){WK=null;}
     if(!WK){setTimeout(()=>{try{ok(plan.evaluate(base,onP));}catch(e){bad(e);}},20);return;}
     const id=++job;WK.onmessage=e=>{const d=e.data;if(d.id!==job)return;if(d.p!=null)onP(d.p);if(d.done)ok(d.done);if(d.err)bad(new Error(d.err));};
     WK.onerror=e=>{WK.terminate();WK=null;try{ok(plan.evaluate(base,onP));}catch(x){bad(x);}};WK.postMessage({id,base});});
