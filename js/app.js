@@ -1457,13 +1457,15 @@ const ARR_NAME=c=>(ARR_OPTS.find(x=>x[0]===c)||['',''])[1];
    boʻlaklarga boʻlinmaydi — faqat chizishda «virtual» qismlarga ajratiladi.
    ===================================================================== */
 const DONOR_L=['median','green','hatch','turn','buffer','island','rain'];
+const REFUGE_W=2.0,REFUGE_K=['median','island','green','rain'];/* koʻtarilgan ajratuvchi turlari (hatch — boʻyalgan, orolcha emas) */
 const DONOR_R=['park','park30','park45','park90','parkkerb','loading','buffer','green','rain','furn','parklet','shoulder'];
 /* kiruvchi boʻlaklar va ularning chap tomonidagi (oʻrtadagi) boʻsh joy */
 function apprInfo(sg,end){const lay=layOf(sg),dirSel=end==='b'?1:-1,st=lay.st;
   const inc=st.map((x,i)=>i).filter(i=>(st[i].k==='lane'||st[i].k==='bus')&&st[i].dir===dirSel);if(!inc.length)return null;
   // chap tomon — harakat yoʻnalishiga nisbatan: b uchun kichik indeks, a uchun katta indeks
-  const step=end==='b'?-1:1,edge=end==='b'?Math.min(...inc):Math.max(...inc);let room=0;
-  for(let i=edge+step;i>=0&&i<st.length;i+=step){const x=st[i];if(!DONOR_L.includes(x.k))break;room+=x.w;}
+  const gen=inc.filter(i=>st[i].k==='lane'),g2=gen.length?gen:inc,step=end==='b'?-1:1,edge=end==='b'?Math.min(...g2):Math.max(...g2);let room=0;
+  let rk=0;for(let i=edge+step;i>=0&&i<st.length;i+=step){const x=st[i];if(!DONOR_L.includes(x.k))break;room+=x.w;if(REFUGE_K.includes(x.k))rk+=x.w;}
+  if(lay.twoWay)room=Math.max(0,room-Math.min(REFUGE_W,rk));/* orolcha uchun qoldiriladigan joy hisobga olinmaydi */
   return {lay,inc,nIn:inc.filter(i=>st[i].k==='lane').length,room};}
 /* yaqinlashish sozlamasi: qoʻlda berilgan yoki vaziyatga qarab avtomatik */
 function apprCfg(sg,end){const n=nodeById(end==='a'?sg.a:sg.b);if(!n)return null;const k=nodeKind(n);if(!(k==='x'||k==='sig'))return null;
@@ -1480,15 +1482,20 @@ function apprAuto(sg,end,info,k){info=info||apprInfo(sg,end);if(!info)return nul
 /* qoʻshimcha boʻlaklar bilan kesim (st0 — boshlangʻich kesim). om — har elementning asl indeksi (-1 — yangi) */
 function pocketStrips(st0,end,cfg){let st=st0.map(x=>[x[0],x[1],x[2]||0]),om=st0.map((_,i)=>i);const rev=end==='a';if(rev){st.reverse();om.reverse();}
   const dirSel=rev?-1:1,inc=st.map((x,i)=>i).filter(i=>(st[i][0]==='lane'||st[i][0]==='bus')&&st[i][2]===dirSel);if(!inc.length)return null;
-  const iMin=Math.min(...inc),iMax=Math.max(...inc),lw=Math.max(3,Math.min(3.5,st[iMin][1]));
-  const take=(idxs,need,kinds)=>{for(const i of idxs){if(need<=.001)break;const x=st[i];if(!kinds.includes(x[0])&&x[0]!=='walk')continue;
-      const keep=x[0]==='walk'?2:(['median','island'].includes(x[0])&&x[1]-need>=1)?1:0,av=Math.max(0,x[1]-keep),t=Math.min(av,need);x[1]=+(x[1]-t).toFixed(3);need-=t;}return need;};
+  /* chap choʻntak — umumiy harakat boʻlaklari chetidan (markaziy BRT/avtobus boʻlagi ichiga emas) */
+  const gen=inc.filter(i=>st[i][0]==='lane'),iMin=Math.min(...(gen.length?gen:inc)),iMax=Math.max(...inc),lw=Math.max(3,Math.min(3.5,st[iMin][1]));
+  /* piyoda xavfsizlik orolchasi: ikki tomonlama koʻchada qarama-qarshi oqimlar orasidagi koʻtarilgan ajratuvchidan REFUGE_W gacha qoldiriladi
+     (ShNQ 2.07.02-24, 24-band: chorrahada «xavfsizlik orolchasi»; 19-band: orolcha ≥ 2 m — eni sifatida qoʻllash TALQIN). Choʻntakka joy yetmasa — koʻcha kengayadi. */
+  const twoW=st.some(x=>(x[0]==='lane'||x[0]==='bus')&&x[2]&&x[2]!==dirSel);let res=twoW&&cfg.refuge!==false?REFUGE_W:0;
+  const take=(idxs,need,kinds,mid)=>{for(const i of idxs){if(need<=.001)break;const x=st[i];if(!kinds.includes(x[0])&&x[0]!=='walk')continue;
+      let keep=x[0]==='walk'?2:0;if(mid&&REFUGE_K.includes(x[0])&&res>0){keep=Math.min(x[1],res);res-=keep;}
+      const av=Math.max(0,x[1]-keep),t=Math.min(av,need);x[1]=+(x[1]-t).toFixed(3);need-=t;}return need;};
   // oʻng: chetdagi boʻlakdan keyin, joy avtoturargoh/yashil/bufer, keyin trotuar hisobidan
   if(cfg.R){const right=[];for(let i=iMax+1;i<st.length;i++)right.push(i);take(right.filter(i=>st[i][0]!=='walk'),cfg.R*lw,DONOR_R);take(right.filter(i=>st[i][0]==='walk'),0,[]);
     for(let r=0;r<cfg.R;r++){st.splice(iMax+1,0,['lane',lw,dirSel,'pR']);om.splice(iMax+1,0,-1);}}
   // chap: oʻrtadagi ajratuvchi hisobidan (yetmasa — qarama-qarshi tomon suriladi)
   const nl=(cfg.L|0)+(cfg.U==='sep'?1:0);
-  if(nl){const left=[];for(let i=iMin-1;i>=0;i--){if(!DONOR_L.includes(st[i][0]))break;left.push(i);}take(left,nl*lw,DONOR_L);
+  if(nl){const left=[];for(let i=iMin-1;i>=0;i--){if(!DONOR_L.includes(st[i][0]))break;left.push(i);}take(left,nl*lw,DONOR_L,true);
     const add=[];if(cfg.U==='sep')add.push(['lane',lw,dirSel,'pU']);for(let l=0;l<(cfg.L|0);l++)add.push(['lane',lw,dirSel,'pL']);
     st.splice(iMin,0,...add);om.splice(iMin,0,...add.map(()=>-1));}
   const keep=st.map((x,i)=>x[1]>=.3||x[3]);st=st.filter((_,i)=>keep[i]);om=om.filter((_,i)=>keep[i]);
@@ -2129,7 +2136,8 @@ function designClick(ll,ev){
   if(ds.tool==='round'){if(h&&h.t==='node'){const n=nodeById(h.id);if(n.type==='round')n.type='auto';else{const rt=RTYPES[ds.rtype||'r2'];n.type='round';n.rtype=ds.rtype||'r2';n.ri=rt.ri;n.rw=rt.rw;n.lanes=rt.lanes;}ds.sel={t:'node',id:n.id};afterDesign();}else toast('Halqa qoʻyish uchun tugun (nuqta)ni bosing.');return;}
   const hl=lvOk(h)?h:null;
   if(!D.start){const n=resolve(ll,hl);D.start=n.id;D.pts=[];afterDesign();return;}
-  if(hl&&(hl.t==='node'&&hl.id!==D.start||hl.t==='seg')){const n=resolve(ll,hl);finishSeg(n);return;}
+  /* mavjud koʻcha yoki tugunni bosish — ulanadi va chizish shu nuqtadan davom etadi (koʻchani kesib oʻtish bir harakatda); tugatish — Enter / ikki marta bosish */
+  if(hl&&(hl.t==='node'&&hl.id!==D.start||hl.t==='seg')){const n=resolve(ll,hl);D.chain=1;finishSeg(n);D.chain=0;if(DS().tool==='draw'){D.start=n.id;D.pts=[];DS().sel=null;afterDesign();}return;}
   const sp=drawSnap(ll,ev);D.pts.push(sp);D.guide=null;D.snapTxt='';afterDesign();
 }
 function finishSeg(endNode){
@@ -2181,7 +2189,10 @@ function delSel(){const ds=DS(),s=ds.sel;if(!s)return;
   if(s.t==='xw'){const sg=segById(s.id);if(sg&&sg.xw)sg.xw.splice(s.i,1);ds.sel=null;afterDesign();return;}
   if(s.t==='node'){ds.segs=ds.segs.filter(x=>x.a!==s.id&&x.b!==s.id);ds.nodes=ds.nodes.filter(x=>x.id!==s.id);}
   ds.nodes=ds.nodes.filter(n=>degree(n)>0);ds.sel=null;afterDesign();}
-function afterDesign(){renderDesign();renderDesignPanel();renderHint();pushHist();save();}
+/* yetim tugunlar (koʻchasiz) — bekor qilingan chizishdan qoladi; chizilayotgan boshlangʻich tugun bundan mustasno */
+function pruneNodes(){const ds=DS();if(!ds.nodes)return;const used=new Set();ds.segs.forEach(s=>{used.add(s.a);used.add(s.b);});if(D.start!=null)used.add(D.start);
+  for(let i=ds.nodes.length-1;i>=0;i--)if(!used.has(ds.nodes[i].id))ds.nodes.splice(i,1);}
+function afterDesign(){pruneNodes();renderDesign();renderDesignPanel();renderHint();pushHist();save();}
 map.on('mousemove',e=>{if(S.app==='design'&&D.start&&!M.tool){D.cur=drawSnap(e.latlng,e.originalEvent);previewSoon();}});
 map.on('dblclick',e=>{if(S.app==='design'&&D.start&&!M.tool){D.pts.pop();finishSeg(null);}});
 document.addEventListener('keydown',e=>{
@@ -2198,7 +2209,7 @@ document.addEventListener('keydown',e=>{
 });
 function designHint(h){
   const t=DS().tool;
-  if(t==='draw')h.innerHTML=D.start?`<b>Koʻchani chizish</b> (radius ${DS().drawR||0} m). Burilish nuqtalarini bosing, qoʻyilganlarini sudrab tuzating. Boshqa koʻcha yoki tugunni bossangiz — ulanadi va chorraha hosil boʻladi. Yoʻnalish 30/45/90° va yaqin koʻchaga parallel/perpendikulyar holatga oʻzi tushadi (koʻk chiziq); Alt — erkin.<div class="row"><button class="btn sm primary" id="dFin">Tugatish (Enter)</button><button class="btn sm" id="dEsc">Bekor (Esc)</button></div>`
+  if(t==='draw')h.innerHTML=D.start?`<b>Koʻchani chizish</b> (radius ${DS().drawR||0} m). Burilish nuqtalarini bosing, qoʻyilganlarini sudrab tuzating. Boshqa koʻcha yoki tugunni bossangiz — ulanadi, chorraha hosil boʻladi va chizish davom etadi. Yoʻnalish 30/45/90° va yaqin koʻchaga parallel/perpendikulyar holatga oʻzi tushadi (koʻk chiziq); Alt — erkin.<div class="row"><button class="btn sm primary" id="dFin">Tugatish (Enter)</button><button class="btn sm" id="dEsc">Bekor (Esc)</button></div>`
     :`<b>Koʻchani chizish</b> (${PRESETS[DS().preset].n}). Boshlanish nuqtasini bosing. Mavjud koʻcha yoki tugun ustiga bossangiz, avtomatik ulanadi.`;
   if(t==='select')h.innerHTML=DS().sel?'':'<b>Tanlash.</b> Obyektni bosing, soʻng uni ushlab sudrang · Delete — oʻchirish · oʻng tugma — menyu';
   if(t==='sign')h.innerHTML='<b>Yoʻl belgilari.</b> Oʻng paneldan belgini tanlang va xaritaga bosing. Belgini sudrab koʻchiring, bosib — tahrirlang.';
@@ -2222,12 +2233,13 @@ const YHQ=[
   {id:'bus',t:'Yoʻnalishli transport boʻlagi chekkadagi oʻng boʻlakda yoki markazda ajratilgan'},
   {id:'bike',t:'Velosiped boʻlagida harakat yonidagi avtomobil oqimi bilan bir yoʻnalishda'},
   {id:'lanew',t:'Harakat boʻlagi kengligi belgilangan chegarada'},
+  {id:'refuge',t:'Chorrahada piyoda oʻtish joyida xavfsizlik orolchasi ≥ 2 m (ShNQ 2.07.02-24, 24- va 19-bandlar; 2 boʻlakdan ortiq yoʻnalishda — TALQIN)'},
   {id:'ramp',t:'Rampa nishabi ShNQ 2.07.01-23, 20-jadval chegarasida (sathlar orasi — andoza 6 m)'},
 ];
 function segTitle(sg){const i=DS().segs.indexOf(sg);return sg.name||('Koʻcha '+(i+1));}
 function checkYHQ(){
   const ds=DS(),r={};const segs=ds.segs.map(s=>({s,lay:layOf(s)}));
-  const bad={rh:[],bus:[],bike:[],lanew:[],cross:[],ramp:[]},iss={rh:[],bus:[],bike:[],lanew:[],cross:[],ramp:[]};
+  const bad={rh:[],bus:[],bike:[],lanew:[],cross:[],ramp:[],refuge:[]},iss={rh:[],bus:[],bike:[],lanew:[],cross:[],ramp:[],refuge:[]};
   const add=(k,s,o)=>{bad[k].push(s.id);iss[k].push(Object.assign({r:k,id:s.id},o));};
   segs.forEach(({s,lay})=>{
     const f=lay.road.filter(x=>x.dir>0),b=lay.road.filter(x=>x.dir<0);
@@ -2238,6 +2250,14 @@ function checkYHQ(){
       if(x.k==='lane'&&(x.w<ds.thr.laneMin||x.w>ds.thr.laneMax))add('lanew',s,{strip:i,why:`Boʻlak eni ${f2(x.w)} m — ${x.w<ds.thr.laneMin?'tor (min '+f2(ds.thr.laneMin)+')':'keng (maks '+f2(ds.thr.laneMax)+')'}`,fix:'lanew'});
     });
     [['a','cwA'],['b','cwB']].forEach(([e,f])=>{const k=nodeKind(nodeById(s[e]));if(isInter(k)&&s[f]===false&&lay.road.length)add('cross',s,{end:e,why:`${e==='a'?'Boshlanish':'Tugash'} uchidagi chorrahada oʻtish joyi oʻchirilgan`,fix:'cross'});});
+    /* xavfsizlik orolchasi: chorraha uchidagi kesimda (choʻntaklar bilan) qarama-qarshi oqimlar orasidagi koʻtarilgan ajratuvchi eni */
+    if(lay.twoWay)[['a','cwA'],['b','cwB']].forEach(([e,f])=>{const n=nodeById(s[e]),k=n&&nodeKind(n);if(!(k==='x'||k==='sig')||s[f]===false)return;
+      const nf=lay.road.filter(x=>x.dir>0&&x.k!=='hatch').length,nb=lay.road.filter(x=>x.dir<0&&x.k!=='hatch').length;if(Math.max(nf,nb)<=2)return;
+      let st=lay.st.map(x=>[x.k,x.w,x.dir||0]);try{const c=apprCfg(s,e);if(c){const ps=pocketStrips(st,e,c);if(ps)st=ps.st;}}catch(err){}
+      let best=0,run=0,inside=false;for(let i=0;i<st.length;i++){const x=st[i],rd=DK[x[0]]&&DK[x[0]].road&&x[0]!=='hatch';
+        if(rd){if(inside&&run>0)best=Math.max(best,run);run=0;inside=true;}/* ShNQ 2.07.02-24 taʼrifi: harakat tasmalarini ajratuvchi (yoʻnalishidan qatʼi nazar) */
+        else if(inside&&REFUGE_K.includes(x[0]))run+=x[1];else run=0;}
+      if(best<REFUGE_W-.01)add('refuge',s,{end:e,why:`${segTitle(s)}, ${e==='a'?'boshlanish':'tugash'} uchidagi chorrahada orolcha ${best>0?f2(best)+' m':'yoʻq'} (${nf}+${nb} boʻlak kesib oʻtiladi)`});});
   });
   const u=a=>[...new Set(a)];
   /* holatlar: ok — tekshirildi va mos; bad — muammo; auto — chizish qoidasi bilan taʼminlanadi (tekshiruv emas); na — qoʻllanilmaydi / tekshiradigan narsa yoʻq */
@@ -2251,6 +2271,7 @@ function checkYHQ(){
   r.bike=bad.bike.length?['bad',`${u(bad.bike).length} ta koʻcha`]:segs.some(x=>x.lay.st.some(y=>y.k==='bike'&&y.dir))?['ok','mos']:['na','velo boʻlagi yoʻq'];
   {const R=ds.segs.filter(isRamp);R.forEach(sg=>{const ri=rampInfo(sg);if(!ri.ok)add('ramp',sg,{why:`Rampa nishabi ${Math.round(ri.pm)} ‰ > ${ri.max} ‰ (${ri.v} km/soat); uzunlik ≥ ${Math.ceil(ri.need)} m kerak`});});
     r.ramp=!R.length?NA:bad.ramp.length?['bad',`${bad.ramp.length} ta rampa`]:['ok',`${R.length} ta rampa ≤ chegara`];}
+  r.refuge=!has?NA:bad.refuge.length?['bad',`${bad.refuge.length} ta kirishda < 2 m`]:['ok','mos'];
   r.lanew=!has?NA:bad.lanew.length?['bad',`${bad.lanew.length} ta boʻlak`]:['ok',`${f2(ds.thr.laneMin)}–${f2(ds.thr.laneMax)} m`];
   Object.keys(r).forEach(k=>r[k][2]=iss[k]||[]);
   return r;
@@ -2914,10 +2935,11 @@ function bindFree(el,q){const ds=DS();
 function guideHTML(){const ds=DS(),open=ds.guideOpen??true;
   const sec=(t,items)=>`<div style="margin-top:10px"><b>${t}</b><ol style="margin:4px 0 0;padding-left:20px;display:grid;gap:3px">${items.map(x=>`<li>${x}</li>`).join('')}</ol></div>`;
   return `<details id="guide" class="card" style="padding:10px 12px" ${open?'open':''}><summary style="font-size:15px">Qoʻllanma — qanday ishlatiladi</summary><div class="small" style="color:var(--ink);font-size:14px;line-height:1.5">
-  ${sec('Koʻcha chizish',['«Koʻcha chizish» asbobini tanlang.','Pastdagi roʻyxatdan modulni tanlang (guruhni bosib oching) yoki «Konstruktor»da oʻzingiz tuzing.','Kerak boʻlsa burilish radiusini va «Bir tomonlama» rejimini tanlang.','Xaritada boshlanish nuqtasini, soʻng burilish nuqtalarini bosing. Qoʻyilgan nuqtalarni sudrab tuzatish mumkin.','Mavjud koʻcha yoki tugunni bossangiz — ulanadi va chorraha hosil boʻladi. Boʻsh joyda tugatish — Enter yoki ikki marta bosish.'])}
+  ${sec('Koʻcha chizish',['«Koʻcha chizish» asbobini tanlang.','Pastdagi roʻyxatdan modulni tanlang (guruhni bosib oching) yoki «Konstruktor»da oʻzingiz tuzing.','Kerak boʻlsa burilish radiusini va «Bir tomonlama» rejimini tanlang.','Xaritada boshlanish nuqtasini, soʻng burilish nuqtalarini bosing. Qoʻyilgan nuqtalarni sudrab tuzatish mumkin.','Mavjud koʻcha yoki tugunni bossangiz — ulanadi, chorraha hosil boʻladi va chizish shu nuqtadan davom etadi (koʻchani kesib oʻtib chizish mumkin). Tugatish — Enter yoki ikki marta bosish; Esc — bekor qilish.'])}
+  ${sec('Harakat modeli, mavjud holat va loyiha albomi',['Mavjud koʻchalarni chizing (kerak boʻlsa «Fayl» → «Asos rasmi…» bilan syomka yoki skanni xarita ustiga qoʻyib, ustidan chizing). Chorrahani bosing → «Svetofor» → «Harakatni sinash» → «Hisoblash».','Natija chiqqach «Mavjud holat deb saqlash» ni bosing (yoki «Fayl» → «Hozirgisini mavjud deb saqlash») — chizma, harakat natijasi va talab saqlanadi.','Endi loyihani chizing: modullarni almashtiring, bekat, oʻtish joylarini qoʻshing. Koʻcha panelidagi «✂ Albom kesimi» — albomga kesim joyi.','Yana «Harakatni sinash» → «Hisoblash»: talab mavjud holatdan olinadi, natija bir xil talab bilan taqqoslanadi.','«Fayl» → «Albom (PDF)»: loyiha nomi, joyi va koʻcha nomlarini kiriting — A3 albom yangi oynada ochiladi, «PDF / Chop etish» bilan saqlang. Vaziyat sxemasi uchun internet kerak.'])}
   ${sec('Bir tomonlama harakat',['Yangi koʻcha uchun: chizishdan oldin «→ Bir tomonlama» ni tanlang — harakat siz chizgan yoʻnalishda boʻladi.','Mavjud koʻcha uchun: «Tanlash / tahrirlash» → koʻchani bosing → «Harakat» qatoridan tanlang. Sariq strelka oʻq yoʻnalishini koʻrsatadi; teskari kerak boʻlsa «← teskari».'])}
   ${sec('Tahrirlash',['«Tanlash / tahrirlash» bilan koʻchaning istalgan qismini bosing — oʻsha element (boʻlak, trotuar, yashil…) tanlanadi, turini panelda almashtirasiz.','Koʻcha oʻqi — qatnov qismining markazi: tugunlar shu oʻqda turadi, chorrahada qatnov qismlari aniq tutashadi. Kerak boʻlsa panelda «Oʻq (markaz)» → siljitish.','Oq kvadratlar — elementlar chegarasi: sudrab enini oʻzgartirasiz. Odatda ikkala tomon simmetrik oʻzgaradi (oʻq joyida qoladi); Alt bosib tursangiz — faqat bir tomon.','«R» doiralar — burilish nuqtalari: sudrang yoki bosib radiusini tanlang; «+» — yangi nuqta; oʻng tugma — nuqtani oʻchirish.','Delete — tanlanganni oʻchirish; Esc — bekor qilish.'])}
-  ${sec('Chorraha va aylanma halqa (turbo-halqa ham)',['Koʻchalar ulangan nuqtada chorraha avtomatik paydo boʻladi.','Har bir kiruvchi boʻlakka 1.18 strelkasi avtomatik qoʻyiladi: toʻgʻri, chapga, oʻngga va birikmalari — chorraha shakli va chiqish yoʻnalishlariga qarab. Strelkani bosing (Tanlash) — turi almashadi; koʻcha panelida har bir boʻlak uchun tanlash mumkin (qayrilish ham).','Eni har xil koʻchalar ulanganda silliq oʻtish (taper) va oʻq chizigʻi avtomatik chiziladi.','Chorrahaga yaqinlashishda chapga / oʻngga burilish va qayrilish uchun alohida boʻlak (choʻntak) ochiladi: «Avto» rejimida boʻlaklar soni, chiqish yoʻnalishlari va ajratuvchi eniga qarab; «Qoʻlda» — 0/1/2 ta chap va oʻng boʻlak, qayrilish, toʻplanish va oʻtish uzunligi. Joy oʻrtadagi ajratuvchi, yashil polosa yoki avtoturargohdan olinadi; yetmasa koʻcha kengayadi.','Tugunni bosing: turi — tartibga solinmagan, svetoforli yoki aylanma halqa; bordyur radiusini ham shu yerda berasiz.','Halqa: «Aylanma halqa (7 tur)» asbobini tanlang → panelda turini tanlang (masalan «Turbo-halqa (spiral)») → xaritada chorraha tugunini bosing.','Qoʻyilgan halqani bosib orol radiusi, halqa eni, boʻlaklar soni va turbo spiralining burchagini oʻzgartirasiz.'])}
+  ${sec('Chorraha va aylanma halqa (turbo-halqa ham)',['Koʻchalar ulangan nuqtada chorraha avtomatik paydo boʻladi.','Har bir kiruvchi boʻlakka 1.18 strelkasi avtomatik qoʻyiladi: toʻgʻri, chapga, oʻngga va birikmalari — chorraha shakli va chiqish yoʻnalishlariga qarab. Strelkani bosing (Tanlash) — turi almashadi; koʻcha panelida har bir boʻlak uchun tanlash mumkin (qayrilish ham).','Eni har xil koʻchalar ulanganda silliq oʻtish (taper) va oʻq chizigʻi avtomatik chiziladi.','Chorrahaga yaqinlashishda chapga / oʻngga burilish va qayrilish uchun alohida boʻlak (choʻntak) ochiladi: «Avto» rejimida boʻlaklar soni, chiqish yoʻnalishlari va ajratuvchi eniga qarab; «Qoʻlda» — 0/1/2 ta chap va oʻng boʻlak, qayrilish, toʻplanish va oʻtish uzunligi. Joy oʻrtadagi ajratuvchi, yashil polosa yoki avtoturargohdan olinadi (piyoda xavfsizlik orolchasi uchun ajratuvchidan 2 m gacha qoldiriladi); yetmasa koʻcha kengayadi.','Tugunni bosing: turi — tartibga solinmagan, svetoforli yoki aylanma halqa; bordyur radiusini ham shu yerda berasiz.','Halqa: «Aylanma halqa (7 tur)» asbobini tanlang → panelda turini tanlang (masalan «Turbo-halqa (spiral)») → xaritada chorraha tugunini bosing.','Qoʻyilgan halqani bosib orol radiusi, halqa eni, boʻlaklar soni va turbo spiralining burchagini oʻzgartirasiz.'])}
   ${sec('Piyoda oʻtish joyi, erkin shakl, chiziqlar',['«Piyoda oʻtish joyi»: turini tanlab koʻchaga bosing; keyin sudrab koʻchiring.','«Erkin shakl»: burilish choʻntagi, bekat, kengaytirilgan trotuar, maydon — sirt turini tanlab chegarasini chizing.','«Yoʻl chizigʻi»: 1.1–1.18 chiziqlar, zebra va strelkalarni qoʻlda chizasiz.'])}
   ${sec('Bekat, parklet, velo turargoh, avtoturargoh turlari',['«Bekat / parklet / velo» asbobi: turini tanlang va koʻchaning kerakli tomoniga bosing (bordyur yonidagi yoki choʻntakli bekat, orol platforma, parklet, velo turargoh).','Avtoturargoh turlari: parallel, 30°, 45°, perpendikulyar — modullar roʻyxatida, Konstruktorda («Avtoturargoh turi») yoki koʻcha elementini bosib turini almashtirib.'])}
   ${sec('Nusxa, koʻchirish, oʻchirish',['Obyektni tanlang (koʻcha, shakl, chiziq, belgi).','Ctrl+C — nusxa, Ctrl+V — sichqoncha turgan joyga qoʻyish, Ctrl+D — dublikat, Delete — oʻchirish. Xuddi shu tugmalar panelda va oʻng tugma menyusida bor.','Sariq ✥ belgisini sudrab butun obyektni koʻchirasiz.','Ctrl+Z / Ctrl+Y — orqaga / oldinga.'])}
@@ -3379,7 +3401,7 @@ function bindObj(el,q,num){const ds=DS(),sel=ds.sel;
    ===================================================================== */
 const TOOLS=[
   ['select','Tanlash / tahrirlash','i-select','V','Obyektni bosing — xususiyatlari shu yerda chiqadi. Nuqtalarni sudrang, oʻng tugma — menyu.'],
-  ['draw','Koʻcha chizish','i-street','S','Modulni tanlang va xaritada nuqtalarni bosing. Mavjud koʻcha yoki tugunni bossangiz — ulanadi.'],
+  ['draw','Koʻcha chizish','i-street','S','Modulni tanlang va xaritada nuqtalarni bosing. Mavjud koʻcha yoki tugunni bossangiz — ulanadi va chizish davom etadi; Enter — tugatish.'],
   ['xwalk','Piyoda oʻtish joyi','i-cross','P','Turini tanlang va koʻcha ustiga bosing. Qoʻyilganini sudrab koʻchiring.'],
   ['conn','Polosalarni ulash','i-conn','J','Vissim / Cities: Skylines uslubi (BETA): kiruvchi polosa nuqtasini (●) bosing, keyin chiquvchi polosani (○) — ulagich qoʻshiladi yoki olib tashlanadi. Ulagichni bosib tanlang · Delete — olib tashlash · A — andozaga qaytarish.'],
   ['lane','Boʻlak qoʻshish (moʻyqalam)','i-street','K','Koʻcha boʻylab sudrang — oʻsha qismga boʻlak qoʻshiladi (sudragan tomoningizga). Alt bilan — boʻlak olib tashlanadi. Trotuar oʻzi siljiydi.'],
@@ -3486,7 +3508,7 @@ if(!S.helpSeen&&!document.documentElement.classList.contains('kps-embed')){S.hel
 {const _ree=renderEditor;renderEditor=function(){_ree();if(stripsG&&S.app==='prof')drawPlanStrips(stripsG);};}
 /* ===== v11: barqaror boshqaruv ===== */
 /* chizib boʻlgach — Tanlash rejimi (yangi obyekt tanlangan, darhol sudrash/oʻchirish mumkin) */
-{const _fs=finishSeg;finishSeg=function(n){const had=!!D.start;_fs(n);if(had&&!D.start&&DS().tool==='draw'&&!DS().keepDraw){DS().tool='select';renderRail&&renderRail();renderDesignPanel();renderHint();}};}
+{const _fs=finishSeg;finishSeg=function(n){const had=!!D.start;_fs(n);if(had&&!D.start&&!D.chain&&DS().tool==='draw'&&!DS().keepDraw){DS().tool='select';renderRail&&renderRail();renderDesignPanel();renderHint();}};}
 {const _ff=finishFree;finishFree=function(){_ff();const ds=DS();if((ds.tool==='shape'||ds.tool==='line')&&!ds.keepDraw){ds.tool='select';renderRail();renderDesignPanel();renderHint();}};}
 /* oʻng panel: qayta chizilganda aylantirish (scroll) joyi saqlanadi */
 {const _rp=renderDesignPanel;let lastKey='';renderDesignPanel=function(){const sc=document.getElementById('side'),t=sc?sc.scrollTop:0,ds=DS(),k=JSON.stringify([ds.sel&&[ds.sel.t,ds.sel.id],ds.itab,ds.tool]);_rp();if(sc&&k===lastKey)sc.scrollTop=t;lastKey=k;};}
