@@ -58,3 +58,16 @@ test('seysmiklik: Chilida PGA 0,2 g → 8 ball (taxmin), NCh433 izohi', async ({
   await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.seismic)).toBe(8);
   await expect(page.locator('#seisPgaBall:visible').first()).toContainText('8');
 });
+
+/** 14.11 (seysmiklik 2-bosqich): GSHAP 1999 taklifi — Chili ≈ 9, «Qabul qilish» bosilsa ball qoʻyiladi */
+test('seysmiklik: Chilida GSHAP taklifi va qabul qilish', async ({ page }) => {
+  test.setTimeout(120_000);
+  const bin = new URL('../../../data/seis/gshap-ball-05.bin', import.meta.url).pathname;
+  await page.route('**/data/seis/gshap-ball-05.bin', r => r.fulfill({ path: decodeURIComponent(bin), contentType: 'application/octet-stream' }));
+  await proj(page, [-70.6693, -33.4489]);
+  await page.click('[data-step=tekshiruv]');
+  await page.locator('#regSet:visible > summary').first().click();
+  await expect(page.locator('#seisSug:visible').first()).toContainText('GSHAP', { timeout: 15_000 });
+  await page.locator('#seisSugGo:visible').first().click();
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.seismic)).toBe(9);
+});

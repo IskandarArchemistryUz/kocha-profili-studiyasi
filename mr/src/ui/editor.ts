@@ -154,6 +154,7 @@ import { agentConfig, agentApi } from '../agent/api';
 import { mrTools, type MrHost } from '../agent/tools-mr';
 import { quote as quoteApi } from '../account/session';
 import { pgaToBall, SEIS_HINT, SCALE_TXT } from '../core/seismichint';
+import { suggestBall } from '../core/seismicgrid';
 import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 /** yer sathi xaritasi legendasi (Qatlamlar paneli va varaq) */
@@ -5384,7 +5385,21 @@ export class Editor {
     return h('div', { class: 'li', id: 'seisPgaRow', style: 'flex-wrap:wrap;gap:8px' },
       h('span', { class: 'k' }, tr('PGA, g'), h('span', { class: 'sub', id: 'seisHint' }, hint ? (hint.code ? `${hint.code}: ` : '') + tr(SCALE_TXT[hint.scale]) : tr('Mamlakat meʼyoridagi PGA (g) yoki ballni kiriting'))),
       h('span', { class: 'unit', style: 'width:96px' }, inp, h('span', {}, 'g')),
-      S0.seismicPga != null ? h('span', { class: 'chip warn', id: 'seisPgaBall' }, tf('≈ ${b} · taxmin', { b: S0.seismic < 7 ? '≤ 6' : S0.seismic > 9 ? '>9' : String(S0.seismic) })) : '');
+      S0.seismicPga != null ? h('span', { class: 'chip warn', id: 'seisPgaBall' }, tf('≈ ${b} · taxmin', { b: S0.seismic < 7 ? '≤ 6' : S0.seismic > 9 ? '>9' : String(S0.seismic) })) : '',
+      this.seisSuggest());
+  }
+  /** 14.11 (2-bosqich): GSHAP 1999 boʻyicha taklif — faqat koʻrsatiladi, «Qabul qilish» bosilsa ball qoʻyiladi */
+  private seisSuggest(): HTMLElement {
+    const box = h('span', { id: 'seisSug', style: 'display:flex;gap:6px;align-items:center;flex-basis:100%' });
+    const o = this.store.doc.origin;
+    void suggestBall(o[0], o[1]).then(b => {
+      if (b == null || !box.isConnected) return;
+      const S = this.store.doc.settings, lbl = b < 7 ? '≤ 6' : b > 9 ? '>9' : String(b);
+      box.append(h('span', { class: 't-small', title: 'Giardini, Grünthal, Shedlock, Zhang (1999). The GSHAP Global Seismic Hazard Map. Annali di Geofisica 42(6) · gmo.gfz.de — rasmiy xarita emas' }, tf('GSHAP 1999 boʻyicha ≈ ${b} ball · taxmin', { b: lbl })),
+        S.seismic === b || (b === 6 && S.seismic < 7) ? h('span', { class: 'chip ok' }, tr('qabul qilingan'))
+          : h('button', { class: 'btn btn-sm', id: 'seisSugGo', onclick: () => this.run(() => this.store.dispatch({ type: 'setSettings', patch: { seismic: b, seismicSet: true, seismicPga: undefined } })) }, tr('Qabul qilish')));
+    });
+    return box;
   }
   /** 04.11 (egasi): past uylar olovbardoshligi — ShNQ 2.07.01-23, 56-jadval ustunlari; faqat past uylar boʻlsa koʻrinadi */
   private fireLowRow(): HTMLElement | string {
