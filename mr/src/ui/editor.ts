@@ -205,6 +205,9 @@ function mapOnly(svg: string, scale: number): { svg: string; vb: [number, number
   return { svg: inner, vb: [10, 10, W - 20, H - 20], w: W - 20, h: H - 20, scale };
 }
 
+/** Loyiha nomi hali sukutdagi «Yangi loyiha» / «New project» (raqam bilan ham) — joy tanlanganda «joy, sana» ga almashadi */
+export const isDefaultName = (n: string): boolean => { const t = n.trim(); return !t || [tr('Yangi loyiha'), 'Yangi loyiha', 'New project', 'Новый проект'].some(d => t === d || (t.startsWith(`${d} `) && /^\d+$/.test(t.slice(d.length + 1)))); };
+
 export class Editor {
   readonly store: Store;
   private scene!: Scene3D;
@@ -1354,7 +1357,9 @@ export class Editor {
     if (carry === null && (doc.site || doc.buildings.length)) { this.search.pending = p; this.renderPanel(); return; }
     this.search.pending = null; this.search.res = [];
     this.framedCtx = false;
-    this.run(() => { this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }); if (doc.context.area) this.store.dispatch({ type: 'setContext', patch: { area: null, radius: 500 } }); this.syncSeismic(); });
+    // 14.11 audit (Loyihalar): nomi hali sukutda boʻlsa — «joy, sana» (masalan «Chilonzor, 14.11»)
+    const autoName = isDefaultName(doc.name) && p.name ? `${p.name.split(',')[0].trim()}, ${new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}` : null;
+    this.run(() => { this.store.dispatch({ type: 'moveProject', origin: p.at, carry: !!carry }); if (doc.context.area) this.store.dispatch({ type: 'setContext', patch: { area: null, radius: 500 } }); if (autoName) this.store.dispatch({ type: 'rename', name: autoName }); this.syncSeismic(); });
     if (halfW) { this.scene.frameView(0, 0, halfW); this.framedCtx = true; }   // dunyo xaritasidan — oʻsha masshtabda, fon chizilgach qayta moslanmaydi
     else this.scene.frameRadius(doc.site && carry ? 0 : 250);
     if (doc.site && carry) this.scene.frameDoc(this.store.doc);

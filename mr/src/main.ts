@@ -47,7 +47,10 @@ async function route(): Promise<void> {
   // bosh sahifadan: #/yangi — yangi loyiha, #/namuna — namuna loyiha (data/ dan nusxa)
   if (location.hash === '#/yangi') { const p = blankProject(); await putProject(p); location.replace(`#/p/${p.id}`); return; }
   if (location.hash === '#/namuna') {
-    try { const r = await fetch('../data/namuna-mahalla.archemistry.json'); if (!r.ok) throw new Error(String(r.status)); const p = importJSON(await r.text(), () => uid('p_')); await putProject(p); location.replace(`#/p/${p.id}`); }
+    // 14.11 audit: namuna har bosilganda yangi nusxa yaratmaydi — shu brauzerdagi nusxa ochiladi
+    let keep: string | null = null; try { keep = localStorage.getItem('mr-namuna-id'); } catch { /* */ }
+    if (keep && (await listProjects().catch(() => [])).some(x => x.id === keep)) { location.replace(`#/p/${keep}`); return; }
+    try { const r = await fetch('../data/namuna-mahalla.archemistry.json'); if (!r.ok) throw new Error(String(r.status)); const p = importJSON(await r.text(), () => uid('p_')); await putProject(p); try { localStorage.setItem('mr-namuna-id', p.id); } catch { /* */ } location.replace(`#/p/${p.id}`); }
     catch (e) { toast('Namuna loyiha yuklanmadi: ' + (e as Error).message); location.replace('#/'); }
     return;
   }
@@ -117,7 +120,7 @@ function homeAcct(): HTMLElement {
       h('span', { class: 't-small who', title: who }, who),
       h('span', { class: 't-small mono', id: 'homeBal' }, `${tr('Tangalar')}: ${fmt(m.balance)}`),
       h('button', { class: 'btn btn-sm', id: 'homeBuy', onclick: () => void buyDialog() }, tr('Tanga sotib olish')),
-      h('button', { class: 'btn btn-sm btn-ghost', id: 'homeCoins', onclick: () => void coinsDialog() }, tr('Tarix')),
+      h('button', { class: 'btn btn-sm btn-ghost', id: 'homeCoins', onclick: () => void coinsDialog() }, tr('Tanga tarixi')),
       m.owner ? h('a', { class: 'btn btn-sm btn-ghost', id: 'homeOwner', href: '#/egasi', style: 'text-decoration:none' }, tr('Panel')) : '',
       h('button', { class: 'btn btn-sm btn-ghost', id: 'homeOut', onclick: () => void logout().then(() => toast(tr('Hisobdan chiqdingiz'))) }, tr('Chiqish')));
   };
@@ -125,6 +128,12 @@ function homeAcct(): HTMLElement {
   if (authRequired() && !isLinkOwner()) void checkAuth();
   return box;
 }
+
+/** 14.11 audit (Loyihalar): qidiruv va saralash — 6 tadan koʻp loyihada */
+let projQ = '';
+let projF: 'all' | 'cloud' | 'local' | 'empty' = 'all';
+const WEEK = 7 * 864e5;
+const isEmptyOld = (p: ProjectMeta): boolean => !p.buildings && !p.hasSite && Date.now() - new Date(p.updated).getTime() > WEEK;
 
 /** Bulut (14.11): brauzerdagi loyihalarning bogʻlanishi, bulutdagi (shu brauzerda yoʻq) loyihalar, tanlab koʻchirish */
 const picked = new Set<string>();
@@ -160,6 +169,18 @@ function thumb(n: number, site: boolean, inCloud: boolean): HTMLElement {
   return el;
 }
 
+/** Qidiruv, saralash (Hammasi · Bulutda · Brauzerda · Boʻsh) va eski boʻsh loyihalar haqida eslatma */
+function projTools(list: ProjectMeta[], links: Map<string, unknown> | null): HTMLElement {
+  const nEmpty = list.filter(isEmptyOld).length;
+  const inp = h('input', { type: 'search', class: 'input', id: 'projQ', placeholder: tr('Loyiha nomi'), 'aria-label': tr('Loyiha qidirish'), value: projQ, style: 'flex:1 1 220px;max-width:360px' }) as HTMLInputElement;
+  inp.oninput = () => { projQ = inp.value; const at = inp.selectionStart; void home().then(() => { const n = document.getElementById('projQ') as HTMLInputElement | null; if (n) { n.focus(); n.setSelectionRange(at, at); } }); };
+  const F: [typeof projF, string][] = [['all', tr('Hammasi')], ...(links ? [['cloud', tr('Bulutda')], ['local', tr('Brauzerda')]] as [typeof projF, string][] : []), ...(nEmpty ? [['empty', tf('Boʻsh · ${n}', { n: nEmpty })]] as [typeof projF, string][] : [])];
+  if (!F.some(f => f[0] === projF)) projF = 'all';
+  return h('div', { class: 'row', id: 'projTools', style: 'gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px' }, inp,
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Saralash'), id: 'projF' }, ...F.map(([k, t]) => h('button', { type: 'button', 'data-f': k, 'aria-pressed': projF === k, onclick: () => { projF = k; void home(); } }, t))),
+    nEmpty && projF !== 'empty' ? h('span', { class: 't-small', id: 'projEmptyNote' }, tf('${n} ta boʻsh loyiha (bino ham, uchastka ham yoʻq, 7 kundan eski)', { n: nEmpty })) : '');
+}
+
 async function home(): Promise<void> {
   let list: ProjectMeta[] = [];
   try { list = (await listProjects()).filter(p => !p.svc); } catch (e) { toast('Saqlash ishlamayapti: ' + (e as Error).message); }   // 14.11: Chizmadonning oʻz loyihalari bu yerda emas
@@ -184,6 +205,8 @@ async function home(): Promise<void> {
   const themeB = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'homeTheme', type: 'button', 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() },
     svgIcon(isDark() ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'));
   offThemeHome?.(); offThemeHome = onTheme(() => { if (location.hash === '' || location.hash === '#/' || location.hash === '#') void home(); });
+  const q = projQ.trim().toLowerCase();
+  const shown = list.length > 5 ? list.filter(p => (!q || p.name.toLowerCase().includes(q)) && (projF === 'all' || (projF === 'cloud' ? cs.links.has(p.id) : projF === 'local' ? !cs.links.has(p.id) : isEmptyOld(p)))) : list;
   root.replaceChildren(h('main', { class: `home home2${first ? ' enter' : ''}` },
     h('header', { class: 'home-top home-bar glassbar' },
       h('a', { class: 'btn btn-ghost btn-sm', href: '../index.html', style: 'text-decoration:none' }, ...icl(IC.back, 'Archemistry Lab')),
@@ -199,7 +222,8 @@ async function home(): Promise<void> {
     cs.on ? h('div', { class: 'row', id: 'cloudBar', style: 'gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px' },
       h('span', { class: 't-small' }, cs.usage ? tf('Bulutda: ${n} ta loyiha · ${u} MB', { n: cs.usage.count, u: mb(cs.usage.bytes) }) + (cs.usage.quota ? tf(' / ${q} MB', { q: mb(cs.usage.quota) }) : '') : ''),
       list.some(p => !cs.links.has(p.id)) ? moveBtn : '') : '',
-    list.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...list.map((p, i) => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id, style: `--i:${Math.min(i, 12)}` },
+    list.length > 5 ? projTools(list, cs.on ? cs.links : null) : '',
+    shown.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...shown.map((p, i) => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id, style: `--i:${Math.min(i, 12)}` },
       thumb(p.buildings, p.hasSite, cs.links.has(p.id)),
       h('b', {}, p.name),
       cs.links.has(p.id) ? h('span', { class: 't-small', 'data-cloud': 'on', style: 'color:var(--ok)' }, tr('bulutda'))
@@ -214,6 +238,10 @@ async function home(): Promise<void> {
           return c;
         })() : '',
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr(p.hasSite ? 'uchastka bor' : 'uchastka yoʻq')} · ${p.buildings} ${tr('bino')}`),
+      h('button', { class: 'btn btn-ghost btn-sm icon-btn card-more', type: 'button', 'data-more': p.id, 'aria-label': tr('Amallar'), title: tr('Amallar'), onclick: (e: Event) => {
+        // 14.11 audit: «Oʻchirish» har kartada koʻrinmaydi — «⋯» bosilganda chiqadi
+        e.preventDefault(); e.stopPropagation(); (e.currentTarget as HTMLElement).closest('.card')?.classList.toggle('more-on');
+      } }, svgIcon('<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>')),
       h('button', { class: 'btn btn-danger btn-sm card-del', 'data-del': p.id, onclick: async (e: Event) => {
         e.preventDefault(); e.stopPropagation();
         const inCloud = cs.links.has(p.id);
@@ -221,6 +249,7 @@ async function home(): Promise<void> {
         if (inCloud) { try { await cloud.remove(p.id); await cloud.dropLink(p.id); } catch (er) { toast((er as Error).message); return; } }
         await deleteProject(p.id); home();
       } }, ...icl(TRASH, tr('Oʻchirish'))))))
+      : list.length ? h('div', { class: 'empty', id: 'projNone', style: 'margin-top:16px' }, h('span', {}, tr('Hech narsa topilmadi')))
       : h('div', { class: 'empty', style: 'margin-top:16px' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.'))),
     cs.remote.length ? h('h2', { class: 't-title', style: 'margin-top:28px' }, tr('Bulutda, shu brauzerda yoʻq')) : '',
     cs.remote.length ? h('div', { class: 'row3 cards', id: 'cloudCards' }, ...cs.remote.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-cid': p.id },
