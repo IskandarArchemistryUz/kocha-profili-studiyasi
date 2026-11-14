@@ -23,3 +23,16 @@ test('Parij: reyestrda xorij izohi, ShNQ «mos emas» yoʻq; Toshkentda — avva
   await expect(page.locator('#regAbroad')).toHaveCount(0);
   await expect(page.locator('#regSeg [data-f=fail]')).not.toContainText('· 0');   // Toshkentda shu loyihada «mos emas» bandlar bor
 });
+
+/** 14.11 audit: xorijiy loyihada stat.uz shahri (Toshkent) va Oʻzbekiston bloklari chiqmaydi */
+test('Parij: 9-qadamda «Toshkent shahri» yoʻq, 3-qadamda koʻchirish xarajati yoʻq', async ({ page }) => {
+  test.setTimeout(120_000);
+  await proj(page, [2.3522, 48.8566]);
+  await page.click('[data-step=xizmat]');
+  const box = page.locator('#trBox');
+  await box.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => { /* OSM yoʻq — radius bloki chiqmasligi mumkin */ });
+  await expect(page.locator('.drawer, .panel').first()).not.toContainText('Toshkent shahri');
+  if (await box.count()) await expect(box).toContainText('Xorijiy loyiha');
+  await page.click('[data-step=parsel]');
+  await expect(page.locator('#compBox')).toHaveCount(0);
+});

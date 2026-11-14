@@ -1,1 +1,0 @@
-export{s as toUpload}from"./api-DSUD4mMj.js";
