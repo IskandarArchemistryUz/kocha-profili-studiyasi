@@ -1,0 +1,50 @@
+/* Jonli fon naqshlari (4-bosqich, 14.11) — kanvas «Oʻtish: boʻlim → loyihalar»; generator: render-canvas-gen/live.py */
+
+.lv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lv-joy polyline{fill:none;stroke:rgb(var(--acc));stroke-linecap:round}
+.lv-joy .jl{stroke-opacity:.2;stroke-width:.8;stroke-dasharray:6 1.2;animation:jflow 9s linear infinite}
+.lv-joy .jx{stroke-opacity:.5;stroke-width:1.3;stroke-dasharray:14 2;animation:jflow 16s linear infinite reverse}
+@keyframes jflow{to{stroke-dashoffset:-100}}
+.lv-ks .kl{stroke:rgb(var(--acc));stroke-opacity:.35;stroke-width:1.2;stroke-dasharray:12 14;animation:kflow 1.6s linear infinite}
+.lv-ks .kl2{stroke:rgb(var(--acc));stroke-opacity:.22;stroke-width:1}
+@keyframes kflow{to{stroke-dashoffset:-26}}
+.lv-ks .ka{fill:none;stroke:rgb(var(--acc));stroke-opacity:.55;stroke-width:1.6;stroke-linecap:round;transform-box:fill-box;transform-origin:50% 80%;animation:kpop calc(var(--nq-k,1)*900ms) cubic-bezier(.2,.8,.2,1) both}
+.lv-ks .kh{fill:rgb(var(--acc));fill-opacity:.55;stroke:none}
+@keyframes kpop{0%{opacity:0;transform:scale(.3) rotate(0)}40%{opacity:1;transform:scale(1) rotate(0)}100%{opacity:1;transform:scale(1) rotate(var(--t))}}
+.lv-dk polygon,.lv-dk path{fill:rgb(var(--acc))}
+.lv-dk .dc{fill-opacity:.5}.lv-dk .dv{fill-opacity:.7}.lv-dk .dp{fill-opacity:.35}
+.lv-dk .ds{transform-box:fill-box;transform-origin:center;animation:dspin 14s linear infinite}
+@keyframes dspin{to{transform:rotate(360deg)}}
+.lv-chz .zg{stroke:#7a8db0;stroke-opacity:.2;stroke-width:.5}.lv-chz .zG{stroke:#7a8db0;stroke-opacity:.22;stroke-width:.9}
+.zd{fill:none;stroke:currentColor;stroke-opacity:.5;stroke-width:1.1;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:zdraw calc(var(--nq-k,1)*900ms) cubic-bezier(.45,0,.25,1) both}
+.lv-chz .zm{stroke:rgb(var(--acc));stroke-opacity:.6;stroke-width:1.4}.lv-chz .zt{stroke-opacity:.3}
+@keyframes zdraw{to{stroke-dashoffset:0}}
+.lv-ren .rsw{animation:rsweep 9s ease-in-out infinite alternate}
+@keyframes rsweep{from{transform:translateX(-460px)}to{transform:translateX(460px)}}
+.lv-ren .rfan{transform-origin:0 0;animation:rfan 9s ease-in-out infinite alternate}
+@keyframes rfan{from{transform:rotate(18deg)}to{transform:rotate(-18deg)}}
+.lv-ren .rr{animation:rflick 4s ease-in-out infinite alternate;mix-blend-mode:screen}
+@keyframes rflick{50%{opacity:.25}}
+:root:not([data-theme="dark"]) .lv-ren .rr{mix-blend-mode:multiply}
+:root:not([data-theme="dark"]) .nq[data-naqsh=ren]{opacity:.9}
+.lv-bin .bx{stroke:rgb(var(--acc));stroke-opacity:.35;stroke-dasharray:1;stroke-width:.9}
+.lv-bin .bc{fill:none;stroke:rgb(var(--acc));stroke-opacity:.6;stroke-width:1;animation:fade calc(var(--nq-k,1)*400ms) ease both}
+.lv-bin .bf{transform-box:fill-box;transform-origin:50% 100%;animation:bfloor calc(var(--nq-k,1)*420ms) cubic-bezier(.2,.8,.2,1) both}
+.lv-bin .bf rect{fill:rgb(var(--acc));fill-opacity:.05;stroke:rgb(var(--acc));stroke-opacity:.5;stroke-width:1}
+.lv-bin .bf .bw{fill-opacity:.12;stroke-opacity:.3}
+@keyframes bfloor{from{opacity:0;transform:scaleY(0) translateY(10px)}}
+.lv-bin .bg{stroke:currentColor;stroke-opacity:.6;stroke-width:1.6}.lv-bin .bd{stroke:rgb(var(--acc));stroke-opacity:.7}
+.lv-bin .bt{fill:rgb(var(--acc));font:500 12px "IBM Plex Mono",monospace;animation:fade calc(var(--nq-k,1)*400ms) ease both}
+.reduce .lv *{animation:none!important;stroke-dashoffset:0!important}
+@media (prefers-reduced-motion:reduce){.lv *{animation:none!important;stroke-dashoffset:0!important}}
+@keyframes fade{from{opacity:0}}
+/* qatlam: sahifa foni ostida, panellar orasida bilinar-bilinmas */
+.nq{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;color:var(--ink);opacity:var(--nq-op,.5);animation:nqin .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes nqin{from{opacity:0}}
+/* blok ichida (sahna, boʻsh maydon): blokning foni ustida, mazmuni ostida */
+.nq-host{isolation:isolate}.nq-host>.nq{position:absolute}
+[data-theme="dark"] .nq{opacity:var(--nq-op-d,.6)}
+/* sarlavha ostidagi xizmat rangidagi yonuvchi chiziq */
+.svc-glow::after{content:'';position:absolute;left:24px;right:24px;bottom:-1px;height:2px;border-radius:2px;pointer-events:none;background:rgb(var(--acc));box-shadow:0 0 12px 1px rgba(var(--acc),.6);transform-origin:left;animation:glowin .52s cubic-bezier(.65,0,.25,1) .42s both}
+@keyframes glowin{from{transform:scaleX(0);opacity:0}}
+@media (prefers-reduced-motion:reduce){.nq,.svc-glow::after{animation:none}}

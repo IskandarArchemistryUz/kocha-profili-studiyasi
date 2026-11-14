@@ -16,6 +16,7 @@ import { isOwner } from '../core/wm';
 import '../ui/ds2.css';
 import './render.css';
 import { h, svgIcon, toast } from '../ui/dom';
+import { svcBackdrop, svcGlow } from '../ui/backdrop';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
@@ -80,8 +81,11 @@ const save = () => saveState(A);
 /* ---------------- qobiq ---------------- */
 const root = document.getElementById('ren')!;
 const header = h('header', { class: 'eko glass' });
+// 4-bosqich: xizmatning jonli fon naqshi va sarlavha ostidagi yonuvchi chiziq
+svcGlow(header);
 const left = h('aside', { class: 'ren-lp panel', id: 'renLeft', 'aria-label': tr('Kiritish') });
 const stage = h('main', { class: 'ren-stage', id: 'renStage' });
+svcBackdrop('ren', stage);   // 4-bosqich: sahnada quyosh nurlari (rasm qoʻyilsa — ustini yopadi)
 const right = h('aside', { class: 'ren-rp panel', id: 'renRight', 'aria-label': tr('Render') });
 const over = h('div', { class: 'ren-over', id: 'renView', hidden: true });
 const fileIn = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', hidden: true, id: 'renFile' }) as HTMLInputElement;
