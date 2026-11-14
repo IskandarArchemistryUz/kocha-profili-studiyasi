@@ -1458,31 +1458,65 @@ function remapMk(mk,om){if(!mk)return undefined;const m={};Object.entries(mk).fo
 /* chizish uchun virtual tarmoq: choʻntakli koʻchalar uch qismga ajraladi */
 let VNET=null;
 function virtualNet(){const V=virtualNet0(),ds=DS(),B=V||{segs:ds.segs.slice(),nodes:ds.nodes.slice()};let ch=false;const R0={segs:ds.segs,nodes:ds.nodes};ds.segs=B.segs;ds.nodes=B.nodes;try{ch=stationSplit(B);}catch(e){console.error(e);}finally{ds.segs=R0.segs;ds.nodes=R0.nodes;}return V||ch?B:null;}
-/* BRT bekati (orol platforma) koʻchani kengaytiradi: platforma oraligʻi alohida virtual boʻlak boʻladi —
-   avtobus boʻlaklari orasidagi ajratuvchi oʻrniga platforma (andoza 4 m, «BRT bekati kesimi» kabi), ikki tomonda taper. */
-const ST_W=4,ST_TAPER=20;
+/* Markazdagi BRT/trolleybus/tramvay bekati koʻchani kengaytiradi (har platforma oraligʻi alohida virtual boʻlak, uchlarida taper).
+   door 'right' (andoza, oddiy oʻng eshikli avtobus): har yoʻnalishga alohida platforma, transport boʻlagining oʻng (tashqi) tomonida,
+   siljitilgan — dumi dumiga, oʻrtada oʻtish joyi: har avtobus oʻtish joyidan keyin toʻxtaydi, yoʻlovchi avtobus orqasidan oʻtadi (ITDP 25.5, NACTO median right-side boarding).
+   door 'left': bitta markaziy orol (chap eshikli avtobus yoki tramvay). Platforma eni ST_W (ITDP: ≥ 4 m, afzal 5 m; markaziy ≥ 6 m). */
+const ST_W=4,ST_WC=6,ST_TAPER=20,ST_GAP=6;
+function stationPlatforms(a,T){const s=a.f*T,L=a.len||30;
+  if(a.door==='left')return [{s1:s-L/2,s2:s+L/2,k:'c'}];
+  return [{s1:s+ST_GAP/2,s2:s+ST_GAP/2+L,k:'p'},{s1:s-ST_GAP/2-L,s2:s-ST_GAP/2,k:'m'}];}
 function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>n.id))-1,changed=false;const out=[];
   B.segs.forEach(sg=>{const st0=segStrips(sg),stops=(sg.att||[]).filter(a=>a.t==='tramstop');if(!stops.length){out.push(sg);return;}
     const lay=layOf(sg),ll=segLL(sg),raw=ll.map(q=>toXY(q,o)),T=cumLen(raw).pop();
-    /* qarama-qarshi yoʻnalishdagi ikki avtobus boʻlagi va ular orasidagi tor qism */
-    const bi=st0.map((x,i)=>x[0]==='bus'?i:-1).filter(i=>i>=0);let pair=null;
+    /* qarama-qarshi yoʻnalishdagi ikki jamoat transporti boʻlagi (avtobus/tramvay) va ular orasidagi tor qism */
+    const isPT=k=>k==='bus'||k==='tram';
+    const bi=st0.map((x,i)=>isPT(x[0])?i:-1).filter(i=>i>=0);let pair=null;
     for(let k=0;k+1<bi.length;k++){const i=bi[k],j=bi[k+1];if((st0[i][2]||0)!==(st0[j][2]||0)&&st0.slice(i+1,j).every(x=>!DK[x[0]]||!DK[x[0]].road||x[0]==='hatch')){pair=[i,j];break;}}
     if(!pair){out.push(sg);return;}
-    const midW=st0.slice(pair[0]+1,pair[1]).reduce((a,x)=>a+x[1],0);if(midW>=ST_W-.01){out.push(sg);return;}
-    const st2=[...st0.slice(0,pair[0]+1),['walk',ST_W],...st0.slice(pair[1])];
-    const dM=(lay.st[pair[0]].mid+lay.st[pair[1]].mid)/2,L0=stripsLayout(st2,0),pM=(L0.st[pair[0]].mid+L0.st[pair[0]+2].mid)/2,shift=+((dM-pM)-autoOff(st2)).toFixed(3);
-    /* platforma oraliqlari (ustma-ust tushganlari birlashadi), uchlaridan taper+2 m uzoqda boʻlishi shart */
-    let R=stops.map(a=>[a.f*T-a.len/2-ST_TAPER/2,a.f*T+a.len/2+ST_TAPER/2]).filter(r=>r[0]>ST_TAPER/2+2&&r[1]<T-ST_TAPER/2-2).sort((a,b)=>a[0]-b[0]);
-    const M=[];R.forEach(r=>{if(M.length&&r[0]<=M[M.length-1][1]+ST_TAPER)M[M.length-1][1]=Math.max(M[M.length-1][1],r[1]);else M.push(r.slice());});
-    if(!M.length){out.push(sg);return;}
-    changed=true;const cuts=[0];M.forEach(r=>cuts.push(r[0],r[1]));cuts.push(T);
-    const nodeAt=sx=>{const n={id:vid--,ll:toLL(pointAt(raw,cumLen(raw),sx),o),type:'auto',_v:1,_t:ST_TAPER/2};B.nodes.push(n);return n;};
-    const N=cuts.map((c,i)=>i===0?sg.a:i===cuts.length-1?sg.b:nodeAt(c).id);
+    /* pair[0] — +d tomondagi boʻlak; uning yoʻnalishi (odatda −1) */
+    const dir0=st0[pair[0]][2]||-1,dir1=st0[pair[1]][2]||1;
+    const midW=st0.slice(pair[0]+1,pair[1]).reduce((a2,x)=>a2+x[1],0);
+    /* tasmalar: k = to'plam {'c','p','m'}; p — +1 yoʻnalish platformasi, m — −1 yoʻnalish platformasi */
+    const build=K=>{const st=[],om=[],put=(x,og)=>{st.push(x);om.push(og<0?-1:sg._om?sg._om[og]:og);};
+      const outer=d=>(d===1?K.has('p'):K.has('m'));
+      for(let q=0;q<pair[0];q++)put(st0[q],q);
+      if(outer(dir0))put(['walk',ST_W],-1);
+      put(st0[pair[0]],pair[0]);
+      if(K.has('c'))put(['walk',Math.max(ST_WC,midW)],-1);else for(let q=pair[0]+1;q<pair[1];q++)put(st0[q],q);
+      put(st0[pair[1]],pair[1]);
+      if(outer(dir1))put(['walk',ST_W],-1);
+      for(let q=pair[1]+1;q<st0.length;q++)put(st0[q],q);
+      /* transport boʻlaklari oʻz joyida qoladi: ular oʻrtasi asl dM da */
+      const L0=stripsLayout(st,0),i0=st.indexOf(st0[pair[0]]),i1=st.indexOf(st0[pair[1]]),dM=(lay.st[pair[0]].mid+lay.st[pair[1]].mid)/2,pM=(L0.st[i0].mid+L0.st[i1].mid)/2;
+      return {st,om,shift:+((dM-pM)-autoOff(st)).toFixed(3)};};
+    /* platformalar → oraliqlar (ustma-ust tushsa birlashadi) */
+    let P=[];stops.forEach(a=>stationPlatforms(a,T).forEach(p=>P.push({...p,a})));
+    P=P.filter(p=>p.s1>ST_TAPER+2&&p.s2<T-ST_TAPER-2).sort((x,y)=>x.s1-y.s1);
+    if(!P.length){out.push(sg);return;}
+    const I=[];P.forEach(p=>{const l=I[I.length-1];if(l&&p.s1<l.s2-.01){l.s2=Math.max(l.s2,p.s2);l.K.add(p.k);l.P.push(p);}else I.push({s1:p.s1,s2:p.s2,K:new Set([p.k]),P:[p]});});
+    /* boʻlinish nuqtalari: platformagacha taper; ikki platforma orasi qisqa boʻlsa (dumi dumiga) — bitta oʻtish, oʻrtada */
+    const cuts=[{s:0}],TP=ST_TAPER;
+    I.forEach((iv,k)=>{const prev=I[k-1];
+      /* oʻtish joyi (virtual): alohida platformalarda — ular orasida; markaziy orolda — ikki uchida (ITDP: kirish platforma uchlarida) */
+      const cw=DS().thr.cw||4,ctr=iv.K.has('c');
+      if(prev&&iv.s1-prev.s2<TP+4){cuts.pop();const g=iv.s1-prev.s2;cuts.push({s:(iv.s1+prev.s2)/2,t:Math.max(1.5,g/2),xw:cw});}
+      else cuts.push({s:iv.s1-TP/2,t:TP/2,xw:ctr?cw:0});
+      cuts.push({s:iv.s2+TP/2,t:TP/2,K:null,xw:ctr?cw:0});
+      cuts[cuts.length-2].K=iv.K;cuts[cuts.length-2].iv=iv;});
+    cuts.push({s:T});
+    changed=true;
+    const nodeAt=(sx,t,xw)=>{const n={id:vid--,ll:toLL(pointAt(raw,cumLen(raw),sx),o),type:'auto',_v:1,_t:t};if(xw)n._xw=xw;B.nodes.push(n);return n;};
+    const N=cuts.map((c,i)=>i===0?sg.a:i===cuts.length-1?sg.b:nodeAt(c.s,c.t,c.xw).id);
     const place=(arr,s1,s2)=>(arr||[]).filter(x=>x.f*T>=s1&&x.f*T<s2).map(x=>({...x,f:(x.f*T-s1)/Math.max(1,s2-s1)}));
-    for(let i=0;i+1<cuts.length;i++){const s1=cuts[i],s2=cuts[i+1],isSt=i%2===1,cm=cutSeg(ll,sg.rad,s1,s2,o);
-      const pc=Object.assign({},sg,{id:sg.id+':s'+i,a:N[i],b:N[i+1],pts:cm.pts,rad:cm.rad,_real:sg._real??sg.id,xw:place(sg.xw,s1,s2),att:place(sg.att,s1,s2),
+    for(let i=0;i+1<cuts.length;i++){const s1=cuts[i].s,s2=cuts[i+1].s,K=cuts[i].K,cm=cutSeg(ll,sg.rad,s1,s2,o);
+      const pc=Object.assign({},sg,{id:sg.id+':s'+i,a:N[i],b:N[i+1],pts:cm.pts,rad:cm.rad,_real:sg._real??sg.id,xw:place(sg.xw,s1,s2),att:place((sg.att||[]).filter(a=>a.t!=='tramstop'),s1,s2),
         cwA:i===0?sg.cwA:false,cwB:i===cuts.length-2?sg.cwB:false});
-      if(isSt){pc.st=st2;pc.shift=shift;pc.mk=undefined;pc._station=1;pc._om=st2.map((_,q)=>{const og=q<=pair[0]?q:q===pair[0]+1?-1:pair[1]+(q-pair[0]-2);return og<0?-1:sg._om?sg._om[og]:og;});pc.att=pc.att.map(a=>a.t==='tramstop'?{...a,d:dM}:a);}
+      if(K){const b=build(K);pc.st=b.st;pc.om=undefined;pc._om=b.om;pc.shift=b.shift;pc.mk=undefined;pc._station=1;
+        /* platforma obyektlari (chizma va model uchun): platforma tasmasi markazi, yoʻnalishi */
+        const Lb=stripsLayout(b.st,b.shift+autoOff(b.st)),walks=Lb.st.map((x,q)=>({x,q})).filter(w=>b.om[w.q]<0&&w.x.k==='walk');
+        cuts[i].iv.P.forEach(p=>{const pd=p.k==='p'?1:p.k==='m'?-1:0,w=walks.find(w2=>pd===0?true:(pd===dir0?w2.q<b.st.indexOf(st0[pair[0]]):w2.q>b.st.indexOf(st0[pair[1]])));
+          pc.att.push({t:'tramstop',f:((p.s1+p.s2)/2-s1)/Math.max(1,s2-s1),len:p.s2-p.s1,d:w?w.x.mid:0,pd,door:p.a.door||'right',_src:sg.id});});}
       if(sg._end&&!(sg._end==='a'?i===0:i===cuts.length-2))delete pc._end;
       out.push(pc);}});
   if(changed)B.segs=out;return changed;}
@@ -1701,7 +1735,10 @@ function buildShapes0(){
             if(Lx.k==='bus'||Rx.k==='bus'||Lx.k==='tram'||Rx.k==='tram')line(ll2,{color:'#fff',weight:2},null,3.1);else line(ll2,{color:'#fff',weight:1.5,dashArray:'8 10'},null,3.1);};
           [[E2[0],E2[1],S0],[E2[1],E2[0],S1]].forEach(([X,Y,SX],w)=>{for(let i=0;i<X.st.length-1;i++){const m1=SX[i],m2=SX[i+1];if(w===1&&m1.j>=0&&m2.j>=0)continue;
             edge(X.st[i],X.st[i+1],P(X,X.st[i].d2),P(Y,m1.y.d2));}
-            [[0,'d1'],[X.st.length-1,'d2']].forEach(([i,dk])=>{if(w===1&&SX[i].j>=0)return;line([P(X,X.st[i][dk]),P(Y,SX[i].y[dk])].map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,3.1);});});}
+            [[0,'d1'],[X.st.length-1,'d2']].forEach(([i,dk])=>{if(w===1&&SX[i].j>=0)return;line([P(X,X.st[i][dk]),P(Y,SX[i].y[dk])].map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,3.1);});});
+          /* bekatlar orasidagi oʻtish joyi (zebra 1.14.1) shu virtual tugunda */
+          if(n._xw){const f=E2[0].f,u=E2[0].u,hw=n._xw/2,rd=E2[0].st.filter(x=>!raised(x.k)),dA=Math.max(...rd.map(x=>x.d1)),dB=Math.min(...rd.map(x=>x.d2)),C=(d,e)=>[f.p[0]+f.n[0]*d+u[0]*e,f.p[1]+f.n[1]*d+u[1]*e];
+            for(let d=dA-.3;d>dB+.2;d-=1){poly([C(d,-hw),C(d-.5,-hw),C(d-.5,hw),C(d,hw)].map(q=>toLL(q,o)),'#fff',null,3.2);}mark('1.14.1');}}
         const bnd=a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,om=a.sg._om||st.map((_,i)=>i),res={};
           for(let i=0;i<st.length-1;i++){const x=st[i],y=st[i+1];if(!(DK[x.k].road&&DK[y.k].road)||isPk(x.k)||isPk(y.k)||om[i]<0||om[i+1]<0)continue;
             if(x.dir&&y.dir&&x.dir===y.dir){const P=[f.p[0]+f.n[0]*x.d2,f.p[1]+f.n[1]*x.d2];res[om[i]+'_'+om[i+1]]={P,opp:false};}}
@@ -1756,7 +1793,7 @@ function buildShapes0(){
       /* bekatlar → harakat modeli: boʻlak boshidan masofa (avtobus shu yerda toʻxtaydi). Chetdagi bekat — oʻsha tomondagi eng chetki boʻlak; oʻrtadagi platforma — avtobus boʻlaklari */
       {const rs=a.sg,Tr=T,fromA=a.atA,
         bl=lanes.filter(l=>l.x.k==='bus'),out2=lanes.length?lanes.reduce((m,l)=>Math.abs(l.x.mid)>Math.abs(m.x.mid)?l:m,lanes[0]):null;
-        (rs.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=fromA?at.f*Tr:Tr-at.f*Tr,sl=sMax-d;if(d<z+6||sl<5)return;
+        (rs.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;if(at.pd&&at.pd!==(a.atA?-1:1))return;const d=fromA?at.f*Tr:Tr-at.f*Tr,sl=sMax-d;if(d<z+6||sl<5)return;
           const tg=at.t==='tramstop'?(bl.length?bl:lanes.slice(0,1)):(out2&&Math.sign(out2.x.mid)===(at.side||-1)?[out2]:[]);
           tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});}
       /* karman boshidan narigi (choʻntaksiz) boʻlak: model uchun «yuqori oqim» boʻlaklari — mashina shu yerdan kirib, karmanga oʻtadi; uzoqdagi bekatlar ham shu yerda */
@@ -1772,7 +1809,7 @@ function buildShapes0(){
             for(let s=G.len;s>0;s-=4)P.push(pt(fU(s),xk.mid));P.push(pt(fU(0),xk.mid));}return {x,pts:P};});
           /* bekatlar: har boʻlakdagi masofa → umumiy yuqori oqim boʻlagi boʻyicha (boshidan) */
           segsUp.forEach(G=>{const Lk=lanesOf(G),ubl=up.filter((l,k)=>(Lk[Math.min(k,Lk.length-1)]||l.x).k==='bus'),uo=up[up.length-1];
-            (G.U.sg.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=G.U.atA?at.f*G.UT:G.UT-at.f*G.UT;if(d<0||d>G.len)return;const sl=tot-(G.acc+d);if(sl<5)return;
+            (G.U.sg.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;if(at.pd&&at.pd!==(G.U.atA?-1:1))return;const d=G.U.atA?at.f*G.UT:G.UT-at.f*G.UT;if(d<0||d>G.len)return;const sl=tot-(G.acc+d);if(sl<5)return;
               const tg=at.t==='tramstop'?(ubl.length?ubl:up.slice(0,1)):(uo&&Math.sign((Lk[Lk.length-1]||uo.x).mid)===(at.side||-1)?[uo]:[]);
               tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});});
           if(!up.length)up=null;}}
@@ -2904,7 +2941,7 @@ setTimeout(()=>{pushHist();},0);
 /* =====================================================================
    OBYEKTLAR: bekat, parklet, velo turargoh (koʻcha yonida)
    ===================================================================== */
-const ATT={bus:{n:'Avtobus bekati — bordyur yonida',len:20},bay:{n:'Avtobus bekati — choʻntakli',len:25},tramstop:{n:'Tramvay/BRT orol platformasi',len:30},
+const ATT={bus:{n:'Avtobus bekati — bordyur yonida',len:20},bay:{n:'Avtobus bekati — choʻntakli',len:25},tramstop:{n:'Oʻrtadagi bekat (BRT, trolleybus, tramvay)',len:30},
   parklet:{n:'Parklet',len:10},bikepark:{n:'Veloavtoturargoh',len:8}};
 function attEdges(lay,side,d){const rd=lay.road.filter(x=>side>0?x.mid>0:x.mid<0);const all=lay.road.length?lay.road:lay.st;
   const curb=rd.length?(side>0?Math.max(...rd.map(x=>x.d1)):Math.min(...rd.map(x=>x.d2))):(side>0?Math.max(...all.map(x=>x.d1)):Math.min(...all.map(x=>x.d2)));
@@ -2931,7 +2968,7 @@ function drawAtts(atts,lay,xy,c,T,band,poly,line,mark,sh,o){
 function placeAtt(ll){const ds=DS(),o=origin(),q=toXY([ll.lat,ll.lng],o);let best=null;
   ds.segs.forEach(sg=>{const xy=segXY(sg,o),c=cumLen(xy),pr=project(xy,q),T=c[c.length-1];if(pr.d<layOf(sg).outer+3&&(!best||pr.d<best.d)){const f=frameAt(xy,c,pr.s),d=(q[0]-f.p[0])*f.n[0]+(q[1]-f.p[1])*f.n[1];best={sg,s:pr.s,T,d,dd:d};}});
   if(!best){toast('Obyektni koʻcha yoniga bosing.');return;}
-  const t=ds.attType||'bus',sg=best.sg;sg.att=sg.att||[];const a={t,f:best.s/best.T,side:best.d>=0?1:-1,len:ATT[t].len};if(t==='tramstop'){a.d=best.d;const bs=layOf(sg).st.filter(x=>x.k==='bus'||x.k==='brt'||x.k==='tram').map(x=>x.mid).sort((p,q)=>Math.abs(p-best.d)-Math.abs(q-best.d));if(bs.length>1&&Math.sign(bs[0])!==Math.sign(bs[1]))a.d=+((bs[0]+bs[1])/2).toFixed(2);else if(bs.length)a.d=bs[0]>best.d?bs[0]-3.25:bs[0]+3.25;}
+  const t=ds.attType||'bus',sg=best.sg;sg.att=sg.att||[];const a={t,f:best.s/best.T,side:best.d>=0?1:-1,len:ATT[t].len};if(t==='tramstop'){a.door='right';a.len=30;}
   sg.att.push(a);ds.sel={t:'att',id:sg.id,i:sg.att.length-1};afterDesign();}
 function attHTML(sel){const sg=segById(sel.id),a=sg&&sg.att&&sg.att[sel.i];if(!a)return '';
   return `<div class="card" style="padding:10px"><h3>${ATT[a.t].n}</h3><div class="selbox"><select id="atT">${Object.entries(ATT).map(([k,v])=>`<option value="${k}" ${a.t===k?'selected':''}>${v.n}</option>`).join('')}</select>

@@ -67,7 +67,7 @@ window.openMenu=function(){};
 /* --- Fayl: nom, saqlash/ochish, eksport (PNG, SVG, DXF, GeoJSON, CSV), Albomga, yangi loyiha --- */
 const fileP=el(`<div class="kt-ui kt-pn kt-card kt-file" hidden></div>`);document.body.append(fileP);
 /* koʻchada avtobus boʻlagi oʻrtadami (chetida oddiy boʻlak bor) */
-function midBus(sg){if(!sg)return false;const st=layOf(sg).st,bus=st.filter(x=>x.k==='bus'),rd=st.filter(x=>x.k==='lane'||x.k==='mixed');return bus.some(b=>rd.some(l=>Math.sign(l.mid)===Math.sign(b.mid)&&Math.abs(l.mid)>Math.abs(b.mid)));}
+function midBus(sg){if(!sg)return false;const st=layOf(sg).st,bus=st.filter(x=>x.k==='bus'||x.k==='tram'),rd=st.filter(x=>x.k==='lane'||x.k==='mixed');return bus.some(b=>rd.some(l=>Math.sign(l.mid)===Math.sign(b.mid)&&Math.abs(l.mid)>Math.abs(b.mid)));}
 function toggleFile(btn){if(!fileP.hidden){fileP.hidden=true;return;}const ds=DS(),r=btn.getBoundingClientRect();
   fileP.innerHTML=`<button class="x" data-f="x" aria-label="Yopish">${IC.x}</button><span class="eb">FAYL</span>
     <div class="lbl">Loyiha nomi</div><input data-f="name" value="${esc(projName())}" style="height:36px;border:0;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #ebe8e2,0 2px 0 #e2dfd8;padding:0 12px;font:600 13px Archivo,sans-serif">
@@ -154,8 +154,13 @@ function cardHTML(sel){const ds=DS();
       <div class="row"><button class="kt-btn" data-k="kesim" title="Koʻcha kesimini B rejimida ochish">Kesim (B)</button><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
   if(sel.t==='att'||sel.t==='xw'){const sg=segById(sel.id);if(!sg)return null;const it=sel.t==='att'?(sg.att||[])[sel.i]:(sg.xw||[])[sel.i];if(!it)return null;
     anchor=()=>{const ll=segLL(sg);return midLL(ll);};
-    const nm=sel.t==='xw'?'Piyoda oʻtish joyi':((ATT[it.type]||{}).n||'Obyekt');
-    return `<span class="eb">${sel.t==='xw'?'OʻTISH JOYI':'KOʻCHA OBYEKTI'}</span><div class="ti">${esc(nm)}</div><div class="kt-note">Xaritada sudrab koʻchiring.</div><div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
+    const nm=sel.t==='xw'?'Piyoda oʻtish joyi':((ATT[it.t]||{}).n||'Obyekt');
+    const ts=sel.t==='att'&&it.t==='tramstop',dr=it.door||'right',ch=(k2,v,t)=>`<button class="kt-pri${(k2==='door'?dr:String(it.len||30))===v?' on':''}" style="width:auto;padding:0 10px;font:600 12px Archivo,sans-serif" data-ts="${k2}" data-v="${v}">${t}</button>`;
+    const tsH=ts?`<div class="kt-arm"><span>Eshik</span>${ch('door','right','Oʻngda')}${ch('door','left','Chapda')}</div>
+      <div class="kt-note">${dr==='right'?'Oddiy avtobus va trolleybus: har yoʻnalishga alohida platforma, transport boʻlagining oʻng tomonida; platformalar dumi dumiga, oʻrtada oʻtish joyi — avtobus oʻtish joyidan keyin toʻxtaydi (ITDP, NACTO).':'Chap eshikli avtobus yoki tramvay: ikki yoʻnalishga bitta markaziy orol, eni ≥ 6 m (ITDP).'}</div>
+      <div class="kt-arm"><span>Uzunligi</span>${ch('len','20','20 m')}${ch('len','30','30 m')}${ch('len','40','40 m')}</div>
+      <div class="kt-note">ShNQ 2.07.01-23, 394-band: bir yoʻnalishli bekat 20 m, bir necha yoʻnalishli — kamida 30 m. Platforma eni 4 m (ITDP: ≥ 4, afzal 5 m). Pavilyon uchun ajratuvchi ≥ 5 m (344-band).</div>`:'';
+    return `<span class="eb">${sel.t==='xw'?'OʻTISH JOYI':'KOʻCHA OBYEKTI'}</span><div class="ti">${esc(nm)}</div>${tsH}<div class="kt-note">Xaritada sudrab koʻchiring.</div><div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;}
   if(sel.t==='node'){const n=nodeById(sel.id);if(!n)return null;const k=nodeKind(n);anchor=()=>n.ll;
     if(!JK.includes(k))return `<span class="eb">TUGUN</span><div class="ti">${k==='end'?'Koʻcha uchi':'Burilish nuqtasi'}</div><div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-k="del">Oʻchirish</button></div>`;
     const J=JNET.get(n.id),arms=J?J.E.filter(e=>e.lanes.length):[],names=[...new Set((J?J.E:[]).map(e=>e.name).filter(Boolean))];
@@ -197,6 +202,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.k==='kesim'){location.href='app/kochasoz.html#/b';return;}
   if(b.dataset.k==='prir'){setPri(sel.id,null);return;}
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}
+  if(b.dataset.ts){const sg=segById(sel.id),it=sg&&(sg.att||[])[sel.i];if(it){if(b.dataset.ts==='door')it.door=b.dataset.v;else it.len=+b.dataset.v;afterDesign();}return;}
   if(b.dataset.rt){const n=nodeById(sel.id);if(b.dataset.rt==='1')n.rtor=1;else delete n.rtor;afterDesign();return;}
   if(b.dataset.fix){const [r1,i1]=b.dataset.fix.split(':');fixIssue(r1,+i1);return;}
   if(b.dataset.add){const a=b.dataset.add;if(a==='xwalk')pickTool('xwalk');else{ds.attType=a;pickTool('obj');}return;}
@@ -227,7 +233,7 @@ function refresh(){const ds=DS(),t=ds.tool||'select';
   acts.querySelector('[data-a="fun"]').classList.toggle('on',S.dsty==='line');
   {const n=issues().out.length,c=acts.querySelector('.kt-cnt');c.hidden=!n;c.textContent=n;if(!chkP.hidden)drawChk();}
   const sel=t==='select'&&!D.start&&chkP.hidden?ds.sel:null,h=sel&&cardHTML(sel);
-  if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type+((nodeById(sel.id)||{}).rtor?'r':''):'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
+  if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='att'?JSON.stringify(((segById(sel.id)||{}).att||[])[sel.i]||0):'')+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type+((nodeById(sel.id)||{}).rtor?'r':''):'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
     const nw=card.hidden||card.dataset.sel!==JSON.stringify(sel);if(card.dataset.k!==k){card.innerHTML=`<button class="x" data-k="x" aria-label="Yopish">${IC.x}</button>`+h;card.dataset.k=k;}card.hidden=false;placeCard();if(nw){card.dataset.sel=JSON.stringify(sel);revealSel();}}
   else{card.hidden=true;card.dataset.k='';anchor=null;}
   drawSigns();}
