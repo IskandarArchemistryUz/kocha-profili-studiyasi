@@ -17,8 +17,8 @@ def sim(pg,nid,lv=2):
 with sync_playwright() as p:
     b=p.chromium.launch();pg=b.new_page(viewport={'width':1500,'height':1000})
     pg.route(lambda u: not u.startswith('http://localhost') and 'leaflet' not in u,lambda r:r.abort())
-    pg.route("**/unpkg.com/leaflet*/dist/leaflet.js",lambda r:r.fulfill(path='/tmp/kt/package/dist/leaflet.js'))
-    pg.route("**/unpkg.com/leaflet*/dist/leaflet.css",lambda r:r.fulfill(path='/tmp/kt/package/dist/leaflet.css'))
+    pg.route(lambda u:'leaflet' in u and u.endswith('.js'),lambda r:r.fulfill(path='/tmp/kt/package/dist/leaflet.js',content_type='application/javascript'))
+    pg.route(lambda u:'leaflet' in u and u.endswith('.css'),lambda r:r.fulfill(path='/tmp/kt/package/dist/leaflet.css',content_type='text/css'))
     errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
     pg.add_init_script("try{localStorage.setItem('kps_v1',JSON.stringify({helpSeen:1}));localStorage.setItem('kps_auth','0')}catch(e){}")
     pg.goto('http://localhost:8765/tarmoq.html');pg.wait_for_timeout(2500)
