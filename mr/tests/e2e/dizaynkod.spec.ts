@@ -30,6 +30,9 @@ test('peshlavha studiyasi: sarlavha, qadamlar, tungi rejim, til', async ({ page 
   await expect(steps).toHaveCount(5);
   await expect(steps.first().locator('a')).toHaveAttribute('href', 'dizaynkod-joy.html');
   await expect(page.locator('#card')).not.toBeEmpty();
+  // 14.11 audit: sarlavha va oʻzbekcha tutuq belgilari (ʻ/ʼ, ASCII ' emas)
+  await expect(page.locator('.top h1')).toHaveText('Dizayn-kod · Peshlavha');
+  expect(await page.evaluate(() => /[A-Za-z]'[A-Za-z]/.test(document.body.innerText))).toBe(false);
   // brauzerning oʻz checkbox/range koʻrinishi yoʻq (ds2)
   const ap = await page.evaluate(() => [...document.querySelectorAll('input[type=checkbox],input[type=range]')].map(e => getComputedStyle(e).appearance));
   expect(ap.every(a => a === 'none')).toBe(true);
@@ -41,6 +44,7 @@ test('peshlavha studiyasi: sarlavha, qadamlar, tungi rejim, til', async ({ page 
   await pickLang(page, 'en', '#kpsLang');
   await page.waitForLoadState('domcontentloaded');
   expect(await page.evaluate(() => [localStorage.getItem('kps_lang'), localStorage.getItem('mr-lang')])).toEqual(['en', 'en']);
+  await expect(page.locator('.top h1')).toHaveText('Design code · Signs');
   expect(errs).toEqual([]);
 });
 
