@@ -185,10 +185,11 @@ function apprHTML(sg){const ends=['a','b'].filter(k=>{const n=nodeById(k==='a'?s
     +`<div class="kt-note">Avto — polosa soni va burilishlarga qarab. Uzunlik — namuna: navbat uzunligi boʻyicha tasdiqlang.</div>`;}
 function setAppr(sg,k,fn){const c=apprCur(sg,k);const u={man:1,L:c.L,R:c.R,U:c.U,Ls:c.Ls,Lt:c.Lt};fn(u);sg.appr=sg.appr||{};sg.appr[k]=u;if(sg.arr)delete sg.arr[k];afterDesign();}
 function midLL(ll){let L=0;const d=[];for(let i=1;i<ll.length;i++){const s=map.distance(ll[i-1],ll[i]);d.push(s);L+=s;}let h=L/2;for(let i=0;i<d.length;i++){if(h<=d[i]){const t=h/(d[i]||1);return [ll[i][0]+(ll[i+1][0]-ll[i][0])*t,ll[i][1]+(ll[i+1][1]-ll[i][1])*t];}h-=d[i];}return ll[0];}
-function placeCard(){if(card.hidden||!anchor)return;if(innerWidth<=760){card.style.left='';card.style.top='';return;}const ll=anchor();if(!ll)return;const p=map.latLngToContainerPoint(L.latLng(ll[0],ll[1])),r=map.getContainer().getBoundingClientRect();
-  const W=card.offsetWidth,H=card.offsetHeight;let x=r.left+p.x+28,y=r.top+p.y-H/2;
-  if(x+W>innerWidth-16)x=r.left+p.x-28-W;x=Math.max(16,Math.min(innerWidth-W-16,x));y=Math.max(76,Math.min(innerHeight-H-100,y));
-  card.style.left=x+'px';card.style.top=y+'px';}
+/* karta oʻngda qotirilgan (inspektor) — chizilayotgan joy ustiga chiqmaydi; tanlangan obyekt karta ostida qolsa, xarita bir marta suriladi */
+function placeCard(){if(card.hidden)return;if(innerWidth<=760){card.style.left='';card.style.top='';return;}
+  card.style.left=(innerWidth-card.offsetWidth-16)+'px';card.style.top='76px';}
+function revealSel(){if(card.hidden||innerWidth<=760||!anchor)return;const ll=anchor();if(!ll)return;const p=map.latLngToContainerPoint(L.latLng(ll[0],ll[1])),r=map.getContainer().getBoundingClientRect(),cx=innerWidth-card.offsetWidth-16-r.left-40;
+  if(p.x>cx)map.panBy([p.x-cx+60,0],{animate:true});}
 card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const ds=DS(),sel=ds.sel;if(!sel)return;
   if(b.dataset.k==='x'){ds.sel=null;afterDesign();return;}
   if(b.dataset.k==='del'){delSel();return;}
@@ -227,7 +228,7 @@ function refresh(){const ds=DS(),t=ds.tool||'select';
   {const n=issues().out.length,c=acts.querySelector('.kt-cnt');c.hidden=!n;c.textContent=n;if(!chkP.hidden)drawChk();}
   const sel=t==='select'&&!D.start&&chkP.hidden?ds.sel:null,h=sel&&cardHTML(sel);
   if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type+((nodeById(sel.id)||{}).rtor?'r':''):'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
-    if(card.dataset.k!==k){card.innerHTML=`<button class="x" data-k="x" aria-label="Yopish">${IC.x}</button>`+h;card.dataset.k=k;}card.hidden=false;placeCard();}
+    const nw=card.hidden||card.dataset.sel!==JSON.stringify(sel);if(card.dataset.k!==k){card.innerHTML=`<button class="x" data-k="x" aria-label="Yopish">${IC.x}</button>`+h;card.dataset.k=k;}card.hidden=false;placeCard();if(nw){card.dataset.sel=JSON.stringify(sel);revealSel();}}
   else{card.hidden=true;card.dataset.k='';anchor=null;}
   drawSigns();}
 /* dvigatel chizgandan keyin — yangilaymiz (studiya funksiyalari global) */
