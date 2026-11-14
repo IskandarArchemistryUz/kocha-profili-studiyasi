@@ -273,3 +273,15 @@ body.ks-embed .ws-b{top:-64px}
   .ws-b main .card>div:first-child>.seg:first-child button{padding-inline:7px;font-size:12px}
   .ws-b main .card>div:first-child .ks-exp>.btn{font-size:0;gap:0;padding:0 8px}
 }
+
+/* ===== 4-bosqich (14.11): Koʻchasoz — kanvas «UI-Kochasoz»: yorugʻ, koʻk aksent, xira loy tugmalar (bir tusli pastel, pastda 3 px qalinlik) ===== */
+#ks{--ks-c:76,91,212;--ks-clay:#c9cff6;--ks-clay-2:#b9c1f2;--ks-ink:#252f8c}
+:root:not([data-theme="dark"]) body:has(#ks){--bg:#f1f3f8}
+[data-theme="dark"] #ks{--ks-clay:rgba(76,91,212,.24);--ks-clay-2:rgba(76,91,212,.34);--ks-ink:#b3bbff}
+#ks .seg button[aria-pressed="true"],#ks .tile[aria-pressed=true]{background:var(--ks-clay);color:var(--ks-ink);font-weight:600;box-shadow:inset 0 -3px 0 rgba(var(--ks-c),.28)}
+#ks .btn-primary{background:var(--ks-clay-2);color:var(--ks-ink);box-shadow:inset 0 -3px 0 rgba(var(--ks-c),.32)}
+#ks .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--ks-clay-2) 85%,#fff)}
+#ks .btn-primary:active:not(:disabled){box-shadow:inset 0 -1px 0 rgba(var(--ks-c),.32);transform:translateY(1px)}
+#ks .eko .svc a.on{background:var(--ks-clay);color:var(--ks-ink);box-shadow:inset 0 -2px 0 rgba(var(--ks-c),.25)}
+[data-theme="dark"] #ks .seg button[aria-pressed="true"],[data-theme="dark"] #ks .tile[aria-pressed=true],[data-theme="dark"] #ks .btn-primary{box-shadow:inset 0 0 0 1px rgba(var(--ks-c),.7),0 0 14px -6px rgba(var(--ks-c),.8)}
+#ks .mtab[aria-pressed="true"]{background:var(--ks-clay) !important;color:var(--ks-ink) !important;box-shadow:inset 0 -2px 0 rgba(var(--ks-c),.28) !important}
