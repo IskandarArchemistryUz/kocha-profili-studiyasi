@@ -250,3 +250,26 @@ body.ks-body{overflow:hidden;font-size:14px;line-height:1.45}
 .ks-fmenu button:hover{background:var(--fill)}
 body.ks-embed .eko{display:none}
 body.ks-embed .ws-b{top:-64px}
+/* 14.11: varaq asboblar qatori — shablon chiplari segment va tugmalar ustiga tushmasin; sigʻmasa — gorizontal aylanadi */
+.ws-varaq>div:first-child>*{flex:none}
+.ws-varaq>div:first-child>span:not(.t-foot){flex:1 1 0;min-width:0}
+.ws-varaq>div:first-child>div:first-of-type{flex:0 1 auto;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent)}
+.ws-varaq>div:first-child .chipb{flex:none;white-space:nowrap}
+@media (max-width:1100px){.ws-varaq>div:first-child>button[data-ren]{display:none}}
+/* 14.11: kesim lentasi — tor boʻlakda nom kesilib «B…» boʻlib qolmasin: nom yashirinadi (title da), juda torda belgi ham */
+.ws-b .ks-strip .blk{container-type:inline-size}
+@container (max-width:46px){.ws-b .ks-strip .blk>span:not(.w){display:none}}
+@container (max-width:24px){.ws-b .ks-strip .blk>svg{display:none}.ws-b .ks-strip .blk .w{font-size:9px;letter-spacing:-.02em}}
+@container (max-width:12px){.ws-b .ks-strip .blk .w{display:none}}
+/* 14.11: kesim kartasi sarlavhasi — koʻrinishlar segmenti tor kartada kesilmasin (aylanadi) */
+.ws-b main .card>div:first-child>.seg:first-child{flex:0 1 auto;width:auto!important;min-width:0;grid-auto-columns:max-content;overflow-x:auto;scrollbar-width:none}
+.ws-b main .card>div:first-child>.seg:first-child button{padding-inline:10px}
+.ws-b main .card>div:first-child>span[style*="flex: 1"]{min-width:0}
+@media (max-width:1366px){.ws-varaq>div:first-child>.t-foot,.ws-grafika>div:first-child>.t-foot{display:none}}
+.ws-b main .card>div:first-child>.seg:first-child{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 14px),transparent)}
+.ws-b main .card>div:first-child>.seg:first-child:not(:hover){scroll-behavior:smooth}
+@media (max-width:1180px){
+  .ws-b main .card>div:first-child>.seg:not(:first-child){width:116px!important}
+  .ws-b main .card>div:first-child>.seg:first-child button{padding-inline:7px;font-size:12px}
+  .ws-b main .card>div:first-child .ks-exp>.btn{font-size:0;gap:0;padding:0 8px}
+}
