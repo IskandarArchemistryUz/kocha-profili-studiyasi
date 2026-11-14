@@ -18,6 +18,9 @@ const DIRS=['sharqdan','shimoli-sharqdan','shimoldan','shimoli-gʻarbdan','gʻar
 const dirName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.PI/4))%8)+8)%8;return DIRS[k];};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const KT=J=>J.ring?'halqa':J.sig?'svetofor':'belgisiz';
+/* chorraha nomi — kesishgan koʻchalar ("Rustaveli × Qushbegi"); nomsiz boʻlsa tartib raqami */
+const KSN=s=>String(s).replace(/\s+(shoh\s+)?(koʻchasi|ko'chasi|ko‘chasi|yoʻli|yo'li|yo‘li|prospekti|shoh koʻchasi|улица|проспект)$/i,'').trim();
+const JL=(J,i)=>{const u=[...new Set(J.E.map(e=>e.name).filter(Boolean).map(KSN))];return u.length>=2?u.slice(0,3).join(' × '):`${i+1}-tugun`;};
 let plan=null;
 /* foydalanuvchi oʻzgartira oladigan model parametrlari: [kalit, nom, andoza, qadam, izoh] — andozalar kssim-graph PAR_DEF bilan bir xil */
 const PARF=[['V0','Erkin tezlik, km/soat',50,5,'Shahar koʻchasida ruxsat etilgan tezlik (andoza 13,9 m/s)'],['T','Vaqt oraligʻi T, s',1.3,.1,'IDM: oldingi mashinagacha xohlangan vaqt oraligʻi'],['s0','Turgandagi oraliq s0, m',2,.5,'IDM: tiqilinchda mashinalar orasidagi masofa'],
@@ -46,7 +49,7 @@ function buildNet(C,cycle){const arms=[],conns=[],juncs=[],links=[],names={},bou
       lanes:e.lanes.map((l,i)=>({id:lid(J,e,i),pts:l.pts,codes:J.ring&&l.x.k!=='bus'?'LSR':l.code,bus:l.x.k==='bus',stops:l.stops||undefined})),
       exits:e.exits.map((x,i)=>({id:xid(J,e,i),pts:x.pts,bus:x.x.k==='bus'})),
       up:J.ring||!e.up||linked.has(aid(J,e))?undefined:e.up.map((u,i)=>({id:aid(J,e)+'u'+i,pts:u.pts,bus:u.x.k==='bus',stops:u.stops||undefined}))}));
-    arms.push(...A);J.E.forEach(e=>{names[aid(J,e)]=(C.list.length>1?`${ji+1}-tugun · `:'')+(e.name?e.name+' · ':'')+dirName(e);if(!linked.has(aid(J,e))&&e.lanes.length)bound.push(aid(J,e));});
+    arms.push(...A);J.E.forEach(e=>{names[aid(J,e)]=(C.list.length>1?`${JL(J,ji)} · `:'')+(e.name?e.name+' · ':'')+dirName(e);if(!linked.has(aid(J,e))&&e.lanes.length)bound.push(aid(J,e));});
     let cs;if(J.ring)cs=mod.ringConnect(A,J.ring,true).map(c=>({...c,id:jid+c.id}));
     else cs=J.C.map((c,k)=>({id:`${jid}c${k}`,from:lid(J,c.from,c.from.lanes.indexOf(c.s)),to:xid(J,c.to,c.to.exits.indexOf(c.d)),m:c.m,pts:c.pts}));
     conns.push(...cs);
@@ -153,7 +156,7 @@ window.openSim=async function(nodeId){
       ROWS.push([name,dem&&dm!=null?Math.round(dm):'',Math.round(fl),d.toFixed(1)+(b!=null?` (${d-b>0?'+':''}${(d-b).toFixed(0)})`:''),l]);
       return `<tr><td>${esc(name)}</td><td class="num">${dem&&dm!=null?Math.round(dm):''}</td><td class="num">${Math.round(fl)}</td><td class="num">${d.toFixed(1)}${DL(d,b)}</td><td><b style="color:${col(l)}">${l}</b></td></tr>`;};
     let body='';const ROWS=[];
-    if(multi){C.list.forEach((J,i)=>{const jid='n'+J.id;body+=row(`${i+1}-tugun · ${KT(J)}`,r=>({...r.juncs[jid],demand:null}),J.sig&&!J.ring,false);});
+    if(multi){C.list.forEach((J,i)=>{const jid='n'+J.id;body+=row(`${JL(J,i)} · ${KT(J)}`,r=>({...r.juncs[jid],demand:null}),J.sig&&!J.ring,false);});
       body+=`<tr><td colspan="5" class="small" style="color:#777;padding-top:4px">Chetki kirishlar</td></tr>`;}
     const JbyA=id=>C.list.find(J=>id.startsWith('n'+J.id+'a'));
     probe.bound.forEach(id=>{const J=JbyA(id);body+=row(probe.names[id],r=>r.arms[id],J&&J.sig&&!J.ring,true,dk(id));});
@@ -167,10 +170,10 @@ window.openSim=async function(nodeId){
     const Jr={};C.list.forEach(J=>{const t=multi?r=>r.juncs['n'+J.id]:r=>r.total,sg=J.sig&&!J.ring,d=avg(r=>t(r).delay),F=R.filter(r=>t(r).los==='F').length>=2;Jr[J.id]={los:los(d,sg,F),d};});
     res={C,A,J:Jr};draw();
     const worst=Object.entries(A).sort((x,y)=>y[1].d-x[1].d)[0],T=avg(r=>r.total.delay),TF=R.filter(r=>r.total.los==='F').length>=2,TL=los(T,!multi&&C.list[0].sig&&!C.list[0].ring,TF);
-    const nm=id=>probe.names[id].replace(/^\d+-tugun · /,''),good='AB'.includes(TL),bad='EF'.includes(TL);
+    const nm=id=>probe.names[id].replace(/^[^·]+ × [^·]+ · |^\d+-tugun · /,''),good='AB'.includes(TL),bad='EF'.includes(TL);
     const verdict=`<div style="padding:8px 10px;border-radius:8px;margin-bottom:8px;background:${good?'#e8f2ec':bad?'#f6e6e3':'#f6efe2'};color:#141414"><b style="color:${LCOL[TL]};font-size:16px">${TL}</b> · ${multi?'Tarmoq':'Chorraha'} ${good?'bemalol ishlaydi':bad?'yuklamani koʻtarmaydi':'ishlaydi, lekin navbat bor'} (oʻrtacha ${T.toFixed(0)} s).${worst&&worst[1].d>T+3?` Eng qiyini — ${esc(nm(worst[0]))}: ${worst[1].los}, ${worst[1].d.toFixed(0)} s, navbat ~${Math.round(worst[1].q)} mashina.`:''}${bad?(anySig?' Svetofor rejasi eng yaxshisi tanlangan — demak geometriya yetmaydi: boʻlak/choʻntak qoʻshish, chap burilishni cheklash yoki halqa bilan solishtiring.':' Svetofor, halqa yoki qoʻshimcha boʻlakni sinab koʻring.'):''}</div>`;
     const dn=id=>{const n=probe.names[id]||id;return esc(n.replace(/^\d+-tugun · /,'').split(' · ').pop());};
-    const sigTxt=sigInfo.length?`<div class="small" style="color:#555;margin:-2px 0 8px">Svetofor: sikl <b>${sigInfo[0].C} s</b>${opts().auto?` (avto, ${tried.length} reja sinaldi${tried.some(t=>t.full!=null)?': '+tried.filter(t=>t.full!=null).map(t=>(t.prot?'↰+':'')+t.C+' s'+(t.eq?' teng':'')+(t.gw==='f'||t.gw==='b'?' +toʻlqin':'')+' → '+t.full.toFixed(0)+' s').join(', '):''})`:' (qoʻlda)'}${sigInfo.length>1&&sigInfo[0].gw!=='0'?' · <b>yashil toʻlqin</b> (≈40 km/soat)':''}${sigInfo.map(x=>' · '+(sigInfo.length>1?x.j.replace(/^n/,'#')+(x.off?' (siljish '+x.off+' s)':'')+': ':'')+x.ph.map(p=>(p.left?'↰ ':'')+p.arms.map(dn).join('–')+' '+p.g+' s').join(', ')).join('')}</div>`:'';
+    const sigTxt=sigInfo.length?`<div class="small" style="color:#555;margin:-2px 0 8px">Svetofor: sikl <b>${sigInfo[0].C} s</b>${opts().auto?` (avto, ${tried.length} reja sinaldi${tried.some(t=>t.full!=null)?': '+tried.filter(t=>t.full!=null).map(t=>(t.prot?'↰+':'')+t.C+' s'+(t.eq?' teng':'')+(t.gw==='f'||t.gw==='b'?' +toʻlqin':'')+' → '+t.full.toFixed(0)+' s').join(', '):''})`:' (qoʻlda)'}${sigInfo.length>1&&sigInfo[0].gw!=='0'?' · <b>yashil toʻlqin</b> (≈40 km/soat)':''}${sigInfo.map(x=>' · '+(sigInfo.length>1?(()=>{const J=C.list.find(J=>'n'+J.id===x.j);return J?JL(J,C.list.indexOf(J)):x.j.replace(/^n/,'#');})()+(x.off?' (siljish '+x.off+' s)':'')+': ':'')+x.ph.map(p=>(p.left?'↰ ':'')+p.arms.map(dn).join('–')+' '+p.g+' s').join(', ')).join('')}</div>`:'';
     /* hozir ↔ loyiha */
     const lvl=LV[+box.querySelector('[data-lv]').value][1],dem=probe.bound.reduce((s,id)=>s+(opts().demand[id]||0),0),person=avg(r=>r.person),pedW=pf>0?pw:null;
     const cur={t:Date.now(),title,lvl,dem,T,TL,person,pedW,worst:worst?{k:dk(worst[0]),d:worst[1].d,los:worst[1].los}:null,sig:sigInfo.length?sigInfo[0].C+' s':'',arms:Object.fromEntries(Object.entries(A).map(([id,x])=>[dk(id),{d:x.d,los:x.los,q:x.q}])),dq:Object.fromEntries(probe.bound.map(id=>[dk(id),opts().demand[id]||0])),lv:+box.querySelector('[data-lv]').value};
