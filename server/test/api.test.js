@@ -72,7 +72,7 @@ describe('kirish', () => {
   it('kod → sessiya → /me; chiqish', async () => {
     const c = await login();
     const me = (await get('/me', c)).json();
-    expect(me).toMatchObject({ email: 'ali@mail.uz', balance: 0, trialsLeft: 1, owner: false });
+    expect(me).toMatchObject({ email: 'ali@mail.uz', balance: 0, trialsLeft: 3, owner: false });
     await post('/auth/logout', {}, c);
     expect((await get('/me', c)).statusCode).toBe(401);
   });
@@ -153,16 +153,16 @@ describe('haftalik sinovlar', () => {
     expect(weekKey(new Date('2026-10-18T18:59:00Z'))).toBe('2026-10-12'); // yakshanba 23:59 Toshkent
     expect(weekKey(new Date('2026-10-18T19:00:00Z'))).toBe('2026-10-19'); // dushanba 00:00 Toshkent
   });
-  it('haftasiga 1 tasi bepul, keyingisi narx × k, dushanba yangilanadi', async () => {
+  it('haftasiga 3 tasi bepul, keyingisi narx × k, dushanba yangilanadi', async () => {
     const c = await login();
     const uid = (await get('/me', c)).json().id;
-    expect((await post('/trial', { kind: 'flats' }, c)).json().free).toBe(true);
+    for (let i = 0; i < 3; i++) expect((await post('/trial', { kind: 'flats' }, c)).json().free).toBe(true);
     expect((await post('/trial', { kind: 'flats' }, c)).statusCode).toBe(402);
     await app.wallet.credit(uid, 20, 'gift', 't1');
     expect((await post('/trial', { kind: 'wind', areaHa: 12 }, c)).json()).toMatchObject({ free: false, charged: 10, balance: 10 });   // 5 × 2
     expect((await post('/trial', { kind: 'view', areaHa: 12 }, c)).json()).toMatchObject({ free: false, charged: 4, balance: 6 });    // koʻrinish: 2 × 2
     clock = new Date('2026-10-26T01:00:00Z');
-    expect((await get('/me', c)).json().trialsLeft).toBe(1);
+    expect((await get('/me', c)).json().trialsLeft).toBe(3);
   });
   it('generatsiya: har loyihada 3 tasi bepul, keyin 1 × k', async () => {
     const c = await login();
