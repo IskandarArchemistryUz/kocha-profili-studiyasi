@@ -20,6 +20,6 @@ export const LAYER_ICON: Record<string, string> = {
   narx: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M12 13v5M10.5 14.2c0-.8.7-1.2 1.5-1.2s1.5.4 1.5 1.1c0 1.5-3 .9-3 2.4 0 .7.7 1.1 1.5 1.1s1.5-.4 1.5-1.2"/>',
 };
 /** Guruh ranglari: Yer, Iqlim, Shahar, Biznes */
-export const GROUP_COL: Record<string, string> = { yer: '#9a6b45', iqlim: '#d08a12', shahar: '#2a8a7e', biznes: '#4c5bd4' };
+export const GROUP_COL: Record<string, string> = { yer: '#9a6b45', iqlim: '#d08a12', muhit: '#c2416b', shahar: '#2a8a7e', biznes: '#4c5bd4' };
 
 export function layerIcon(id: string): SVGSVGElement { const s = svgIcon(LAYER_ICON[id] ?? ''); s.classList.add('lic'); return s; }

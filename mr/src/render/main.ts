@@ -205,7 +205,7 @@ function renderRight(): void {
     h('div', { class: 'glabel' }, h('span', {}, tr('Asosga sodiqlik'))),
     h('div', { class: 'seg', role: 'group', 'aria-label': tr('Asosga sodiqlik'), id: 'fid' }, ...FIDELITY.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.fid === k, onclick: () => { A.fid = k as Fidelity; save(); renderRight(); } }, tr(n)))),
     h('p', { class: 't-small' }, tr(A.fid === 'qatiy' ? 'Binolar soni, qavatlar, joylashuv va kamera oʻzgarmaydi.' : A.fid === 'muvozanat' ? 'Hajm va kamera saqlanadi; fasad detallari, materiallar va obodonlashtirish qoʻshiladi.' : 'Asos — umumiy kompozitsiya; detallar va muhitni model erkin toʻldiradi.')),
-    h('label', { class: 'glabel', for: 'renExtra' }, h('span', {}, tr('Soʻrov (ixtiyoriy)'))),
+    h('label', { class: 'glabel', for: 'renExtra' }, h('span', {}, tr('Qoʻshimcha tavsif (ixtiyoriy)'))),
     (() => { const t = h('textarea', { class: 'input ren-ta', id: 'renExtra', rows: 2, maxlength: 400, placeholder: tr('masalan: fasadlar terrakota gʻisht, hovlida bolalar maydonchasi') }) as HTMLTextAreaElement; t.value = A.extra; t.oninput = () => { A.extra = t.value; save(); }; return t; })(),
     h('div', { class: 'glabel' }, h('span', {}, tr('Sifat'))),
     h('div', { class: 'seg ren-eng', role: 'group', 'aria-label': tr('Sifat'), id: 'eng' }, ...ENGINES.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.engine === k, 'data-eng': k, onclick: () => { A.engine = k; save(); renderRight(); } },

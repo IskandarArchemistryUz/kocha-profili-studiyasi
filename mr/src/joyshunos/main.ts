@@ -67,7 +67,7 @@ import { streetCenter, streetInit, streetLeft, streetRight, streetStrip, streetC
 initStats('joy');
 
 /* ---------------- qatlamlar ---------------- */
-type Group = 'yer' | 'iqlim' | 'shahar' | 'biznes';
+type Group = 'yer' | 'iqlim' | 'muhit' | 'shahar' | 'biznes';
 type LayerId = 'relyef' | 'nishab' | 'yuza' | 'issiqlik' | 'quyosh' | 'shamol' | 'shovqin' | 'xizmat' | 'piyoda' | 'skaner' | 'izovist' | 'uylar' | 'oqim' | 'raqobat' | 'narx';
 interface LayerDef { id: LayerId; g: Group; name: string; src: string; color: string; ready: boolean; beta?: boolean; /** 13.11: maʼlumot faqat Toshkent shahri uchun — qamrovdan tashqarida qatlam oʻchiq */ tash?: boolean }
 const LAYERS: LayerDef[] = [
@@ -77,7 +77,7 @@ const LAYERS: LayerDef[] = [
   { id: 'issiqlik', g: 'yer', name: 'Issiqlik oroli', src: 'yoʻldosh', color: '#d9503f', ready: true, beta: true },
   { id: 'quyosh', g: 'iqlim', name: 'Quyosh va soya', src: 'OSM', color: '#e8a317', ready: true },
   { id: 'shamol', g: 'iqlim', name: 'Shamol', src: 'EPW · ERA5', color: '#3f8f6b', ready: true },
-  { id: 'shovqin', g: 'iqlim', name: 'Shovqin', src: 'model', color: '#c2416b', ready: true, beta: true },
+  { id: 'shovqin', g: 'muhit', name: 'Shovqin', src: 'model', color: '#c2416b', ready: true, beta: true },
   { id: 'xizmat', g: 'shahar', name: 'Xizmatlar', src: 'OSM', color: '#2a9d8f', ready: true },
   { id: 'piyoda', g: 'shahar', name: 'Piyoda yetish', src: 'tarmoq', color: '#8a84d6', ready: true },
   { id: 'skaner', g: 'shahar', name: 'Ijtimoiy skaner', src: 'tarmoq', color: '#c0643a', ready: true, beta: true },
@@ -87,7 +87,7 @@ const LAYERS: LayerDef[] = [
   { id: 'raqobat', g: 'biznes', name: 'Raqobatchilar', src: 'OSM', color: '#7a5a3c', ready: true },
   { id: 'narx', g: 'biznes', name: 'Uy narxlari', src: 'uybor.uz', color: '#a96833', ready: true, tash: true },
 ];
-const GROUPS: [Group, string][] = [['yer', 'Yer'], ['iqlim', 'Iqlim'], ['shahar', 'Shahar'], ['biznes', 'Biznes']];
+const GROUPS: [Group, string][] = [['yer', 'Yer'], ['iqlim', 'Iqlim'], ['muhit', 'Muhit'], ['shahar', 'Shahar'], ['biznes', 'Biznes']];
 const SVC_KINDS: Svc[] = ['maktab', 'mtm', 'poliklinika', 'dorixona', 'savdo', 'sport', 'bekat', 'metro'];
 const SVC_COL: Record<Svc, string> = { maktab: '#2f6da8', mtm: '#e08a3c', poliklinika: '#c2416b', dorixona: '#2b7449', savdo: '#8b4a9c', sport: '#0f8a7e', mahalla: '#6b6965', bekat: '#4c5bd4', metro: '#141414' };
 const SVC_SHORT: Record<Svc, string> = { maktab: 'maktab', mtm: 'bogʻcha', poliklinika: 'poliklinika', dorixona: 'dorixona', savdo: 'savdo', sport: 'sport', mahalla: 'mahalla', bekat: 'bekat', metro: 'metro' };
@@ -1206,7 +1206,7 @@ function renderAsk(): void {
 function renderBase(): void {
   const P = PALETTES[palKey()];
   baseSw.replaceChildren(h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fon xarita') },
-    ...([['stil', 'Stil'], ['sat', 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': S.base === k, onclick: () => { S.base = k; save(); renderBase(); restyle(); } }, tr(n)))),
+    ...([['stil', 'Xarita'], ['sat', 'Sunʼiy yoʻldosh']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': S.base === k, onclick: () => { S.base = k; save(); renderBase(); restyle(); } }, tr(n)))),
     h('button', { type: 'button', class: 'joy-palbtn', id: 'palBtn', 'aria-expanded': palOpen, title: tr('Xarita uslubi'), onclick: () => { palOpen = !palOpen; renderBase(); } }, h('i', { style: `background:linear-gradient(135deg, ${P.bg} 0 45%, ${P.bld} 45% 70%, ${P.water} 70%)` }), tr(P.n), ic(ICON.chev)),
     ...(palOpen ? [palMenu(() => { palOpen = false; S.base = 'stil'; save(); renderBase(); restyle(); }, true)] : []));
 }

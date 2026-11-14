@@ -33,7 +33,7 @@ const BOARDS: Record<BoardId, BoardDef> = {
   c: { load: () => import('./boards/c'), tpl: () => import('./boards/c.html?raw'), title: 'Chorraha' },
   e: { load: () => import('./boards/e'), tpl: () => import('./boards/e.html?raw'), title: 'Mikromodel' },
   grafika: { load: () => import('./boards/grafika'), tpl: () => import('./boards/grafika.html?raw'), title: 'Grafik kutubxona' },
-  varaq: { load: () => import('./boards/varaq'), tpl: () => import('./boards/varaq.html?raw'), title: 'Albom varagʻi' },
+  varaq: { load: () => import('./boards/varaq'), tpl: () => import('./boards/varaq.html?raw'), title: 'Chizmadon varagʻi' },
 };
 const MODE_KEY: Record<string, BoardId | 'd'> = { A: 'a', B: 'b', C: 'c', D: 'd', E: 'e' };
 
@@ -121,7 +121,7 @@ function renderHeader(): void {
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
     ...(BETA ? [(() => { const b = ib('ksGrafika', 'Grafik kutubxona', ICON.lib, () => go('grafika')); b.setAttribute('aria-pressed', String(cur === 'grafika')); return b; })()] : []),
-    (() => { const b = ib('ksVaraq', 'Albom varagʻi', ICON.sheet, () => go('varaq')); b.setAttribute('aria-pressed', String(cur === 'varaq')); return b; })(),
+    (() => { const b = ib('ksVaraq', 'Chizmadon varagʻi', ICON.sheet, () => go('varaq')); b.setAttribute('aria-pressed', String(cur === 'varaq')); return b; })(),
     fileMenu(),
     langMenu(l => { void setLang(l); }),
     ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme()),
