@@ -30,5 +30,9 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`Xizmatlar 
   await expect(page.locator('#svcTab [data-svc=poliklinika] .chip')).toHaveAttribute('data-s', 'na');
   await expect(page.locator('#svcTab [data-svc=poliklinika] .chip')).toHaveText('yuklanmadi');
   await expect(page.locator('#svcTab [data-svc=maktab] .chip')).not.toHaveAttribute('data-s', 'na');
+  // 14.11 audit: maʼlumot yoʻq turda xulosa chiqarilmaydi («radiusdan tashqarida» emas)
+  await page.click('#svcTab tr[data-svc=poliklinika]');
+  await expect(page.locator('#svcNoData')).toContainText('xulosa chiqarilmaydi');
+  await expect(page.locator('#svcSt')).not.toContainText('radiusdan tashqarida');
   if (process.env.GX_SHOTS) { await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/xizmat_taymaut_${w}${dark ? 'd' : 'l'}.png` }); }
 });
