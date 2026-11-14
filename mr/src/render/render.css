@@ -147,3 +147,15 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 .ren-vh #vUp button{padding:0 8px;font-variant-numeric:tabular-nums}
 @media (max-width:1180px){.ren-vh .nm b{max-width:180px}.ren-vh .nm code{max-width:180px}.ren-vh #vMode{grid-auto-columns:auto;flex:none}.ren-vh #vMode button{padding:0 8px}.ren-vh .btn-sm{padding-inline:8px}}
 .ren-va .ren-up{display:flex;gap:8px;align-items:center}.ren-va .ren-up .seg{flex:1}.ren-va .ren-up .seg button{flex:1}
+
+/* ===== 4-bosqich (14.11): Render — kanvas «UI-Render»: grafit fon, oltin aksent, tanlangan = oltin halqa + yengil nur ===== */
+#ren{--gold:255,197,61;--gold-ink:#ffd66b;--gold-btn:#ffd27a;--gold-btn-ink:#1a1408}
+:root:not([data-theme="dark"]) #ren{--gold:192,138,30;--gold-ink:#8a5a00;--gold-btn:#f0b323;--gold-btn-ink:#141414}
+[data-theme="dark"]{--bg:#0e0e0d;--surface:#161615;--grouped:#1c1c1a;--fill:#232321;--fill-2:#2c2c29;--glass:rgba(22,22,21,.86)}
+#ren .seg button[aria-pressed="true"],#ren .ren-chips button[aria-pressed=true],#ren .tile[aria-pressed=true]{background:rgba(var(--gold),.12);color:var(--gold-ink);font-weight:600;box-shadow:inset 0 0 0 1px rgba(var(--gold),.75),0 0 16px -6px rgba(var(--gold),.7)}
+#ren .ren-src .pick[aria-pressed=true]{box-shadow:inset 0 0 0 1.5px rgba(var(--gold),.85),0 0 18px -8px rgba(var(--gold),.8)}
+#ren .ren-gal button[aria-pressed=true]{box-shadow:inset 0 0 0 2px rgba(var(--gold),.9),0 0 18px -6px rgba(var(--gold),.8)}
+#ren .btn-primary{background:var(--gold-btn);color:var(--gold-btn-ink);box-shadow:0 0 0 .5px rgba(var(--gold),.6),0 10px 28px -12px rgba(var(--gold),.75)}
+#ren .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--gold-btn) 88%,#fff)}
+#ren .btn-primary:disabled{background:var(--fill);color:var(--muted);box-shadow:none}
+#ren .eko .svc a.on{box-shadow:inset 0 0 0 1px rgba(var(--gold),.7),0 0 14px -6px rgba(var(--gold),.7)}

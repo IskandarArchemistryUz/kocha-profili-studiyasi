@@ -13,6 +13,7 @@ import '../ui/ds2.css';
 import './ks.css';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, toast, download } from '../ui/dom';
+import { svcGlow } from '../ui/backdrop';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
@@ -101,6 +102,8 @@ const SERVICES: { id: string; name: string; href: string; color: string; cur?: b
 
 const app = document.getElementById('ks')!;
 const header = h('header', { class: 'eko glass' });
+// 4-bosqich: xizmatning jonli fon naqshi va sarlavha ostidagi yonuvchi chiziq
+svcGlow(header);
 const stage = h('div', { class: 'ks-stage', id: 'ksStage' });
 app.replaceChildren(header, stage);
 
