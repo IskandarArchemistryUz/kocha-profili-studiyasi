@@ -19,7 +19,7 @@ const dirName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.P
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const KT=J=>J.ring?'halqa':J.sig?'svetofor':'belgisiz';
 let plan=null;
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=13',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=5',document.baseURI).href);return mod;}
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=14',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=6',document.baseURI).href);return mod;}
 
 /* tugundan boshlab koʻcha orqali bogʻlangan chorrahalar (JNET) */
 function component(nodeId){const all=[...JNET.values()],byReal=new Map();
@@ -47,7 +47,7 @@ function buildNet(C,cycle){const arms=[],conns=[],juncs=[],links=[],names={},bou
     /* imtiyoz belgilari (tugun n.pri): 2.1 asosiy yoʻl, 2.4 yoʻl bering, 2.5 toʻxtash — faqat svetoforsiz */
     const pri=J.pri||{},pk=e=>pri[e.key],hasP=!J.sig&&!J.ring&&J.E.some(e=>pk(e)==='main');
     juncs.push({id:jid,ring:J.ring||null,signal:J.ring||!J.sig?null:{cycle,phases:mod.autoPhases(A),offset:0},
-      main:hasP?J.E.filter(e=>pk(e)==='main').map(e=>aid(J,e)):[],stop:!J.sig&&!J.ring?J.E.filter(e=>pk(e)==='stop').map(e=>aid(J,e)):[]});});
+      rtor:!!(J.sig&&J.rtor),main:hasP?J.E.filter(e=>pk(e)==='main').map(e=>aid(J,e)):[],stop:!J.sig&&!J.ring?J.E.filter(e=>pk(e)==='stop').map(e=>aid(J,e)):[]});});
   return {net:{arms,conns,juncs,links,yUp:true},names,bound};}
 
 function close(){cancelAnimationFrame(raf);raf=0;if(WK){WK.terminate();WK=null;}if(box)box.remove();if(cv)cv.remove();box=cv=st=res=null;map.off('move zoom resize',draw);}
@@ -115,7 +115,7 @@ window.openSim=async function(nodeId){
     return {N,bound:B.bound,o,nl,bus,anySig};};
   const mk=seed=>{const b=baseOf(),sim=plan.makeSim(b,chosen||plan.defaultCh(b),seed);sigInfo=sim.info;return sim;};
   const runJob=(base,onP)=>new Promise((ok,bad)=>{
-    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=5',document.baseURI),{type:'module'});}}catch(e){WK=null;}
+    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=6',document.baseURI),{type:'module'});}}catch(e){WK=null;}
     if(!WK){setTimeout(()=>{try{ok(plan.evaluate(base,onP));}catch(e){bad(e);}},20);return;}
     const id=++job;WK.onmessage=e=>{const d=e.data;if(d.id!==job)return;if(d.p!=null)onP(d.p);if(d.done)ok(d.done);if(d.err)bad(new Error(d.err));};
     WK.onerror=e=>{WK.terminate();WK=null;try{ok(plan.evaluate(base,onP));}catch(x){bad(x);}};WK.postMessage({id,base});});
