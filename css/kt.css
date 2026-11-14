@@ -145,7 +145,7 @@ body.kt .kt-q .res button{font:500 12.5px Archivo,sans-serif;color:var(--ink)}
   .kt-top{left:8px;right:8px;top:8px;padding:6px 8px;gap:8px;overflow-x:auto;scrollbar-width:none}
   .kt-top .lg{font-size:0;gap:0}.kt-badge{display:none}
   .kt-acts{top:auto;right:8px;bottom:96px;flex-direction:column;padding:6px;gap:6px}
-  .kt-acts .kt-q,.kt-acts .kt-seg,.kt-acts [data-a="fun"]{display:none}
+  .kt-acts .kt-q,.kt-acts [data-a="sat"],.kt-acts [data-a="fun"]{display:none}
   .kt-hint{display:none}
   .kt-dock{left:8px;right:8px;bottom:8px;transform:none}
   .kt-tools{justify-content:space-between;width:100%;box-sizing:border-box;padding:4px}
@@ -164,4 +164,14 @@ body.kt #v3d{background:#e9edf3!important}
 body.kt #v3d>div:first-child{position:absolute;z-index:2;left:16px;right:16px;top:16px;border:0!important;border-radius:22px;background:var(--pn)!important;padding:8px 10px 8px 16px!important;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)}
 body.kt #v3d>div:first-child b{font-size:15px;font-weight:600}
 body.kt #v3d input[type=checkbox]{accent-color:rgb(76,91,212)}
-@media (max-width:1380px) and (min-width:761px){.kt-q input{width:130px}.kt-top .lg{font-size:0;gap:0}}
+@media (max-width:1500px) and (min-width:761px){.kt-q input{width:120px}.kt-top .lg{font-size:0;gap:0}}
+@media (max-width:1180px) and (min-width:761px){.kt-badge{display:none}.kt-q{display:none}}
+
+/* tekshiruv */
+.kt-cnt{min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#b2342a;color:#fff;font:600 11px 'IBM Plex Mono',monospace;display:inline-grid;place-items:center;box-sizing:border-box}
+.kt-chk{width:360px}
+.kt-iss{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:12px;background:#fff;box-shadow:0 2px 0 #e2dfd8;font-size:12.5px;line-height:17px;cursor:pointer}
+.kt-iss:hover{box-shadow:0 0 0 2px rgba(76,91,212,.35),0 2px 0 #e2dfd8}
+.kt-iss .n{flex:none;width:20px;height:20px;border-radius:50%;background:#4c5bd4;color:#fff;font:600 11px 'IBM Plex Mono',monospace;display:grid;place-items:center}
+.kt-iss .w{flex:1;min-width:0}
+.kt-iss.on{box-shadow:0 0 0 2px rgb(76,91,212),0 2px 0 #e2dfd8}
