@@ -17,6 +17,7 @@ import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, putProject, type AutoSaver } from '../storage/db';
+import { otishTo, otishRun, type OtId } from './otish';
 import { cloudSync, svcDirty, getLink, info as cloudInfo, download as cloudDownload, type CloudSync } from '../storage/cloud';
 import { askConflict, askNewer, saveText } from './cloudui';
 import { Compute, type Computed } from '../workers/compute';
@@ -561,13 +562,14 @@ export class Editor {
   }
   /** 3-PR (14.11): «Master reja ▾» — shu loyiha ichida boshqa xizmatni ochish (?p= — kontekst manzilda, holat loyihaga ajratilgan) */
   private svcBtn(): HTMLElement {
-    const go = (href: string) => { this.closePop(); void this.saver.flush().finally(() => { location.href = svcHref(href, this.store.doc.id); }); };
+    const OT: Record<string, OtId> = { './joyshunos.html': 'joy', './kochasoz.html': 'ks', './render.html': 'ren' };
+    const go = (href: string, from?: Element | null) => { this.closePop(); void this.saver.flush().finally(() => { otishTo(OT[href] ?? 'mr', svcHref(href, this.store.doc.id), from); }); };
     const b = this.popBtn('svcPop', tr('Shu loyihada boshqa xizmat'), () => h('div', { class: 'col menu-col' },
       ...([['svcJoy', './joyshunos.html', 'Joyshunos', 'Hudud tahlili: issiqlik, shamol, narx, piyoda — shu uchastka atrofida'],
         ['svcKs', './kochasoz.html', 'Koʻchasoz', 'Koʻcha kesimi, harakat va YHQ tekshiruvi'],
         ['svcRen', './render.html', 'Render', 'Shu loyiha kadrini AI bilan render qilish']] as const).map(([id, href, name, note]) =>
-        h('button', { class: 'mi', id, onclick: () => go(href) }, h('b', {}, tr(name)), h('span', {}, tr(note)))),
-      h('button', { class: 'mi', id: 'svcChz', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari')))));
+        h('button', { class: 'mi', id, onclick: (e: Event) => go(href, e.currentTarget as Element) }, h('b', {}, tr(name)), h('span', {}, tr(note)))),
+      h('button', { class: 'mi', id: 'svcChz', onclick: (e: Event) => { const t = e.currentTarget as Element; this.closePop(); otishRun('chz', () => this.openCh(), t); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari')))));
     b.className = 'svcbadge svcbtn';
     b.replaceChildren(h('i'), h('span', {}, tr('Master reja')), svgIcon(IC.chevDown));
     return b;

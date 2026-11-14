@@ -14,6 +14,7 @@ import './ks.css';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, toast, download } from '../ui/dom';
 import { svcGlow } from '../ui/backdrop';
+import { otishEnter, otishLinks } from '../ui/otish';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
@@ -102,6 +103,7 @@ const SERVICES: { id: string; name: string; href: string; color: string; cur?: b
 
 const app = document.getElementById('ks')!;
 const header = h('header', { class: 'eko glass' });
+otishEnter('ks'); otishLinks();   // boʻlimga oʻtish: kirishda xizmat foni va naqsh bir lahza, menyu havolalari — kengayish bilan
 // 4-bosqich: xizmatning jonli fon naqshi va sarlavha ostidagi yonuvchi chiziq
 svcGlow(header);
 const stage = h('div', { class: 'ks-stage', id: 'ksStage' });

@@ -18,6 +18,7 @@ import type { LngLat } from '../core/doc';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { h, svgIcon, fmt, toast } from '../ui/dom';
 import { svcGlow } from '../ui/backdrop';
+import { otishEnter, otishLinks } from '../ui/otish';
 import { mrBackBtn } from '../ui/mrback';
 import { logoSvg } from '../ui/logo';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
@@ -668,6 +669,7 @@ const OLD = [['GIS tahlil', '../gis.html'], ['Shamol tahlili', '../shamol.html']
 const root = document.getElementById('joy')!;
 const mapEl = h('div', { class: 'joy-map', id: 'joyMap' });
 const header = h('header', { class: 'eko glass' });
+otishEnter('joy'); otishLinks();   // boʻlimga oʻtish: kirishda xizmat foni va naqsh bir lahza, menyu havolalari — kengayish bilan
 // 4-bosqich: xizmatning jonli fon naqshi va sarlavha ostidagi yonuvchi chiziq
 svcGlow(header);   // xarita butun ekranda — naqsh xarita ostida koʻrinmaydi, faqat chiziq
 const left = h('aside', { class: 'joy-lp panel', id: 'joyLeft', 'aria-label': tr('Qatlamlar') });
