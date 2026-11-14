@@ -112,3 +112,17 @@ body.dkj .leaflet-container{font-family:var(--sans)}
 body.dk ol.steps{list-style:none}
 body.dkj ol.steps a .n{color:var(--muted);background:var(--surface)}
 body.dkj .legend{bottom:56px}
+
+/* ===== 4-bosqich (14.11): Dizayn-kod — kanvas «UI-Dizaynkod»: Toshkent dizayn-kodi brendi (#025E69 · #149AA6), sukut tungi, firuza yonuvchan aksent ===== */
+body.dk{--dk:20,154,166;--dk-ink:#02606b;--dk-btn:#025E69;--dk-btn-ink:#ffffff}
+[data-theme="dark"] body.dk{--bg:#05272b;--surface:#0b1c1f;--grouped:#0f2427;--fill:#14302f;--fill-2:#1a3a3b;--hairline:rgba(120,205,212,.13);--glass:rgba(11,28,31,.86);--dk-ink:#7fd3db;--dk-btn:#7cd0d8;--dk-btn-ink:#01282c}
+body.dk .page button.primary{background:var(--dk-btn);color:var(--dk-btn-ink);box-shadow:0 0 0 .5px rgba(var(--dk),.6),0 10px 26px -12px rgba(var(--dk),.75)}
+body.dk .page button.primary:hover:not(:disabled){background:color-mix(in srgb,var(--dk-btn) 86%,#fff)}
+body.dk .types button[aria-pressed="true"],body.dk .row button[aria-pressed="true"],body.dkj .seg button[aria-pressed=true],body.dkj .opt.on,body.dkj .basesw button[aria-pressed=true]{background:rgba(var(--dk),.13);color:var(--dk-ink);box-shadow:inset 0 0 0 1px rgba(var(--dk),.75),0 0 16px -6px rgba(var(--dk),.75)}
+body.dk ol.steps button[aria-current="step"]{color:var(--dk-ink);box-shadow:inset 0 0 0 1px rgba(var(--dk),.65),0 0 14px -6px rgba(var(--dk),.7)}
+body.dk ol.steps button[aria-current="step"] .n{background:rgb(var(--dk));color:#fff}
+body.dk header.eko .eko-svc a.on{box-shadow:inset 0 0 0 1px rgba(var(--dk),.65),0 0 14px -6px rgba(var(--dk),.7)}
+body.dk header.eko{position:relative}
+body.dk header.eko::after{content:'';position:absolute;left:24px;right:24px;bottom:-1px;height:2px;border-radius:2px;background:rgb(var(--dk));box-shadow:0 0 12px 1px rgba(var(--dk),.6);transform-origin:left;animation:dkglow .52s cubic-bezier(.65,0,.25,1) .42s both}
+@keyframes dkglow{from{transform:scaleX(0);opacity:0}}
+@media (prefers-reduced-motion:reduce){body.dk header.eko::after{animation:none}}
