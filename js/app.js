@@ -1674,19 +1674,34 @@ function buildShapes0(){
         const kk=.62,c1=[p1[0]+(X.p[0]-p1[0])*kk,p1[1]+(X.p[1]-p1[1])*kk],c2=[p2[0]+(X.p[0]-p2[0])*kk,p2[1]+(X.p[1]-p2[1])*kk];
         for(let j=1;j<24;j++){const t=j/24,m1=1-t;pl.push([m1*m1*m1*p1[0]+3*m1*m1*t*c1[0]+3*m1*t*t*c2[0]+t*t*t*p2[0],m1*m1*m1*p1[1]+3*m1*m1*t*c1[1]+3*m1*t*t*c2[1]+t*t*t*p2[1]]);}
       });return pl.map(q=>toLL(q,o));};
-      poly(build('out'),DK.walk.col,'ped',0);poly(build('inn'),DK.lane.col,'car',3);
+      if(!(n._v&&A2.length===2)){poly(build('out'),DK.walk.col,'ped',0);poly(build('inn'),DK.lane.col,'car',3);}
       if(k!=='join'){const pl2=build('inn');line([...pl2,pl2[0]],{color:'#f7f5ef',weight:1.4},null,3.05);}
       else if(A2.length===2&&n._v){// choʻntak boshlanishi: bordyur va boʻlak chiziqlari davom etadi
-        L2.forEach((a,i)=>{const b=L2[(i+1)%L2.length];line([a.inn[1],b.inn[0]].map(q=>toLL(q,o)),{color:'#f7f5ef',weight:1.4},null,3.05);line([a.out[1],b.out[0]].map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,2.8);});
         /* oʻtish (taper): har tasma ikki boʻlak orasida uzluksiz — mos tasmalar toʻrtburchak, yangi qoʻshilgani (karman, platforma) noldan kengayadi */
-        {const E2=A2.map(a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st;return {f,st,om:a.sg._om||st.map((_,i)=>i)};});
+        {const E2=A2.map(a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,u=a.atA?f.t:[-f.t[0],-f.t[1]];return {f,st,u,om:a.sg._om||st.map((_,i)=>i)};});
+          const PQ=(e,d)=>[e.f.p[0]+e.f.n[0]*d+e.u[0]*.35,e.f.p[1]+e.f.n[1]*d+e.u[1]*.35];
           const P=(e,d)=>[e.f.p[0]+e.f.n[0]*d,e.f.p[1]+e.f.n[1]*d];
           const side=(X,Y)=>X.st.map((x,i)=>{const j=X.om[i]>=0?Y.om.indexOf(X.om[i]):-1;if(j>=0)return {i,j,x,y:Y.st[j]};
             /* moslik yoʻq: qoʻshni mos tasma chegarasidan boshlanadi */
             let k0=i-1;while(k0>=0&&(X.om[k0]<0||Y.om.indexOf(X.om[k0])<0))k0--;let k1=i+1;while(k1<X.st.length&&(X.om[k1]<0||Y.om.indexOf(X.om[k1])<0))k1++;
             const d=k0>=0?Y.st[Y.om.indexOf(X.om[k0])].d2:k1<X.st.length?Y.st[Y.om.indexOf(X.om[k1])].d1:0;return {i,j:-1,x,y:{d1:d,d2:d}};});
-          [[E2[0],E2[1]],[E2[1],E2[0]]].forEach(([X,Y],w)=>side(X,Y).forEach(m=>{if(w===1&&m.j>=0)return;const k=DK[m.x.k];if(!k)return;
-            poly([P(X,m.x.d1),P(X,m.x.d2),P(Y,m.y.d2),P(Y,m.y.d1)].map(q=>toLL(q,o)),isPk(m.x.k)?DK.walk.col:k.col,isPk(m.x.k)?'ped':k.cat,3.02);}));}
+          const S0=side(E2[0],E2[1]),S1=side(E2[1],E2[0]),raised=k=>!DK[k]||!DK[k].road;
+          /* ichki orol (platforma, ajratuvchi) — ikki tomoni ham qatnov qismi: taperda tumshuq chiqmaydi, oʻrni asfalt + 1.16 shtrix */
+          const inner=(X,i)=>i>0&&i<X.st.length-1&&raised(X.st[i].k)&&!raised(X.st[i-1].k)&&!raised(X.st[i+1].k);
+          [[E2[0],E2[1],S0],[E2[1],E2[0],S1]].forEach(([X,Y,SX],w)=>SX.forEach(m=>{if(w===1&&m.j>=0)return;const k=DK[m.x.k];if(!k)return;
+            const q4=[PQ(X,m.x.d1),PQ(X,m.x.d2),PQ(Y,m.y.d2),PQ(Y,m.y.d1)].map(q=>toLL(q,o));
+            if(m.j<0&&inner(X,m.i)){poly(q4,DK.lane.col,'car',1);const a1=P(X,m.x.d1),a2=P(X,m.x.d2),b0=P(Y,m.y.d1);for(let t=.25;t<.8;t+=.25){const u=[a1[0]+(a2[0]-a1[0])*t,a1[1]+(a2[1]-a1[1])*t],v=[u[0]+(b0[0]-u[0])*.45,u[1]+(b0[1]-u[1])*.45];line([u,v].map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,3.1);}mark('1.16.1');return;}
+            poly(q4,isPk(m.x.k)?DK.walk.col:k.col,isPk(m.x.k)?'ped':k.cat,1);}));
+          /* chegaralar: har qoʻshni tasmalar orasidagi chiziq taper boʻylab davom etadi (boʻlaklar orasidagi qoidalar bilan bir xil) */
+          const lanes4=Math.max(A2[0].lay.lanes||0,A2[1].lay.lanes||0)>=4;
+          const edge=(Lx,Rx,a,b)=>{const ll2=[a,b].map(q=>toLL(q,o)),rL=raised(Lx.k),rR=raised(Rx.k);
+            if(rL!==rR){line(ll2,{color:'#f7f5ef',weight:1.4},null,3.1);return;}if(rL&&rR)return;if(isPk(Lx.k)||isPk(Rx.k))return;
+            if(Lx.k==='hatch'||Rx.k==='hatch'){line(ll2,{color:'#fff',weight:2},null,3.1);return;}
+            if(Lx.dir&&Rx.dir&&Lx.dir!==Rx.dir){if(lanes4)[-.12,.12].forEach(e=>line(offsetLine([a,b],e).map(q=>toLL(q,o)),{color:'#fff',weight:1.3},null,3.1));else line(ll2,{color:'#fff',weight:1.5,dashArray:'8 10'},null,3.1);return;}
+            if(Lx.k==='bus'||Rx.k==='bus'||Lx.k==='tram'||Rx.k==='tram')line(ll2,{color:'#fff',weight:2},null,3.1);else line(ll2,{color:'#fff',weight:1.5,dashArray:'8 10'},null,3.1);};
+          [[E2[0],E2[1],S0],[E2[1],E2[0],S1]].forEach(([X,Y,SX],w)=>{for(let i=0;i<X.st.length-1;i++){const m1=SX[i],m2=SX[i+1];if(w===1&&m1.j>=0&&m2.j>=0)continue;
+            edge(X.st[i],X.st[i+1],P(X,X.st[i].d2),P(Y,m1.y.d2));}
+            [[0,'d1'],[X.st.length-1,'d2']].forEach(([i,dk])=>{if(w===1&&SX[i].j>=0)return;line([P(X,X.st[i][dk]),P(Y,SX[i].y[dk])].map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,3.1);});});}
         const bnd=a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,om=a.sg._om||st.map((_,i)=>i),res={};
           for(let i=0;i<st.length-1;i++){const x=st[i],y=st[i+1];if(!(DK[x.k].road&&DK[y.k].road)||isPk(x.k)||isPk(y.k)||om[i]<0||om[i+1]<0)continue;
             if(x.dir&&y.dir&&x.dir===y.dir){const P=[f.p[0]+f.n[0]*x.d2,f.p[1]+f.n[1]*x.d2];res[om[i]+'_'+om[i+1]]={P,opp:false};}}
@@ -1694,7 +1709,7 @@ function buildShapes0(){
           {let lo=null,hi=null;st.forEach(x=>{if(!(x.k==='lane'||x.k==='bus'))return;if(x.dir<0&&(lo==null||x.d2<lo))lo=x.d2;if(x.dir>0&&(hi==null||x.d1>hi))hi=x.d1;});
             if(lo!=null&&hi!=null&&lo>=hi-.01){const d=(lo+hi)/2;res.div={P:[f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],opp:true};}}
           return res;};
-        const b1=bnd(A2[0]),b2=bnd(A2[1]);Object.keys(b1).forEach(kk=>{if(!b2[kk])return;const ll2=[b1[kk].P,b2[kk].P];
+        const b1=bnd(A2[0]),b2=bnd(A2[1]);Object.keys(b1).forEach(kk=>{return;if(!b2[kk])return;const ll2=[b1[kk].P,b2[kk].P];
           if(b1[kk].opp&&A2[0].lay.lanes>=4)[-.12,.12].forEach(e=>line(offsetLine(ll2,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.3},null));
           else line(ll2.map(q=>toLL(q,o)),{color:'#fff',weight:1.5,dashArray:'8 10'},null);});}
       else if(A2.length===2){// ulanish joyida oʻq chizigʻi uzilmasin
