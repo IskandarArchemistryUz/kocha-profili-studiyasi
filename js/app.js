@@ -1315,9 +1315,16 @@ function armsOf(n){return DS().segs.filter(s=>s.a===n.id||s.b===n.id).map(s=>({s
 function joinDev(n){const a=DS().segs.filter(s=>s.a===n.id||s.b===n.id);if(a.length!==2)return 0;const o=n.ll;
   const dirOut=sg=>{const ll=segLL(sg),q=sg.a===n.id?ll[1]:ll[ll.length-2],v=toXY(q,o),l=Math.hypot(...v)||1;return [v[0]/l,v[1]/l];};
   const u=dirOut(a[0]),v=dirOut(a[1]);return Math.PI-Math.acos(Math.max(-1,Math.min(1,u[0]*v[0]+u[1]*v[1])));}
-function nodeR(n){if(n._v)return n._t;const k=nodeKind(n);
+function nodeR(n,sg){if(n._v)return n._t;const k=nodeKind(n);
   if(k==='round')return n.ri+n.rw;
-  if(k==='x'||k==='sig'){const a=armsOf(n);return Math.max(3,...a.map(x=>x.lay.half))+(n.kr??6);}
+  if(k==='x'||k==='sig'){const a=armsOf(n);let r=Math.max(3,...a.map(x=>x.lay.half))+(n.kr??6);
+    /* oʻtkir burchakli tutashuv (θ < 60°): faqat shu juftlikdagi qoʻl uzunroq kesiladi — qoʻshni koʻchaning qatnov qismiga
+       bu qoʻlning trotuari/koʻkalamzori tushmasligi uchun t ≥ (h_q + o_p·cosθ) / sinθ (h — qatnov qismi yarmi, o — tashqi chet). Boshqa qoʻllar — odatiy radius. */
+    if(sg)try{const o=n.ll,dir=s2=>{const ll=segLL(s2),q=s2.a===n.id?ll[1]:ll[ll.length-2],v=toXY(q,o),l=Math.hypot(...v)||1;return Math.atan2(v[1]/l,v[0]/l);};
+      const A=a.map(x=>({id:x.s.id,ang:dir(x.s),h:x.lay.half,ou:x.lay.outer||x.lay.half})).sort((x,y)=>x.ang-y.ang),i=A.findIndex(x=>x.id===sg.id);
+      if(i>=0&&A.length>1)[A[(i+A.length-1)%A.length],A[(i+1)%A.length]].forEach(q=>{const p=A[i];if(q===p)return;let th=Math.abs(q.ang-p.ang);if(th>Math.PI)th=2*Math.PI-th;
+        if(th>.05&&th<Math.PI/3)r=Math.max(r,Math.min(80,(q.h+p.ou*Math.cos(th))/Math.sin(th)));});}catch(e){}
+    return r;}
   if(k==='join'){const dev=joinDev(n),a=armsOf(n);let r=dev<.2?0:Math.min(40,Math.max(...a.map(x=>x.lay.outer))*Math.tan(Math.min(dev,2.6)/2)+.5);
     // eni har xil koʻchalar ulanganda — silliq oʻtish (taper): har tomonga ~1:5
     if(a.length===2){const dh=Math.abs(a[0].lay.half-a[1].lay.half),dO=Math.abs(a[0].lay.outer-a[1].lay.outer);if(dh>.05||dO>.05)r=Math.max(r,Math.min(30,Math.max(5,dh*5,dO*2.5)));}
@@ -1568,7 +1575,7 @@ function virtualNet0(){const ds=DS(),o=origin(),segs=[],nodes=ds.nodes.slice();l
     let cA=apprCfg(sg,'a'),cB=apprCfg(sg,'b');if(!cA&&!cB){segs.push(sg);return;}
     const ll=segLL(sg),raw=ll.map(q=>toXY(q,o)),Tr=cumLen(raw).pop(),hM=layOf(sg).half;
     // chorraha radiusi choʻntaklar bilan kengaygan koʻchaga qarab (toʻplanish uzunligi toʻxtash chizigʻidan hisoblanadi)
-    const Rof=(n,c)=>{if(!c)return 0;const add=((c.L|0)+(c.R|0)+(c.U==='sep'?1:0))*3.5;return Math.max(nodeR(n),hM+add+(n.kr??6))+(sg.cwA===false&&n.id===sg.a||sg.cwB===false&&n.id===sg.b?1:ds.thr.cw+1.5);};
+    const Rof=(n,c)=>{if(!c)return 0;const add=((c.L|0)+(c.R|0)+(c.U==='sep'?1:0))*3.5;return Math.max(nodeR(n,sg),hM+add+(n.kr??6))+(sg.cwA===false&&n.id===sg.a||sg.cwB===false&&n.id===sg.b?1:ds.thr.cw+1.5);};
     const RA=Rof(A,cA),RB=Rof(B,cB);
     // qisqa koʻchada uzunliklarni moslash
     const need=(c,R)=>c?R+c.Ls+c.Lt:0;let tot=need(cA,RA)+need(cB,RB)+10;
@@ -1619,7 +1626,7 @@ function buildShapes0(){
   ds.segs.forEach(sg=>{
     const A1=nodeById(sg.a),B1=nodeById(sg.b);if(!A1||!B1)return;CUR_LV=isRamp(sg)?Math.max(sg.lv|0,sg.lv2|0):(sg.lv||0);CUR_SID=sg.id;
     const lay=layOf(sg);let xy=segXY(sg,o);const c0=cumLen(xy),T0=c0[c0.length-1];
-    const trim=n=>{const R0=nodeR(n);return nodeKind(n)==='round'&&lay.half<R0-1?Math.sqrt(R0*R0-lay.half*lay.half):R0;};
+    const trim=n=>{const R0=nodeR(n,sg);return nodeKind(n)==='round'&&lay.half<R0-1?Math.sqrt(R0*R0-lay.half*lay.half):R0;};
     const ra=trim(A1),rb=trim(B1);if(T0-ra-rb<2)return;
     xy=subLine(xy,ra,T0-rb);const c=cumLen(xy),T=c[c.length-1];
     const ka=nodeKind(A1),kb=nodeKind(B1);
@@ -2794,7 +2801,7 @@ function autoSigns(){
   const ds=DS(),o=origin(),cw=ds.thr.cw;ds.signs=(ds.signs||[]).filter(x=>!x.auto);ds.sid2=ds.sid2||1;
   const add=(c,ll,val)=>ds.signs.push({id:ds.sid2++,c,ll,rot:0,val:val||null,st:'new',auto:1});
   ds.segs.forEach(sg=>{const A1=nodeById(sg.a),B1=nodeById(sg.b);if(!A1||!B1)return;const lay=layOf(sg),xy=segXY(sg,o),c=cumLen(xy),T=c[c.length-1];
-    const trim=n=>{const R0=nodeR(n);return nodeKind(n)==='round'&&lay.half<R0-1?Math.sqrt(R0*R0-lay.half*lay.half):R0;};
+    const trim=n=>{const R0=nodeR(n,sg);return nodeKind(n)==='round'&&lay.half<R0-1?Math.sqrt(R0*R0-lay.half*lay.half):R0;};
     const ra=trim(A1),rb=trim(B1);if(T-ra-rb<6)return;
     const rightD=dir=>dir>0?lay.st[lay.st.length-1].d2+.8:lay.st[0].d1-.8;
     const at=(s,d)=>{const f=frameAt(xy,c,Math.max(0,Math.min(T,s)));return toLL([f.p[0]+f.n[0]*d,f.p[1]+f.n[1]*d],o);};
