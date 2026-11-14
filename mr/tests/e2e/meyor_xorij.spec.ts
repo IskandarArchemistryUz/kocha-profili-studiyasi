@@ -35,6 +35,9 @@ test('Parij: 9-qadamda «Toshkent shahri» yoʻq, 3-qadamda koʻchirish xarajati
   if (await box.count()) await expect(box).toContainText('Xorijiy loyiha');
   await page.click('[data-step=parsel]');
   await expect(page.locator('#compBox')).toHaveCount(0);
+  // 14.11: xorijda qadam izohida Oʻzbekiston meʼyori yoʻq
+  await page.click('[data-step=yashil]');
+  await expect(page.locator('body')).not.toContainText('ShNQ 2.07.01-23, 86-band ≥ 30 %');
 });
 
 /** 14.11 (egasi): xorijda seysmiklik sukuti — 6 (seysmik emas), foydalanuvchi tanlaydi; Toshkentda — 8 */

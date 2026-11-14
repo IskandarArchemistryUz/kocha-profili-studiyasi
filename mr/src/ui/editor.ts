@@ -4193,7 +4193,7 @@ export class Editor {
       }
     };
     const KN: Record<RoundKind, string> = { mini: 'Mini · R 8 m', kichik: 'Kichik · R 14 m', katta: 'Katta · R 22 m' };
-    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Berk uchlar va chorrahalar')), h('span', {}, 'ShNQ 2.07.06-24, 57, 106, 27')),
+    body.append(h('div', { class: 'glabel' }, h('span', {}, tr('Berk uchlar va chorrahalar')), h('span', {}, this.normSet() === 'UZ' ? 'ShNQ 2.07.06-24, 57, 106, 27' : tr('andoza (ShNQ 2.07.06-24 asosida)'))),
       h('div', { class: 'group', id: 'deadEnds' },
         h('div', { class: 'li' }, h('span', { class: 'k' }, tf('Berk uchlar: ${n} ta', { n: des.length }), h('span', { class: 'sub' }, des.length ? (miss.length ? tf('${n} tasida burilish joyi yoʻq (57-band: R ≥ 15 m aylana yoki 20 × 20 m)', { n: miss.length }) : tr('Hammasida burilish joyi bor (57-band)')) + (long.length ? ' · ' + tf('${n} tasi 150 m dan uzun (106-band)', { n: long.length }) : '') : tr('Loyiha koʻchalarida berk uch yoʻq'))),
           miss.length ? h('span', { class: 'chip warn', 'data-s': 'review' }, String(miss.length)) : h('span', { class: 'chip ok' }, '✓')),
@@ -4884,7 +4884,7 @@ export class Editor {
     else this.panelBody(s, body);
     this.keepDetails(body);
     p.replaceChildren(
-      h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, tf('${s.n}-qadam / ${t}', { 's.n': s.n, t: STEPS.length })), h('span', { class: 'sp-prog' }, h('i', { style: `width:${Math.round(s.n / STEPS.length * 100)}%` }))), h('h2', {}, tr(s.title)), leadEl(tr(s.lead))),
+      h('header', {}, h('div', { class: 'sp-step' }, h('span', {}, tf('${s.n}-qadam / ${t}', { 's.n': s.n, t: STEPS.length })), h('span', { class: 'sp-prog' }, h('i', { style: `width:${Math.round(s.n / STEPS.length * 100)}%` }))), h('h2', {}, tr(s.title)), leadEl(tr(s.leadIntl && this.normSet() !== 'UZ' ? s.leadIntl : s.lead))),
       body,
       h('footer', {},
         h('button', { class: 'btn', disabled: !prev, onclick: () => prev && this.go(prev) }, ...icl(IC.back, tr('Oldingi'))),
