@@ -4,7 +4,10 @@
  * Qobiq: ekotizim sarlavhasi (5 xizmat), til (uz/en/ru), tungi rejim. Har rejim holati brauzerda saqlanadi;
  * B va Varaq bitta koʻcha maʼlumotini (kesim, rejadagi elementlar, tarmoqlar) birga ishlatadi.
  */
-import { scoped, svcHref } from '../core/projctx';
+import { scoped, svcHref, ctxProject } from '../core/projctx';
+import { svcWatch } from '../storage/cloud';
+// 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
+{ const p = ctxProject(); if (p) svcWatch(p); }
 import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import './ks.css';

@@ -8,12 +8,14 @@
 import { apiBase } from '../account/config';
 import { tr, tf } from '../i18n';
 import { migrate, type Project } from '../core/doc';
+import { collectSvc, restoreSvc, svcHash } from './svcstate';
 import { cacheGet, cachePut, cacheDel, getProject, putProject, getLayerData, putLayerData, exportJSON, FILE_KIND } from './db';
 
 export type ProjectType = 'master' | 'kochasoz' | 'joyshunos' | 'chizmadon' | 'render' | 'dizaynkod' | 'binokor' | 'bogshunos';
 export interface CloudItem { id: string; type: ProjectType; name: string; meta: Record<string, unknown>; version: number; bytes: number; created: string; updated: string; deleted: string | null }
 export interface CloudUsage { bytes: number; count: number; quota: number | null; max: number | null }
-export interface CloudLink { version: number; at: string }
+/** svc — bulutga yuborilgan xizmatlar holati izi (svcstate.svcHash) */
+export interface CloudLink { version: number; at: string; svc?: string }
 
 export class CloudError extends Error {
   constructor(public code: string, msg: string, public status = 0, public extra: Record<string, unknown> = {}) { super(msg); }
@@ -61,10 +63,10 @@ export function metaOf(doc: Project): Record<string, unknown> {
 }
 
 /** hujjat + import qilingan qatlamlar obyektlari → fayl matni (Fayldan ochish bilan bir xil format) */
-async function payload(doc: Project): Promise<string> {
+async function payload(doc: Project, svc: Record<string, string>): Promise<string> {
   const layers: Record<string, unknown[]> = {};
   for (const l of doc.userLayers ?? []) { const f = await getLayerData<unknown>(doc.id, l.id).catch(() => null); if (f) layers[l.id] = f; }
-  return exportJSON(doc, layers);
+  return exportJSON(doc, layers, Object.keys(svc).length ? { svc } : undefined);
 }
 
 /**
@@ -73,14 +75,15 @@ async function payload(doc: Project): Promise<string> {
  */
 export async function upload(doc: Project, base?: number, type: ProjectType = 'master'): Promise<CloudItem> {
   const b = base ?? (await getLink(doc.id))?.version ?? 0;
-  const gz = await gzip(await payload(doc));
+  const svc = collectSvc(doc.id);
+  const gz = await gzip(await payload(doc, svc));
   const u = await api<{ key: string; put: { url: string; headers: Record<string, string> } }>(`/projects/${encodeURIComponent(doc.id)}/upload`, 'POST', { type, bytes: gz.byteLength, base_version: b });
   let r: Response;
   try { r = await fetchImpl(u.put.url, { method: 'PUT', headers: u.put.headers, body: gz as BodyInit }); }
   catch { throw new CloudError('offline', tr('Internet yoʻq')); }
   if (!r.ok) throw new CloudError('storage', tf('Bulut ombori javob bermadi (${s})', { s: r.status }), r.status);
   const c = await api<{ project: CloudItem }>(`/projects/${encodeURIComponent(doc.id)}/commit`, 'POST', { key: u.key, base_version: b, name: doc.name || 'Loyiha', type, meta: metaOf(doc) });
-  await setLink(doc.id, { version: c.project.version, at: c.project.updated });
+  await setLink(doc.id, { version: c.project.version, at: c.project.updated, svc: svcHash(svc) });
   return c.project;
 }
 
@@ -95,8 +98,9 @@ export async function download(id: string, version?: number): Promise<Project> {
   const p: Project = { ...migrate(j.project), id };
   const ids = new Set((p.userLayers ?? []).map(l => l.id));
   for (const [lid, fs] of Object.entries(j.layers ?? {})) if (ids.has(lid) && Array.isArray(fs)) await putLayerData(id, lid, fs as unknown[]);
+  restoreSvc(id, j.svc);
   await putProject(p);
-  if (version == null) await setLink(id, { version: g.version, at: g.project.updated });
+  if (version == null) await setLink(id, { version: g.version, at: g.project.updated, svc: svcHash(collectSvc(id)) });
   return p;
 }
 
@@ -149,4 +153,36 @@ export function cloudSync(id: string, onState: (s: SyncState) => void, opts: { d
       const p = await download(id); last = null; set('cloud'); return p;
     },
   };
+}
+
+/* ---------- xizmat sahifalari (Joyshunos, Koʻchasoz, Render…) ---------- */
+/**
+ * Xizmat loyiha ichida (?p=) ochilganda: holat (`kalit@p`) oʻzgarsa va loyiha bulutda boʻlsa — bulutga yuklaydi.
+ * Hujjatning oʻzi brauzerdagi nusxadan olinadi. Ziddiyat — kuzatish toʻxtaydi (Master reja ochilganda tanlov chiqadi).
+ */
+export function svcWatch(p: string, every = 5000): () => void {
+  let dead = false, busy = false, t: ReturnType<typeof setInterval> | null = null;
+  const tick = async (): Promise<void> => {
+    if (dead || busy) return; busy = true;
+    try {
+      const l = await getLink(p); if (!l) { stop(); return; }
+      if (l.svc === svcHash(collectSvc(p))) return;
+      const doc = await getProject(p); if (!doc) { stop(); return; }
+      await upload(doc, l.version);
+    } catch (e) {
+      const c = e instanceof CloudError ? e.code : '';
+      if (c !== 'offline' && c !== 'storage') stop();
+    } finally { busy = false; }
+  };
+  const vis = () => { if (document.visibilityState === 'hidden') void tick(); };
+  const stop = () => { dead = true; if (t) clearInterval(t); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', vis); };
+  t = setInterval(() => void tick(), every);
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', vis);
+  return stop;
+}
+
+/** Master reja ochilganda: xizmatlarda bulutga yetib bormagan oʻzgarish bormi */
+export async function svcDirty(id: string): Promise<boolean> {
+  const l = await getLink(id).catch(() => null);
+  return !!l && l.svc !== svcHash(collectSvc(id));
 }
