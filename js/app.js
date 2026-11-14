@@ -1514,14 +1514,16 @@ function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>
     const dir0=st0[pair[0]][2]||-1,dir1=st0[pair[1]][2]||1;
     const midW=st0.slice(pair[0]+1,pair[1]).reduce((a2,x)=>a2+x[1],0);
     /* tasmalar: k = to'plam {'c','p','m'}; p — +1 yoʻnalish platformasi, m — −1 yoʻnalish platformasi */
-    const build=K=>{const st=[],om=[],put=(x,og)=>{st.push(x);om.push(og<0?-1:sg._om?sg._om[og]:og);};
+    const build=K=>{const st=[],om=[],put=(x,og,id)=>{st.push(x);om.push(id??(og<0?-1:sg._om?sg._om[og]:og));};
       const outer=d=>(d===1?K.has('p'):K.has('m'));
+      /* alohida platformalarda koʻcha eni bekat boʻylab oʻzgarmaydi: platforma yoʻq tomonda — 1.16 shtrixli orol (qatorlar dumi-dumiga oʻtish joyida siljimaydi) */
+      const side=d=>outer(d)?put(['walk',ST_W],-1,d===dir0?9001:9002):!K.has('c')?put(['hatch',ST_W],-1,d===dir0?9001:9002):0;
       for(let q=0;q<pair[0];q++)put(st0[q],q);
-      if(outer(dir0))put(['walk',ST_W],-1);
+      side(dir0);
       put(st0[pair[0]],pair[0]);
       if(K.has('c'))put(['walk',Math.max(ST_WC,midW)],-1);else for(let q=pair[0]+1;q<pair[1];q++)put(st0[q],q);
       put(st0[pair[1]],pair[1]);
-      if(outer(dir1))put(['walk',ST_W],-1);
+      side(dir1);
       for(let q=pair[1]+1;q<st0.length;q++)put(st0[q],q);
       /* transport boʻlaklari oʻz joyida qoladi: ular oʻrtasi asl dM da */
       const L0=stripsLayout(st,0),i0=st.indexOf(st0[pair[0]]),i1=st.indexOf(st0[pair[1]]),dM=(lay.st[pair[0]].mid+lay.st[pair[1]].mid)/2,pM=(L0.st[i0].mid+L0.st[i1].mid)/2;
@@ -1550,7 +1552,7 @@ function stationSplit(B){const o=origin();let vid=Math.min(-1,...B.nodes.map(n=>
         cwA:i===0?sg.cwA:false,cwB:i===cuts.length-2?sg.cwB:false});
       if(K){const b=build(K);pc.st=b.st;pc.om=undefined;pc._om=b.om;pc.shift=b.shift;pc.mk=undefined;pc._station=1;
         /* platforma obyektlari (chizma va model uchun): platforma tasmasi markazi, yoʻnalishi */
-        const Lb=stripsLayout(b.st,b.shift+autoOff(b.st)),walks=Lb.st.map((x,q)=>({x,q})).filter(w=>b.om[w.q]<0&&w.x.k==='walk');
+        const Lb=stripsLayout(b.st,b.shift+autoOff(b.st)),walks=Lb.st.map((x,q)=>({x,q})).filter(w=>(b.om[w.q]<0||b.om[w.q]>=9000)&&w.x.k==='walk');
         cuts[i].iv.P.forEach(p=>{const pd=p.k==='p'?1:p.k==='m'?-1:0,w=walks.find(w2=>pd===0?true:(pd===dir0?w2.q<b.st.indexOf(st0[pair[0]]):w2.q>b.st.indexOf(st0[pair[1]])));
           pc.att.push({t:'tramstop',f:((p.s1+p.s2)/2-s1)/Math.max(1,s2-s1),len:p.s2-p.s1,d:w?w.x.mid:0,pd,door:p.a.door||'right',_src:sg.id});});}
       if(sg._end&&!(sg._end==='a'?i===0:i===cuts.length-2))delete pc._end;
@@ -1751,29 +1753,36 @@ function buildShapes0(){
         {const E2=A2.map(a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,u=a.atA?f.t:[-f.t[0],-f.t[1]];return {f,st,u,om:a.sg._om||st.map((_,i)=>i)};});
           const PQ=(e,d)=>[e.f.p[0]+e.f.n[0]*d+e.u[0]*.35,e.f.p[1]+e.f.n[1]*d+e.u[1]*.35];
           const P=(e,d)=>[e.f.p[0]+e.f.n[0]*d,e.f.p[1]+e.f.n[1]*d];
+          /* silliq oʻtish: koʻndalang siljish S-egri (smoothstep) boʻyicha — ikki uchida ham urinma koʻcha oʻqiga parallel, sinish yoʻq */
+          const CV=(X,dX,Y,dY,ov)=>{const N=Math.abs(dX-dY)<.05?1:16,r=[];for(let j=0;j<=N;j++){const t=j/N,s=t*t*(3-2*t),
+              nx=X.f.n[0]*(1-t)+Y.f.n[0]*t,ny=X.f.n[1]*(1-t)+Y.f.n[1]*t,nl=Math.hypot(nx,ny)||1,d=dX*(1-s)+dY*s;
+              r.push([X.f.p[0]*(1-t)+Y.f.p[0]*t+nx/nl*d,X.f.p[1]*(1-t)+Y.f.p[1]*t+ny/nl*d]);}
+            if(ov){r[0]=[r[0][0]+X.u[0]*.35,r[0][1]+X.u[1]*.35];const z=r.length-1;r[z]=[r[z][0]+Y.u[0]*.35,r[z][1]+Y.u[1]*.35];}return r;};
+          const Q4=(X,a1,a2,Y,b1,b2)=>[...CV(X,a1,Y,b1,1),...CV(X,a2,Y,b2,1).reverse()].map(q=>toLL(q,o));
           const side=(X,Y)=>X.st.map((x,i)=>{const j=X.om[i]>=0?Y.om.indexOf(X.om[i]):-1;if(j>=0)return {i,j,x,y:Y.st[j]};
             /* moslik yoʻq: qoʻshni mos tasma chegarasidan boshlanadi */
             let k0=i-1;while(k0>=0&&(X.om[k0]<0||Y.om.indexOf(X.om[k0])<0))k0--;let k1=i+1;while(k1<X.st.length&&(X.om[k1]<0||Y.om.indexOf(X.om[k1])<0))k1++;
             const d=k0>=0?Y.st[Y.om.indexOf(X.om[k0])].d2:k1<X.st.length?Y.st[Y.om.indexOf(X.om[k1])].d1:0;return {i,j:-1,x,y:{d1:d,d2:d}};});
           const S0=side(E2[0],E2[1]),S1=side(E2[1],E2[0]),raised=k=>!DK[k]||!DK[k].road;
           /* ichki orol (platforma, ajratuvchi) — ikki tomoni ham qatnov qismi: taperda tumshuq chiqmaydi, oʻrni asfalt + 1.16 shtrix */
-          const inner=(X,i)=>i>0&&i<X.st.length-1&&raised(X.st[i].k)&&!raised(X.st[i-1].k)&&!raised(X.st[i+1].k);
+          const inner=(X,i)=>{if(!raised(X.st[i].k))return false;const r=X.st.map(x=>!raised(x.k));return r.indexOf(true)<i&&r.lastIndexOf(true)>i;};
           [[E2[0],E2[1],S0],[E2[1],E2[0],S1]].forEach(([X,Y,SX],w)=>SX.forEach(m=>{if(w===1&&m.j>=0)return;const k=DK[m.x.k];if(!k)return;
-            const q4=[PQ(X,m.x.d1),PQ(X,m.x.d2),PQ(Y,m.y.d2),PQ(Y,m.y.d1)].map(q=>toLL(q,o));
+            const q4=Q4(X,m.x.d1,m.x.d2,Y,m.y.d1,m.y.d2);
             if(m.j<0&&inner(X,m.i)){poly(q4,DK.lane.col,'car',1);const a1=P(X,m.x.d1),a2=P(X,m.x.d2),b0=P(Y,m.y.d1);for(let t=.25;t<.8;t+=.25){const u=[a1[0]+(a2[0]-a1[0])*t,a1[1]+(a2[1]-a1[1])*t],v=[u[0]+(b0[0]-u[0])*.45,u[1]+(b0[1]-u[1])*.45];line([u,v].map(q=>toLL(q,o)),{color:'#fff',weight:1.2},null,3.1);}mark('1.16.1');return;}
+            if(m.j>=0&&m.y.k!==m.x.k&&(raised(m.x.k)||raised(m.y.k))){poly(q4,DK.lane.col,'car',1);return;}
             poly(q4,isPk(m.x.k)?DK.walk.col:k.col,isPk(m.x.k)?'ped':k.cat,1);}));
           /* chegaralar: har qoʻshni tasmalar orasidagi chiziq taper boʻylab davom etadi (boʻlaklar orasidagi qoidalar bilan bir xil) */
           const lanes4=Math.max(A2[0].lay.lanes||0,A2[1].lay.lanes||0)>=4;
-          const edge=(Lx,Rx,a,b)=>{const ll2=[a,b].map(q=>toLL(q,o)),rL=raised(Lx.k),rR=raised(Rx.k);
+          const edge=(Lx,Rx,pts)=>{const ll2=pts.map(q=>toLL(q,o)),rL=raised(Lx.k),rR=raised(Rx.k);
             if(rL!==rR){line(ll2,{color:'#f7f5ef',weight:1.4},null,3.1);return;}if(rL&&rR)return;if(isPk(Lx.k)||isPk(Rx.k))return;
             if(Lx.k==='hatch'||Rx.k==='hatch'){line(ll2,{color:'#fff',weight:2},null,3.1);return;}
-            if(Lx.dir&&Rx.dir&&Lx.dir!==Rx.dir){if(lanes4)[-.12,.12].forEach(e=>line(offsetLine([a,b],e).map(q=>toLL(q,o)),{color:'#fff',weight:1.3},null,3.1));else line(ll2,{color:'#fff',weight:1.5,dashArray:'8 10'},null,3.1);return;}
+            if(Lx.dir&&Rx.dir&&Lx.dir!==Rx.dir){if(lanes4)[-.12,.12].forEach(e=>line(offsetLine(pts,e).map(q=>toLL(q,o)),{color:'#fff',weight:1.3},null,3.1));else line(ll2,{color:'#fff',weight:1.5,dashArray:'8 10'},null,3.1);return;}
             if(Lx.k==='bus'||Rx.k==='bus'||Lx.k==='tram'||Rx.k==='tram')line(ll2,{color:'#fff',weight:2},null,3.1);else line(ll2,{color:'#fff',weight:1.5,dashArray:'8 10'},null,3.1);};
           [[E2[0],E2[1],S0],[E2[1],E2[0],S1]].forEach(([X,Y,SX],w)=>{for(let i=0;i<X.st.length-1;i++){const m1=SX[i],m2=SX[i+1];if(w===1&&m1.j>=0&&m2.j>=0)continue;
-            edge(X.st[i],X.st[i+1],P(X,X.st[i].d2),P(Y,m1.y.d2));}
-            [[0,'d1'],[X.st.length-1,'d2']].forEach(([i,dk])=>{if(w===1&&SX[i].j>=0)return;line([P(X,X.st[i][dk]),P(Y,SX[i].y[dk])].map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,3.1);});});
+            if(!n._xw)edge(X.st[i],X.st[i+1],CV(X,X.st[i].d2,Y,m1.y.d2));}/* oʻtish joyida boʻlak chiziqlari zebra ustidan oʻtmaydi */
+            [[0,'d1'],[X.st.length-1,'d2']].forEach(([i,dk])=>{if(w===1&&SX[i].j>=0)return;line(CV(X,X.st[i][dk],Y,SX[i].y[dk]).map(q=>toLL(q,o)),{color:'#9a917f',weight:1.1},null,3.1);});});
           /* bekatlar orasidagi oʻtish joyi (zebra 1.14.1) shu virtual tugunda */
-          if(n._xw){const f=E2[0].f,u=E2[0].u,hw=n._xw/2,rd=E2[0].st.filter(x=>!raised(x.k)),dA=Math.max(...rd.map(x=>x.d1)),dB=Math.min(...rd.map(x=>x.d2)),C=(d,e)=>[f.p[0]+f.n[0]*d+u[0]*e,f.p[1]+f.n[1]*d+u[1]*e];
+          if(n._xw){const f=E2[0].f,u=E2[0].u,hw=n._xw/2,rd=E2[0].st.filter(x=>!raised(x.k)),dA=Math.max(...rd.map(x=>x.d1)),dB=Math.min(...rd.map(x=>x.d2)),M=[(E2[0].f.p[0]+E2[1].f.p[0])/2,(E2[0].f.p[1]+E2[1].f.p[1])/2],C=(d,e)=>[M[0]+f.n[0]*d+u[0]*e,M[1]+f.n[1]*d+u[1]*e];
             for(let d=dA-.3;d>dB+.2;d-=1){poly([C(d,-hw),C(d-.5,-hw),C(d-.5,hw),C(d,hw)].map(q=>toLL(q,o)),'#fff',null,3.2);}mark('1.14.1');}}
         const bnd=a=>{const cc=cumLen(a.xy),T=cc[cc.length-1],f=frameAt(a.xy,cc,a.atA?0:T),st=a.lay.st,om=a.sg._om||st.map((_,i)=>i),res={};
           for(let i=0;i<st.length-1;i++){const x=st[i],y=st[i+1];if(!(DK[x.k].road&&DK[y.k].road)||isPk(x.k)||isPk(y.k)||om[i]<0||om[i+1]<0)continue;
