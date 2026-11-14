@@ -1121,10 +1121,35 @@ details.sp-lead[open] .sp-more{display:none}
 /* ===== 4-bosqich (14.11): Chizmadon — kanvas «UI-Chizmadon»: yorugʻ, binafsha aksent, xira loy tugmalar; sahnada daftar katagi va chizilayotgan rejalar ===== */
 .gx.ch{--cz:139,74,156;--cz-clay:#ead6f0;--cz-clay-2:#dfc3e8;--cz-ink:#5c2c6a}
 [data-theme="dark"] .gx.ch{--cz-clay:rgba(139,74,156,.26);--cz-clay-2:rgba(139,74,156,.38);--cz-ink:#e2b8ee}
-.gx.ch .ch-view{background:color-mix(in srgb,var(--bg) 92%,rgb(var(--cz)))}
+.gx.ch{background:color-mix(in srgb,var(--bg) 94%,rgb(var(--cz)))}.gx.ch .ch-view{background:transparent}
 .gx.ch .seg button[aria-pressed="true"]{background:var(--cz-clay);color:var(--cz-ink);font-weight:600;box-shadow:inset 0 -3px 0 rgba(var(--cz),.25)}
 .gx.ch .switch.on{background:rgb(var(--cz))}
 .gx.ch .btn-primary{background:var(--cz-clay-2);color:var(--cz-ink);box-shadow:inset 0 -3px 0 rgba(var(--cz),.3)}
 .gx.ch .btn-primary:hover:not(:disabled){background:color-mix(in srgb,var(--cz-clay-2) 85%,#fff)}
 .gx.ch .btn-primary:active:not(:disabled){box-shadow:inset 0 -1px 0 rgba(var(--cz),.3);transform:translateY(1px)}
 [data-theme="dark"] .gx.ch .seg button[aria-pressed="true"],[data-theme="dark"] .gx.ch .btn-primary{box-shadow:inset 0 0 0 1px rgba(var(--cz),.7),0 0 14px -6px rgba(var(--cz),.8)}
+
+/* ===== 14.11 (egasi): Master reja loyihalar sahifasi — kanvas «Oʻtish: boʻlim → loyihalar»: shisha sarlavha, nuqtali fon, eskizli kartalar ===== */
+body:has(.home2){background-color:var(--bg);background-image:radial-gradient(color-mix(in srgb,var(--ink) 13%,transparent) 1px,transparent 1.4px);background-size:22px 22px;background-attachment:fixed}
+.home.home2{max-width:1180px;padding:16px 24px 48px;gap:12px}
+.home2 .home-bar{position:sticky;top:12px;z-index:5;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:16px;margin-bottom:22px}
+.home2 .home-bar .sp{flex:1}
+.home2 .home-bar::after{content:'';position:absolute;left:20px;right:20px;bottom:-1px;height:2px;border-radius:2px;background:var(--ink);opacity:.85;transform-origin:left;animation:hbline .52s cubic-bezier(.65,0,.25,1) .3s both}
+@keyframes hbline{from{transform:scaleX(0);opacity:0}}
+.home2 .home-svc i{background:var(--ink)}
+.home2 h1{margin:0}.home2 h1 .h1-sub{color:var(--muted);font-weight:500}
+.home2 .lead{margin:0 0 6px}
+.home2 .cards{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.home2 .card{padding:0 0 14px;overflow:hidden;gap:6px;box-shadow:0 0 0 .5px var(--hairline),var(--sh-card)}
+.home2 .card>*:not(.thumb){margin-left:16px;margin-right:16px}
+.home2 .card .thumb{position:relative;display:block;height:92px;margin:0 0 6px;background-color:color-mix(in srgb,var(--bg) 70%,var(--surface));background-image:radial-gradient(color-mix(in srgb,var(--ink) 16%,transparent) 1px,transparent 1.3px);background-size:12px 12px;border-bottom:.5px solid var(--hairline)}
+.home2 .card .thumb svg{position:absolute;inset:0;width:100%;height:100%}
+.home2 .card .thumb .st{fill:color-mix(in srgb,var(--ink) 4%,transparent);stroke:var(--bad);stroke-width:1;stroke-dasharray:4 3;opacity:.7}
+.home2 .card .thumb .bl rect{fill:var(--surface);stroke:var(--ink);stroke-width:.8;opacity:.75}
+.home2 .card .thumb .cl{position:absolute;right:8px;top:8px;font:600 10.5px var(--sans);font-style:normal;color:var(--ok);background:var(--surface);padding:2px 8px;border-radius:999px;box-shadow:0 0 0 .5px var(--hairline)}
+.home2 .card:hover .thumb .bl rect{opacity:1}
+.home2 .card .card-del{background:transparent;color:var(--bad);padding:0 8px;margin-top:2px}
+.home2 .card .card-del:hover{background:var(--bad-soft)}
+.home2.enter .card{animation:hcard .44s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 45ms + .15s)}
+@keyframes hcard{from{opacity:0;transform:translateY(12px)}}
+@media (prefers-reduced-motion:reduce){.home2 .card,.home2 .home-bar::after{animation:none}}

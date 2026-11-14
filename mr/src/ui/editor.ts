@@ -17,6 +17,7 @@ import type { Obstacle3 } from '../core/genfix';
 import { reconcileKeep, type KeepCand } from '../core/keep';
 import { Scene3D, STYLES, FRAMES, LENSES, type ViewMode, type SceneStyle } from '../scene/scene';
 import { autosave, exportJSON, cachePut, putProject, type AutoSaver } from '../storage/db';
+import { openChzProjects } from './chzprojects';
 import { otishTo, otishRun, type OtId } from './otish';
 import { cloudSync, svcDirty, getLink, info as cloudInfo, download as cloudDownload, type CloudSync } from '../storage/cloud';
 import { askConflict, askNewer, saveText } from './cloudui';
@@ -5135,6 +5136,7 @@ export class Editor {
     if (needsLogin()) { void ensureLogin(undefined, 'Chizmadonda ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.openCh(incoming); }); return; }
     const doc = this.store.doc;
     openChizmadon({
+      own: doc.svc === 'chz', projects: () => void openChzProjects(doc.id),
       project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', origin: [doc.origin[0], doc.origin[1]], data: doc.chizmadon, incoming,
       save: d => this.run(() => this.store.dispatch({ type: 'setChizmadon', data: d as unknown as Record<string, unknown> }, 'chizmadon')),
       norms: () => normLine(this.store.doc, tr),

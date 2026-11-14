@@ -268,6 +268,8 @@ export interface Project {
   gstyle?: string;
   /** Chizmadon albomi (taqdimot va diagramma muharriri): sxema — chizmadon/model.ts, ochilganda tozalanadi */
   chizmadon?: Record<string, unknown>;
+  /** 14.11: «chz» — Chizmadonning oʻz loyihasi (alohida kirilgan); Master reja roʻyxatida koʻrinmaydi */
+  svc?: 'chz';
   /** fayldan import qilingan qatlamlar tavsifi (binolar, chegaralar, yer, chiziqlar); obyektlar — IndexedDB da (core/userlayers.ts) */
   userLayers?: UserLayerMeta[];
 }
@@ -450,6 +452,7 @@ export function migrate(raw: unknown): Project {
     ...(() => { const sh = (Array.isArray(d.sheets) ? d.sheets : []).filter((x: any) => x && typeof x.id === 'string' && x.opts && typeof x.opts === 'object').slice(0, 60).map((x: any) => ({ id: x.id, opts: JSON.parse(JSON.stringify(x.opts)) })); return sh.length ? { sheets: sh } : {}; })(),
     ...(isGStyle(d.gstyle) && d.gstyle !== 'joriy' ? { gstyle: d.gstyle } : {}),
     ...(d.chizmadon && typeof d.chizmadon === 'object' && !Array.isArray(d.chizmadon) ? { chizmadon: JSON.parse(JSON.stringify(d.chizmadon)) } : {}),
+    ...(d.svc === 'chz' ? { svc: 'chz' as const } : {}),
     ...(() => { const ul = cleanUserLayers(d.userLayers); return ul.length ? { userLayers: ul } : {}; })(),
     ...(() => { const st = (Array.isArray(d.sheetStyles) ? d.sheetStyles : []).filter((x: any) => x && typeof x.id === 'string' && typeof x.name === 'string' && x.opts && typeof x.opts === 'object').slice(0, 30).map((x: any) => ({ id: x.id, name: x.name.slice(0, 60), opts: JSON.parse(JSON.stringify(x.opts)) })); return st.length ? { sheetStyles: st } : {}; })(),
   };

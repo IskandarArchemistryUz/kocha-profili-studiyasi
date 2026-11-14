@@ -8,7 +8,7 @@ const DB_NAME = 'archemistry-mr';
 const VERSION = 1;
 export const STORES = { projects: 'projects', cache: 'cache', assets: 'assets' } as const;
 
-export interface ProjectMeta { id: string; name: string; updated: string; created: string; buildings: number; hasSite: boolean }
+export interface ProjectMeta { id: string; name: string; updated: string; created: string; buildings: number; hasSite: boolean; svc?: 'chz' }
 
 let dbp: Promise<IDBDatabase> | null = null;
 
@@ -53,7 +53,7 @@ export async function deleteProject(id: string): Promise<void> { await tx(STORES
 
 export async function listProjects(): Promise<ProjectMeta[]> {
   const all = await tx<any[]>(STORES.projects, 'readonly', s => s.getAll());
-  return (all || []).map(p => ({ id: p.id, name: p.name, updated: p.updated, created: p.created, buildings: (p.buildings || []).length, hasSite: !!p.site }))
+  return (all || []).map(p => ({ id: p.id, name: p.name, updated: p.updated, created: p.created, buildings: (p.buildings || []).length, hasSite: !!p.site, ...(p.svc ? { svc: p.svc } : {}) }))
     .sort((a, b) => b.updated.localeCompare(a.updated));
 }
 

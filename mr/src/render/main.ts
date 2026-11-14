@@ -87,7 +87,7 @@ otishEnter('ren'); otishLinks();   // boʻlimga oʻtish: kirishda xizmat foni va
 svcGlow(header);
 const left = h('aside', { class: 'ren-lp panel', id: 'renLeft', 'aria-label': tr('Kiritish') });
 const stage = h('main', { class: 'ren-stage', id: 'renStage' });
-svcBackdrop('ren', stage);   // 4-bosqich: sahnada quyosh nurlari (rasm qoʻyilsa — ustini yopadi)
+svcBackdrop('ren', root);   // 4-bosqich: quyosh nurlari butun sahifa fonida, sahna orqali xira koʻrinadi (egasi, 14.11: «fon toʻliq orqaga, sal toʻqroq»)
 const right = h('aside', { class: 'ren-rp panel', id: 'renRight', 'aria-label': tr('Render') });
 const over = h('div', { class: 'ren-over', id: 'renView', hidden: true });
 const fileIn = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', hidden: true, id: 'renFile' }) as HTMLInputElement;
