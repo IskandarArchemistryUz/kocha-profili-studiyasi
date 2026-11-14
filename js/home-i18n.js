@@ -169,6 +169,8 @@ window.HOME_D={
 Object.assign(window.HOME_D,{
 "Kesim, chorraha, tarmoq — ShNQ va dizayn-kod bilan.":["Section, intersection, network — with ShNQ and the design code.","Профиль, перекрёсток, сеть — по ШНК и дизайн-коду."],
 "Joy pasporti: aholi, xizmatlar, relyef, issiqlik.":["Place passport: population, amenities, terrain, heat.","Паспорт места: население, сервисы, рельеф, жара."],
+"Oʻqlardan albomgacha: bino modeli, chizmalar, IFC. · beta":["From axes to album: building model, drawings, IFC. · beta","От осей до альбома: модель здания, чертежи, IFC. · beta"],
+"Landshaft master reja: daraxt, yoʻlak, maydon. · tez kunda":["Landscape master plan: trees, paths, plazas. · coming soon","Ландшафтный мастер-план: деревья, дорожки, площади. · скоро"],
 "Varaqdan taqdimot albomigacha.":["From sheet to presentation album.","От листа до презентационного альбома."],
 "Peshlavha va koʻcha qoidalari — Toshkent dizayn-kodi bilan.":["Shop signs and street rules — with the Tashkent design code.", "Вывески и правила улицы — по дизайн-коду Ташкента."],
 "Kadrni yuboring — tayyor tasvir. · beta":["Send a view — get a finished image. · beta","Отправьте кадр — получите готовое изображение. · beta"],
