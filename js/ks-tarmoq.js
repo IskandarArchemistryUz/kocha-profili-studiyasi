@@ -73,14 +73,15 @@ function toggleFile(btn){if(!fileP.hidden){fileP.hidden=true;return;}const ds=DS
     <div class="lbl">Loyiha nomi</div><input data-f="name" value="${esc(projName())}" style="height:36px;border:0;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px #ebe8e2,0 2px 0 #e2dfd8;padding:0 12px;font:600 13px Archivo,sans-serif">
     <div class="row"><button class="kt-btn pr" data-f="save">Saqlash (.json)</button><label class="kt-btn" style="cursor:pointer">Ochish…<input type="file" accept=".json" data-f="open" hidden></label></div>
     <div class="lbl">Eksport</div><div class="row"><button class="kt-btn" data-f="png">PNG</button><button class="kt-btn" data-f="svg">SVG</button><button class="kt-btn" data-f="dxf">DXF</button><button class="kt-btn" data-f="dxfu">DXF (UTM)</button><button class="kt-btn" data-f="csv">Hisob (.csv)</button></div>
-    <div class="row"><button class="kt-btn" data-f="alb">Chizmadon albomiga →</button></div>
+    <div class="lbl">Loyiha albomi (A3)</div><div class="row"><button class="kt-btn pr" data-f="albpdf">Albom (PDF)</button><button class="kt-btn" data-f="alb">Chizmadonga →</button></div>
+    <div class="kt-note">Titul, umumiy reja, har chorraha (1:500), kesimlar, vedomostlar, bekatlar normasi, harakat modeli, YHQ tekshiruvi.</div>
     <div class="kt-note">DXF — qatlamlar bilan (ArchiCAD, AutoCAD, QGIS). Loyiha shu brauzerda avtomatik saqlanadi.</div>
     <div class="row"><span style="flex:1"></span><button class="kt-btn dg" data-f="clr">Yangi loyiha (tozalash)</button></div>`;
   fileP.hidden=false;fileP.style.left=Math.max(16,Math.min(innerWidth-fileP.offsetWidth-16,r.right-fileP.offsetWidth))+'px';fileP.style.top=(r.bottom+14)+'px';}
 fileP.addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b||b.tagName==='INPUT')return;const f=b.dataset.f,ds=DS();
   if(f==='x'){fileP.hidden=true;return;}
   if(f==='save')saveProjectFile();else if(f==='png')exportPNG(4,/^img/.test(S.base||''));else if(f==='svg')exportSVG(false);
-  else if(f==='dxf')exportDXF('local');else if(f==='dxfu')exportDXF('utm');else if(f==='csv')exportCSV();else if(f==='alb')sendToMaket();
+  else if(f==='dxf')exportDXF('local');else if(f==='dxfu')exportDXF('utm');else if(f==='csv')exportCSV();else if(f==='alb'){if(window.KSALB)KSALB.albumToChz();else sendToMaket();}else if(f==='albpdf'){if(window.KSALB)KSALB.openAlbum();}
   else if(f==='clr'){ds.nodes=[];ds.segs=[];ds.signs=[];ds.shapes=[];ds.lines=[];ds.sel=null;ds.cmp=null;afterDesign();toast('Loyiha tozalandi. Ctrl+Z — qaytarish.',()=>undo(),'Qaytarish');fileP.hidden=true;}});
 fileP.addEventListener('change',e=>{const t=e.target;if(t.dataset.f==='name'){DS().name=t.value.trim();save();return;}
   if(t.dataset.f==='open'){const f=t.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);if(!j.prof&&!j.design)throw 0;loadState(j);setApp('design');toast('Loyiha ochildi.');fileP.hidden=true;}catch(err){toast('Fayl oʻqilmadi: bu Koʻchasoz loyihasi emas.');}};rd.readAsText(f);t.value='';}});

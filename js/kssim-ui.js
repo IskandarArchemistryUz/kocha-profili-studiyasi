@@ -177,6 +177,9 @@ window.openSim=async function(nodeId){
     /* hozir ↔ loyiha */
     const lvl=LV[+box.querySelector('[data-lv]').value][1],dem=probe.bound.reduce((s,id)=>s+(opts().demand[id]||0),0),person=avg(r=>r.person),pedW=pf>0?pw:null;
     const cur={t:Date.now(),title,lvl,dem,T,TL,person,pedW,worst:worst?{k:dk(worst[0]),d:worst[1].d,los:worst[1].los}:null,sig:sigInfo.length?sigInfo[0].C+' s':'',arms:Object.fromEntries(Object.entries(A).map(([id,x])=>[dk(id),{d:x.d,los:x.los,q:x.q}])),dq:Object.fromEntries(probe.bound.map(id=>[dk(id),opts().demand[id]||0])),lv:+box.querySelector('[data-lv]').value};
+    /* albom uchun oxirgi natija (Koʻchasoz → Loyiha albomi → «Harakat modeli» varagʻi) */
+    try{const d1=document.createElement('div');d1.innerHTML=verdict;const d2=document.createElement('div');d2.innerHTML=sigTxt;
+      DS().simAlb={t:Date.now(),TL,T,lvl,verdict:d1.textContent.trim(),sig:d2.textContent.trim(),rows:ROWS.map(r=>r.map(v=>String(v)))};if(typeof save==='function')save();}catch(e){}
     let cmp='';if(BASE){const pc=(a,b)=>b>0?` (${a<b?'−':'+'}${Math.abs(Math.round((a-b)/b*100))}%)`:'',ln=(n,b,a,u,dig=0)=>a==null||b==null?'':`<tr><td>${n}</td><td class="num">${b.toFixed(dig)}${u}</td><td class="num"><b>${a.toFixed(dig)}${u}</b></td><td class="num" style="color:${Math.abs(a-b)<1?'#777':a<b?'#2b7449':'#b23a2e'}">${a-b>0?'+':''}${(a-b).toFixed(dig)}${pc(a,b)}</td></tr>`;
       const warn=Math.abs(BASE.dem-dem)>Math.max(50,BASE.dem*.03)?`<div class="small" style="color:#b23a2e;margin-top:4px">Diqqat: talab har xil (hozir ${Math.round(BASE.dem)}, loyiha ${Math.round(dem)} avt/soat) — solishtirish adolatli emas.</div>`:'';
       cmp=`<div style="border:1px solid #d8d5ce;border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><b>Hozir ↔ Loyiha</b><button data-bclr class="btn" style="padding:2px 8px;font-size:11px">Hozirni oʻchirish</button></div>
