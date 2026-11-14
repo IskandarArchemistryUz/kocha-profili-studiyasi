@@ -1706,8 +1706,20 @@ function buildShapes0(){
         (rs.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=fromA?at.f*Tr:Tr-at.f*Tr,sl=sMax-d;if(d<z+6||sl<5)return;
           const tg=at.t==='tramstop'?(bl.length?bl:lanes.slice(0,1)):(out2&&Math.sign(out2.x.mid)===(at.side||-1)?[out2]:[]);
           tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});}
+      /* karman boshidan narigi (choʻntaksiz) boʻlak: model uchun «yuqori oqim» boʻlaklari — mashina shu yerdan kirib, karmanga oʻtadi; uzoqdagi bekatlar ham shu yerda */
+      let up=null;
+      if(far&&far._v&&!farJ){const U=(arms[far.id]||[]).find(b=>b.sg!==a.sg);
+        if(U){const ucc=cumLen(U.xy),UT=ucc[ucc.length-1],frU=s=>frameAt(U.xy,ucc,U.atA?s:UT-s),uFar=nodeById(U.atA?U.sg.b:U.sg.a),
+          Lup=Math.min(240,uFar&&isInter(nodeKind(uFar))?UT/2-4:UT-3),dirU=U.atA?-1:1;
+          if(Lup>10){const ul=U.lay.st.filter(x=>(x.k==='lane'||x.k==='bus')&&x.dir===dirU);
+            up=ul.map(x=>{const P=[];for(let s=Lup;s>0;s-=4)P.push(pt(frU(s),x.mid));P.push(pt(frU(0),x.mid));return {x,pts:P};});
+            const ubl=up.filter(l=>l.x.k==='bus'),uo=up.length?up.reduce((m,l)=>Math.abs(l.x.mid)>Math.abs(m.x.mid)?l:m,up[0]):null;
+            (U.sg.att||[]).forEach(at=>{if(!['bus','bay','tramstop'].includes(at.t))return;const d=U.atA?at.f*UT:UT-at.f*UT,sl=Lup-d;if(sl<5||d<5)return;
+              const tg=at.t==='tramstop'?(ubl.length?ubl:up.slice(0,1)):(uo&&Math.sign(uo.x.mid)===(at.side||-1)?[uo]:[]);
+              tg.forEach(l=>(l.stops=l.stops||[]).push(+sl.toFixed(1)));});
+            if(!up.length)up=null;}}}
       const rd=lay.road.filter(x=>!isPk(x.k)),fz=fr(z0+cwW/2),cross=cw&&rd.length?[pt(fz,Math.min(...rd.map(x=>Math.min(x.d1,x.d2)))),pt(fz,Math.max(...rd.map(x=>Math.max(x.d1,x.d2))))]:null;
-      return {a,ai,hin,out,lanes,exits,cross,name:a.sg.name||'',real:a.sg._real??a.sg.id,key:armKey(a.sg,!a.atA)};});
+      return {a,ai,hin,out,lanes,exits,cross,up,name:a.sg.name||'',real:a.sg._real??a.sg.id,key:armKey(a.sg,!a.atA)};});
     const C=laneConnections(E);
     if(n.lc&&k!=='round'){const on=new Set(n.lcArms||[]);for(let i=C.length-1;i>=0;i--)if(on.has(C[i].from.key))C.splice(i,1);
       n.lc.forEach(c=>{const e=E.find(x=>x.key===c.f),f=E.find(x=>x.key===c.t),s2=e&&e.lanes[c.fl],d=f&&f.exits[c.tl];if(s2&&d)C.push({from:e,to:f,m:c.m,s:s2,d,man:1});});}C.forEach(c=>c.pts=connPath(c.s.P,c.from.hin,c.d.P,c.to.out));

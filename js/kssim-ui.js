@@ -24,7 +24,7 @@ const PARF=[['V0','Erkin tezlik, km/soat',50,5,'Shahar koʻchasida ruxsat etilga
   ['a','Tezlanish a, m/s²',1.5,.1,'IDM: eng katta tezlanish'],['b','Qulay tormoz b, m/s²',2,.1,'IDM: qulay sekinlanish'],['len','Mashina uzunligi, m',4.6,.1,'Yengil avtomobil'],['alat','Burilishda yon tezlanish, m/s²',2.2,.1,'Burilish tezligi = √(a·R)'],
   ['gapUns','Kritik interval: belgisiz, s',2,.5,'Ikkinchi darajali yoʻldan chiqishda qabul qilinadigan eng kichik boʻshliq'],['gapSig','Kritik interval: svetoforda chapga, s',3.5,.5,'Qarshi oqimda chapga/qayrilish uchun'],['gapRing','Kritik interval: halqaga kirish, s',4,.5,'Halqada aylanayotganlar orasidagi boʻshliq'],['gapRtor','Kritik interval: qizilda oʻngga, s',4,.5,'Yashil oqimdagi mashinalar orasidagi boʻshliq'],
   ['pedV','Piyoda tezligi, m/s',1.3,.1,'Keksalar koʻp joyda 1,0 m/s olinadi'],['dwell','Avtobus bekatda turishi, s',20,5,'Yoʻlovchi almashinuvi; kechikishga qoʻshilmaydi'],['uDiam','Qayrilish: eng kam diametr, m',7,.5,'Koʻndalang masofa shundan kam boʻlsa — tashqi chiqish boʻlagiga qayriladi']];
-async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=16',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=8',document.baseURI).href);return mod;}
+async function loadMod(){if(!mod)mod=await import(new URL('js/kssim-graph.js?v=17',document.baseURI).href);if(!plan)plan=await import(new URL('js/kssim-plan.js?v=9',document.baseURI).href);return mod;}
 
 /* tugundan boshlab koʻcha orqali bogʻlangan chorrahalar (JNET) */
 function component(nodeId){const all=[...JNET.values()],byReal=new Map();
@@ -44,7 +44,8 @@ function buildNet(C,cycle){const arms=[],conns=[],juncs=[],links=[],names={},bou
     e2.exits.forEach((x,i)=>links.push({from:xid(J2,e2,i),to:e1.lanes.map((_,k)=>lid(J1,e1,k))}));});
   C.list.forEach((J,ji)=>{const jid='n'+J.id,A=J.E.map(e=>({id:aid(J,e),j:jid,hin:e.hin,cross:e.cross||undefined,
       lanes:e.lanes.map((l,i)=>({id:lid(J,e,i),pts:l.pts,codes:J.ring&&l.x.k!=='bus'?'LSR':l.code,bus:l.x.k==='bus',stops:l.stops||undefined})),
-      exits:e.exits.map((x,i)=>({id:xid(J,e,i),pts:x.pts,bus:x.x.k==='bus'}))}));
+      exits:e.exits.map((x,i)=>({id:xid(J,e,i),pts:x.pts,bus:x.x.k==='bus'})),
+      up:J.ring||!e.up||linked.has(aid(J,e))?undefined:e.up.map((u,i)=>({id:aid(J,e)+'u'+i,pts:u.pts,bus:u.x.k==='bus',stops:u.stops||undefined}))}));
     arms.push(...A);J.E.forEach(e=>{names[aid(J,e)]=(C.list.length>1?`${ji+1}-tugun · `:'')+(e.name?e.name+' · ':'')+dirName(e);if(!linked.has(aid(J,e))&&e.lanes.length)bound.push(aid(J,e));});
     let cs;if(J.ring)cs=mod.ringConnect(A,J.ring,true).map(c=>({...c,id:jid+c.id}));
     else cs=J.C.map((c,k)=>({id:`${jid}c${k}`,from:lid(J,c.from,c.from.lanes.indexOf(c.s)),to:xid(J,c.to,c.to.exits.indexOf(c.d)),m:c.m,pts:c.pts}));
@@ -129,7 +130,7 @@ window.openSim=async function(nodeId){
     return {N,bound:B.bound,o,nl,bus,anySig};};
   const mk=seed=>{const b=baseOf(),sim=plan.makeSim(b,chosen||plan.defaultCh(b),seed);sigInfo=sim.info;return sim;};
   const runJob=(base,onP)=>new Promise((ok,bad)=>{
-    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=8',document.baseURI),{type:'module'});}}catch(e){WK=null;}
+    try{if(!WK){WK=new Worker(new URL('js/kssim-worker.js?v=9',document.baseURI),{type:'module'});}}catch(e){WK=null;}
     if(!WK){setTimeout(()=>{try{ok(plan.evaluate(base,onP));}catch(e){bad(e);}},20);return;}
     const id=++job;WK.onmessage=e=>{const d=e.data;if(d.id!==job)return;if(d.p!=null)onP(d.p);if(d.done)ok(d.done);if(d.err)bad(new Error(d.err));};
     WK.onerror=e=>{WK.terminate();WK=null;try{ok(plan.evaluate(base,onP));}catch(x){bad(x);}};WK.postMessage({id,base});});

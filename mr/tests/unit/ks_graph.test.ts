@@ -136,6 +136,22 @@ describe('Koʻchasoz graf modeli (istalgan geometriya)', () => {
     expect(sim.result(120).bus.delay).toBeLessThan(60);
   }, 60_000);
 
+  it('yuqori oqim (karmangacha boʻlak): qisqa karman toʻlib, kechikish keskin ortadi; ustma-ust tushmaydi', () => {
+    const mk = (Lk: number) => { const R0 = 14, W = 3.5;
+      const arms = [0, 90, 180, 270].map((deg, i) => { const a = (deg * Math.PI) / 180, u: XY = [Math.cos(a), Math.sin(a)], rin: XY = [u[1], -u[0]], P = (s: number, o: number): XY => [u[0] * s + rin[0] * o, u[1] * s + rin[1] * o];
+        return { id: 'a' + i, hin: [-u[0], -u[1]] as XY,
+          lanes: [0, 1, 2].map((k) => ({ id: `a${i}i${k}`, mid: W * k, pts: [P(R0 + Lk, W * k), P(R0, W * k)], codes: ['L', 'S', 'SR'][k] })),
+          up: [0, 1].map((k) => ({ id: `a${i}u${k}`, pts: [P(R0 + Lk + 208, W * (k + .5)), P(R0 + Lk + 8, W * (k + .5))] })),
+          exits: [W / 2, W * 1.5].map((o, k) => ({ id: `a${i}o${k}`, pts: [P(R0, -o), P(R0 + 200, -o)] })) }; });
+      return { arms, conns: autoConnect(arms as Arm[], false), yUp: false, signal: { cycle: 80, phases: autoPhases(arms as Arm[], { protLeft: true }) } } as Net; };
+    const sh = { L: .35, S: .5, R: .15 }, o = { demand: { a0: 700, a1: 700, a2: 700, a3: 700 }, armShares: { a0: sh, a1: sh, a2: sh, a3: sh }, seed: 2 };
+    const sL = new GraphSim(mk(60), o); let g = 1e9; for (let k = 0; k < 9000; k++) { sL.step(0.1); if (k % 10 === 0) g = Math.min(g, minGap(sL)); }
+    const long = sL.result(120), short = new GraphSim(mk(20), o).run(900).result(120);
+    expect(g).toBeGreaterThan(1.0);
+    expect(long.total.flow).toBeGreaterThan(2300);
+    expect(short.total.delay).toBeGreaterThan(long.total.delay * 1.5);
+  }, 120_000);
+
   it('avtobus: avtobus boʻlagi avtobus boʻlagiga ulanadi, umumiy boʻlak unga tushmaydi; odam-kechikish hisoblanadi', () => {
     const N = net([0, 90, 180, 270], true);
     const A = N.arms.map((a) => ({ ...a, lanes: [...a.lanes, { id: a.id + 'b', mid: 8.75, bus: true, codes: 'S', pts: a.lanes[1].pts.map((p) => [p[0] + (a.lanes[1].pts[0][0] - a.lanes[0].pts[0][0]) * 2, p[1] + (a.lanes[1].pts[0][1] - a.lanes[0].pts[0][1]) * 2] as XY) }],

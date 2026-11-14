@@ -150,7 +150,7 @@ export class GraphSim{
     /* bitta chorrahali eski API uchun */
     const j0=this.J[J0];this.sig=j0.sig;this.plan=j0.plan;this.ring=Object.keys(this.J).length===1?j0.ring:null;this.main=j0.main;
     this.link={};const add=(id,pts,kind,arm,extra)=>{const c=cum(pts);this.link[id]={id,pts,c,len:c[c.length-1],kind,arm,j:arm?this.armById[arm].j:null,...extra};};
-    this.arms.forEach(a=>{a.lanes.forEach(l=>add(l.id,l.pts,'in',a.id,{codes:l.codes,bus:!!l.bus,stops:(l.stops||[]).slice().sort((x,y)=>x-y)}));a.exits.forEach(x=>add(x.id,x.pts,'out',a.id,{bus:!!x.bus}));});
+    this.arms.forEach(a=>{a.lanes.forEach(l=>add(l.id,l.pts,'in',a.id,{codes:l.codes,bus:!!l.bus,stops:(l.stops||[]).slice().sort((x,y)=>x-y)}));a.exits.forEach(x=>add(x.id,x.pts,'out',a.id,{bus:!!x.bus}));(a.up||[]).forEach(u=>add(u.id,u.pts,'up',a.id,{bus:!!u.bus,stops:(u.stops||[]).slice().sort((x,y)=>x-y)}));});
     /* qayrilish: halqasiz chorrahada «U» boʻlak boʻlsa — ulagich joriy diametr parametri bilan qayta quriladi */
     {const ringL=new Set(net.conns.filter(c=>c.ring).map(c=>c.from)),keep=net.conns.filter(c=>!(c.m==='U'&&!c.ring)),add2=[];
       this.arms.forEach(a=>{if(a.lanes.some(l=>ringL.has(l.id))||(this.J[a.j]&&this.J[a.j].ring))return;const u=uConn(a,PAR.uDiam);if(u)add2.push({id:'u_'+a.id,...u});});
@@ -161,6 +161,10 @@ export class GraphSim{
     (net.links||[]).forEach(L=>{const ex=this.link[L.from];if(!ex)return;const A=ex.pts[ex.pts.length-1],ha=unit2(ex.pts[ex.pts.length-2],A);
       (L.to||[]).forEach(t=>{const ln=this.link[t];if(!ln)return;this.fed.add(ln.arm);const B=ln.pts[0],hb=unit2(B,ln.pts[1]),id=L.from+'>'+t;
         add(id,connPath(A,ha,B,hb),'tr',null,{to:t});(this.down[L.from]=this.down[L.from]||[]).push(id);});});
+    /* yuqori oqim (karmangacha boʻlgan boʻlak) → karman boʻlaklari: almashtirish yoʻllari; avtobus boʻlagi — avtobus boʻlagiga */
+    this.arms.forEach(a=>(a.up||[]).forEach(u=>{const U=this.link[u.id],A=U.pts[U.pts.length-1],ha=unit2(U.pts[U.pts.length-2],A);
+      a.lanes.forEach(l=>{if(!!l.bus!==!!u.bus&&a.lanes.some(q=>!!q.bus===!!u.bus))return;const ln=this.link[l.id],B=ln.pts[0],hb=unit2(B,ln.pts[1]),id=u.id+'>'+l.id;
+        add(id,connPath(A,ha,B,hb),'tr',a.id,{to:l.id});(this.down[u.id]=this.down[u.id]||[]).push(id);});}));
     /* kesishuvlar va qoʻshilishlar — har chorraha ichida */
     this.cf={};this.conns.forEach(c=>this.cf[c.id]=[]);
     const rank=(a,b,J)=>{ // a b ga yoʻl beradimi
@@ -210,12 +214,17 @@ export class GraphSim{
       let cands=A.lanes.filter(l=>isB(l)&&(this.byFrom[l.id]||[]).some(c=>c.m==='S'));
       if(!cands.length)cands=A.lanes.filter(l=>!isB(l)&&(this.byFrom[l.id]||[]).some(c=>c.m==='S')).slice(-1);if(!cands.length)return;
       const lane=cands[0],opts=this.byFrom[lane.id].filter(c=>c.m==='S'),c=opts[opts.length-1];
-      const route=[lane.id,c.id,c.to],ff=route.reduce((s,id,k)=>s+this.link[id].len/(k===1?Math.min(this.link[id].vmax,11):11),0);
-      (this.pend[arm]=this.pend[arm]||[]).push({route,m:'S',arm,t0:this.t,ff,bus:1});return;}
+      const route=[lane.id,c.id,c.to],ff=route.reduce((s,id,k)=>s+this.link[id].len/(k===1?Math.min(this.link[id].vmax,11):11),0),pu=this.preUp(A,lane.id,1);
+      (this.pend[arm]=this.pend[arm]||[]).push({route:pu?pu.r.concat(route):route,m:'S',arm,t0:this.t,ff:ff+(pu?pu.ff:0),bus:1,ffUp:pu?pu.ff:0});return;}
     const gen=A.lanes.filter(l=>!isB(l)),m=this.pickMove(gen,arm);if(!m)return;
     const cands=gen.filter(l=>(this.byFrom[l.id]||[]).some(c=>c.m===m));cands.sort((p,q)=>this.load(p.id)-this.load(q.id));const lane=cands[0],c=this.pickConn(lane,m);
-    const route=[lane.id,c.id,c.to],ff=this.link[lane.id].len/V0+this.link[c.id].len/this.link[c.id].vmax+this.link[c.to].len/V0;
-    (this.pend[arm]=this.pend[arm]||[]).push({route,m,arm,t0:this.t,ff});}
+    const route=[lane.id,c.id,c.to],ff=this.link[lane.id].len/V0+this.link[c.id].len/this.link[c.id].vmax+this.link[c.to].len/V0,pu=this.preUp(A,lane.id,0);
+    (this.pend[arm]=this.pend[arm]||[]).push({route:pu?pu.r.concat(route):route,m,arm,t0:this.t,ff:ff+(pu?pu.ff:0),ffUp:pu?pu.ff:0});}
+  /* yuqori oqim boʻlagi: tanlangan karman boʻlagiga eng yaqin (koʻndalang) kirish boʻlagi + almashtirish yoʻli */
+  preUp(A,laneId,bus){if(!A.up||!A.up.length)return null;let best=null;
+    for(const u of A.up){const id=u.id+'>'+laneId;if(!this.link[id])continue;if(!!u.bus!==!!bus&&A.up.some(q=>!!q.bus===!!bus&&this.link[q.id+'>'+laneId]))continue;
+      const L=this.link[id];if(!best||L.len<best.L.len)best={u,L};}
+    if(!best)return null;const U=this.link[best.u.id];return {r:[U.id,best.L.id],ff:U.len/V0+best.L.len/V0};}
   /* chiqish boʻlagidan keyingi chorrahaga: harakat va boʻlak tanlash, yoʻnalishni uzaytirish */
   extend(v){const last=v.route[v.route.length-1],trs=this.down[last];if(!trs||!trs.length||v.route.length>40)return;
     const lanes=trs.map(id=>this.link[this.link[id].to]).filter(l=>v.bus?true:!l.bus);if(!lanes.length)return;
@@ -248,8 +257,8 @@ export class GraphSim{
       off+=this.link[id].len-base;}
     const L=this.cur(v);
     /* shu boʻlakdan chiqqan boshqa ulagich/almashtirish yoʻlidagi (ajralishgacha bir yoʻl) mashina ham yetakchi */
-    const from=L.kind==='in'||L.kind==='out'?R[v.li]:(L.kind==='conn'||L.kind==='tr')?R[v.li-1]:null;
-    if(from){const b0=(L.kind==='in'||L.kind==='out')?-(L.len-v.s):v.s,nxt=(L.kind==='in'||L.kind==='out')?R[v.li+1]:R[v.li];
+    const from=L.kind==='in'||L.kind==='out'||L.kind==='up'?R[v.li]:(L.kind==='conn'||L.kind==='tr')?R[v.li-1]:null;
+    if(from){const io=L.kind==='in'||L.kind==='out'||L.kind==='up',b0=io?-(L.len-v.s):v.s,nxt=io?R[v.li+1]:R[v.li];
       for(const u of (this.IX?this.IX.byPrev.get(from)||[]:this.V)){if(u===v||u.li<1)continue;const uk=this.cur(u).kind;if((uk!=='conn'&&uk!=='tr')||u.route[u.li-1]!==from||u.route[u.li]===nxt)continue;if(u.s>12)continue;
         const g=u.s-b0-u.len;if(u.s>b0-.1&&g<best[0])best=[g,u.v];}}
     /* almashtirish yoʻlida: shu boʻlakka qoʻshilayotgan boshqa mashina oldinroq boʻlsa — yetakchi */
@@ -374,10 +383,10 @@ export class GraphSim{
     for(const v of this.V){const a=acc.get(v);let nv=Math.max(0,v.v+a*dt);v.s+=Math.max(0,v.v*dt+.5*a*dt*dt);v.v=nv;if(v.v<.5){v.stopped+=dt;v.wait+=dt;}
       while(v.li<v.route.length&&v.s>=this.link[v.route[v.li]].len){const L=this.link[v.route[v.li]];v.s-=L.len;v.li++;
         if(L.kind==='conn'){/* chorrahadan chiqdi: shu yaqinlashish boʻyicha kechikish */
-          const A=this.link[v.route[v.li-2]],ff=A.len/V0+L.len/L.vmax;this.pass.push({arm:L.arm,j:L.j,m:L.m,d:Math.max(0,this.t-v.tA-ff),t:this.t,bus:v.bus?1:0});}
+          const A=this.link[v.route[v.li-2]],ff=A.len/V0+L.len/L.vmax+(v.ffUp||0);v.ffUp=0;this.pass.push({arm:L.arm,j:L.j,m:L.m,d:Math.max(0,this.t-v.tA-ff),t:this.t,bus:v.bus?1:0});}
         const N=this.link[v.route[v.li]];if(!N)break;
         if(N.kind==='conn')v.tIn=this.t;
-        if(N.kind==='in'){v.tA=this.t;v.wait=0;v.commit=0;v.stopDone=0;}
+        if(N.kind==='in'){const P2=this.link[v.route[v.li-2]];if(!(P2&&P2.kind==='up'))v.tA=this.t;v.wait=0;v.commit=0;v.stopDone=0;}
         if(N.kind==='out')this.extend(v);}
       if(v.li>=v.route.length){this.done.push({arm:v.arm,m:v.m,tt:this.t-v.t0,ff:v.ff,stopped:v.stopped,t:this.t,bus:v.bus?1:0,occ:v.occ});continue;}
       keep.push(v);}
@@ -386,16 +395,18 @@ export class GraphSim{
   /* holat (chizish uchun) */
   snapshot(){return this.V.map(v=>{const L=this.cur(v),p=pointAt(L.pts,L.c,v.s),m=L.kind==='conn'?L.m:(this.ap(v)||{}).m||v.m;return {id:v.id,x:p[0],y:p[1],h:p[2]||0,m,v:v.v,len:v.len,bus:v.bus?1:0};});}
   peds(){return this.P.map(p=>{const x=this.X[p.k];return {x:x.A[0]+x.u[0]*p.pos,y:x.A[1]+x.u[1]*p.pos,walk:p.walk};});}
-  queues(){const q={};this.arms.forEach(a=>{q[a.id]=this.V.filter(v=>{const ap=this.ap(v);return ap&&ap.arm===a.id&&v.v<2;}).length+(this.pend[a.id]||[]).length;});return q;}
+  /* mashina shu qoʻlning yuqori oqim boʻlagida (yoki undan karmanga oʻtishda)mi: boʻlsa — bosib oʻtgan masofasi */
+  onUp(v,arm){const L=this.cur(v);if(!L||L.arm!==arm)return 0;const P=this.link[v.route[v.li-1]];if(L.kind==='up'||(L.kind==='tr'&&P&&P.kind==='up')){let x=v.s;for(let k=0;k<v.li;k++)x+=this.link[v.route[k]].len;return Math.max(.001,x);}return 0;}
+  queues(){const q={};this.arms.forEach(a=>{q[a.id]=this.V.filter(v=>{const L=this.cur(v);if(L&&(L.kind==='up'||(L.kind==='tr'&&this.link[v.route[v.li-1]].kind==='up'))&&L.arm===a.id)return v.v<2;const ap=this.ap(v);return ap&&ap.arm===a.id&&v.v<2;}).length+(this.pend[a.id]||[]).length;});return q;}
   /* natija: qoʻl (yaqinlashish) boʻyicha kechikish — har chorrahadan oʻtishda oʻlchanadi; jami — sayohat boʻyicha;
      LOS (HCM: svetoforli 10/20/35/55/80, svetoforsiz va aylanma 10/15/25/35/50); talab bajarilmasa — F */
   result(from=0){const T=Math.max(1,this.t-from),thS=[10,20,35,55,80],thU=[10,15,25,35,50],los=(d,sg)=>'ABCDE'[(sg?thS:thU).findIndex(x=>d<=x)]||'F';
     const trav=v=>{let x=v.s;for(let k=0;k<v.li;k++)x+=this.link[v.route[k]].len;return x;};
     const PS=this.pass.filter(p=>p.t>=from&&!p.bus);
     const agg=arm=>{const A=this.armById[arm],J=this.J[A.j],D=PS.filter(p=>p.arm===arm);let sum=D.reduce((s,p)=>s+p.d,0),n=D.length;
-      this.V.filter(v=>!v.bus).forEach(v=>{const ap=this.ap(v);if(ap&&ap.arm===arm){sum+=Math.max(0,this.t-v.tA-(ap.L.len-ap.toStop)/V0);n++;}});
-      (this.pend[arm]||[]).forEach(p=>{if(p.bus)return;sum+=this.t-p.t0;n++;});
-      const fed=this.fed.has(arm),dem=fed?null:(this.o.demand[arm]??500),flow=Math.round(D.length*3600/T),dl=n?sum/n:0,back=n-D.length;
+      let qn=0;this.V.filter(v=>!v.bus).forEach(v=>{const ap=this.ap(v),up=this.onUp(v,arm);if(ap&&ap.arm===arm||up){sum+=Math.max(0,this.t-v.tA-(up||(v.li>=2&&this.link[v.route[v.li-2]].kind==='up'?trav(v):ap.L.len-ap.toStop))/V0);n++;if(v.v<2)qn++;}});
+      (this.pend[arm]||[]).forEach(p=>{if(p.bus)return;sum+=this.t-p.t0;n++;qn++;});
+      const fed=this.fed.has(arm),dem=fed?null:(this.o.demand[arm]??500),flow=Math.round(D.length*3600/T),dl=n?sum/n:0,back=A.up&&A.up.length?qn:n-D.length;
       const ok=back<=Math.max(12,.1*(fed?flow:dem)*T/3600);
       const QS=(this.QS||{})[arm],qs=QS?QS.t.filter(x=>x[0]>=from).map(x=>x[1]).sort((a,b)=>a-b):[],q95=qs.length?qs[Math.floor(qs.length*.95)]:0;
       return {n:D.length,flow,demand:dem,backlog:back,delay:+dl.toFixed(1),los:n?(ok?los(dl,!!J.sig):'F'):'—',q95,queue:(this.pend[arm]||[]).length+this.V.filter(v=>{const ap=this.ap(v);return ap&&ap.arm===arm&&v.v<2;}).length};};
@@ -405,9 +416,9 @@ export class GraphSim{
       juncs[J.id]={n,flow:Math.round(n*3600/T),delay:+d.toFixed(1),los:n?(F&&d>(J.sig?55:35)?'F':los(d,!!J.sig)):'—'};});
     /* jami: tarmoqdan oʻtgan sayohatlar (oldingi bitta chorrahali hisob bilan bir xil) */
     const D=this.done.filter(d=>d.t>=from&&!d.bus);let sum=D.reduce((s,d)=>s+Math.max(0,d.tt-d.ff),0),n=D.length;
-    this.V.filter(v=>!v.bus).forEach(v=>{sum+=Math.max(0,this.t-v.t0-trav(v)/V0);n++;});
-    Object.values(this.pend).forEach(q=>q.forEach(p=>{if(p.bus)return;sum+=this.t-p.t0;n++;}));
-    const ext=this.arms.filter(a=>!this.fed.has(a.id)),dem=ext.reduce((s,a)=>s+(this.o.demand[a.id]??500),0),dl=n?sum/n:0,back=n-D.length;
+    let qT=0;this.V.filter(v=>!v.bus).forEach(v=>{sum+=Math.max(0,this.t-v.t0-trav(v)/V0);n++;if(v.v<2)qT++;});
+    Object.values(this.pend).forEach(q=>q.forEach(p=>{if(p.bus)return;sum+=this.t-p.t0;n++;qT++;}));
+    const ext=this.arms.filter(a=>!this.fed.has(a.id)),dem=ext.reduce((s,a)=>s+(this.o.demand[a.id]??500),0),dl=n?sum/n:0,back=this.arms.some(a=>a.up&&a.up.length)?qT:n-D.length;
     const okT=back<=Math.max(12*ext.length,.1*dem*T/3600),sigAny=Object.values(this.J).some(J=>J.sig);
     const total={n:D.length,flow:Math.round(D.length*3600/T),demand:dem,backlog:back,delay:+dl.toFixed(1),los:n?(okT?los(dl,Object.keys(this.J).length===1?!!this.sig:sigAny):'F'):'—'};
     /* avtobus va odam-kechikish (yoʻlovchi soni bilan tortilgan) */
