@@ -134,8 +134,10 @@ export const CONSTRUCT_SYS: ConstructSys[] = ['monolit', 'karkas', 'toldirgich',
 export interface Settings {
   /** amaldagi meʼyorlar toʻplami */
   norms: 'uz-2023';
-  /** hududning seysmikligi, ball */
+  /** hududning seysmikligi, ball (< 7 — seysmik emas: QMQ 2.01.03-19 cheklovlari qoʻllanmaydi) */
   seismic: number;
+  /** 14.11 (egasi): ball foydalanuvchi tomonidan tanlangan; yoʻq boʻlsa xorijiy loyihada sukut — 6 (seysmik emas), Oʻzbekistonda — 8 */
+  seismicSet?: boolean;
   /** turar joy taʼminoti, m² umumiy maydon / kishi — aholi formulasining yagona parametri */
   m2PerPerson: number;
   /** turar joy GFA dan sotiladigan (netto) maydon ulushi */
@@ -364,6 +366,7 @@ export function migrate(raw: unknown): Project {
   for (const k of ['priceFlat', 'priceHouse', 'priceNonres', 'flatNet', 'avgFlat', 'rentMonths', 'rentRate', 'movingPerHh', 'profitRate'] as const) if (!isNum(s.comp[k]) || s.comp[k] < 0) s.comp[k] = COMP_DEFAULT[k];
   if (typeof s.yards !== 'boolean') s.yards = true;
   if (s.recon !== undefined && typeof s.recon !== 'boolean') delete s.recon;
+  if (s.seismicSet !== undefined && s.seismicSet !== true) delete s.seismicSet;
   if (s.normSet !== undefined && s.normSet !== 'UZ' && s.normSet !== 'intl') delete s.normSet;
   if (s.concept !== undefined && s.concept !== true) delete s.concept;
   if (s.normOn !== undefined) { const a = Array.isArray(s.normOn) ? [...new Set(s.normOn.filter((x: unknown) => typeof x === 'string' && x.length < 40))].slice(0, 60) : []; if (a.length) s.normOn = a; else delete s.normOn; }

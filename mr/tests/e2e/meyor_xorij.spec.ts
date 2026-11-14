@@ -36,3 +36,12 @@ test('Parij: 9-qadamda «Toshkent shahri» yoʻq, 3-qadamda koʻchirish xarajati
   await page.click('[data-step=parsel]');
   await expect(page.locator('#compBox')).toHaveCount(0);
 });
+
+/** 14.11 (egasi): xorijda seysmiklik sukuti — 6 (seysmik emas), foydalanuvchi tanlaydi; Toshkentda — 8 */
+test('seysmiklik: Parijda sukut ≤ 6, tanlansa saqlanadi; Toshkentda 8', async ({ page }) => {
+  test.setTimeout(120_000);
+  await proj(page, [2.3522, 48.8566]);
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.seismic)).toBe(6);
+  await proj(page, [69.2797, 41.3111]);
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.store.doc.settings.seismic)).toBe(8);
+});
