@@ -114,7 +114,7 @@
       if (hit) return out.join(seps[k]); }
     return null;
   }
-  var SKIP = '#canvas,svg,textarea,pre,.log,#tests,#chStage,#script,#agOut,.lab-lang,.lab-lang-pop,script,style';
+  var SKIP = '#canvas,svg,textarea,pre,.log,#tests,#chStage,#script,#agOut,#labAI .ai-a,#labAI .ai-u,#labAI .ai-ch,#labAI .ai-err,.lab-lang,.lab-lang-pop,script,style';
   function skipEl(el) { return !el || (el.closest && el.closest(SKIP)) || (el.tagName === 'OPTION' && !el.hasAttribute('value')); }
   function doText(n) {
     var v = n.nodeValue; if (!v || !/[A-Za-zʻ‘’]{2}/.test(v) || skipEl(n.parentElement)) return;

@@ -6,7 +6,7 @@
    tugasa — tanga qaytariladi. Savol matni va loyiha mazmuni bazaga yozilmaydi, faqat hisob (token, $, tanga). */
 import { sourceNumbers, unsourced } from './numcheck.js';
 import { randomUUID } from 'node:crypto';
-import { SERVICES, SCENARIOS, SYSTEM_RULES, systemFor, LANGS } from './agent-tools.js';
+import { SERVICES, SCENARIOS, systemRulesFor, systemFor, LANGS } from './agent-tools.js';
 import { AGENT_COINS, AGENT_FREE_PER_WEEK } from './prices.js';
 import { weekKey } from './wallet.js';
 import { lookup } from './normlib.js';
@@ -20,10 +20,14 @@ const FALLBACK_PRICE = { in: 5, out: 25, cr: 0.5, cw: 6.25 }; // nomaʼlum model
 
 export const AGENT_DEFAULTS = Object.freeze({
   base: 'https://api.anthropic.com',
-  models: { short: 'claude-haiku-5-5', long: 'claude-sonnet-5-5' },
+  // mid (Binokor tahriri) va img (rasmdan model) — long modeli; .env da AGENT_MODEL_MID / AGENT_MODEL_IMG bilan almashtiriladi
+  models: { short: 'claude-haiku-5-5', mid: 'claude-sonnet-5-5', long: 'claude-sonnet-5-5', img: 'claude-sonnet-5-5' },
   // Haiku/Sonnet 5.5 da moslashuvchan fikrlash sukut boʻyicha yoqiq va fikrlash tokenlari max_tokens ga kiradi —
   // 1024 da javob yarmida uzilardi (13.11 jonli sinov: stop_reason=max_tokens, 244 belgi)
-  maxTokens: { short: 4096, long: 8000 },
+  // img: rasmdan butun qavat — bir necha yuz buyruq qatori
+  maxTokens: { short: 4096, mid: 8000, long: 8000, img: 16000 },
+  // Binokor: buyruq roʻyxatlari uzun — suhbat va token chegarasi kattaroq
+  maxInTokBySvc: { bk: 400_000 },
   services: ['mr', 'joy'],
   freeDailyUsd: 2,     // bepul savollar uchun kunlik umumiy byudjet
   dailyUsd: 20,        // hamma agent chaqiruvlari uchun kunlik qatʼiy chegara (kalitni himoyalash)
@@ -52,16 +56,17 @@ class AgentError extends Error {
 }
 
 const MAX_BODY_CHARS = 120_000;
+const MAX_BODY_BY_SVC = { bk: 360_000 };
 const IMG_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_IMAGES = 2, MAX_IMAGE_CHARS = 1_400_000; // base64 ≈ 1 MB
 
 /** Suhbatni tozalash: faqat ruxsat etilgan bloklar va maydonlar; buyruq nomi — shu xizmat roʻyxatidan */
-export function sanitizeMessages(messages, toolNames) {
+export function sanitizeMessages(messages, toolNames, maxChars = MAX_BODY_CHARS) {
   if (!Array.isArray(messages) || !messages.length || messages.length > 60) throw new AgentError(400, 'bad_messages', 'suhbat notoʻgʻri');
   // rasm (namuna xarita va h.k.) — base64; matn hajmi rasmsiz hisoblanadi, rasmlar alohida cheklanadi
   let imgs = 0;
   const noImg = JSON.stringify(messages, (k, v) => (v && typeof v === 'object' && v.type === 'image' ? (imgs++, { type: 'image' }) : v));
-  if (noImg.length > MAX_BODY_CHARS) throw new AgentError(413, 'too_long', 'suhbat juda uzun');
+  if (noImg.length > maxChars) throw new AgentError(413, 'too_long', 'suhbat juda uzun');
   if (imgs > MAX_IMAGES) throw new AgentError(413, 'too_many_images', `bitta savolda ${MAX_IMAGES} tadan koʻp rasm`);
   const text = (t, max = 20_000) => {
     if (typeof t !== 'string' || !t.trim() || t.length > max) throw new AgentError(400, 'bad_messages', 'matn notoʻgʻri');
@@ -200,7 +205,7 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
       if (run.status !== 'open') throw new AgentError(409, 'run_closed', 'yurish yakunlangan — yangi savol bering');
       if (now().getTime() - new Date(run.created_at).getTime() > c.runTtlMin * 60e3) throw new AgentError(409, 'run_expired', 'yurish muddati tugagan — yangi savol bering');
       if (!enabledSvc.has(run.svc)) throw new AgentError(400, 'bad_scenario', 'bu xizmat yoqilmagan');
-      const messages = sanitizeMessages(req.body?.messages, namesOf.get(run.svc));
+      const messages = sanitizeMessages(req.body?.messages, namesOf.get(run.svc), MAX_BODY_BY_SVC[run.svc] ?? MAX_BODY_CHARS);
       const lang = LANGS[req.body?.lang] ? req.body.lang : 'uz';
 
       // qadam hisobi atomik: bir vaqtda kelgan soʻrovlar chegaradan oshira olmaydi
@@ -210,13 +215,14 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
         throw new AgentError(409, 'run_limit', 'qadamlar chegarasi tugadi');
       }
       const step = st.rows[0].steps;
-      const model = c.models[run.tier];
+      const model = c.models[run.tier] ?? c.models.long;
+      const maxInTok = c.maxInTokBySvc?.[run.svc] ?? c.maxInTok;
 
       // bitta model chaqiruvi: tarmoq uzilishi (eskirgan keep-alive) va 429/529/5xx da qisqa kutib qayta urinish
       const call = async (msgs) => {
         const body = JSON.stringify({
-          model, max_tokens: c.maxTokens?.[run.tier] ?? AGENT_DEFAULTS.maxTokens[run.tier],
-          system: [{ type: 'text', text: SYSTEM_RULES, cache_control: { type: 'ephemeral' } }, { type: 'text', text: systemFor(run.svc, lang) }],
+          model, max_tokens: c.maxTokens?.[run.tier] ?? AGENT_DEFAULTS.maxTokens[run.tier] ?? AGENT_DEFAULTS.maxTokens.long,
+          system: [{ type: 'text', text: systemRulesFor(run.svc), cache_control: { type: 'ephemeral' } }, { type: 'text', text: systemFor(run.svc, lang) }],
           tools: toolsOf.get(run.svc),
           messages: msgs,
         });
@@ -287,7 +293,7 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
         `UPDATE agent_runs SET in_tok = in_tok + $2, out_tok = out_tok + $3, cost_micro = cost_micro + $4,
            status = CASE WHEN $5 THEN 'done' WHEN in_tok + $2 >= $6 THEN 'limit' ELSE status END
          WHERE id = $1 RETURNING status, steps`,
-        [id, inTok, outTok, cost, done, c.maxInTok]);
+        [id, inTok, outTok, cost, done, maxInTok]);
       const status = upd.rows[0].status;
       // matn va buyruq chaqiruvlaridan boshqa bloklar (masalan, fikrlash) brauzerga yuborilmaydi
       const content = data.content.filter((b) => b.type === 'text' || b.type === 'tool_use').map((b) => (b.type === 'text' ? { type: 'text', text: b.text } : { type: 'tool_use', id: b.id, name: b.name, input: b.input }));

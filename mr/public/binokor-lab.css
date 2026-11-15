@@ -128,3 +128,69 @@ html body>header .brand::before{content:"";width:8px;height:8px;border-radius:4p
 /* Barcha xizmatlardagidek: «Archemistry Lab» yozuvi yo'q — faqat logotip, yonida xizmat nomi */
 .lab-brand span{display:none}
 .lab-brand{padding-right:0}
+
+/* ——— Binokor AI paneli (binokor-ai.js, 15.11.2026) ——— */
+.ai-hbtn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:0;border-radius:10px;background:var(--fill);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.ai-hbtn:hover{background:var(--fill2)}
+.ai-hbtn.on{background:var(--accd);color:#fff}
+#labAI{position:fixed;right:12px;top:72px;bottom:12px;width:400px;max-width:calc(100vw - 24px);z-index:30;display:flex;flex-direction:column;border-radius:22px;background:var(--lab-panel);box-shadow:var(--lab-sh),0 18px 48px rgba(90,30,50,.10);overflow:hidden}
+#labAI[hidden]{display:none}
+#labAI .ai-h{display:flex;align-items:center;gap:10px;padding:14px 12px 10px 14px}
+#labAI .ai-lg{width:30px;height:30px;border-radius:9px;background:var(--accd);color:#fff;display:grid;place-items:center;flex:none}
+#labAI .ai-ht{flex:1;min-width:0;display:flex;flex-direction:column}
+#labAI .ai-ht b{font-size:15px}#labAI .ai-ht small{font-size:11.5px;color:var(--mute)}
+#labAI .ai-ib{width:34px;height:34px;border:0;border-radius:10px;background:transparent;color:var(--ink2);display:grid;place-items:center;cursor:pointer;flex:none}
+#labAI .ai-ib:hover{background:var(--fill)}
+#labAI .ai-b{flex:1;overflow-y:auto;padding:4px 14px 12px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+#labAI .ai-intro p{margin:0 0 10px;font-size:12.5px;line-height:1.5;color:var(--ink2)}
+#labAI .ai-chips{display:flex;flex-direction:column;gap:6px}
+#labAI .ai-chip{text-align:left;border:0;border-radius:12px;background:var(--sf);box-shadow:var(--sh-card);padding:10px 12px;font:inherit;font-size:12.5px;color:var(--ink);cursor:pointer}
+#labAI .ai-chip:hover{box-shadow:var(--sh-card),inset 0 0 0 1px var(--acc)}
+#labAI .ai-u{align-self:flex-end;max-width:88%;background:var(--ink);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 12px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+#labAI .ai-uatt{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+#labAI .ai-uatt span{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.16)}
+#labAI .ai-a{font-size:13px;line-height:1.55;color:var(--ink)}
+#labAI .ai-a p{margin:0 0 6px}
+#labAI .ai-step{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mute)}
+#labAI .ai-step i{width:8px;height:8px;border-radius:4px;background:var(--acc)}
+#labAI .ai-note{font-size:12px;color:var(--warn);background:var(--warnS);border-radius:10px;padding:8px 10px}
+#labAI .ai-err{font-size:12.5px;color:var(--fail);background:var(--failS);border-radius:10px;padding:9px 11px}
+#labAI .ai-err a{color:inherit;font-weight:600}
+#labAI .ai-card{background:var(--sf);border-radius:14px;box-shadow:var(--sh-card);overflow:hidden}
+#labAI .ai-ch{padding:10px 12px 6px;font-weight:600;font-size:13px}
+#labAI .ai-row{display:flex;gap:8px;align-items:flex-start;padding:7px 12px;font-size:12px;border-top:.5px solid var(--hl);color:var(--ink2)}
+#labAI .ai-tag{flex:none;font:600 10.5px/20px 'IBM Plex Mono',monospace;padding:0 7px;border-radius:6px;background:var(--passS);color:var(--pass)}
+#labAI .ai-tag.warn{background:var(--warnS);color:var(--warn)}
+#labAI .ai-more{border-top:.5px solid var(--hl)}
+#labAI .ai-more summary{padding:8px 12px;font-size:12px;font-weight:600;color:var(--mute);cursor:pointer}
+#labAI .ai-more pre{margin:0;max-height:220px;overflow:auto;padding:8px 12px 10px;font:11px/1.5 'IBM Plex Mono',monospace;background:var(--gr);white-space:pre}
+#labAI .ai-acts{display:flex;gap:6px;padding:10px 12px;border-top:.5px solid var(--hl);align-items:center}
+#labAI .ai-acts .ai-btn{flex:1}
+#labAI .ai-done{font-size:12px;font-weight:600;color:var(--mute);flex:1}
+.ai-btn{height:34px;border:0;border-radius:10px;padding:0 12px;background:var(--fill);color:var(--ink);font:inherit;font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.ai-btn:hover{background:var(--fill2)}
+.ai-btn.p{background:var(--accd);color:#fff}.ai-btn.p:hover{filter:brightness(.95)}
+#labAI .ai-f{padding:10px 14px 14px;border-top:.5px solid var(--hl);display:flex;flex-direction:column;gap:8px}
+#labAI .ai-att{display:flex;gap:6px;flex-wrap:wrap}#labAI .ai-att:empty{display:none}
+#labAI .ai-att .ai-a{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 4px 0 4px;border-radius:999px;background:var(--fill);font-size:11.5px;font-weight:600;line-height:1}
+#labAI .ai-att .ai-a img{width:20px;height:20px;border-radius:999px;object-fit:cover}
+#labAI .ai-att .ai-a button{width:20px;height:20px;border:0;border-radius:10px;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--mute)}
+#labAI .ai-modes{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#labAI .ai-seg{display:flex;padding:2px;border-radius:10px;background:var(--fill)}
+#labAI .ai-seg button{height:28px;padding:0 10px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:12px;font-weight:600;color:var(--mute);cursor:pointer}
+#labAI .ai-seg button[aria-pressed="true"]{background:var(--sf);color:var(--ink);box-shadow:0 0 0 .5px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.08)}
+#labAI .ai-ul{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);cursor:pointer}
+#labAI .ai-ul[hidden]{display:none}
+#labAI .ai-ul input{width:16px;height:16px;accent-color:var(--accd);margin:0}
+#labAI .ai-inp{display:flex;align-items:center;gap:6px;padding:6px;border-radius:14px;background:var(--sf);box-shadow:inset 0 0 0 .5px var(--hl2)}
+#labAI .ai-inp:focus-within{box-shadow:inset 0 0 0 1px var(--acc)}
+#labAI .ai-inp textarea{flex:1;width:auto;height:40px;border:0;border-radius:0;outline:0;resize:none;background:transparent;padding:10px 2px 8px;font:inherit;font-family:Archivo,system-ui,sans-serif;font-size:13.5px;line-height:1.4;max-height:140px;min-height:36px}
+#labAI .ai-inp textarea:focus{outline:0}
+#labAI .ai-go{height:34px;border:0;border-radius:10px;padding:0 12px;background:var(--accd);color:#fff;font:inherit;font-weight:600;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex:none;white-space:nowrap}
+#labAI .ai-go.stop{background:var(--ink)}
+#labAI .ai-go.stop svg{display:none}
+#labAI .ai-cost{display:flex;justify-content:space-between;gap:8px;font:11px 'IBM Plex Mono',monospace;color:var(--mute)}
+#aiPill{position:absolute;left:50%;top:58px;transform:translateX(-50%);z-index:12;display:flex;align-items:center;gap:8px;height:42px;padding:0 6px 0 14px;border-radius:999px;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--sh-float);font-size:12.5px;font-weight:600;white-space:nowrap}
+#aiPill i{width:8px;height:8px;border-radius:4px;background:var(--accd)}
+#aiPill .ai-btn{height:32px}
+#m-model>.center{position:relative}

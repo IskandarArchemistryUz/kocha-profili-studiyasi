@@ -63,8 +63,8 @@ const app = await buildApp({
   // agent «Maslahatchi»: kalit boʻlmasa oʻchiq. Narx/chegara — .env (AGENT_*), sukut agent.js: AGENT_DEFAULTS
   agent: env.ANTHROPIC_API_KEY ? {
     apiKey: env.ANTHROPIC_API_KEY.trim(),
-    services: (env.AGENT_SERVICES || 'mr,joy').split(',').map((s) => s.trim()).filter(Boolean),
-    models: { ...(env.AGENT_MODEL_SHORT ? { short: env.AGENT_MODEL_SHORT } : {}), ...(env.AGENT_MODEL_LONG ? { long: env.AGENT_MODEL_LONG } : {}) },
+    services: (env.AGENT_SERVICES || 'mr,joy,bk').split(',').map((s) => s.trim()).filter(Boolean),
+    models: { ...(env.AGENT_MODEL_SHORT ? { short: env.AGENT_MODEL_SHORT } : {}), ...(env.AGENT_MODEL_LONG ? { long: env.AGENT_MODEL_LONG, mid: env.AGENT_MODEL_LONG, img: env.AGENT_MODEL_LONG } : {}), ...(env.AGENT_MODEL_MID ? { mid: env.AGENT_MODEL_MID } : {}), ...(env.AGENT_MODEL_IMG ? { img: env.AGENT_MODEL_IMG } : {}) },
     ...(env.AGENT_PRICES ? { prices: JSON.parse(env.AGENT_PRICES) } : {}),
     ...(env.AGENT_FREE_DAILY_USD ? { freeDailyUsd: Number(env.AGENT_FREE_DAILY_USD) } : {}),
     ...(env.AGENT_DAILY_USD ? { dailyUsd: Number(env.AGENT_DAILY_USD) } : {}),

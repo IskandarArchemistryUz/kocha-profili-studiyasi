@@ -253,6 +253,46 @@ describe('agent — qadam', () => {
   });
 });
 
+
+describe('agent — Binokor', () => {
+  beforeEach(async () => { await app.close(); app = await makeApp({ apiKey: 'sk-test', fetchImpl: fakeFetch, services: ['mr', 'bk'] }); });
+  it('narxlar: savol 1 (bepulga kiradi), tahrir 2, rasmdan model 5 tanga', async () => {
+    const ck = await login();
+    const cfg = (await get('/agent/config', ck)).json();
+    expect(cfg.scenarios['bk.ask'].coins).toBe(1);
+    expect(cfg.scenarios['bk.edit'].coins).toBe(2);
+    expect(cfg.scenarios['bk.plan'].coins).toBe(5);
+    await give('ali@mail.uz', 10);
+    expect((await post('/agent/run', { scenario: 'bk.edit' }, ck)).json()).toMatchObject({ free: false, charged: 2, balance: 8, freeLeft: 3 });
+    expect((await post('/agent/run', { scenario: 'bk.plan' }, ck)).json()).toMatchObject({ free: false, charged: 5, balance: 3 });
+    expect((await post('/agent/run', { scenario: 'bk.ask' }, ck)).json()).toMatchObject({ free: true, charged: 0 });
+  });
+  it('Binokor yoʻriqnomasi, buyruqlari va katta model; Master reja buyruqlari yoʻq', async () => {
+    const ck = await login('boss@mail.uz');
+    const { run } = (await post('/agent/run', { scenario: 'bk.edit' }, ck)).json();
+    await ask(run, ck, '8 qavatli uy koʻtar');
+    const b = calls[0].body;
+    expect(b.model).toBe('claude-sonnet-5-5');
+    expect(b.max_tokens).toBe(8000);
+    expect(b.system[0].text).toMatch(/binokor_try/);
+    expect(b.system[1].text).toMatch(/Binokor/);
+    const names = b.tools.map((t) => t.name);
+    expect(names).toEqual(['get_norm_clause', 'binokor_model', 'binokor_language', 'binokor_checks', 'binokor_selection', 'binokor_try']);
+    const { run: r2 } = (await post('/agent/run', { scenario: 'bk.plan' }, ck)).json();
+    await ask(r2, ck, 'Tayanch chizmadan model');
+    expect(calls[1].body.max_tokens).toBe(16000);
+  });
+  it('uzun buyruq roʻyxati (Binokor) qabul qilinadi, boshqa xizmatda — 413', async () => {
+    const ck = await login('boss@mail.uz');
+    const lines = Array.from({ length: 2500 }, (_, i) => `wall M200 ${i}.125,0.375 ${i}.875,5.625 h=3.0 layer=Devorlar L1`);
+    const msgs = [{ role: 'user', content: 'reja' }, { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'binokor_try', input: { lines, summary: 'x' } }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] }];
+    const { run } = (await post('/agent/run', { scenario: 'bk.edit' }, ck)).json();
+    expect((await post('/agent/step', { run, lang: 'uz', messages: msgs }, ck)).statusCode).toBe(200);
+    expect(() => sanitizeMessages(msgs, new Set(['binokor_try']))).toThrow(/uzun/);
+  });
+});
+
 describe('agent — band matni', () => {
   it('/agent/clause — kirishsiz, soʻzma-soʻz', async () => {
     const r = (await get('/agent/clause?doc=ShNQ%202.07.01-23&clause=86')).json();
