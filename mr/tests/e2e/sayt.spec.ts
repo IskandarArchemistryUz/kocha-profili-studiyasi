@@ -89,7 +89,7 @@ test('bosh sahifa · minimal: xizmatlar, Boshlash, fikr, til, tungi rejim', asyn
   await expect(page.locator('h1')).toContainText('meʼyor bilan');
   await expect(page.locator('#ctaNew')).toHaveAttribute('href', 'app/#/yangi');
   const hrefs = await page.locator('nav.dots a.d').evaluateAll(a => a.map(x => x.getAttribute('href')));
-  expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/binokor.html', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);
+  expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);
   // Bogʻshunos — sahifasi hali yoʻq: havolasiz element («tez kunda»)
   await expect(page.locator('nav.dots span.d.bg[aria-disabled="true"]')).toHaveCount(1);
   for (const a of await page.locator('a[href]').all()) expect(await a.getAttribute('href')).not.toBe('#');
@@ -137,7 +137,7 @@ test('sukut tili — inglizcha; xizmat nomlari tarjima qilinadi; nuqtali fon', a
   await expect(page.locator('h1')).toContainText('with the norms');
   await expect(page.locator('html')).not.toHaveClass(/i18n/);
   const names = await page.locator('nav.dots a.d .nm').allTextContents();
-  expect(names).toEqual(['Street Designer', 'Site Explorer', 'Binokor', 'Sheet Studio', 'Design code', 'Render']);
+  expect(names).toEqual(['Street Designer', 'Site Explorer', 'Sheet Studio', 'Design code', 'Render']);
   await expect(page.locator('.st.dotbg canvas.dotcv')).toHaveCount(1);
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   expect(await page.locator('nav.dots a.d .nm').first().textContent()).toBe('Конструктор улиц');

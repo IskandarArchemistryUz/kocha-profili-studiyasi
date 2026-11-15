@@ -1,3 +1,14 @@
+/* Binokor vaqtincha saytdan olingan (15.11.2026, Iskandar qarori): takomillashtiriladi. Sahifa faqat Lab egasiga ochiladi
+   (/me → owner), localhost da — sinov uchun ochiq. Qolganlar bosh sahifaga qaytariladi. Qaytarish: shu blokni olib tashlang
+   va index.html / narxlar.html menyusiga Binokor kartasini qaytaring. */
+(function () {
+  var h = location.hostname; if (h === 'localhost' || h === '127.0.0.1') return;
+  var de = document.documentElement; de.style.visibility = 'hidden';
+  var api = 'https://api.archemistry.uz'; try { api = localStorage.getItem('kps_api') || api; } catch (e) {}
+  var out = function () { location.replace('../index.html'); };
+  fetch(api + '/me', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (m) { if (m && m.owner) de.style.visibility = ''; else out(); }).catch(out);
+})();
 /* Binokor — Archemistry Lab qobig'i (E varianti, 15.11.2026). binokor-lab.css bilan birga.
    Faqat joylashuvni o'zgartiradi: elementlar ko'chiriladi (hodisalar o'zi bilan ketadi), hech biri o'chirilmaydi. */
 (function () {
