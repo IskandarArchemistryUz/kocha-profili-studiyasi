@@ -339,7 +339,7 @@ export class Editor {
     this.off.push(onTheme(() => { theme.replaceChildren(svgIcon(isDark() ? ICON.sun : ICON.moon)); theme.title = theme.ariaLabel = isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'; }));
     const top = h('div', { class: 'top glassbar' },
       ib('back', tr('Loyihalar'), ICON.back, () => this.onExit(), 'ib sm'),
-      h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali' }, logoSvg(18), 'Archemistry Lab'),
+      h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab portali', 'aria-label': 'Archemistry Lab' }, logoSvg(18)),
       this.svcBtn(),
       name, save, h('span', { class: 'spacer' }),
       seg, liteSeg,
