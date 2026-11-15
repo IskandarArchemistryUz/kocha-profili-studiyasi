@@ -59,15 +59,16 @@ const MAX_BODY_CHARS = 120_000;
 const MAX_BODY_BY_SVC = { bk: 360_000 };
 const IMG_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_IMAGES = 2, MAX_IMAGE_CHARS = 1_400_000; // base64 ≈ 1 MB
+const MAX_IMAGES_BY_SVC = { bk: 6 }; // Binokor: reja + kesim + fasadlar (referenslar toʻplami)
 
 /** Suhbatni tozalash: faqat ruxsat etilgan bloklar va maydonlar; buyruq nomi — shu xizmat roʻyxatidan */
-export function sanitizeMessages(messages, toolNames, maxChars = MAX_BODY_CHARS) {
+export function sanitizeMessages(messages, toolNames, maxChars = MAX_BODY_CHARS, maxImages = MAX_IMAGES) {
   if (!Array.isArray(messages) || !messages.length || messages.length > 60) throw new AgentError(400, 'bad_messages', 'suhbat notoʻgʻri');
   // rasm (namuna xarita va h.k.) — base64; matn hajmi rasmsiz hisoblanadi, rasmlar alohida cheklanadi
   let imgs = 0;
   const noImg = JSON.stringify(messages, (k, v) => (v && typeof v === 'object' && v.type === 'image' ? (imgs++, { type: 'image' }) : v));
   if (noImg.length > maxChars) throw new AgentError(413, 'too_long', 'suhbat juda uzun');
-  if (imgs > MAX_IMAGES) throw new AgentError(413, 'too_many_images', `bitta savolda ${MAX_IMAGES} tadan koʻp rasm`);
+  if (imgs > maxImages) throw new AgentError(413, 'too_many_images', `bitta savolda ${maxImages} tadan koʻp rasm`);
   const text = (t, max = 20_000) => {
     if (typeof t !== 'string' || !t.trim() || t.length > max) throw new AgentError(400, 'bad_messages', 'matn notoʻgʻri');
     return t;
@@ -192,7 +193,7 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
   });
 
   /** Bitta model qadami */
-  app.post('/agent/step', { bodyLimit: 2 * 1024 * 1024 }, async (req, reply) => {
+  app.post('/agent/step', { bodyLimit: 8 * 1024 * 1024 }, async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
     try {
       if (!c) throw new AgentError(503, 'agent_off', 'agent hozircha yoqilmagan');
@@ -205,7 +206,7 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
       if (run.status !== 'open') throw new AgentError(409, 'run_closed', 'yurish yakunlangan — yangi savol bering');
       if (now().getTime() - new Date(run.created_at).getTime() > c.runTtlMin * 60e3) throw new AgentError(409, 'run_expired', 'yurish muddati tugagan — yangi savol bering');
       if (!enabledSvc.has(run.svc)) throw new AgentError(400, 'bad_scenario', 'bu xizmat yoqilmagan');
-      const messages = sanitizeMessages(req.body?.messages, namesOf.get(run.svc), MAX_BODY_BY_SVC[run.svc] ?? MAX_BODY_CHARS);
+      const messages = sanitizeMessages(req.body?.messages, namesOf.get(run.svc), MAX_BODY_BY_SVC[run.svc] ?? MAX_BODY_CHARS, MAX_IMAGES_BY_SVC[run.svc] ?? MAX_IMAGES);
       const lang = LANGS[req.body?.lang] ? req.body.lang : 'uz';
 
       // qadam hisobi atomik: bir vaqtda kelgan soʻrovlar chegaradan oshira olmaydi
