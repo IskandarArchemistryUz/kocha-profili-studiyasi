@@ -7,7 +7,7 @@
   var brand = hd.querySelector('.brand');
   if (brand && !d.querySelector('.lab-brand')) {
     var back = d.createElement('a'); back.className = 'lab-back'; back.href = '../index.html'; back.title = 'Bosh sahifa'; back.setAttribute('aria-label', 'Bosh sahifa'); back.innerHTML = CHEV;
-    var lab = d.createElement('a'); lab.className = 'lab-brand'; lab.href = '../index.html'; lab.innerHTML = LOGO + '<span>Archemistry Lab</span>';
+    var lab = d.createElement('a'); lab.className = 'lab-brand'; lab.href = '../index.html'; lab.innerHTML = LOGO + '<span>Archemistry Lab</span>'; lab.title = 'Archemistry Lab'; lab.setAttribute('aria-label', 'Archemistry Lab');
     hd.insertBefore(back, brand); hd.insertBefore(lab, brand);
   }
   // Toolbox: belgi + ishora (nomi title'da)
