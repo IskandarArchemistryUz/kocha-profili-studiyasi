@@ -3,11 +3,11 @@
    ko'rinishi — ds2.css tokenlari (mr/src/ui/ds2.css): suzuvchi oq panellar, radiuslar, soyalar.
    Binokor identikasi — anor (--acc/--accd). Fayl binokor.html ga alohida ulanadi: Binokor qayta yig'ilsa,
    faqat oxiridagi ikki qatorni (<link> va <script>) saqlab qolish kifoya. */
-:root{--sh-card:0 0 0 .5px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);--sh-float:0 0 0 .5px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.09);--sh-pop:0 0 0 .5px rgba(0,0,0,.08),0 18px 48px rgba(0,0,0,.16)}
+:root{--lab-panel:#fcf8f9;--lab-sh:0 0 0 .5px rgba(90,30,50,.07),0 1px 2px rgba(90,30,50,.06),0 8px 22px rgba(90,30,50,.09);--sh-card:0 0 0 .5px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);--sh-float:0 0 0 .5px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.09);--sh-pop:0 0 0 .5px rgba(0,0,0,.08),0 18px 48px rgba(0,0,0,.16)}
 html body{background:var(--bg);font-size:13px}
 
 /* ——— sarlavha: suzuvchi oq panel ——— */
-html body>header{margin:12px 12px 0;height:52px;padding:0 8px;border:0;border-radius:18px;background:var(--sf);box-shadow:var(--sh-float);gap:6px;overflow-x:auto;scrollbar-width:none}
+html body>header{margin:12px 12px 0;height:52px;padding:0 8px;border:0;border-radius:18px;background:var(--lab-panel);box-shadow:var(--lab-sh);gap:6px;overflow-x:auto;scrollbar-width:none}
 html body>header::-webkit-scrollbar{display:none}
 html body>header>*{flex-shrink:0}
 .lab-back{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink2);text-decoration:none}
@@ -26,13 +26,13 @@ html body>header .ib{width:34px;height:34px;border-radius:10px}
 
 /* ——— model ish maydoni: panellar orasida sahna ko'rinadi ——— */
 #m-model{grid-template-columns:64px minmax(0,1fr) 320px!important;grid-template-rows:46px minmax(0,1fr)!important;gap:8px;padding:8px 12px 12px;background:transparent}
-#m-model>.infobar{grid-column:2/3;grid-row:1;border:0;border-radius:14px;background:var(--sf);box-shadow:var(--sh-float);padding:0 12px 0 8px}
+#m-model>.infobar{grid-column:2/3;grid-row:1;border:0;border-radius:14px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:0 12px 0 8px}
 #m-model>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700;white-space:nowrap}
 #m-model>.infobar .ttl .kic{color:var(--accd)}
-#m-model>.toolbox{grid-column:1;grid-row:1/3;border:0;border-radius:16px;background:var(--sf);box-shadow:var(--sh-float);padding:6px;scrollbar-width:none}
+#m-model>.toolbox{grid-column:1;grid-row:1/3;border:0;border-radius:16px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:6px;scrollbar-width:none}
 #m-model>.toolbox::-webkit-scrollbar{display:none}
 #m-model>.center{grid-column:2;grid-row:2;background:transparent;gap:8px}
-#m-model>.pals{grid-column:3;grid-row:1/3;border:0;border-radius:22px;background:var(--sf);box-shadow:var(--sh-float);padding:8px;gap:2px;scrollbar-width:thin}
+#m-model>.pals{grid-column:3;grid-row:1/3;border:0;border-radius:22px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:8px;gap:2px;scrollbar-width:thin}
 
 /* Toolbox: faqat belgi, nomi — ishora (title) */
 .toolbox .tgl{font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:center;margin:8px 0 3px}
@@ -42,7 +42,7 @@ html body>header .ib{width:34px;height:34px;border-radius:10px}
 .toolbox .tool.on{background:var(--accd);color:#fff}
 
 /* Oyna tablari (ArchiCAD tablari) — tabletka */
-.center>.vtabs{align-self:flex-start;height:auto;padding:3px;gap:2px;border-radius:12px;background:var(--sf);box-shadow:var(--sh-float);max-width:calc(100% - 370px);overflow-x:auto;scrollbar-width:none}
+.center>.vtabs{align-self:flex-start;height:auto;padding:3px;gap:2px;border-radius:12px;background:var(--lab-panel);box-shadow:var(--lab-sh);max-width:calc(100% - 370px);overflow-x:auto;scrollbar-width:none}
 .center>.vtabs::-webkit-scrollbar{display:none}
 .center>.vtabs .vt{height:32px;border:0;border-radius:9px;background:transparent;font-size:12.5px;font-weight:600;white-space:nowrap}
 .center>.vtabs .vt.on{background:var(--bg);color:var(--ink);box-shadow:none}
@@ -54,13 +54,13 @@ html body>header .ib{width:34px;height:34px;border-radius:10px}
 #vz{border:0!important;border-radius:12px!important;box-shadow:var(--sh-float)!important}
 
 /* Tahrir tugmalari (sarlavhadan ko'chirildi) — sahna ustida, tablar qatorining o'ngida */
-.lab-edit{position:absolute;right:0;top:0;display:flex;align-items:center;gap:2px;height:38px;padding:3px;border-radius:12px;background:var(--sf);box-shadow:var(--sh-float);z-index:6}
+.lab-edit{position:absolute;right:0;top:0;display:flex;align-items:center;gap:2px;height:38px;padding:3px;border-radius:12px;background:var(--lab-panel);box-shadow:var(--lab-sh);z-index:6}
 .lab-edit .ib{width:32px;height:32px;border-radius:9px}
 .lab-edit .sep{width:.5px;height:20px;background:var(--hl);margin:0 2px}
 #m-model>.center{position:relative}
 
 /* Quick Options — pastki tabletka */
-#m-model .qo{height:40px;border-radius:12px;background:var(--sf);box-shadow:var(--sh-float);padding:0 14px;font-size:12px}
+#m-model .qo{height:40px;border-radius:12px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:0 14px;font-size:12px}
 
 /* Navigator va palitralar — bitta oq panel ichida, ajratgich chiziq bilan */
 .pals details.pal{background:transparent;box-shadow:none;border-radius:12px}
@@ -85,16 +85,16 @@ input[type=checkbox],input[type=range]{background:none}
 
 /* Parametrik, Chizmadon, Jadvallar — xuddi shu qobiq */
 #m-param{gap:8px;padding:8px 12px 12px}
-#m-param>.infobar,#m-param .gwrap,#m-param>.pals{border:0;border-radius:16px;background:var(--sf);box-shadow:var(--sh-float);overflow:hidden}
+#m-param>.infobar,#m-param .gwrap,#m-param>.pals{border:0;border-radius:16px;background:var(--lab-panel);box-shadow:var(--lab-sh);overflow:hidden}
 #m-param>.pals{border-radius:22px;padding:8px}
 #m-chizma>.full,#m-jadval>.full{background:transparent;padding:8px 12px 12px}
 .full>.card{border-radius:22px;box-shadow:var(--sh-float)}
 
 /* Chizmadon rejimi: infobar + chap (Loyihadan, Varaqlar) + varaq sahnasi + o'ng (Element, Varaq, Shtamp, Tekshiruv) */
 #m-chizma{gap:8px;padding:8px 12px 12px;background:transparent;grid-template-columns:260px minmax(0,1fr) 300px!important;grid-template-rows:46px minmax(0,1fr)!important}
-#m-chizma>.infobar{border:0;border-radius:14px;background:var(--sf);box-shadow:var(--sh-float);padding:0 6px 0 8px}
+#m-chizma>.infobar{border:0;border-radius:14px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:0 6px 0 8px}
 #m-chizma>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700;white-space:nowrap}
-#m-chizma>.pals{border:0!important;border-radius:22px;background:var(--sf);box-shadow:var(--sh-float);padding:8px;gap:2px}
+#m-chizma>.pals{border:0!important;border-radius:22px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:8px;gap:2px}
 #m-chizma>.chst{border-radius:16px;box-shadow:var(--sh-card)}
 #m-param>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700}
 #m-param .pals .row{flex-wrap:wrap}#m-param .pals .row>.btn{flex:1 1 auto;white-space:nowrap}
@@ -103,3 +103,7 @@ input[type=checkbox],input[type=range]{background:none}
 /* Sahna foni — butun sahifada katak (40 px), panellar orasida ham, chizma maydonida ham; katak bir-biriga ulanib turadi (fixed) */
 html body,#m-model .stage,#m-chizma>.chst{background-color:var(--bg);background-image:linear-gradient(rgba(20,20,20,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(20,20,20,.07) 1px,transparent 1px);background-size:40px 40px;background-attachment:fixed}
 #m-model .stage{box-shadow:none}
+
+/* Panellar ichida: hover va tanlangan qatorlar panel rangiga mos */
+.pals details.pal>summary:hover{background:rgba(194,65,107,.05)}
+#vz .lab-gs{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);padding:0 6px 0 4px;white-space:nowrap}

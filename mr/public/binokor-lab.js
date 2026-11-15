@@ -22,3 +22,46 @@
     var prev = null; Array.prototype.slice.call(hd.children).forEach(function (el) { if (el.classList.contains('sep')) { if (prev && prev.classList.contains('sep')) el.remove(); else prev = el; } else prev = el; });
   }
 })();
+
+/* Masshtabga bog'langan sahna kataklari (ArchiCAD to'ri kabi).
+   Kataklar haqiqiy o'lchamda: 10 mm, 50 mm, 10 sm, 50 sm, 1 m, 5 m, 10 m, 50 m, 100 m …
+   Har daraja chizig'ining shaffofligi faqat ekrandagi oralig'iga bog'liq: oraliq 8 px ga yaqinlashganda
+   chiziq silliq so'nadi, 40 px dan kattada to'liq ko'rinadi. Shuning uchun uzoqlashganda chiziqlar
+   ko'payib ketmaydi, darajalar o'rtasidagi o'tish sezilmaydi. Reja surilsa va kattalashsa — kataklar
+   modelga yopishgan holda birga siljiydi. */
+(function () {
+  var st = document.getElementById('stage'); if (!st) return;
+  var LV = [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000];
+  var lab = function (mm) { return mm < 100 ? mm + ' mm' : mm < 1000 ? mm / 10 + ' sm' : mm < 1e6 ? mm / 1000 + ' m' : mm / 1e6 + ' km'; };
+  var gs = null, vz = document.getElementById('vz'); if (vz) { gs = document.createElement('span'); gs.className = 'lab-gs'; gs.title = 'Sahna katagi (eng mayda ko‘rinib turgan)'; vz.insertBefore(gs, vz.firstChild); }
+  var last = '';
+  function sm(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function tick() {
+    var key = '';
+    try {
+      if (typeof MODE !== 'undefined' && MODE === 'model' && VIEW === 'plan' && VT && VT.s > 0) key = VT.s.toFixed(6) + '|' + VT.ox.toFixed(1) + '|' + VT.oy.toFixed(1);
+      else key = 'off|' + (typeof VIEW !== 'undefined' ? VIEW : '');
+    } catch (e) { key = 'off'; }
+    if (key !== last) {
+      last = key;
+      if (key.indexOf('off') === 0) { st.style.backgroundImage = st.style.backgroundSize = st.style.backgroundPosition = st.style.backgroundAttachment = ''; if (gs) gs.textContent = ''; }
+      else {
+        var img = [], size = [], pos = [], first = null;
+        for (var i = 0; i < LV.length; i++) {
+          var px = LV[i] * VT.s; if (px < 8) continue; if (px > 4000) break;
+          var a = 0.085 * sm(8, 40, px) + (px > 160 ? 0.03 * sm(160, 400, px) : 0); if (a < 0.004) continue;
+          if (!first) first = LV[i];
+          var c = 'rgba(20,20,20,' + a.toFixed(3) + ')';
+          img.push('linear-gradient(' + c + ' 1px,transparent 1px)', 'linear-gradient(90deg,' + c + ' 1px,transparent 1px)');
+          var sz = px + 'px ' + px + 'px'; size.push(sz, sz);
+          var p = ((VT.ox % px) + px) % px + 'px ' + ((VT.oy % px) + px) % px + 'px'; pos.push(p, p);
+          if (img.length >= 6) break;
+        }
+        st.style.backgroundImage = img.join(','); st.style.backgroundSize = size.join(','); st.style.backgroundPosition = pos.join(','); st.style.backgroundAttachment = 'scroll';
+        if (gs) gs.textContent = first ? '▦ ' + lab(first) : '';
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
