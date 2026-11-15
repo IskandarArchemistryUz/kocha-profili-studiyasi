@@ -194,3 +194,34 @@ html body>header .brand::before{content:"";width:8px;height:8px;border-radius:4p
 #aiPill i{width:8px;height:8px;border-radius:4px;background:var(--accd)}
 #aiPill .ai-btn{height:32px}
 #m-model>.center{position:relative}
+/* AI: tablar va referenslar (3-bosqich) */
+#labAI .ai-tabs{padding:0 14px 8px}
+#labAI .ai-tabs .ai-seg{display:flex}
+#labAI .ai-tabs .ai-seg button{flex:1}
+#labAI .ai-n{font:500 11px 'IBM Plex Mono',monospace;color:var(--mute);margin-left:4px}
+#labAI .ai-b[hidden]{display:none}
+#labAI .ai-drop{display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;border:1.5px dashed rgba(194,65,107,.35);background:rgba(194,65,107,.03);font-size:12px;line-height:1.45;color:var(--mute);cursor:pointer}
+#labAI .ai-drop b{color:var(--ink);font-weight:600}
+#labAI .ai-drop svg{color:var(--accd);flex:none}
+#labAI .ai-drop.on{background:var(--acc2);border-color:var(--accd)}
+#labAI .ai-rl{display:flex;flex-direction:column;gap:8px}
+#labAI .ai-ref{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px;border-radius:12px;background:var(--sf);box-shadow:var(--sh-card)}
+#labAI .ai-th{width:64px;height:56px;object-fit:contain;border-radius:6px;background:#fff;box-shadow:inset 0 0 0 .5px var(--hl2)}
+#labAI .ai-rm{display:flex;flex-direction:column;gap:4px;min-width:0}
+#labAI .ai-rr{display:flex;gap:4px}
+#labAI .ai-ref input,#labAI .ai-ref select{height:26px;padding:0 6px;font-size:11.5px;border-radius:7px;border:0;box-shadow:inset 0 0 0 .5px var(--hl2);background:var(--gr);font-family:inherit}
+#labAI .ai-ref .ai-rn{font-weight:600;font-size:12px;background:transparent;box-shadow:none;padding:0 2px}
+#labAI .ai-ref .ai-rn:focus,#labAI .ai-ref .ai-rt:focus,#labAI .ai-ref .ai-rs:focus{box-shadow:inset 0 0 0 1px var(--acc);outline:0}
+#labAI .ai-ref select{width:auto;flex:none}
+#labAI .ai-ref .ai-rt{flex:1;min-width:0}
+#labAI .ai-rc{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+#labAI .ai-use{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
+#labAI .ai-use input{width:16px!important;height:16px!important;margin:0;accent-color:var(--accd);box-shadow:none!important}
+#labAI .ai-sm{height:26px;padding:0 8px;font-size:11.5px}
+#labAI .ai-rd{width:26px;height:26px}
+#labAI .ai-empty{font-size:12px;color:var(--mute);text-align:center;padding:14px 0}
+#labAI .ai-rnote{margin:2px 0 0;font-size:11.5px;line-height:1.5;color:var(--mute)}
+#labAI .ai-rchip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:999px;background:var(--acc2);color:var(--accd);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+#labAI .ai-rchip[hidden]{display:none}
+#labAI .ai-rchip svg{width:14px;height:14px}
+#labAI .ai-step[hidden],#labAI .ai-drop input[hidden]{display:none}

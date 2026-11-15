@@ -277,7 +277,7 @@ describe('agent — Binokor', () => {
     expect(b.system[0].text).toMatch(/binokor_try/);
     expect(b.system[1].text).toMatch(/Binokor/);
     const names = b.tools.map((t) => t.name);
-    expect(names).toEqual(['get_norm_clause', 'binokor_model', 'binokor_language', 'binokor_checks', 'binokor_selection', 'binokor_try']);
+    expect(names).toEqual(['get_norm_clause', 'binokor_model', 'binokor_language', 'binokor_checks', 'binokor_references', 'binokor_selection', 'binokor_try']);
     const { run: r2 } = (await post('/agent/run', { scenario: 'bk.plan' }, ck)).json();
     await ask(r2, ck, 'Tayanch chizmadan model');
     expect(calls[1].body.max_tokens).toBe(16000);
@@ -290,6 +290,17 @@ describe('agent — Binokor', () => {
     const { run } = (await post('/agent/run', { scenario: 'bk.edit' }, ck)).json();
     expect((await post('/agent/step', { run, lang: 'uz', messages: msgs }, ck)).statusCode).toBe(200);
     expect(() => sanitizeMessages(msgs, new Set(['binokor_try']))).toThrow(/uzun/);
+  });
+  it('referenslar: Binokorda 6 tagacha rasm, boshqa xizmatda 2', async () => {
+    const ck = await login('boss@mail.uz');
+    const img = { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD'.repeat(50) } };
+    const content = (n) => [...Array.from({ length: n }, () => img), { type: 'text', text: 'reja, kesim, fasad' }];
+    const { run } = (await post('/agent/run', { scenario: 'bk.edit' }, ck)).json();
+    expect((await post('/agent/step', { run, lang: 'uz', messages: [{ role: 'user', content: content(6) }] }, ck)).statusCode).toBe(200);
+    const { run: r2 } = (await post('/agent/run', { scenario: 'bk.edit' }, ck)).json();
+    expect((await post('/agent/step', { run: r2, lang: 'uz', messages: [{ role: 'user', content: content(7) }] }, ck)).statusCode).toBe(413);
+    const { run: r3 } = (await post('/agent/run', { scenario: 'mr.ask' }, ck)).json();
+    expect((await post('/agent/step', { run: r3, lang: 'uz', messages: [{ role: 'user', content: content(3) }] }, ck)).statusCode).toBe(413);
   });
 });
 

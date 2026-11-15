@@ -70,6 +70,7 @@ const BK = [
     obj({ mode: str('model — coordinates in metres; image — points in pixels of the attached underlay image', { enum: ['model', 'image'] }) })),
   tool('binokor_checks', 'Results of Binokor model checks (norms, geometry, structure): id, status PASS/FAIL/REVIEW/INFO, message.',
     obj({ status: str('Optional filter', { enum: ['FAIL', 'REVIEW', 'PASS', 'ALL'] }) })),
+  tool('binokor_references', 'The reference set attached to this request, in the same order as the images in the first message: index, kind (plan / section / facade / photo / text), tag (level such as L1 or "L2–L8", section name such as "1–1", facade side such as south), file name, image size in px and a scale note if the architect gave one. Use it to know which image is which.'),
   tool('binokor_selection', 'Elements the user has selected in the editor right now, with all their parameters (id, category, type, host wall, position, level, size). Use when the user says "this", "these", "the selected".'),
   tool('binokor_try', 'Dry-run proposed Binokor command lines against the current model WITHOUT changing it. Returns failed lines with the error, element counts added/removed, rooms closed, FAIL checks before/after and new FAILs. The last successful try becomes the preview the user sees and may apply with one click. Fix errors and new FAILs, then try again (at most 3 tries).',
     obj({
@@ -151,7 +152,8 @@ Hard rules:
    - Then, if needed, one question or one warning (a FAIL that remains, an assumption).
    - Never show command lines, tool or function names, JSON or field names. Element ids (W12, O3) and axis names are fine. The user can open the command list under «Batafsil».
    - About 120 words at most.
-10. Units: metric (m, mm, m²). Decimal comma in Uzbek and Russian, decimal point in English. If you derive a value, state the tool numbers it comes from.`;
+10. References: the images in the first message are labelled "Reference N — kind, tag". Before building from several references, cross-check them: storey height and number of storeys (section vs facade), overall length and width (plan vs facade), window count and rhythm on each facade (facade vs plan), roof shape. If they disagree, do not choose silently: name the conflict with the numbers you read and ask one question. Plans give x/y, sections and facades give heights and levels.
+11. Units: metric (m, mm, m²). Decimal comma in Uzbek and Russian, decimal point in English. If you derive a value, state the tool numbers it comes from.`;
 
 export const systemRulesFor = (svc) => (svc === 'bk' ? SYSTEM_BK : SYSTEM_RULES);
 
