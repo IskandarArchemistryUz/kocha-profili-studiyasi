@@ -99,3 +99,7 @@ input[type=checkbox],input[type=range]{background:none}
 #m-param>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700}
 #m-param .pals .row{flex-wrap:wrap}#m-param .pals .row>.btn{flex:1 1 auto;white-space:nowrap}
 @media (max-width:1400px){#stat{display:none}.lab-brand span{display:none}}
+
+/* Sahna foni — butun sahifada katak (40 px), panellar orasida ham, chizma maydonida ham; katak bir-biriga ulanib turadi (fixed) */
+html body,#m-model .stage,#m-chizma>.chst{background-color:var(--bg);background-image:linear-gradient(rgba(20,20,20,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(20,20,20,.07) 1px,transparent 1px);background-size:40px 40px;background-attachment:fixed}
+#m-model .stage{box-shadow:none}
