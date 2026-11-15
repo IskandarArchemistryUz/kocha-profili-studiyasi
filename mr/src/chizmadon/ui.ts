@@ -284,7 +284,7 @@ export function openChizmadon(host: ChHost): void {
     host.own && host.projects
       ? h('button', { class: 'btn btn-sm mr-back', id: 'chProj', title: tr('Chizmadon loyihalari'), onclick: () => host.projects!() }, svgIcon('<path d="M3 7h6l2 2h10v10H3z"/>'), h('span', {}, tr('Loyihalar')))
       : h('button', { class: 'btn btn-sm mr-back', id: 'chBack', title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja'))),
-    h('span', { class: 'brand' }, logoSvg(18), h('b', {}, 'Archemistry Lab')), h('span', { class: 'svcbadge ch-badge' }, h('i'), tr('Chizmadon')),
+    h('span', { class: 'brand', title: 'Archemistry Lab', 'aria-label': 'Archemistry Lab' }, logoSvg(18)), h('span', { class: 'svcbadge ch-badge' }, h('i'), tr('Chizmadon')),
     h('span', { class: 'sh-name' }, (() => { const i = h('input', { class: 'ch-title', id: 'chTitle', value: d.title, 'aria-label': tr('Albom nomi'), maxlength: 120 }) as HTMLInputElement; i.addEventListener('change', () => { d.title = i.value.trim() || d.title; dirty(); }); return i; })()),
     saveChip, h('span', { class: 'spacer' }), famBtn, fmtSeg, viewSeg, slotsBtn, tabBtn, dlBtn);
   function syncHead(): void {

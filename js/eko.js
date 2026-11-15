@@ -34,7 +34,7 @@
     var extra = h.querySelector('.eko-extra');
     var ex = extra ? extra.outerHTML : '';
     h.innerHTML =
-      '<a class="eko-brand" href="index.html" title="Bosh sahifa"><svg viewBox="0 0 103.45 100" width="21" height="20" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + LOGO + '"/></svg><span>Archemistry Lab</span></a>' +
+      '<a class="eko-brand" href="index.html" title="Bosh sahifa" aria-label="Archemistry Lab"><svg viewBox="0 0 103.45 100" width="21" height="20" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + LOGO + '"/></svg></a>' +
       '<span class="eko-vr"></span>' +
       '<nav class="eko-svc" aria-label="Xizmatlar">' + SVC.map(function (s) {
         return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(nm(s[1])) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
