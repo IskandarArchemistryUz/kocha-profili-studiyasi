@@ -50,6 +50,10 @@
       + '8. Count the enclosed rooms you see and pass it as "rooms" to binokor_try; Binokor compares it with the rooms your walls close.\n'
       + 'After each try Binokor snaps your lines to the drawing (wall centre and thickness from ink, right angles, shared corners, T-junctions), so focus on every wall, topology and every opening; ±2 px errors are fine.';
   }
+  function selTypes(ids) {
+    var o = {}; ids.forEach(function (id) { var e = M.el.find(function (q) { return q.id === id; }); if (!e || !e.type || o[e.type]) return; var ty = (M.types && M.types[e.type]) || (typeof TYPES === 'object' && TYPES[e.type]); if (ty) { try { var s = JSON.stringify(ty); if (s.length < 800) o[e.type] = JSON.parse(s); } catch (x) {} } });
+    return o;
+  }
   var TOOLS = {
     binokor_model: function () {
       var u = UL && UL[LV];
@@ -68,7 +72,7 @@
     binokor_checks: function (inp) {
       var s = inp && inp.status && inp.status !== 'ALL' ? inp.status : null;
       var cs = (A.checks || []).filter(function (c) { return !s || c.status === s; });
-      return { total: cs.length, items: cs.slice(0, 120).map(function (c) { return { id: c.id, status: c.status, msg: c.msg }; }) };
+      return { total: cs.length, items: cs.slice(0, 120).map(function (c) { return { id: c.id, status: c.status, msg: c.msg, source: c.src || null }; }) };
     },
     binokor_references: function () {
       if (!AI.sent || !AI.sent.length) return { attached: 0, note: 'no reference images are attached to this request' };
@@ -77,7 +81,7 @@
     binokor_selection: function () {
       var ids = Array.from(SEL).slice(0, 40);
       if (!ids.length) return { selected: 0, note: 'nothing is selected' };
-      return { selected: SEL.size, units: 'mm', items: ids.map(function (id) { var e = M.el.find(function (q) { return q.id === id; }); if (!e) return { id: id }; var o = {}; Object.keys(e).forEach(function (k) { var v = e[k]; if (v == null || typeof v === 'function') return; var s = JSON.stringify(v); if (s && s.length < 600) o[k] = v; }); return o; }) };
+      return { selected: SEL.size, units: 'mm', types: selTypes(ids), items: ids.map(function (id) { var e = M.el.find(function (q) { return q.id === id; }); if (!e) return { id: id }; var o = {}; Object.keys(e).forEach(function (k) { var v = e[k]; if (v == null || typeof v === 'function') return; var s = JSON.stringify(v); if (s && s.length < 600) o[k] = v; }); return o; }) };
     },
     binokor_try: async function (inp) {
       var lines = (Array.isArray(inp.lines) ? inp.lines : []).map(function (s) { return String(s).trim(); }).filter(Boolean);
@@ -95,13 +99,14 @@
       var c0 = counts(M), c1 = counts(r.M), add = {}, rem = {};
       Object.keys(c1).forEach(function (k) { var dlt = c1[k] - (replace ? 0 : (c0[k] || 0)); if (dlt > 0) add[k] = dlt; });
       if (!replace) Object.keys(c0).forEach(function (k) { var dlt = (c0[k] || 0) - (c1[k] || 0); if (dlt > 0) rem[k] = dlt; });
+      var chg = []; if (!replace) { var before = {}; M.el.forEach(function (e) { before[e.id] = JSON.stringify(e); }); r.M.el.forEach(function (e) { if (before[e.id] && before[e.id] !== JSON.stringify(e)) chg.push(e.id); }); }
       var f0 = failSet(A), f1 = failSet(r.A), k0 = new Set(f0.map(function (c) { return c.id + '|' + c.msg; }));
       var nf = f1.filter(function (c) { return !k0.has(c.id + '|' + c.msg); });
       var rb = levelRooms(A), ra = levelRooms(r.A), lvl = LV, roomsNew = (ra[lvl] || 0) - (replace ? 0 : (rb[lvl] || 0));
       var res = {
         ok: !bad.length, commands: lines.filter(function (l) { return !/^#/.test(l); }).length, failed_count: bad.length,
         failed: bad.slice(0, 15).map(function (o) { return { line: o.line, error: o.err }; }),
-        added: add, removed: rem, levels_after: r.M.levels.map(function (l) { return l.id; }),
+        added: add, removed: rem, changed: chg.length, changed_ids: chg.slice(0, 40), levels_after: r.M.levels.map(function (l) { return l.id; }),
         rooms_on_current_level: { before: replace ? 0 : (rb[lvl] || 0), after: ra[lvl] || 0 },
         fail_checks: { before: f0.length, after: f1.length }, new_fails: nf.slice(0, 8).map(function (c) { return c.id + ': ' + c.msg; }),
       };
@@ -109,7 +114,7 @@
       if (info) res.snapped_to_drawing = { by_ink: info.ink, retyped: info.retype, right_angles: info.ortho, corners: info.nodes, t_junctions: info.tee, walls_without_ink: (info.noInk || []).length };
       AI.tries++;
       if (!bad.length) {
-        AI.prop = { lines: lines, replace: replace, next: next, summary: String(inp.summary || ''), add: add, rem: rem, f0: f0.length, f1: f1.length, nf: nf.length, rooms: res.rooms_expected != null ? [res.rooms_closed, res.rooms_expected] : null, info: info };
+        AI.prop = { lines: lines, replace: replace, next: next, summary: String(inp.summary || ''), add: add, rem: rem, chg: chg, f0: f0.length, f1: f1.length, nf: nf.length, rooms: res.rooms_expected != null ? [res.rooms_closed, res.rooms_expected] : null, info: info };
         res.preview = 'this try will be shown to the user as the preview';
       } else res.preview = 'not shown — fix the failed lines';
       return res;
@@ -171,7 +176,7 @@
     AI.prev = { cmds: CMDS.slice(), redo: REDO.slice(), replace: p.replace, joined: p.lines.filter(function (l) { return !/^#/.test(l); }).join('; ') };
     CMDS = p.replace ? p.next.slice() : AI.prev.cmds.concat([AI.prev.joined]);
     rebuild(true); if (p.replace && typeof fit === 'function') fit();
-    SEL.clear(); if (!p.replace) M.el.forEach(function (e) { if (!ids0.has(e.id)) SEL.add(e.id); });
+    SEL.clear(); if (!p.replace) { M.el.forEach(function (e) { if (!ids0.has(e.id)) SEL.add(e.id); }); (p.chg || []).forEach(function (id) { SEL.add(id); }); }
     render();
     AI.prev.key = key();
     pill(true);
@@ -181,7 +186,7 @@
     if (apply) {
       REDO = []; if (pv.replace) AI.restore = { cmds: pv.cmds }; toast(pv.replace ? t('Yangi model qoʻllandi · eski modelni AI panelidan qaytarish mumkin') : t('Qoʻllandi · Ctrl+Z bir bosishda qaytaradi'), true);
     } else if (key() === pv.key) { CMDS = pv.cmds; REDO = pv.redo; SEL.clear(); rebuild(true); }
-    else toast(t('Model oldindan koʻrinish paytida oʻzgardi — Ctrl+Z bilan qaytaring'));
+    else { apply = true; toast(t('Model oldindan koʻrinish paytida oʻzgardi — taklif modelda qoldi, Ctrl+Z bilan qaytaring')); }
     var c = d.querySelector('#aiLog .ai-card.live'); if (c) { c.classList.remove('live'); c.querySelector('.ai-acts').innerHTML = '<span class="ai-done">' + esc(apply ? t('Qoʻllandi') : t('Bekor qilindi')) + '</span>' + (apply && pv.replace ? ' <button type="button" class="ai-btn ai-undo">' + esc(t('Eski modelni qaytarish')) + '</button>' : ''); var ub = c.querySelector('.ai-undo'); if (ub) ub.onclick = function () { if (!AI.restore) return; CMDS = AI.restore.cmds; REDO = []; AI.restore = null; rebuild(); if (typeof fit === 'function') fit(); ub.remove(); toast(t('Eski model qaytarildi'), true); }; }
   }
   function pill(on) {
@@ -329,7 +334,7 @@
     d.getElementById('aiClose').onclick = function () { open(false); };
     p.querySelectorAll('.ai-tabs button').forEach(function (x) { x.onclick = function () { tab(x.dataset.tab); }; });
     p.querySelectorAll('.ai-modes .ai-seg button').forEach(function (x) { x.onclick = function () { AI.mode = x.dataset.m; p.querySelectorAll('.ai-modes .ai-seg button').forEach(function (y) { y.setAttribute('aria-pressed', y === x ? 'true' : 'false'); }); price(); refsCount(); }; });
-    p.querySelectorAll('.ai-chip').forEach(function (x) { x.onclick = function () { var q = x.textContent; d.getElementById('aiQ').value = q; if (/Tayanch chizma/.test(q) && UL[LV]) { d.getElementById('aiUl').checked = true; AI.ul = true; } if (/tekshir/i.test(q)) { setMode('ask'); } else setMode('edit'); price(); d.getElementById('aiQ').focus(); }; });
+    p.querySelectorAll('.ai-chip').forEach(function (x) { x.onclick = function () { var q = x.textContent; d.getElementById('aiQ').value = q; if (/Tayanch chizma/.test(q)) { if (!UL[LV]) { tab('refs'); toast(t('Avval reja rasmini yuklang va «Sahnaga» ni bosing')); return; } d.getElementById('aiUl').checked = true; AI.ul = true; } if (/tekshir/i.test(q)) { setMode('ask'); } else setMode('edit'); price(); d.getElementById('aiQ').focus(); }; });
     d.getElementById('aiUl').onchange = function (e) { AI.ul = e.target.checked; price(); };
     d.getElementById('aiImg').onchange = function (e) {
       var fs = Array.prototype.slice.call(e.target.files || []).slice(0, 2); e.target.value = '';
@@ -345,7 +350,7 @@
     if (/[?&]ai=1/.test(location.search)) open(true);
   }
   function setMode(m) { AI.mode = m; d.querySelectorAll('#labAI .ai-modes .ai-seg button').forEach(function (y) { y.setAttribute('aria-pressed', y.dataset.m === m ? 'true' : 'false'); }); }
-  function syncUl() { var l = d.getElementById('aiUlL'), has = !!(UL && UL[LV]); l.hidden = !has; if (!has) { AI.ul = false; d.getElementById('aiUl').checked = false; } }
+  function syncUl() { var l = d.getElementById('aiUlL'), has = !!(UL && UL[LV]); l.hidden = !has; if (!has) { AI.ul = false; d.getElementById('aiUl').checked = false; } price(); }
   function att() {
     var el = d.getElementById('aiAtt');
     el.innerHTML = AI.imgs.map(function (x, i) { return '<span class="ai-a"><img src="' + x.url + '" alt="">' + esc(x.name.slice(0, 28)) + '<button type="button" data-i="' + i + '" aria-label="' + esc(t('Olib tashlash')) + '">' + IC.x + '</button></span>'; }).join('');
@@ -364,6 +369,7 @@
     var parts = [];
     Object.keys(p.add).forEach(function (k) { parts.push('+' + p.add[k] + ' ' + t(CAT[k] || k)); });
     Object.keys(p.rem).forEach(function (k) { parts.push('−' + p.rem[k] + ' ' + t(CAT[k] || k)); });
+    if (p.chg && p.chg.length) parts.push(t('oʻzgardi') + ': ' + p.chg.slice(0, 6).join(', ') + (p.chg.length > 6 ? ' +' + (p.chg.length - 6) : ''));
     var chk = '<div class="ai-row"><span class="ai-tag ok">' + esc(t('Xatosiz')) + '</span><span>' + esc(parts.join(' · ') || t('oʻzgarish')) + '</span></div>'
       + '<div class="ai-row"><span class="ai-tag ' + (p.f1 > p.f0 ? 'warn' : 'ok') + '">FAIL ' + p.f0 + ' → ' + p.f1 + '</span><span>' + esc(t('Model tekshiruvlari')) + (p.nf ? ' · ' + esc(t('yangi')) + ': ' + p.nf : '') + '</span></div>'
       + (p.rooms ? '<div class="ai-row"><span class="ai-tag ' + (p.rooms[0] === p.rooms[1] ? 'ok' : 'warn') + '">' + esc(t('Xona')) + ' ' + p.rooms[0] + '/' + p.rooms[1] + '</span><span>' + esc(t('chizmada koʻrilgan va devorlar yopgan xonalar')) + '</span></div>' : '');
@@ -377,11 +383,29 @@
   }
   function errText(e) {
     var c = e && e.code;
-    if (c === 'auth') return t('AI uchun hisobingizga kiring') + ' — <a href="../index.html">' + esc(t('Bosh sahifa')) + '</a>';
-    if (c === 'insufficient') return esc(t('Tanga yetarli emas')) + (e.need ? ' (' + e.need + ')' : '') + ' — <a href="../index.html">' + esc(t('Tanga olish')) + '</a>';
+    if (c === 'auth') return esc(t('AI uchun hisobingizga kiring'));
+    if (c === 'insufficient') return esc(t('Tanga yetarli emas')) + (e.need ? ' (' + e.need + ')' : '') + ' — <a href="./index.html#/tanga" target="_blank" rel="noopener">' + esc(t('Tanga olish')) + '</a>';
     if (c === 'offline') return esc(t('Server bilan aloqa yoʻq. Internetni tekshiring.'));
     return esc(e && e.message ? e.message : String(e));
   }
+
+  // kirish (pochta kodi) — Lab hisobi bilan bir xil: /auth/code → /auth/verify; sessiya cookie barcha xizmatlar uchun umumiy
+  function loginCard() {
+    if (d.getElementById('aiLogin')) return;
+    var lg = d.getElementById('aiLog'), x = d.createElement('div'); x.className = 'ai-card ai-login'; x.innerHTML = ('<div class="ai-ch">' + esc(t('Hisobga kirish')) + '</div><div class="ai-lb"><p>' + esc(t('AI tanga bilan ishlaydi. Parol kerak emas: pochtangizga 6 xonali kod yuboramiz.')) + '</p>'
+      + '<form id="aiLogin"><input type="email" id="aiEm" autocomplete="email" placeholder="pochta@misol.uz" aria-label="' + esc(t('Pochta manzili')) + '"><input id="aiCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••" aria-label="' + esc(t('Kod')) + '" hidden>'
+      + '<button type="submit" class="ai-btn p" id="aiLgo">' + esc(t('Kod yuborish')) + '</button></form><div class="ai-lmsg" id="aiLmsg"></div>'
+      + '<p class="ai-lalt">' + esc(t('Google bilan kirish — Master reja sahifasida; keyin bu yerga qayting.')) + '</p></div>'); lg.appendChild(x); lg.scrollTop = 1e6;
+    var f = x.querySelector('#aiLogin'), em = x.querySelector('#aiEm'), cd = x.querySelector('#aiCode'), bt = x.querySelector('#aiLgo'), ms = x.querySelector('#aiLmsg'), target = '';
+    [em, cd].forEach(function (el) { el.addEventListener('keydown', function (e) { e.stopPropagation(); }); });
+    f.onsubmit = function (e) {
+      e.preventDefault(); ms.textContent = ''; bt.disabled = true;
+      var p = cd.hidden ? call('/auth/code', { target: (target = em.value.trim()), lang: LANG() }).then(function () { em.hidden = true; cd.hidden = false; cd.focus(); bt.textContent = t('Kirish'); ms.textContent = t('Kod yuborildi') + ': ' + target; })
+        : call('/auth/verify', { target: target, code: cd.value.trim() }).then(function () { return Promise.all([call('/me'), call('/agent/config')]); }).then(function (r) { AI.me = r[0]; AI.cfg = r[1]; price(); balance(); x.querySelector('.ai-lb').innerHTML = '<p>' + esc(t('Kirdingiz')) + (AI.me.email ? ': ' + esc(AI.me.email) : '') + '</p>'; });
+      p.catch(function (er) { ms.textContent = er && er.message ? er.message : t('Xato yuz berdi'); }).then(function () { bt.disabled = false; });
+    };
+  }
+  function balance() { var el = d.getElementById('aiBal'); if (!el) return; el.textContent = !AI.me ? '' : AI.me.owner ? t('Egasi — bepul') : t('Qoldiq') + ': ' + AI.me.balance + ' ' + t('tanga'); }
 
   async function go() {
     var q = d.getElementById('aiQ'), text = q.value.trim(); if (!text) { q.focus(); return; }
@@ -403,6 +427,7 @@
         parts.push({ type: 'text', text: 'Reference U — underlay floor plan of level ' + LV + ' (pixel coordinates P(x,y) refer to THIS image)' }, img(j.b64));
         sent.push({ index: 'U', kind: 'plan (underlay on the scene)', tag: LV, px: [j.w, j.h], mm_per_px: +AI.ulMmpx.toFixed(3), calibrated: AI.ulCal });
       }
+      if (ulOn) used = used.filter(function (r) { return r.hi !== UL[LV].src; });
       used.slice(0, MAXIMG - sent.length).forEach(function (r, i) {
         var lab = 'Reference ' + (i + 1) + ' — ' + KIND[r.kind][1] + (r.tag ? ', ' + r.tag : '') + ' (' + r.name + ')' + (r.note ? '; scale note: ' + r.note : '');
         parts.push({ type: 'text', text: lab }, img(r.b64)); sent.push({ index: i + 1, kind: KIND[r.kind][1], tag: r.tag || null, file: r.name, px: [r.w, r.h], scale_note: r.note || null });
@@ -411,7 +436,7 @@
       if (used.length + AI.imgs.length + (ulOn ? 1 : 0) > MAXIMG) toast(t('Bitta so' + O + 'rovga 6 tagacha rasm yuboriladi — qolganlari yuborilmadi'));
       AI.sent = sent;
       var res = await loop({ scenario: scenario(), question: text, parts: parts, signal: AI.ctl.signal,
-        onRun: function (r) { if (AI.cfg) { AI.cfg.freeLeft = r.freeLeft; price(); } d.getElementById('aiBal').textContent = AI.cfg && AI.cfg.owner ? '' : t('Qoldiq') + ': ' + r.balance + ' ' + t('tanga'); },
+        onRun: function (r) { if (AI.cfg) { AI.cfg.freeLeft = r.freeLeft; price(); } AI.me = AI.me || {}; AI.me.balance = r.balance; balance(); },
         onTool: function (n) { st.querySelector('span').textContent = t(STEPN[n] || 'Ishlayapti') + (n === 'binokor_try' && AI.tries ? ' (' + (AI.tries + 1) + ')' : '') + '…'; } });
       st.remove();
       if (res.text) { var a = addMsg('ai-a', md(res.text)); if (res.unsourced && res.unsourced.length) a.insertAdjacentHTML('beforeend', '<div class="ai-note">' + esc(t('Manbasi tekshirilmagan raqamlar')) + ': ' + esc(res.unsourced.slice(0, 6).join(', ')) + '</div>'); if (res.cut) a.insertAdjacentHTML('beforeend', '<div class="ai-note">' + esc(t('Javob uzunlik chegarasida uzildi')) + '</div>'); }
@@ -422,7 +447,7 @@
       AI.imgs = []; att();
     } catch (e) {
       st.remove();
-      if (!(e && e.name === 'AbortError')) addMsg('ai-err', errText(e)); else addMsg('ai-note', esc(t('Toʻxtatildi')));
+      if (!(e && e.name === 'AbortError')) { addMsg('ai-err', errText(e)); if (!q.value) { q.value = text; q.oninput(); } if (e && e.code === 'auth') { AI.me = null; loginCard(); } } else addMsg('ai-note', esc(t('Toʻxtatildi')));
     } finally {
       AI.busy = false; AI.ulNow = false; btn.classList.remove('stop'); price();
     }
@@ -432,6 +457,7 @@
   call('/agent/config').then(function (c) {
     if (!c || !c.enabled || !(c.services || []).includes('bk') || !c.scenarios['bk.edit']) return;
     AI.cfg = c; buildPanel(); price();
+    call('/me').then(function (m) { AI.me = m; balance(); }).catch(function () { AI.me = null; loginCard(); });
     var lv = LV; setInterval(function () { if (LV !== lv) { lv = LV; if (!d.getElementById('labAI').hidden) syncUl(); } }, 800);
   }).catch(function (e) { /* server yo'q — AI chiqmaydi */ if (!(e && e.status) && e && e.code !== 'offline') console.warn('Binokor AI:', e); });
 })();

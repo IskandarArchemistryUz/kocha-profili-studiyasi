@@ -60,6 +60,7 @@ const MAX_BODY_BY_SVC = { bk: 360_000 };
 const IMG_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_IMAGES = 2, MAX_IMAGE_CHARS = 1_400_000; // base64 ≈ 1 MB
 const MAX_IMAGES_BY_SVC = { bk: 6 }; // Binokor: reja + kesim + fasadlar (referenslar toʻplami)
+const BK_SRC = new Set(['binokor_try']); // numcheck: AI taklif qilgan oʻlchamlar manba
 
 /** Suhbatni tozalash: faqat ruxsat etilgan bloklar va maydonlar; buyruq nomi — shu xizmat roʻyxatidan */
 export function sanitizeMessages(messages, toolNames, maxChars = MAX_BODY_CHARS, maxImages = MAX_IMAGES) {
@@ -273,7 +274,7 @@ export function registerAgent(app, { db, wallet, requireUser, optionalUser, isOw
       const textOf = (d) => d.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n');
       let bad = [];
       if (data.stop_reason !== 'tool_use' && c.numCheck !== false) {
-        const src = sourceNumbers(messages);
+        const src = sourceNumbers(messages, run.svc === 'bk' ? BK_SRC : null);
         bad = unsourced(textOf(data), src);
         if (bad.length) {
           req.log.info({ agent: { run: id, step, unsourced: bad.slice(0, 10) } }, 'agent: manbasiz raqam');

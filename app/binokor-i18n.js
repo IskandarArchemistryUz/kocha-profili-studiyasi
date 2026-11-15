@@ -233,7 +233,22 @@ window.BINOKOR_I18N = {
  "Bitta soʻrovga 6 tagacha referens": ["Up to 6 references per request", "До 6 референсов на запрос"],
  "Bitta soʻrovga 6 tagacha rasm yuboriladi — qolganlari yuborilmadi": ["Up to 6 images are sent per request — the rest were not sent", "С запросом отправляется до 6 изображений — остальные не отправлены"],
  "Tayanch chizma qoʻyildi. Endi «Masshtab: 2 nuqta» — rasmdagi ma’lum oʻlchamni bosing": ["Underlay placed. Now “Scale: 2 points” — click a known dimension on the image", "Подложка размещена. Теперь «Масштаб: 2 точки» — укажите известный размер на изображении"],
- "Norma bandini oʻqiyapti": ["Reading the norm clause", "Читает пункт нормы"]
+ "Norma bandini oʻqiyapti": ["Reading the norm clause", "Читает пункт нормы"],
+ // ——— AI sinov tuzatishlari (15.11)
+ "oʻzgardi": ["changed", "изменено"],
+ "Model oldindan koʻrinish paytida oʻzgardi — taklif modelda qoldi, Ctrl+Z bilan qaytaring": ["The model changed during the preview — the proposal stays in the model, undo with Ctrl+Z", "Модель изменилась во время предпросмотра — предложение осталось в модели, отмените через Ctrl+Z"],
+ "Avval reja rasmini yuklang va «Sahnaga» ni bosing": ["Upload a plan image first and press “To scene”", "Сначала загрузите план и нажмите «На сцену»"],
+ "Hisobga kirish": ["Sign in", "Вход в аккаунт"],
+ "AI tanga bilan ishlaydi. Parol kerak emas: pochtangizga 6 xonali kod yuboramiz.": ["The AI works with coins. No password: we send a 6-digit code to your email.", "ИИ работает за монеты. Пароль не нужен: пришлём 6-значный код на почту."],
+ "Pochta manzili": ["Email address", "Адрес почты"],
+ "Kod": ["Code", "Код"],
+ "Kod yuborish": ["Send code", "Отправить код"],
+ "Kirish": ["Sign in", "Войти"],
+ "Kod yuborildi": ["Code sent", "Код отправлен"],
+ "Kirdingiz": ["Signed in", "Вы вошли"],
+ "Xato yuz berdi": ["Something went wrong", "Произошла ошибка"],
+ "Google bilan kirish — Master reja sahifasida; keyin bu yerga qayting.": ["Google sign-in is on the Master plan page; then come back here.", "Вход через Google — на странице Мастер-плана; затем вернитесь сюда."],
+ "Egasi — bepul": ["Owner — free", "Владелец — бесплатно"]
 };
 /* Oʻzbekcha atamalar (15.11 qarori): eski soʻz → yangi. Butun soʻz sifatida almashtiriladi. */
 window.BINOKOR_UZ_TERMS = [
