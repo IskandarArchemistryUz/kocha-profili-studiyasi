@@ -18,6 +18,8 @@ export function numbersIn(text) {
   for (const m of t.matchAll(NUM)) {
     const s = m[0], i = m.index, before = t.slice(Math.max(0, i - 12), i), after = t.slice(i + s.length, i + s.length + 14);
     if (REF_AFTER.test(after) || REF_BEFORE.test(before)) continue;
+    // identifikator: harfga yopishgan raqam (Binokor: W12, O15, L1, M200, T400; Master reja: K3) — son emas, nom
+    if (/[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ]$/.test(before)) continue;
     // roʻyxat raqami: qator boshida «1.» yoki «1)»
     const lineStart = t.lastIndexOf('\n', i - 1) + 1;
     if (/^[\s>*#-]*$/.test(t.slice(lineStart, i)) && /^[.)]\s/.test(after)) continue;
@@ -34,10 +36,19 @@ export function numbersIn(text) {
   return out;
 }
 
-/** manbalar: buyruq natijalari va foydalanuvchi matnidagi raqamlar */
-export function sourceNumbers(messages) {
+/** manbalar: buyruq natijalari va foydalanuvchi matnidagi raqamlar.
+ *  inputs — modelning oʻz taklifi manba hisoblanadigan buyruqlar (Binokor: binokor_try qatorlaridagi oʻlchamlar — bu AI ning loyiha qarori,
+ *  foydalanuvchi uni oldindan koʻrib, oʻzi qoʻllaydi). */
+export function sourceNumbers(messages, inputs = null) {
   const vals = [];
   for (const m of messages ?? []) {
+    if (m.role === 'assistant' && inputs) {
+      for (const b of m.content ?? []) {
+        if (b.type !== 'tool_use' || !inputs.has(b.name)) continue;
+        for (const x of JSON.stringify(b.input ?? {}).matchAll(/-?\d+(?:\.\d+)?/g)) { const v = Number(x[0]); if (Number.isFinite(v)) vals.push(Math.abs(v), Math.abs(v) * 1000, Math.abs(v) / 1000); }
+      }
+      continue;
+    }
     if (m.role !== 'user') continue;
     for (const b of m.content ?? []) {
       const txt = b.type === 'tool_result' ? b.content : b.type === 'text' ? b.text : '';
@@ -62,7 +73,7 @@ function fits(v, d, x) {
 export function unsourced(text, sources) {
   const nums = numbersIn(text);
   if (!nums.length) return [];
-  const S = sources.slice(0, 2000);
+  const S = sources.slice(0, 20000); // katta Binokor modeli: minglab koordinata
   const ok = nums.filter((n) => S.some((x) => fits(n.v, n.d, x))).map((n) => n.v);
   const derived = [];
   for (let i = 0; i < ok.length; i++) for (let j = 0; j < ok.length; j++) {

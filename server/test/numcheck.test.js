@@ -28,4 +28,17 @@ describe('manbasiz raqam filtri', () => {
     const s = sourceNumbers([{ role: 'user', content: [{ type: 'text', text: '12 qavatli boʻlsa?' }] }]);
     expect(unsourced('12 qavat', s)).toEqual([]);
   });
+  it('harfga yopishgan raqam — identifikator (W12, O15, M200), tekshirilmaydi', () => {
+    expect(unsourced('W12 devoriga O15 deraza, M200 devor turi', [])).toEqual([]);
+    expect(unsourced('15 ta deraza', [])).toEqual(['15']);
+  });
+  it('Binokor: AI ning binokor_try taklifidagi oʻlchamlar manba (m va mm), boshqa buyruq kiritmasi emas', () => {
+    const msgs = [{ role: 'user', content: [{ type: 'text', text: 'uy koʻtar' }] },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 'a', name: 'binokor_try', input: { lines: ['levels 5 3.3', 'window O15 W1 1.8 L1'] } }, { type: 'tool_use', id: 'b', name: 'highlight', input: { ids: ['77'] } }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'a', content: '{"ok":true}' }] }];
+    const s = sourceNumbers(msgs, new Set(['binokor_try']));
+    expect(unsourced('Qavat 3,3 m, deraza 1,8 m dan, 3300 mm', s)).toEqual([]);
+    expect(unsourced('77 ta', s)).toEqual(['77']);
+    expect(unsourced('Qavat 3,3 m', sourceNumbers(msgs))).toEqual(['3,3']);
+  });
 });
