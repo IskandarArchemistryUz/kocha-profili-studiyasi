@@ -1,0 +1,130 @@
+/* Binokor — Archemistry Lab uslubi (E varianti, 15.11.2026).
+   ArchiCAD tuzilishi saqlanadi (Info Box, Toolbox, tablar, Navigator, Pet palitra, Quick Options),
+   ko'rinishi — ds2.css tokenlari (mr/src/ui/ds2.css): suzuvchi oq panellar, radiuslar, soyalar.
+   Binokor identikasi — anor (--acc/--accd). Fayl binokor.html ga alohida ulanadi: Binokor qayta yig'ilsa,
+   faqat oxiridagi ikki qatorni (<link> va <script>) saqlab qolish kifoya. */
+:root{--lab-panel:#fcf8f9;--lab-sh:0 0 0 .5px rgba(90,30,50,.07),0 1px 2px rgba(90,30,50,.06),0 8px 22px rgba(90,30,50,.09);--sh-card:0 0 0 .5px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);--sh-float:0 0 0 .5px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.09);--sh-pop:0 0 0 .5px rgba(0,0,0,.08),0 18px 48px rgba(0,0,0,.16)}
+html body{background:var(--bg);font-size:13px}
+
+/* ——— sarlavha: suzuvchi oq panel ——— */
+html body>header{margin:12px 12px 0;height:52px;padding:0 8px;border:0;border-radius:18px;background:var(--lab-panel);box-shadow:var(--lab-sh);gap:6px;overflow-x:auto;scrollbar-width:none}
+html body>header::-webkit-scrollbar{display:none}
+html body>header>*{flex-shrink:0}
+.lab-back{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink2);text-decoration:none}
+.lab-back:hover{background:var(--fill)}
+.lab-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px;color:var(--ink);text-decoration:none;white-space:nowrap;padding-right:4px}
+html body>header .brand{height:32px;padding:0 10px 0 6px;border-radius:10px;font-size:13px;font-weight:600;gap:7px}
+html body>header .brand:hover{background:var(--fill)}
+html body>header .brand .logo{width:20px;height:20px;border-radius:6px}
+html body>header .brand .mute{display:none}
+#menubar>button{height:30px;border-radius:8px}
+html body>header .seg{border-radius:10px}
+html body>header .seg button{height:30px;border-radius:8px}
+html body>header .sep{width:.5px;height:22px;background:var(--hl)}
+html body>header .ib{width:34px;height:34px;border-radius:10px}
+#stat{white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis;flex-shrink:1!important;min-width:0}
+
+/* ——— model ish maydoni: panellar orasida sahna ko'rinadi ——— */
+#m-model{grid-template-columns:64px minmax(0,1fr) 320px!important;grid-template-rows:46px minmax(0,1fr)!important;gap:8px;padding:8px 12px 12px;background:transparent}
+#m-model>.infobar{grid-column:2/3;grid-row:1;border:0;border-radius:14px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:0 12px 0 8px}
+#m-model>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700;white-space:nowrap}
+#m-model>.infobar .ttl .kic{color:var(--accd)}
+#m-model>.toolbox{grid-column:1;grid-row:1/3;border:0;border-radius:16px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:6px;scrollbar-width:none}
+#m-model>.toolbox::-webkit-scrollbar{display:none}
+#m-model>.center{grid-column:2;grid-row:2;background:transparent;gap:8px}
+#m-model>.pals{grid-column:3;grid-row:1/3;border:0;border-radius:22px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:8px;gap:2px;scrollbar-width:thin}
+
+/* Toolbox: faqat belgi, nomi — ishora (title) */
+.toolbox .tgl{font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:center;margin:8px 0 3px}
+.toolbox .tgl:first-child{margin-top:2px}
+.toolbox .tool{font-size:0;height:38px;padding:0;gap:0;justify-content:center;border-radius:10px}
+.toolbox .tool .kic{width:20px;height:20px}
+.toolbox .tool.on{background:var(--accd);color:#fff}
+
+/* Oyna tablari (ArchiCAD tablari) — tabletka */
+.center>.vtabs{align-self:flex-start;height:auto;padding:3px;gap:2px;border-radius:12px;background:var(--lab-panel);box-shadow:var(--lab-sh);max-width:calc(100% - 370px);overflow-x:auto;scrollbar-width:none}
+.center>.vtabs::-webkit-scrollbar{display:none}
+.center>.vtabs .vt{height:32px;border:0;border-radius:9px;background:transparent;font-size:12.5px;font-weight:600;white-space:nowrap}
+.center>.vtabs .vt.on{background:var(--bg);color:var(--ink);box-shadow:none}
+.center>.vtabs .vt.on .kic{color:var(--accd)}
+
+/* Sahna — oq chizma maydoni, yumaloq burchak */
+#m-model .stage{border:0;border-radius:16px;box-shadow:var(--sh-card)}
+#m-model .stage .hint{border:0;border-radius:12px;box-shadow:var(--sh-float)}
+#vz{border:0!important;border-radius:12px!important;box-shadow:var(--sh-float)!important}
+
+/* Tahrir tugmalari (sarlavhadan ko'chirildi) — sahna ustida, tablar qatorining o'ngida */
+.lab-edit{position:absolute;right:0;top:0;display:flex;align-items:center;gap:2px;height:38px;padding:3px;border-radius:12px;background:var(--lab-panel);box-shadow:var(--lab-sh);z-index:6}
+.lab-edit .ib{width:32px;height:32px;border-radius:9px}
+.lab-edit .sep{width:.5px;height:20px;background:var(--hl);margin:0 2px}
+#m-model>.center{position:relative}
+
+/* Quick Options — pastki tabletka */
+#m-model .qo{height:40px;border-radius:12px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:0 14px;font-size:12px}
+
+/* Navigator va palitralar — bitta oq panel ichida, ajratgich chiziq bilan */
+.pals details.pal{background:transparent;box-shadow:none;border-radius:12px}
+.pals details.pal+details.pal{border-top:.5px solid var(--hl);border-radius:0}
+.pals details.pal>summary{height:40px;padding:0 8px;font-size:13px}
+.pals details.pal>summary:hover{background:var(--gr);border-radius:10px}
+.pals .pb{border-top:0;padding:0 8px 10px}
+.nav div[data-v].on{background:var(--acc2);color:var(--accd)}
+
+/* Pet palitra */
+#pet{border:0;border-radius:12px;box-shadow:var(--sh-pop)}
+
+/* Boshqaruv elementlari: ds2 */
+.btn{height:32px;border-radius:10px}
+.btn.p{background:var(--ink);color:#fff}
+.btn.p:hover{background:#3a3936}
+#agApply,#ulAg{background:var(--accd)!important;color:#fff!important}
+input,select,textarea{border:0;background:var(--fill);border-radius:10px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--rev);outline-offset:0;border-color:transparent}
+input[type=checkbox],input[type=range]{background:none}
+.infobar select,.infobar .val{border:0;background:var(--fill);border-radius:8px}
+
+/* Parametrik, Chizmadon, Jadvallar — xuddi shu qobiq */
+#m-param{gap:8px;padding:8px 12px 12px}
+#m-param>.infobar,#m-param .gwrap,#m-param>.pals{border:0;border-radius:16px;background:var(--lab-panel);box-shadow:var(--lab-sh);overflow:hidden}
+#m-param>.pals{border-radius:22px;padding:8px}
+#m-chizma>.full,#m-jadval>.full{background:transparent;padding:8px 12px 12px}
+.full>.card{border-radius:22px;box-shadow:var(--sh-float)}
+
+/* Chizmadon rejimi: infobar + chap (Loyihadan, Varaqlar) + varaq sahnasi + o'ng (Element, Varaq, Shtamp, Tekshiruv) */
+#m-chizma{gap:8px;padding:8px 12px 12px;background:transparent;grid-template-columns:260px minmax(0,1fr) 300px!important;grid-template-rows:46px minmax(0,1fr)!important}
+#m-chizma>.infobar{border:0;border-radius:14px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:0 6px 0 8px}
+#m-chizma>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700;white-space:nowrap}
+#m-chizma>.pals{border:0!important;border-radius:22px;background:var(--lab-panel);box-shadow:var(--lab-sh);padding:8px;gap:2px}
+#m-chizma>.chst{border-radius:16px;box-shadow:var(--sh-card)}
+#m-param>.infobar .ttl{flex:none;height:34px;padding:0 12px 0 8px;border-radius:10px;background:var(--acc2);color:var(--accd);font-weight:700}
+#m-param .pals .row{flex-wrap:wrap}#m-param .pals .row>.btn{flex:1 1 auto;white-space:nowrap}
+@media (max-width:1400px){#stat{display:none}}
+
+/* Sahna foni — butun sahifada katak (40 px), panellar orasida ham, chizma maydonida ham; katak bir-biriga ulanib turadi (fixed) */
+html body,#m-model .stage,#m-chizma>.chst{background-color:var(--bg);background-image:linear-gradient(rgba(20,20,20,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(20,20,20,.07) 1px,transparent 1px);background-size:40px 40px;background-attachment:fixed}
+#m-model .stage{box-shadow:none}
+
+/* Panellar ichida: hover va tanlangan qatorlar panel rangiga mos */
+.pals details.pal>summary:hover{background:rgba(194,65,107,.05)}
+#vz .lab-gs{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);padding:0 6px 0 4px;white-space:nowrap}
+
+/* Til menyusi (Lab .lm-btn / .lm-pop kabi) */
+.lab-lang{flex:none;margin-left:4px}
+.lab-lang-btn{height:28px;padding:0 10px;border:0;border-radius:10px;background:var(--fill);color:var(--ink);font:500 11.5px/28px 'IBM Plex Mono',monospace;letter-spacing:.04em;cursor:pointer}
+.lab-lang-btn:hover{background:var(--fill2)}
+.lab-lang-pop{position:fixed;z-index:3000;min-width:208px;padding:6px;border-radius:16px;background:var(--sf);box-shadow:var(--sh-pop);display:flex;flex-direction:column;gap:1px}
+.lab-lang-pop[hidden]{display:none}
+.lab-lang-pop button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:500 13.5px/1.2 Archivo,system-ui,sans-serif;text-align:left;cursor:pointer}
+.lab-lang-pop button:hover{background:var(--fill)}
+.lab-lang-pop button[aria-checked=true]{background:var(--ink);color:#fff}
+.lab-lang-pop .lid{font:500 11px/1 'IBM Plex Mono',monospace;text-transform:uppercase;opacity:.7}
+
+/* Xizmat chipi — Labning boshqa ilovalaridagidek: rangli nuqta + nom (alohida logotip yo'q, logotip faqat Archemistry Lab) */
+html body>header .brand .logo{display:none}
+html body>header .brand::before{content:"";width:8px;height:8px;border-radius:4px;background:var(--accd);flex:none}
+/* Toolbox guruh nomlari o'rniga ingichka ajratgich (har tilda sig'adi) */
+.toolbox .tgl{font-size:0;height:0;margin:6px 8px;border-top:.5px solid var(--hl)}
+.toolbox .tgl:first-child{display:none}
+/* Barcha xizmatlardagidek: «Archemistry Lab» yozuvi yo'q — faqat logotip, yonida xizmat nomi */
+.lab-brand span{display:none}
+.lab-brand{padding-right:0}
