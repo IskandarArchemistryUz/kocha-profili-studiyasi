@@ -1,4 +1,3 @@
-import { logoSvg } from './ui/logo';
 /**
  * Kirish nuqtasi: marshrutlash (#/ — loyihalar roʻyxati, #/p/<id> — loyiha oynasi).
  */
@@ -210,7 +209,7 @@ async function home(): Promise<void> {
   const shown = list.length > 5 ? list.filter(p => (!q || p.name.toLowerCase().includes(q)) && (projF === 'all' || (projF === 'cloud' ? cs.links.has(p.id) : projF === 'local' ? !cs.links.has(p.id) : isEmptyOld(p)))) : list;
   root.replaceChildren(h('main', { class: `home home2${first ? ' enter' : ''}` },
     h('header', { class: 'home-top home-bar glassbar' },
-      h('a', { class: 'btn btn-ghost btn-sm', href: '../index.html', style: 'text-decoration:none', title: tr('Bosh sahifa'), 'aria-label': 'Archemistry Lab' }, ...icl(IC.back, ''), logoSvg(18)),
+      h('a', { class: 'btn btn-ghost btn-sm', href: '../index.html', style: 'text-decoration:none' }, ...icl(IC.back, 'Archemistry Lab')),
       h('span', { class: 'svcbadge home-svc' }, h('i'), tr('Master reja')),
       h('span', { class: 'sp' }),
       homeAcct(), themeB),
