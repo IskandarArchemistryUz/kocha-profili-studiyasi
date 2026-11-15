@@ -57,7 +57,7 @@ export const GEN_FREE = 3;
  * qisqa savol — 1 tanga, xulosa — 3 tanga; koeffitsiyent k yoʻq; loyiha shiftiga kiradi.
  * Haftasiga AGENT_FREE_PER_WEEK ta qisqa savol bepul (hamma xizmatlar uchun umumiy).
  */
-export const AGENT_COINS = Object.freeze({ short: 1, long: 3 });
+export const AGENT_COINS = Object.freeze({ short: 1, mid: 2, long: 3, img: 5 });
 export const AGENT_FREE_PER_WEEK = 3;
 
 /** Loyiha shifti (tanga): «paket» narxi × 1,5 / 3 000 soʻm — uchastka maydoni boʻyicha */
