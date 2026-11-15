@@ -107,3 +107,21 @@ html body,#m-model .stage,#m-chizma>.chst{background-color:var(--bg);background-
 /* Panellar ichida: hover va tanlangan qatorlar panel rangiga mos */
 .pals details.pal>summary:hover{background:rgba(194,65,107,.05)}
 #vz .lab-gs{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--mute);padding:0 6px 0 4px;white-space:nowrap}
+
+/* Til menyusi (Lab .lm-btn / .lm-pop kabi) */
+.lab-lang{flex:none;margin-left:4px}
+.lab-lang-btn{height:28px;padding:0 10px;border:0;border-radius:10px;background:var(--fill);color:var(--ink);font:500 11.5px/28px 'IBM Plex Mono',monospace;letter-spacing:.04em;cursor:pointer}
+.lab-lang-btn:hover{background:var(--fill2)}
+.lab-lang-pop{position:fixed;z-index:3000;min-width:208px;padding:6px;border-radius:16px;background:var(--sf);box-shadow:var(--sh-pop);display:flex;flex-direction:column;gap:1px}
+.lab-lang-pop[hidden]{display:none}
+.lab-lang-pop button{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:500 13.5px/1.2 Archivo,system-ui,sans-serif;text-align:left;cursor:pointer}
+.lab-lang-pop button:hover{background:var(--fill)}
+.lab-lang-pop button[aria-checked=true]{background:var(--ink);color:#fff}
+.lab-lang-pop .lid{font:500 11px/1 'IBM Plex Mono',monospace;text-transform:uppercase;opacity:.7}
+
+/* Xizmat chipi — Labning boshqa ilovalaridagidek: rangli nuqta + nom (alohida logotip yo'q, logotip faqat Archemistry Lab) */
+html body>header .brand .logo{display:none}
+html body>header .brand::before{content:"";width:8px;height:8px;border-radius:4px;background:var(--accd);flex:none}
+/* Toolbox guruh nomlari o'rniga ingichka ajratgich (har tilda sig'adi) */
+.toolbox .tgl{font-size:0;height:0;margin:6px 8px;border-top:.5px solid var(--hl)}
+.toolbox .tgl:first-child{display:none}

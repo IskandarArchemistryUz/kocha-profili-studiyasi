@@ -65,3 +65,77 @@
   }
   requestAnimationFrame(tick);
 })();
+
+/* Tillar (2-bosqich, 15.11): Binokor Lab tillar tizimiga ulanadi — til `mr-lang` (Labning qolgan ilovalari bilan bitta).
+   Binokor matni oʻzbekcha yozilgan; bu qatlam sahifadagi matnni (va title/placeholder) lugʻat bo'yicha almashtiradi:
+   1) aniq moslik, 2) raqamlar # bilan almashtirilgan andoza, 3) « · », « — », «: » bo'laklari bo'yicha.
+   Chizma (SVG), buyruqlar matni, jurnal va qiymati matn bo'lgan <option> tarjima qilinmaydi (model maʼlumoti).
+   uz — yangi atamalar (BINOKOR_UZ_TERMS) va oʻ/gʻ uchun U+02BB. es, pt, fr, az, uk, tr, kk — hozircha inglizcha. */
+(function () {
+  var D = window.BINOKOR_I18N || {}, UZT = window.BINOKOR_UZ_TERMS || [];
+  var LANGS = [['uz', 'Oʻzbekcha'], ['en', 'English'], ['ru', 'Русский'], ['es', 'Español'], ['pt', 'Português (BR)'], ['fr', 'Français'], ['az', 'Azərbaycanca'], ['uk', 'Українська'], ['tr', 'Türkçe'], ['kk', 'Қазақша']];
+  var ids = LANGS.map(function (l) { return l[0]; });
+  function getLang() {
+    try { var v = localStorage.getItem('mr-lang') || localStorage.getItem('kps_lang'); if (ids.indexOf(v) >= 0) return v; } catch (e) {}
+    try { var a = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+      for (var i = 0; i < a.length; i++) { var b = String(a[i] || '').toLowerCase().split(/[-_]/)[0]; if (ids.indexOf(b) >= 0) return b; if (['ky', 'tg', 'tk', 'be'].indexOf(b) >= 0) return 'ru'; } } catch (e) {}
+    return 'en';
+  }
+  var L = getLang(), IX = L === 'ru' ? 1 : 0; document.documentElement.lang = L;
+
+  // ——— sarlavhadagi til menyusi (Labdagi kabi)
+  var hd = document.querySelector('body>header');
+  if (hd && !document.querySelector('.lab-lang')) {
+    var w = document.createElement('div'); w.className = 'lab-lang';
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'lab-lang-btn'; b.textContent = L.toUpperCase(); b.setAttribute('aria-haspopup', 'menu'); b.title = 'Til / Language';
+    var m = document.createElement('div'); m.className = 'lab-lang-pop'; m.hidden = true; m.setAttribute('role', 'menu');
+    LANGS.forEach(function (l) { var x = document.createElement('button'); x.type = 'button'; x.setAttribute('role', 'menuitemradio'); x.setAttribute('aria-checked', String(l[0] === L)); x.innerHTML = '<span>' + l[1] + '</span><span class="lid">' + l[0] + '</span>';
+      x.onclick = function () { try { localStorage.setItem('mr-lang', l[0]); localStorage.setItem('kps_lang', l[0]); } catch (e) {} location.reload(); }; m.appendChild(x); });
+    b.onclick = function (e) { e.stopPropagation(); m.hidden = !m.hidden; if (!m.hidden) { var r = b.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.right = (innerWidth - r.right) + 'px'; } };
+    document.addEventListener('click', function () { m.hidden = true; });
+    w.appendChild(b); document.body.appendChild(m); hd.appendChild(w);
+  }
+
+  // ——— tarjima
+  var UZRE = UZT.map(function (p) { return [new RegExp('(^|[^A-Za-zʻ‘’ʼ\'])' + p[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), p[1]]; });
+  function uz(s) { var t = s; UZRE.forEach(function (r) { t = t.replace(r[0], function (_, a) { return a + r[1]; }); }); return t.replace(/([OoGg])[‘']/g, '$1ʻ').replace(/([a-z])’/g, '$1ʼ'); }
+  function look(s) {
+    var d = D[s]; if (d) return d[IX] != null ? d[IX] : d[0];
+    var nums = [], t = s.replace(/\d+(?:[.,]\d+)?/g, function (x) { nums.push(x); return '#'; });
+    if (nums.length && (d = D[t])) { var i = 0, v = d[IX] != null ? d[IX] : d[0]; return v.indexOf('#') >= 0 ? v.replace(/#/g, function () { return nums[i] != null ? nums[i++] : '#'; }) : v; }
+    return null;
+  }
+  function tr(s) {
+    if (L === 'uz') { var u = uz(s); return u !== s ? u : null; }
+    var r = look(s); if (r != null) return r;
+    var seps = [' · ', ' — ', ': ', ' → '];
+    for (var k = 0; k < seps.length; k++) { if (s.indexOf(seps[k]) < 0) continue; var ps = s.split(seps[k]), hit = false;
+      var out = ps.map(function (p) { var q = p.trim(), x = q && look(q); if (x != null) { hit = true; return p.replace(q, x); } var y = q && q.indexOf(' ') > 0 ? tr(q) : null; if (y != null && y !== q) { hit = true; return p.replace(q, y); } return p; });
+      if (hit) return out.join(seps[k]); }
+    return null;
+  }
+  var SKIP = '#canvas,svg,textarea,pre,.log,#tests,#chStage,#script,#agOut,.lab-lang,.lab-lang-pop,script,style';
+  function skipEl(el) { return !el || (el.closest && el.closest(SKIP)) || (el.tagName === 'OPTION' && !el.hasAttribute('value')); }
+  function doText(n) {
+    var v = n.nodeValue; if (!v || !/[A-Za-zʻ‘’]{2}/.test(v) || skipEl(n.parentElement)) return;
+    var s = v.replace(/\s+/g, ' ').trim(), r = tr(s); if (r == null || r === s) return;
+    var lead = v.match(/^\s*/)[0], trail = v.match(/\s*$/)[0]; n.nodeValue = lead + r + trail;
+  }
+  function doAttrs(el) {
+    if (!el.getAttribute || skipEl(el)) return;
+    ['title', 'placeholder', 'aria-label'].forEach(function (a) { var v = el.getAttribute(a); if (!v || !/[A-Za-z]{2}/.test(v)) return; var s = v.replace(/\s+/g, ' ').trim(), r = tr(s); if (r != null && r !== s) el.setAttribute(a, r); });
+  }
+  function walk(root) {
+    if (root.nodeType === 3) { doText(root); return; }
+    if (root.nodeType !== 1 || skipEl(root)) return;
+    doAttrs(root); root.querySelectorAll('[title],[placeholder],[aria-label]').forEach(doAttrs);
+    var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n, list = []; while ((n = tw.nextNode())) list.push(n); list.forEach(doText);
+  }
+  if (L === 'uz' && !UZRE.length) return;
+  walk(document.body);
+  new MutationObserver(function (ms) { ms.forEach(function (m) {
+    if (m.type === 'characterData') doText(m.target);
+    else if (m.type === 'attributes') doAttrs(m.target);
+    else m.addedNodes.forEach(walk);
+  }); }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'placeholder', 'aria-label'] });
+})();
