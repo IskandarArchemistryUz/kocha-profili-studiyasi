@@ -22,6 +22,8 @@ export interface Overlay {
   quiet?: boolean;
   /** binolar tahlil ustidan chiziladi (quyosh, shamol): bino va ochiq joy aniq ajraladi */
   bldTop?: boolean;
+  /** 16.11 (egasi, issiqlik): bino konturi tahlil ustidan — ingichka chiziq, yengil oq fon (rang yopilmaydi) */
+  bldLine?: boolean;
   /** tahlil doirasi boʻyicha kesilmasin (faqat yozuvlar uchun emas — butun qatlam) */
   noClip?: boolean;
 }
@@ -67,7 +69,7 @@ export function mapSvg(B: MapBase, O: Overlay, T: MapTheme, x: number, y: number
     if (rid) o.push(`<clipPath id="${rid}"><circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(r.circle! * k)}"/></clipPath>`);
     o.push(`<image x="${n2(cx + r.x0 * k)}" y="${n2(cy - r.y1 * k)}" width="${n2((r.x1 - r.x0) * k)}" height="${n2((r.y1 - r.y0) * k)}" preserveAspectRatio="none" opacity="${r.op ?? 1}" xlink:href="${r.url}"${rid ? ` clip-path="url(#${rid})"` : ''}/>`);
   }
-  if (O.rasters?.length && !O.bldTop) o.push(`<path d="${bldD}" fill="none" stroke="${T.dark ? '#000000' : '#ffffff'}" stroke-opacity="0.5" stroke-width="0.1"/>`);
+  if (O.rasters?.length && !O.bldTop && !O.bldLine) o.push(`<path d="${bldD}" fill="none" stroke="${T.dark ? '#000000' : '#ffffff'}" stroke-opacity="0.5" stroke-width="0.1"/>`);
   for (const p of O.polys ?? []) o.push(`<path d="${p.rings.map(r => path(r, true)).join('')}" fill="${p.fill}" fill-opacity="${p.op ?? 1}" fill-rule="evenodd"${p.stroke ? ` stroke="${p.stroke}" stroke-width="${n2(p.sw ?? 0.1)}" stroke-linejoin="round"` : ''}/>`);
   for (const l of O.lines ?? []) {
     const d = l.multi ? l.multi.map(m => path(m, false)).join('') : path(l.pts, false); if (!d) continue;
@@ -75,6 +77,7 @@ export function mapSvg(B: MapBase, O: Overlay, T: MapTheme, x: number, y: number
     o.push(`<path d="${d}" fill="none" stroke="${l.col}" stroke-width="${n2(l.w)}" stroke-opacity="${l.op ?? 1}" stroke-linecap="${l.cap ?? 'round'}" stroke-linejoin="round"${l.dash ? ` stroke-dasharray="${l.dash}"` : ''}/>`);
   }
   if (O.bldTop) o.push(`<path d="${bldD}" fill="${T.dark ? '#3a3d43' : '#c9c6bf'}" stroke="${T.dark ? '#111215' : '#ffffff'}" stroke-width="0.12"/>`);
+  else if (O.bldLine) o.push(`<path d="${bldD}" fill="${T.dark ? '#000000' : '#ffffff'}" fill-opacity="0.22" stroke="${T.dark ? '#e8e6e1' : '#2a2a2c'}" stroke-opacity="0.75" stroke-width="0.13" stroke-linejoin="round"/>`);
   for (const d of O.dots ?? []) {
     if (d.halo) o.push(`<circle cx="${X([d.x, d.y])}" cy="${Y([d.x, d.y])}" r="${n2(d.halo * k)}" fill="${d.col}" fill-opacity="0.12"/>`);
     o.push(`<circle cx="${X([d.x, d.y])}" cy="${Y([d.x, d.y])}" r="${n2(d.r)}" fill="${d.col}" fill-opacity="${d.op ?? 1}" stroke="${C.bg}" stroke-width="${n2(d.r * 0.35)}"/>`);

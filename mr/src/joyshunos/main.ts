@@ -2067,7 +2067,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       const g = D.lst.v; if (!g) return {}; const mu = lstMean(g), st = V('issiqlik').st, at = (x: number, y: number) => bilinear(g.v, g.n, g.step, x, y);
       if (st === 'binolar' || st === 'kochalar' || st === 'geks') return { quiet: true, rasters: [ras(heatImage(g, st, true), 0.9)] };
       const col = st === 'jurnal' ? (v: number) => (Math.abs(v - mu) < 0.5 ? null : heatCol(v - mu)) : st === 'doglar' ? (v: number) => (v - mu < 1 ? '#0d1627' : rampColor(['#f6b27c', '#e8743b', '#c4381f', '#7a160c'], Math.min(1, (v - mu - 1) / 3))) : (v: number) => heatCol(v - mu);
-      return { quiet: true, rasters: [albRas((x, y) => { const v = at(x, y); return Number.isNaN(v) ? null : col(v); }, st === 'doglar' ? 235 : 205, 720)] };
+      return { quiet: true, bldLine: true, rasters: [albRas((x, y) => { const v = at(x, y); return Number.isNaN(v) ? null : col(v); }, st === 'doglar' ? 235 : 205, 720)] };
     }
     case 'shovqin': {
       const g = nm?.noise; if (!g) return {}; const st = V('shovqin').st;
