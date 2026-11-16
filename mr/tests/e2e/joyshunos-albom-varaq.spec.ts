@@ -90,7 +90,9 @@ test('albom varaqlari: uslub tanlovi, doira, halqalar, piyoda yoʻli, toza tavsi
   }
   expect(pg(/Xizmatlar/)).toMatch(/stroke-width="0\.55"/);                                // eng yaqin obyektgacha piyoda yoʻli
   expect(pg(/Piyoda/)).toContain('≥ 15 daq');
-  expect(pg(/Shamol/)).toMatch(/<path d="M[^"]*Z" fill="#16171a"/);                       // yoʻnalish strelkasi uchi
+  expect(pg(/Shamol/)).toMatch(/<path d="M[^"]*Z" fill="#(16171a|ffffff)"/);              // yoʻnalish strelkasi uchi
+  expect((pg(/Shamol/).match(/stroke="#ffffff"/g) ?? []).length).toBeGreaterThan(5);          // «Tezlik»: maydon ustida oq oqim izlari
+  if (process.env.ALB_DUMP) { const fs = await import('node:fs'); pages.forEach((p, i) => fs.writeFileSync(`${process.env.ALB_DUMP}/p${String(i).padStart(2, '0')}.svg`, p.svg)); }
   expect((pg(/Shovqin/).match(/data:image\/png;base64,/g) ?? []).length).toBe(1);        // rasm bir marta (href takrorlanmaydi)
   expect(errs).toEqual([]);
 });

@@ -55,7 +55,7 @@ import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
 import { readCogWindow, kadWindow, popStats, popDens, ghsCol, GHS_POP_URL, GHS_DENS, type PopWin } from './population';
 import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, KAD_ERA, KAD_ERA_MONO, KAD_SEI, KAD_DENS, KAD_CELL_HA, type KadGrid } from './kadastr';
-import { windFlow, clipLine, windSpeedGrid } from './windflow';
+import { windFlow, clipLine, windSpeedGrid, windStreaks } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, WALK_MIN_PAL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
@@ -2169,34 +2169,40 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       return { quiet: true, polys, lines, dots };
     }
     case 'shamol': {
-      // 16.11 (egasi, referenslar): zich oqim chiziqlari — rang va qalinlik tezlikka qarab, binolarni aylanib oʻtadi; katta strelka — ustun yoʻnalish; shamol guli burchakda
+      // 16.11 (egasi, 2-tahrir: «siyrak, koʻp joy boʻsh — qalin, ranglarda»): butun doira teng qoplanadi.
+      // «Tezlik» — yorqin tezlik maydoni (ekrandagi shkala) + oq oqim izlari; «Oqim chiziqlari» — tezlik rangidagi qalin izlar; «Faqat shamol guli» — strelka va gul
       const w = windV(); if (!w) return {};
-      const Rw = R * 1.06, blds: XY[][] = [];
+      const st = V('shamol').st, dk = ALB.t === 'qora', Rw = R * 1.06, blds: XY[][] = [];
       for (const b of axBundle?.b.osm.buildings ?? []) { const r = b.rings[0]; if (!r?.length) continue; const L = r.map(toL); if (L.some(([x, y]) => Math.abs(x) < Rw && Math.abs(y) < Rw)) blds.push(L); }
-      // 16.11 (haqiqiy maʼlumotda chiziqlar siyrak edi): ikkinchi qator — normal boʻylab yarim oraliqqa surilgan binolar bilan, keyin qaytarib suriladi
-      const deg = w.w.k * 22.5, a0 = deg * Math.PI / 180, sh = Rw / 60, ox = Math.cos(a0) * sh, oy = -Math.sin(a0) * sh;
-      const fl = [...windFlow(blds, deg, Rw, 1), ...windFlow(blds.map(r => r.map(([x, y]) => [x + ox, y + oy] as XY)), deg, Rw, 1).map(L => ({ ...L, pts: L.pts.map(([x, y]) => [x - ox, y - oy] as XY) }))];
-      const NB = 5, bins: XY[][][] = Array.from({ length: NB }, () => []);
-      for (const L of fl) for (let i = 1; i < L.pts.length; i++) bins[Math.min(NB - 1, Math.floor(((L.v[i - 1] + L.v[i]) / 2) * NB))].push([L.pts[i - 1], L.pts[i]]);
-      const g = windSpeedGrid(blds, deg, Rw, 150);
-      const dk = ALB.t === 'qora', fp = dk ? WIND_ALB_DARK : WIND_ALB_PAL, lp = dk ? WIND_LINE_DARK : WIND_LINE_PAL;
-      const field = albRas((x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? null : rampColor(fp, Math.min(1, v)); }, (x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? 0 : (dk ? 60 : 30) + 90 * Math.min(1, v) ** 1.5; }, 512);
-      const from = deg * Math.PI / 180, dx = -Math.sin(from), dy = -Math.cos(from), nx = -dy, ny = dx, arr: XY[] = [];
+      const deg = w.w.k * 22.5, from = deg * Math.PI / 180, dx = -Math.sin(from), dy = -Math.cos(from), nx = -dy, ny = dx, arr: XY[] = [];
       for (let t = -0.55; t <= 0.551; t += 0.05) { const o = R * 0.66 + Math.cos(t * 2.4) * R * 0.08; arr.push([dx * t * R * 1.25 + nx * o, dy * t * R * 1.25 + ny * o]); }
-      return { quiet: true, bldTop: true, rasters: [field], lines: bins.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.22 + k * 0.12, col: rampColor(lp, 0.25 + 0.75 * k / (NB - 1)), op: 0.75 + k * 0.06 })),
-        arrows: [{ pts: arr, col: dk ? '#f2f0eb' : '#16171a', w: 0.9 }], rose: roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') };
+      const rose = roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, ''), arrows = [{ pts: arr, col: dk ? '#ffffff' : '#16171a', w: 0.9 }];
+      if (st === 'roza') return { quiet: true, arrows, rose };
+      const sp = R / 42, ws = windStreaks(blds, deg, Rw, sp, sp * 1.7), g = ws.grid, NB = 5;
+      const head: XY[][][] = Array.from({ length: NB }, () => []), tail: XY[][][] = Array.from({ length: NB }, () => []);
+      for (const L of ws.lines) { const m = Math.max(1, Math.floor(L.pts.length * 0.45)), vv = L.v.reduce((a, b) => a + b, 0) / L.v.length, bi = Math.min(NB - 1, Math.floor(vv * NB)); tail[bi].push(L.pts.slice(0, m + 1)); head[bi].push(L.pts.slice(m)); }
+      if (st === 'maydon') {
+        const field = albRas((x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? null : rampColor(WIND_ALB_FIELD, Math.min(1, v)); }, 235, 640);
+        return { bldTop: true, rasters: [field], arrows, rose,
+          lines: [...tail.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.18 + k * 0.05, col: '#ffffff', op: 0.3 + k * 0.06, cap: 'butt' })), ...head.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.32 + k * 0.08, col: '#ffffff', op: 0.6 + k * 0.08 }))] };
+      }
+      const lp = dk ? WIND_LINE_DARK : WIND_LINE_PAL;
+      return { quiet: true, bldTop: true, arrows, rose,
+        lines: [...tail.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.3 + k * 0.1, col: rampColor(lp, 0.2 + 0.8 * k / (NB - 1)), op: 0.45, cap: 'butt' })), ...head.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.5 + k * 0.16, col: rampColor(lp, 0.2 + 0.8 * k / (NB - 1)), op: 0.95 }))] };
     }
     default: return {};
   }
 }
 /** Albom: odamlar oqimi (och sariq → toʻq binafsha) va shamol (oq-yashil → toʻq zumrad) shkalalari */
 const FLOW_PAL = ['#fde7a6', '#f7b267', '#ee7a4a', '#d0434f', '#9c1f62', '#4b0f5e'];
-const WIND_ALB_PAL = ['#f4fbf8', '#d5efe6', '#a6dcc9', '#64bfa3', '#2a9a7c'];
 const WIND_LINE_PAL = ['#9fd6c4', '#5bbf9f', '#2f9e80', '#147d64', '#0a5544'];
-const WIND_ALB_DARK = ['#0f1513', '#12261f', '#16402f', '#1d6248', '#2b8f68'], WIND_LINE_DARK = ['#2c6e59', '#3f9a7b', '#5fc29d', '#93e0c1', '#d6fff0'];
+/** albom «Tezlik»: oq izlar har joyda koʻrinsin — eng tez qism ham toʻq (sariq-toʻq sariq), oq emas */
+const WIND_ALB_FIELD = ['#13235e', '#1f4fa8', '#1f9e9a', '#3fae5a', '#c9b42a', '#d9701f'];
+const WIND_LINE_DARK = ['#2c6e59', '#3f9a7b', '#5fc29d', '#93e0c1', '#d6fff0'];
 /** Albom uchun maxsus shartli belgilar (ekrandagidan farq qiladigan qatlamlar) */
 function albomLegend(id: LayerId): import('./report').RepLegend[] | null {
   if (id === 'oqim' && V('oqim').st !== 'dasta') return [{ title: tr('Odamlar oqimi (model)'), items: FLOW_PAL.map((c, i) => [c, i === 0 ? tr('Past') : i === FLOW_PAL.length - 1 ? tr('Yuqori') : ''] as [string, string]) }];
+  if (id === 'shamol' && V('shamol').st === 'maydon') return [{ title: `${tr('Shamol')} · ${tr('Tezlik')}`, items: WIND_ALB_FIELD.map((c, i) => [c, i === 0 ? tr('Past') : i === WIND_ALB_FIELD.length - 1 ? tr('Yuqori') : ''] as [string, string]) }];
   if (id === 'shamol') { const lp = ALB.t === 'qora' ? WIND_LINE_DARK : WIND_LINE_PAL; return [{ title: `${tr('Shamol')} · ${tr('Tezlik')}`, items: lp.map((c, i) => [c, i === 0 ? tr('Past') : i === lp.length - 1 ? tr('Yuqori') : ''] as [string, string]) }]; }
   if (id === 'piyoda' && NM?.pers !== 'hammasi' && walkMode() === 'daqiqa') return [{ title: tr('Markazdan yurish, daqiqa'), items: [[rampColor(WALK_MIN_PAL, 0), '0'], [rampColor(WALK_MIN_PAL, 5 / 15), tr('5 daq')], [rampColor(WALK_MIN_PAL, 10 / 15), tr('10 daq')], [rampColor(WALK_MIN_PAL, 1), `≥ ${tr('15 daq')}`]] }];
   if (id === 'xizmat') return [{ title: tr('Eng yaqin obyektgacha piyoda yoʻl'), items: SVC_KINDS.map(k => [SVC_COL[k], tr(SVC_SHORT[k])] as [string, string]) }];
