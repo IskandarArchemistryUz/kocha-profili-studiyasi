@@ -402,14 +402,14 @@ function izCur(): { key: string; iso: Iso; at: P2 } | null {
 }
 /** Oʻtilgan yoʻl izi: 12 ta teng oraliqdagi koʻrinish (kesh) */
 let izTrail: { key: string; polys: P2[][] } | null = null;
-function izTrailPolys(): P2[][] {
+function izTrailPolys(all = false): P2[][] {
   const X = izIndex(); if (!X || !izReady() || S.iz?.tr === false) return [];
   const key = `${WK!.key}`; if (izTrail?.key !== key) {
     const polys: P2[][] = [], L = WK!.pl.L;
     for (let i = 0; i <= 12; i++) { const d = L * i / 12; polys.push(isovist(X.ix, WK!.pl.at(d), WK!.pl.heading(d), izOpt()).poly); }
     izTrail = { key, polys };
   }
-  return izTrail.polys.filter((_, i) => WK!.pl.L * i / 12 <= izD);
+  return all ? izTrail.polys : izTrail.polys.filter((_, i) => WK!.pl.L * i / 12 <= izD);
 }
 function paintIz(m: MLMap): void {
   if (!m.getSource('joy-iz')) return;
@@ -2054,9 +2054,12 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       const rs = st === 'gips' ? albRas((x, y) => { const v = hAt(x, y); return Number.isNaN(v) ? null : rampColor(pal, (v - g.min) / rng); }, 215, 640)
         : albRas((x, y) => { const v = hAt(x, y); if (Number.isNaN(v)) return null; const tt = (v - g.min) / rng; return `#${[236 - tt * 60, 226 - tt * 80, 204 - tt * 95].map(q => Math.round(q).toString(16).padStart(2, '0')).join('')}`; }, 160, 640);
       if (st === 'soya') return { quiet: true, rasters: [rs] };
-      const sp = [0.5, 1, 2, 5, 10, 20].find(v => rng / v <= 28) ?? 20, lv: number[] = [];
+      // 16.11 (haqiqiy maʼlumotda): DEM shovqini mayda halqalar beradi — 3×3 tekislash (2 marta) va yirikroq qadam
+      const sp = [0.5, 1, 2, 5, 10, 20].find(v => rng / v <= 14) ?? 20, lv: number[] = [];
       for (let v = Math.ceil(g.min / sp) * sp; v <= g.max; v += sp) lv.push(v);
-      const lines = isolines(g.h, g.n, g.step, lv).map(L => ({ pts: [] as XY[], multi: joinSegs(L.segs).map(l => l.map(([x, y]) => [x - off[0], y - off[1]] as XY)), w: Math.round(L.lv / sp) % 5 === 0 ? 0.42 : 0.18, col: '#7a5a3c', op: 0.85 }));
+      let hs = Float32Array.from(g.h);
+      for (let it = 0; it < 2; it++) { const o2 = new Float32Array(hs.length); for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { let a = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= g.n || jj >= g.n) continue; const v = hs[jj * g.n + ii]; if (Number.isFinite(v)) { a += v; c++; } } o2[j * g.n + i] = c ? a / c : NaN; } hs = o2; }
+      const lines = isolines(hs, g.n, g.step, lv).filter(L => L.segs.length).map(L => ({ pts: [] as XY[], multi: joinSegs(L.segs).filter(l => l.length > 6).map(l => l.map(([x, y]) => [x - off[0], y - off[1]] as XY)), w: Math.round(L.lv / sp) % 5 === 0 ? 0.42 : 0.2, col: '#7a5a3c', op: 0.85 }));
       return { quiet: true, rasters: [rs], lines };
     }
     case 'nishab': { const t = D.ter.v; return t ? { quiet: true, rasters: [ras(slopeImage(t.g, R + 30), 0.9)] } : {}; }
@@ -2158,7 +2161,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       if (izMode() === 'maydon') return VG?.img ? { quiet: true, rasters: [ras(VG.img, 0.92)] } : {};
       const cur = izCur(), polys: NonNullable<import('./albomMap').Overlay['polys']> = [], lines: NonNullable<import('./albomMap').Overlay['lines']> = [], dots: NonNullable<import('./albomMap').Overlay['dots']> = [];
       if (izMode() === 'marshrut') {
-        const tp = izTrailPolys().filter(p => p.length > 2).map(p => p.map(L2)); if (tp.length) polys.push({ rings: tp, fill: '#fde9c9', op: 0.55 });
+        const tp = izTrailPolys(true).filter(p => p.length > 2).map(p => p.map(L2)); /* albomda butun yoʻl izi */ if (tp.length) polys.push({ rings: tp, fill: '#fde9c9', op: 0.55 });
         const r = S.iz?.route; if (r && r.length > 1) lines.push({ pts: r.map(toL), w: 0.6, col: '#e3242b', op: 1, dash: '1.6 1.2', halo: 0.3 });
       }
       if (cur?.iso.poly.length) polys.push({ rings: [cur.iso.poly.map(L2)], fill: IZ_COL, op: 0.8, stroke: '#e08600', sw: 0.25 });
@@ -2170,14 +2173,17 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       const w = windV(); if (!w) return {};
       const Rw = R * 1.06, blds: XY[][] = [];
       for (const b of axBundle?.b.osm.buildings ?? []) { const r = b.rings[0]; if (!r?.length) continue; const L = r.map(toL); if (L.some(([x, y]) => Math.abs(x) < Rw && Math.abs(y) < Rw)) blds.push(L); }
-      const deg = w.w.k * 22.5, fl = windFlow(blds, deg, Rw, 1), NB = 5, bins: XY[][][] = Array.from({ length: NB }, () => []);
+      // 16.11 (haqiqiy maʼlumotda chiziqlar siyrak edi): ikkinchi qator — normal boʻylab yarim oraliqqa surilgan binolar bilan, keyin qaytarib suriladi
+      const deg = w.w.k * 22.5, a0 = deg * Math.PI / 180, sh = Rw / 60, ox = Math.cos(a0) * sh, oy = -Math.sin(a0) * sh;
+      const fl = [...windFlow(blds, deg, Rw, 1), ...windFlow(blds.map(r => r.map(([x, y]) => [x + ox, y + oy] as XY)), deg, Rw, 1).map(L => ({ ...L, pts: L.pts.map(([x, y]) => [x - ox, y - oy] as XY) }))];
+      const NB = 5, bins: XY[][][] = Array.from({ length: NB }, () => []);
       for (const L of fl) for (let i = 1; i < L.pts.length; i++) bins[Math.min(NB - 1, Math.floor(((L.v[i - 1] + L.v[i]) / 2) * NB))].push([L.pts[i - 1], L.pts[i]]);
       const g = windSpeedGrid(blds, deg, Rw, 150);
       const dk = ALB.t === 'qora', fp = dk ? WIND_ALB_DARK : WIND_ALB_PAL, lp = dk ? WIND_LINE_DARK : WIND_LINE_PAL;
       const field = albRas((x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? null : rampColor(fp, Math.min(1, v)); }, (x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? 0 : (dk ? 60 : 30) + 90 * Math.min(1, v) ** 1.5; }, 512);
       const from = deg * Math.PI / 180, dx = -Math.sin(from), dy = -Math.cos(from), nx = -dy, ny = dx, arr: XY[] = [];
       for (let t = -0.55; t <= 0.551; t += 0.05) { const o = R * 0.66 + Math.cos(t * 2.4) * R * 0.08; arr.push([dx * t * R * 1.25 + nx * o, dy * t * R * 1.25 + ny * o]); }
-      return { quiet: true, bldTop: true, rasters: [field], lines: bins.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.14 + k * 0.1, col: rampColor(lp, k / (NB - 1)), op: 0.6 + k * 0.1 })),
+      return { quiet: true, bldTop: true, rasters: [field], lines: bins.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.22 + k * 0.12, col: rampColor(lp, 0.25 + 0.75 * k / (NB - 1)), op: 0.75 + k * 0.06 })),
         arrows: [{ pts: arr, col: dk ? '#f2f0eb' : '#16171a', w: 0.9 }], rose: roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') };
     }
     default: return {};
