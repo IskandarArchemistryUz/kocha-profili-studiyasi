@@ -400,6 +400,13 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .alb-row{display:flex;align-items:center;gap:12px;justify-content:space-between}
 .alb-row .seg{min-width:200px}
 .alb-act{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+/* 16.11: albomdagi koʻrinish — har qatlam uchun */
+.alb{max-height:calc(100vh - 32px);overflow:auto}
+.alb-st{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+.alb-st-r{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px}
+.alb-st-r>b{font-weight:500;font-size:13px;flex:0 0 auto}
+.alb-st-d{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.alb-st-d .dd{min-width:0}
 #albOpen{margin-top:4px}
 /* 27.10 · qatlam koʻrinishi (faqat faol kartada, yigʻiq) */
 .jv{display:flex;flex-direction:column;gap:10px;margin:4px 0 2px}

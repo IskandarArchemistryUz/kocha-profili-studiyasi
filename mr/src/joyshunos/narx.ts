@@ -100,3 +100,16 @@ export function narxPolys(d: NarxData, k: NarxKat, toL: (p: LngLat) => [number, 
   }
   return out;
 }
+/** 16.11 (egasi: albomda kataklar juda yirik): 500 m kataklar faylda boʻlsa — narxi bor (≥ 5 eʼlon) 500 m kataklar asosiy katak ustidan chiziladi
+ *  (rang shkalasi — asosiy oʻlchamniki, shartli belgilar bir xil qoladi). Boʻlmasa — faqat asosiy kataklar. */
+export function narxPolysFine(d: NarxData, k: NarxKat, toL: (p: LngLat) => [number, number], half: number): { pts: [number, number][]; col: string; empty: boolean; m?: number; n?: number; fine?: boolean }[] {
+  const base = narxPolys(d, k, toL, half), fine = d.kat[k]?.['500'], b = breaks(d, k);
+  if (!fine?.length) return base;
+  const out: ReturnType<typeof narxPolysFine> = [...base];
+  for (const c of fine) {
+    if (c[2] < 5) continue;
+    const pts = hexRing(c[0], c[1], 500).map(toL); if (pts.every(p => Math.abs(p[0]) > half + 500 || Math.abs(p[1]) > half + 500)) continue;
+    out.push({ pts, col: colorOf(c[3], b), empty: false, m: c[3], n: c[2], fine: true });
+  }
+  return out;
+}

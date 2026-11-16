@@ -3,7 +3,7 @@
  * Bir xil varaq: PDF (vektor matn + xarita surati) va Chizmadon (kiruvchi varaq, masshtab 1).
  * Illustrator uchun: har boʻlim nomli qatlam-guruh («01 Xarita» …), matn — matn (egri chiziq emas).
  */
-export interface RepNorm { k: string; v: string; lim: string; ok: boolean }
+export interface RepNorm { k: string; v: string; lim: string; ok: boolean; /** 16.11: meʼyordan tashqari (warn) — neytral qator emas */ warn?: boolean }
 export interface RepCard { id: string; name: string; color: string; chip: string; beta: boolean; big: string; text: string[]; norms: RepNorm[]; src: string }
 export interface RepLegend { title: string; items: [string, string][] }
 export interface RepInput {

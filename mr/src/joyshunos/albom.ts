@@ -151,8 +151,21 @@ export function swissSheets(I: AlbumInput): Page[] {
     { const nmL = lines(M, y, [l.name], 10, 11.5, p.ink, 118, 3, ' font-weight="700"', 0.64); b.push(nmL.svg); y += nmL.h - 3.5; }
     const tx = lines(M, y + 4, l.text, 3.3, 5, p.sub, 118, 5); b.push(tx.svg); y += tx.h + 18;
     { const bg = wrap(l.big, 118, 12, 0.64).slice(0, 2); bg.forEach((s, k) => b.push(t(M, y + k * 13, s, 12, p.ink, ' font-weight="700"'))); y += 9 + bg.length * 13; }
-    const lg = legendSvg(p, l.legend, M, y, 118); if (y + lg.h < H - M - 16) b.push(lg.svg);
-    b.push(icon(l.id, M, H - M - 12, 4.5, p.mut, 1.6), t(M + 6.5, H - M - 8.4, l.src.slice(0, 80), 2.3, p.mut));
+    // 16.11 (egasi: «tavsiflari juda kam»): manba va usul toʻliq matn (kesilmaydi), asosiy koʻrsatkichlar jadvali
+    const srcL = l.src ? wrap(l.src, 112, 2.4, 0.52).slice(0, 6) : [], srcTop = H - M - 10 - srcL.length * 3.3;
+    if (srcL.length) { b.push(icon(l.id, M, srcTop - 3.2, 4.5, p.mut, 1.6)); srcL.forEach((s, k) => b.push(t(M + 6.5, srcTop + k * 3.3, s, 2.4, p.mut))); }
+    const lg = legendSvg(p, l.legend, M, y, 118); if (y + lg.h < srcTop - 8) { b.push(lg.svg); y += lg.h + 4; }
+    if (l.norms.length && y < srcTop - 16) {
+      b.push(t(M, y + 2, I.L.value.toUpperCase(), 2.3, p.mut, ' letter-spacing="0.3"')); y += 4;
+      for (const n of l.norms.slice(0, 8)) {
+        const kl = wrap(n.k, 70, 2.7).slice(0, 2), rh = 5.2 + (kl.length - 1) * 3.2 + (n.lim ? 3 : 0); if (y + rh > srcTop - 6) break;
+        b.push(`<line x1="${M}" x2="${M + 118}" y1="${n2(y + 0.6)}" y2="${n2(y + 0.6)}" stroke="${p.line}" stroke-width="0.2"/>`);
+        kl.forEach((s, k) => b.push(t(M, y + 4.4 + k * 3.2, s, 2.7, p.ink)));
+        b.push(t(M + 118, y + 4.4, n.v, 2.9, n.warn ? '#b4620e' : n.ok ? '#2b7449' : p.ink, ' text-anchor="end" font-weight="700"'));
+        if (n.lim) b.push(t(M + 118, y + 7.6, n.lim.slice(0, 60), 2.2, p.mut, ' text-anchor="end"'));
+        y += rh;
+      }
+    }
     const ms = H - 2 * M - 10; b.push(mapBox(I, p, l.map, W - M - ms, M, ms, { ov: l.ov, rose: l.rose }));
     b.push(t(M, H - M + 2, `${I.L.org} · ${I.addr} · ${I.coords}`, 2.3, p.mut), t(W - M, H - M + 2, `${String(i + 1).padStart(2, '0')} / ${String(I.layers.length).padStart(2, '0')}`, 2.4, p.ink, ` text-anchor="end" font-family="${MONO}"`));
     return { svg: doc(W, H, p, b.join('')), w: W, h: H, name: `${String(i + 1).padStart(2, '0')} ${l.name}` };
