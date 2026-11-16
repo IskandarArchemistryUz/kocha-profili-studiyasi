@@ -1,6 +1,6 @@
 import { test, expect, type Page } from './fx';
 
-/** Kirish: 1–2-qadamlar ochiq, 3-qadamdan boshlab — pochta kodi bilan kirish (API soxta: api.test) */
+/** Kirish: 1–5-qadamlar ochiq, 6-qadamdan boshlab — pochta kodi bilan kirish (API soxta: api.test) */
 const API = 'https://api.test';
 async function mockApi(page: Page, opts: { google?: string | null; owner?: boolean } = {}) {
   const st = { logged: false, codes: [] as string[] };
@@ -19,17 +19,19 @@ async function mockApi(page: Page, opts: { google?: string | null; owner?: boole
   return st;
 }
 
-test('kirish: 3-qadamdan pochta kodi bilan, chiqish, Chizmadon ham yopiq', async ({ page }) => {
+test('kirish: 6-qadamdan pochta kodi bilan, chiqish, Chizmadon ham yopiq', async ({ page }) => {
   const st = await mockApi(page);
   await page.goto('./'); await page.click('#newP');
   await expect(page.locator('#acctIn')).toBeVisible();
-  // 1–2-qadamlar — kirishsiz
+  // 1–5-qadamlar — kirishsiz
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
+  await page.click('[data-step=kocha]'); await expect(page.locator('.panel h2')).toHaveText('Koʻchalar');
+  await page.click('[data-step=hajm]'); await expect(page.locator('.panel h2')).toHaveText('Hajmlar');
   await expect(page.locator('#kirish')).toHaveCount(0);
-  // 3-qadam — kirish oynasi
-  await page.click('[data-step=kocha]');
+  // 6-qadam — kirish oynasi
+  await page.click('[data-step=quyosh]');
   await expect(page.locator('#kirish')).toBeVisible();
-  await expect(page.locator('#kirish .kd-lead')).toContainText('Koʻchalar');
+  await expect(page.locator('#kirish .kd-lead')).toContainText('Quyosh va shamol');
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/kirish.png` });
   await page.fill('#kdEmail', 'ali@mail.uz'); await page.click('#kdGo');
   await expect(page.locator('#kdCode')).toBeVisible(); expect(st.codes).toEqual(['ali@mail.uz']);
@@ -37,9 +39,9 @@ test('kirish: 3-qadamdan pochta kodi bilan, chiqish, Chizmadon ham yopiq', async
   await expect(page.locator('#kirish .kd-msg')).toContainText('kod notoʻgʻri');
   await page.fill('#kdCode', '123456'); await page.click('#kdGo');
   await expect(page.locator('#kirish')).toHaveCount(0);
-  await expect(page.locator('.panel h2')).toHaveText('Koʻchalar');
+  await expect(page.locator('.panel h2')).toHaveText('Quyosh va shamol');
   await expect(page.locator('#acctPop')).toHaveText('A');
-  // chiqish → yana 2-qadam, Chizmadon soʻraydi
+  // chiqish → yana 1-qadam, Chizmadon soʻraydi
   await page.click('#acctPop'); await expect(page.locator('#acctBal')).toHaveText('50'); await page.click('#acctOut');
   await expect(page.locator('#acctIn')).toBeVisible();
   await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
@@ -55,7 +57,7 @@ test('kirish: tungi rejim va 1024 px, server javob bermasa — tushunarli xabar'
   await page.goto('./'); await page.click('#newP');
   await page.click('[aria-label="Tungi rejim"]');
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
-  await page.click('[data-step=hajm]');
+  await page.click('[data-step=quyosh]');
   await expect(page.locator('#kirish')).toBeVisible();
   await page.fill('#kdEmail', 'ali@mail.uz'); await page.click('#kdGo');
   await expect(page.locator('#kirish .kd-msg')).toContainText('Server bilan aloqa yoʻq');
@@ -99,7 +101,7 @@ test('kirish: sukut boʻyicha yoqilgan, egasi rejimida loyihalar sahifasida hiso
 test('egasi akkaunti: kirganda belgisiz, chiqqanda belgili', async ({ page }) => {
   await mockApi(page, { owner: true });
   await page.goto('./'); await page.click('#newP');
-  await page.click('[data-step=uchastka]'); await page.click('#rectSite'); await page.click('[data-step=kocha]');
+  await page.click('[data-step=uchastka]'); await page.click('#rectSite'); await page.click('[data-step=quyosh]');
   await page.fill('#kdEmail', 'boss@mail.uz'); await page.click('#kdGo');
   await page.fill('#kdCode', '123456'); await page.click('#kdGo');
   await expect(page.locator('#kirish')).toHaveCount(0);

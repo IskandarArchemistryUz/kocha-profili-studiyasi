@@ -9,5 +9,7 @@ export const API_BASE = 'https://api.archemistry.uz';
 const ls = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
 export const authRequired = (): boolean => { const v = ls('kps_auth'); return v === '1' ? true : v === '0' ? false : AUTH_REQUIRED; };
 export const apiBase = (): string => ls('kps_api') || API_BASE;
-/** Qaysi qadamdan boshlab kirish kerak (1-qadam Hudud va 2-qadam Uchastka — kirishsiz) */
-export const FREE_STEPS = ['hudud', 'uchastka'];
+/** Kirishsiz ochiq qadamlar: 1–5 (Joy va uchastka … Hajmlar). 16.11.2026: egasi paneli — 1-qadamdan keyin
+ *  kirish talabida 64 % ketardi; kirish endi 6-qadamdan va server amallarida (variant taklif, ogʻir hisob, toza fayl,
+ *  bulut, Chizmadon, agent — har biri oʻz ensureLogin bilan). 'hudud' — eski loyihalar marshruti uchun. */
+export const FREE_STEPS = ['hudud', 'uchastka', 'kocha', 'parsel', 'yashil', 'hajm'];
