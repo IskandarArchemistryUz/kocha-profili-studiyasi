@@ -88,3 +88,25 @@ function windField(blds: XY[][], fromDeg: number, R: number) {
   };
   return { S, vel, tang, wx, wy, G };
 }
+
+/** Albom (16.11, egasi: «shamol siyrak, koʻp joy boʻsh»): butun doirani teng qoplaydigan qisqa oqim izlari.
+ *  Urugʻlar — tebranuvchi toʻr (har sp m), har biridan maydon yoʻnalishida len m oldinga; bino ichida toʻxtaydi.
+ *  Bir xil maydondan tezlik toʻri ham qaytariladi (qayta hisoblanmaydi). */
+export function windStreaks(blds: XY[][], fromDeg: number, R: number, sp: number, len: number, n = 150): { lines: FlowLine[]; grid: { n: number; step: number; v: Float32Array } } {
+  const f = windField(blds, fromDeg, R), lines: FlowLine[] = [], st = Math.max(2, sp / 6), k = Math.ceil(len / st);
+  const spd = (w: XY) => Math.min(1, Math.hypot(w[0], w[1]) / 0.69);
+  let q = 0;
+  for (let y = -R; y <= R; y += sp) for (let x = -R; x <= R; x += sp) {
+    q++; let px = x + (jit(q) - 0.5) * sp, py = y + (jit(q + 7919) - 0.5) * sp; if (px * px + py * py > R * R) continue;
+    const L: XY[] = [], V: number[] = [];
+    for (let s = 0; s < k; s++) {
+      const w = f.vel(px, py); if (!w) break;
+      L.push([px, py]); V.push(spd(w));
+      const m = Math.hypot(w[0], w[1]) || 1; px += w[0] / m * st; py += w[1] / m * st;
+    }
+    if (L.length >= 3) lines.push({ pts: L, v: V });
+  }
+  const step = 2 * R / (n - 1), v = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const w = f.vel(-R + i * step, -R + j * step); v[j * n + i] = w ? spd(w) : NaN; }
+  return { lines, grid: { n, step, v } };
+}

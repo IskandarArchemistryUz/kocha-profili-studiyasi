@@ -55,7 +55,7 @@ import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
 import { readCogWindow, kadWindow, popStats, popDens, ghsCol, GHS_POP_URL, GHS_DENS, type PopWin } from './population';
 import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, seiCat, bldCol, KAD_ERA, KAD_ERA_MONO, KAD_SEI, KAD_DENS, KAD_CELL_HA, type KadGrid } from './kadastr';
-import { windFlow, clipLine, windSpeedGrid } from './windflow';
+import { windFlow, clipLine, windSpeedGrid, windStreaks } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, WALK_MIN_PAL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
 import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
@@ -402,14 +402,14 @@ function izCur(): { key: string; iso: Iso; at: P2 } | null {
 }
 /** Oʻtilgan yoʻl izi: 12 ta teng oraliqdagi koʻrinish (kesh) */
 let izTrail: { key: string; polys: P2[][] } | null = null;
-function izTrailPolys(): P2[][] {
+function izTrailPolys(all = false): P2[][] {
   const X = izIndex(); if (!X || !izReady() || S.iz?.tr === false) return [];
   const key = `${WK!.key}`; if (izTrail?.key !== key) {
     const polys: P2[][] = [], L = WK!.pl.L;
     for (let i = 0; i <= 12; i++) { const d = L * i / 12; polys.push(isovist(X.ix, WK!.pl.at(d), WK!.pl.heading(d), izOpt()).poly); }
     izTrail = { key, polys };
   }
-  return izTrail.polys.filter((_, i) => WK!.pl.L * i / 12 <= izD);
+  return all ? izTrail.polys : izTrail.polys.filter((_, i) => WK!.pl.L * i / 12 <= izD);
 }
 function paintIz(m: MLMap): void {
   if (!m.getSource('joy-iz')) return;
@@ -1903,7 +1903,7 @@ function focusMap(m: MLMap): void {
 }
 /* ---------------- Albom, hisobot va plakat (26.10) ---------------- */
 type AlbKind = 'hisobot' | 'albom' | 'plakat';
-const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora'; /** 16.11 (egasi): har qatlam albomda qaysi koʻrinishda chiqadi */ st?: Record<string, string> } | null; } catch { return null; } })() ?? {};
+const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora'; /** 16.11 (egasi): har qatlam albomda qaysi koʻrinishda chiqadi */ st?: Record<string, string>; /** bir qatlamdan bir necha uslub — har biri alohida varaq */ ms?: Record<string, string[]>; /** albomga chiqmaydigan qatlamlar */ ex?: string[] } | null; } catch { return null; } })() ?? {};
 /** Albomdagi koʻrinish: tanlangani, aks holda ekrandagisi (piyoda — sukut boʻyicha «Har koʻcha daqiqasi», uzoqqa qarab rang oʻzgaradi) */
 function albSt(id: LayerId): string {
   const cur = V(id).st, v = ALB.st?.[id], d = VIEW[id];
@@ -1912,6 +1912,15 @@ function albSt(id: LayerId): string {
 }
 /** Albom oynasida koʻrinish tanlanadigan qatlamlar (izovist rejimi ogʻir hisob — ekrandagisi olinadi) */
 const albStOk = (id: string) => !!(VIEW[id]?.styles || VIEW[id]?.axes) && id !== 'izovist';
+/** 16.11 (egasi: «xohlasa bitta boʻlimdan ikkita, xohlasa bitta, xohlasa oʻchiq»): qatlamning albomdagi varaqlari — har biri bitta uslub */
+function albVariants(id: LayerId): string[] {
+  if (ALB.ex?.includes(id)) return [];
+  if (!albStOk(id)) return [V(id).st];
+  const d = VIEW[id];
+  if (d.styles) { const m = (ALB.ms?.[id] ?? []).filter(v => d.styles!.some(x => x[0] === v)); return m.length ? m : [albSt(id)]; }
+  return [albSt(id)];
+}
+const albStName = (id: LayerId, st: string): string => { const d = VIEW[id]; return d?.styles ? tr(d.styles.find(x => x[0] === st)?.[1] ?? st) : d?.axes ? st.split('|').map((v, i) => tr(d.axes![i][1].find(x => x[0] === v)?.[1] ?? v)).slice(-1)[0] : st; };
 const albSave = () => { try { localStorage.setItem('joy-albom', JSON.stringify(ALB)); } catch { /* */ } };
 function cityName(): string {
   const tz = placeOf(S.c[0], S.c[1]).tz ?? '', c = tz.split('/').pop()?.replace(/_/g, ' ') ?? '', lang = getLang();
@@ -1927,7 +1936,7 @@ function albomDialog(): void {
   const kinds: [AlbKind, string, string][] = [['hisobot', 'Qisqa hisobot', 'A4 · muqova, qisqa xulosa, har qatlamga sahifa'], ['albom', 'Albom varaqlari', 'A3 · Shveytsar toʻri, har qatlamga varaq'], ['plakat', 'Plakat · Galereya', '50 × 70 sm · faol qatlam']];
   const draw = () => {
     const k = ALB.k ?? 'hisobot', f = ALB.f ?? 'kvadrat', th = ALB.t ?? 'oq';
-    const nOn = collectCards().filter(c => LAYERS.some(l => l.id === c.id)).length;
+    const nOn = collectCards().filter(c => LAYERS.some(l => l.id === c.id) && albVariants(c.id as LayerId).length).length;
     const seg = (lab: string, id: string, opts: [string, string][], cur: string, on: (v: string) => void) => h('div', { class: 'alb-row' }, h('span', { class: 't-small' }, tr(lab)),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr(lab), id }, ...opts.map(([v, n]) => h('button', { type: 'button', 'aria-pressed': v === cur, onclick: () => { on(v); albSave(); draw(); } }, tr(n)))));
     box.replaceChildren(
@@ -1944,13 +1953,20 @@ function albomDialog(): void {
   };
   /** 16.11 (egasi): har boʻlimda albomga qaysi variant chiqishini tanlash */
   const stRows = (): HTMLElement | null => {
-    const ids = collectCards().map(c => c.id).filter(id => LAYERS.some(l => l.id === id) && albStOk(id)) as LayerId[]; if (!ids.length) return null;
+    const ids = collectCards().map(c => c.id).filter(id => LAYERS.some(l => l.id === id)) as LayerId[]; if (!ids.length) return null;
     const pick = (id: LayerId, v: string) => { ALB.st = { ...ALB.st, [id]: v }; albSave(); };
+    const setOn = (id: LayerId, on: boolean) => { ALB.ex = on ? (ALB.ex ?? []).filter(x => x !== id) : [...new Set([...(ALB.ex ?? []), id])]; albSave(); draw(); };
     return h('div', { class: 'alb-st', id: 'albSt' }, h('span', { class: 't-small' }, tr('Koʻrinish')), ...ids.map(id => {
-      const d = VIEW[id], cur = albSt(id), nm = tr(LAYERS.find(l => l.id === id)!.name);
+      const d = VIEW[id], cur = albSt(id), nm = tr(LAYERS.find(l => l.id === id)!.name), vs = albVariants(id), on = vs.length > 0;
+      const tog = h('button', { type: 'button', class: 'alb-on', 'aria-pressed': on, 'data-on': id, onclick: () => setOn(id, !on) }, nm);
+      if (!on || !albStOk(id)) return h('div', { class: 'alb-st-r', 'data-l': id }, tog);
+      // uslublar — bir nechtasi tanlanadi (har biri alohida varaq); oxirgisi oʻchirilsa — qatlam albomga chiqmaydi
       const dds = d.axes ? d.axes.map(([lb, o], i) => dropdown({ 'aria-label': `${nm} · ${tr(lb)}`, 'data-ax': String(i), onchange: v => { const p = albSt(id).split('|'); p[i] = v; pick(id, p.join('|')); } }, o.map(([k, n]) => ({ value: k, label: tr(n), selected: cur.split('|')[i] === k }))))
-        : [dropdown({ 'aria-label': nm, onchange: v => pick(id, v) }, d.styles!.map(([k, n]) => ({ value: k, label: tr(n), selected: cur === k })))];
-      return h('div', { class: 'alb-st-r', 'data-l': id }, h('b', {}, nm), h('div', { class: 'alb-st-d' }, ...dds));
+        : [h('div', { class: 'seg sm wrap', role: 'group', 'aria-label': nm }, ...d.styles!.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': vs.includes(k), 'data-st': k, onclick: () => {
+            const nx = vs.includes(k) ? vs.filter(x => x !== k) : [...vs, k];
+            if (!nx.length) { ALB.ms = { ...ALB.ms, [id]: [vs[0]] }; setOn(id, false); return; }
+            ALB.ms = { ...ALB.ms, [id]: d.styles!.map(x => x[0]).filter(x => nx.includes(x)) }; albSave(); draw(); } }, tr(n))))];
+      return h('div', { class: 'alb-st-r', 'data-l': id }, tog, h('div', { class: 'alb-st-d' }, ...dds));
     }));
   };
   const box = h('div', { class: 'alb', id: 'albDlg', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Albom, hisobot va plakat') });
@@ -1970,18 +1986,18 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
     const cards = collectCards().filter(c => LAYERS.some(l => l.id === c.id));
     await baseReady();
     const base0 = albomBase();
-    const kind = ALB.k ?? 'hisobot', only = kind === 'plakat' ? cards.filter(c => c.id === (actId() ?? cards[0]?.id)) : cards;
+    const kind = ALB.k ?? 'hisobot', only = kind === 'plakat' ? cards.filter(c => c.id === (actId() ?? cards[0]?.id)) : cards.filter(c => albVariants(c.id as LayerId).length);
     const layers: import('./albom').AlbumLayer[] = [];
     const resetKeys = () => { heatKey = noiseKey = slopeKey = ''; isoKey = ''; gipsKey = ''; kadKey = ''; sunKey = ''; narxKey = ''; skKey = ''; };
-    for (const c of only) {
+    for (const c of only) for (const want of (kind === 'plakat' ? [albVariants(c.id as LayerId)[0] ?? V(c.id as LayerId).st] : albVariants(c.id as LayerId))) {
       const L = LAYERS.find(l => l.id === c.id)!;
-      const cid = c.id as LayerId, keepV = S.v?.[cid], want = albStOk(cid) ? albSt(cid) : V(cid).st;
+      const cid = c.id as LayerId, keepV = S.v?.[cid], many = albVariants(cid).length > 1 && kind !== 'plakat';
       if (want !== V(cid).st) {   // 16.11: albom uchun tanlangan koʻrinish (vaqtincha), keyin ekrandagisi qaytariladi
         S.v = { ...S.v, [cid]: { ...keepV, st: want } }; resetKeys();
         if (cid === 'piyoda') { computeNet(); for (let i = 0; i < 160 && !(NM?.reach && NM.pers === pers()); i++) { computeNet(); await new Promise(r => setTimeout(r, 125)); } }
       }
       S.on = cid === 'relyef' ? keepOn.filter(x => x === 'relyef' || x === 'nishab') : [cid]; S.act = cid; paint();
-      layers.push({ id: c.id, name: c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: null, legend: albomLegend(cid) ?? collectLegends(), ov: albomOverlay(cid, base0) });
+      layers.push({ id: c.id, name: many ? `${c.name} · ${albStName(cid, want)}` : c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: null, legend: albomLegend(cid) ?? collectLegends(), ov: albomOverlay(cid, base0) });
       if (S.v?.[cid] !== keepV) { const nv = { ...S.v }; if (keepV) nv[cid] = keepV; else delete nv[cid]; S.v = nv; resetKeys(); if (cid === 'piyoda') computeNet(); }
     }
     S.on = keepOn; S.act = keepAct; paint();
@@ -2054,9 +2070,12 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       const rs = st === 'gips' ? albRas((x, y) => { const v = hAt(x, y); return Number.isNaN(v) ? null : rampColor(pal, (v - g.min) / rng); }, 215, 640)
         : albRas((x, y) => { const v = hAt(x, y); if (Number.isNaN(v)) return null; const tt = (v - g.min) / rng; return `#${[236 - tt * 60, 226 - tt * 80, 204 - tt * 95].map(q => Math.round(q).toString(16).padStart(2, '0')).join('')}`; }, 160, 640);
       if (st === 'soya') return { quiet: true, rasters: [rs] };
-      const sp = [0.5, 1, 2, 5, 10, 20].find(v => rng / v <= 28) ?? 20, lv: number[] = [];
+      // 16.11 (haqiqiy maʼlumotda): DEM shovqini mayda halqalar beradi — 3×3 tekislash (2 marta) va yirikroq qadam
+      const sp = [0.5, 1, 2, 5, 10, 20].find(v => rng / v <= 14) ?? 20, lv: number[] = [];
       for (let v = Math.ceil(g.min / sp) * sp; v <= g.max; v += sp) lv.push(v);
-      const lines = isolines(g.h, g.n, g.step, lv).map(L => ({ pts: [] as XY[], multi: joinSegs(L.segs).map(l => l.map(([x, y]) => [x - off[0], y - off[1]] as XY)), w: Math.round(L.lv / sp) % 5 === 0 ? 0.42 : 0.18, col: '#7a5a3c', op: 0.85 }));
+      let hs = Float32Array.from(g.h);
+      for (let it = 0; it < 2; it++) { const o2 = new Float32Array(hs.length); for (let j = 0; j < g.n; j++) for (let i = 0; i < g.n; i++) { let a = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= g.n || jj >= g.n) continue; const v = hs[jj * g.n + ii]; if (Number.isFinite(v)) { a += v; c++; } } o2[j * g.n + i] = c ? a / c : NaN; } hs = o2; }
+      const lines = isolines(hs, g.n, g.step, lv).filter(L => L.segs.length).map(L => ({ pts: [] as XY[], multi: joinSegs(L.segs).filter(l => l.length > 6).map(l => l.map(([x, y]) => [x - off[0], y - off[1]] as XY)), w: Math.round(L.lv / sp) % 5 === 0 ? 0.42 : 0.2, col: '#7a5a3c', op: 0.85 }));
       return { quiet: true, rasters: [rs], lines };
     }
     case 'nishab': { const t = D.ter.v; return t ? { quiet: true, rasters: [ras(slopeImage(t.g, R + 30), 0.9)] } : {}; }
@@ -2064,7 +2083,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       const g = D.lst.v; if (!g) return {}; const mu = lstMean(g), st = V('issiqlik').st, at = (x: number, y: number) => bilinear(g.v, g.n, g.step, x, y);
       if (st === 'binolar' || st === 'kochalar' || st === 'geks') return { quiet: true, rasters: [ras(heatImage(g, st, true), 0.9)] };
       const col = st === 'jurnal' ? (v: number) => (Math.abs(v - mu) < 0.5 ? null : heatCol(v - mu)) : st === 'doglar' ? (v: number) => (v - mu < 1 ? '#0d1627' : rampColor(['#f6b27c', '#e8743b', '#c4381f', '#7a160c'], Math.min(1, (v - mu - 1) / 3))) : (v: number) => heatCol(v - mu);
-      return { quiet: true, rasters: [albRas((x, y) => { const v = at(x, y); return Number.isNaN(v) ? null : col(v); }, st === 'doglar' ? 235 : 205, 720)] };
+      return { quiet: true, bldLine: true, rasters: [albRas((x, y) => { const v = at(x, y); return Number.isNaN(v) ? null : col(v); }, st === 'doglar' ? 235 : 205, 720)] };
     }
     case 'shovqin': {
       const g = nm?.noise; if (!g) return {}; const st = V('shovqin').st;
@@ -2158,7 +2177,7 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       if (izMode() === 'maydon') return VG?.img ? { quiet: true, rasters: [ras(VG.img, 0.92)] } : {};
       const cur = izCur(), polys: NonNullable<import('./albomMap').Overlay['polys']> = [], lines: NonNullable<import('./albomMap').Overlay['lines']> = [], dots: NonNullable<import('./albomMap').Overlay['dots']> = [];
       if (izMode() === 'marshrut') {
-        const tp = izTrailPolys().filter(p => p.length > 2).map(p => p.map(L2)); if (tp.length) polys.push({ rings: tp, fill: '#fde9c9', op: 0.55 });
+        const tp = izTrailPolys(true).filter(p => p.length > 2).map(p => p.map(L2)); /* albomda butun yoʻl izi */ if (tp.length) polys.push({ rings: tp, fill: '#fde9c9', op: 0.55 });
         const r = S.iz?.route; if (r && r.length > 1) lines.push({ pts: r.map(toL), w: 0.6, col: '#e3242b', op: 1, dash: '1.6 1.2', halo: 0.3 });
       }
       if (cur?.iso.poly.length) polys.push({ rings: [cur.iso.poly.map(L2)], fill: IZ_COL, op: 0.8, stroke: '#e08600', sw: 0.25 });
@@ -2166,31 +2185,40 @@ function albomOverlay(id: LayerId, B: import('./albomMap').MapBase): import('./a
       return { quiet: true, polys, lines, dots };
     }
     case 'shamol': {
-      // 16.11 (egasi, referenslar): zich oqim chiziqlari — rang va qalinlik tezlikka qarab, binolarni aylanib oʻtadi; katta strelka — ustun yoʻnalish; shamol guli burchakda
+      // 16.11 (egasi, 2-tahrir: «siyrak, koʻp joy boʻsh — qalin, ranglarda»): butun doira teng qoplanadi.
+      // «Tezlik» — yorqin tezlik maydoni (ekrandagi shkala) + oq oqim izlari; «Oqim chiziqlari» — tezlik rangidagi qalin izlar; «Faqat shamol guli» — strelka va gul
       const w = windV(); if (!w) return {};
-      const Rw = R * 1.06, blds: XY[][] = [];
+      const st = V('shamol').st, dk = ALB.t === 'qora', Rw = R * 1.06, blds: XY[][] = [];
       for (const b of axBundle?.b.osm.buildings ?? []) { const r = b.rings[0]; if (!r?.length) continue; const L = r.map(toL); if (L.some(([x, y]) => Math.abs(x) < Rw && Math.abs(y) < Rw)) blds.push(L); }
-      const deg = w.w.k * 22.5, fl = windFlow(blds, deg, Rw, 1), NB = 5, bins: XY[][][] = Array.from({ length: NB }, () => []);
-      for (const L of fl) for (let i = 1; i < L.pts.length; i++) bins[Math.min(NB - 1, Math.floor(((L.v[i - 1] + L.v[i]) / 2) * NB))].push([L.pts[i - 1], L.pts[i]]);
-      const g = windSpeedGrid(blds, deg, Rw, 150);
-      const dk = ALB.t === 'qora', fp = dk ? WIND_ALB_DARK : WIND_ALB_PAL, lp = dk ? WIND_LINE_DARK : WIND_LINE_PAL;
-      const field = albRas((x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? null : rampColor(fp, Math.min(1, v)); }, (x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? 0 : (dk ? 60 : 30) + 90 * Math.min(1, v) ** 1.5; }, 512);
-      const from = deg * Math.PI / 180, dx = -Math.sin(from), dy = -Math.cos(from), nx = -dy, ny = dx, arr: XY[] = [];
+      const deg = w.w.k * 22.5, from = deg * Math.PI / 180, dx = -Math.sin(from), dy = -Math.cos(from), nx = -dy, ny = dx, arr: XY[] = [];
       for (let t = -0.55; t <= 0.551; t += 0.05) { const o = R * 0.66 + Math.cos(t * 2.4) * R * 0.08; arr.push([dx * t * R * 1.25 + nx * o, dy * t * R * 1.25 + ny * o]); }
-      return { quiet: true, bldTop: true, rasters: [field], lines: bins.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.14 + k * 0.1, col: rampColor(lp, k / (NB - 1)), op: 0.6 + k * 0.1 })),
-        arrows: [{ pts: arr, col: dk ? '#f2f0eb' : '#16171a', w: 0.9 }], rose: roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, '') };
+      const rose = roseSvg(w.w.petals).replace(/^<svg[^>]*>|<\/svg>$/g, ''), arrows = [{ pts: arr, col: dk ? '#ffffff' : '#16171a', w: 0.9 }];
+      if (st === 'roza') return { quiet: true, arrows, rose };
+      const sp = R / 42, ws = windStreaks(blds, deg, Rw, sp, sp * 1.7), g = ws.grid, NB = 5;
+      const head: XY[][][] = Array.from({ length: NB }, () => []), tail: XY[][][] = Array.from({ length: NB }, () => []);
+      for (const L of ws.lines) { const m = Math.max(1, Math.floor(L.pts.length * 0.45)), vv = L.v.reduce((a, b) => a + b, 0) / L.v.length, bi = Math.min(NB - 1, Math.floor(vv * NB)); tail[bi].push(L.pts.slice(0, m + 1)); head[bi].push(L.pts.slice(m)); }
+      if (st === 'maydon') {
+        const field = albRas((x, y) => { const v = bilinear(g.v, g.n, g.step, x, y); return Number.isNaN(v) ? null : rampColor(WIND_ALB_FIELD, Math.min(1, v)); }, 235, 640);
+        return { bldTop: true, rasters: [field], arrows, rose,
+          lines: [...tail.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.18 + k * 0.05, col: '#ffffff', op: 0.3 + k * 0.06, cap: 'butt' })), ...head.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.32 + k * 0.08, col: '#ffffff', op: 0.6 + k * 0.08 }))] };
+      }
+      const lp = dk ? WIND_LINE_DARK : WIND_LINE_PAL;
+      return { quiet: true, bldTop: true, arrows, rose,
+        lines: [...tail.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.3 + k * 0.1, col: rampColor(lp, 0.2 + 0.8 * k / (NB - 1)), op: 0.45, cap: 'butt' })), ...head.map((m, k) => ({ pts: [] as XY[], multi: m, w: 0.5 + k * 0.16, col: rampColor(lp, 0.2 + 0.8 * k / (NB - 1)), op: 0.95 }))] };
     }
     default: return {};
   }
 }
 /** Albom: odamlar oqimi (och sariq → toʻq binafsha) va shamol (oq-yashil → toʻq zumrad) shkalalari */
 const FLOW_PAL = ['#fde7a6', '#f7b267', '#ee7a4a', '#d0434f', '#9c1f62', '#4b0f5e'];
-const WIND_ALB_PAL = ['#f4fbf8', '#d5efe6', '#a6dcc9', '#64bfa3', '#2a9a7c'];
 const WIND_LINE_PAL = ['#9fd6c4', '#5bbf9f', '#2f9e80', '#147d64', '#0a5544'];
-const WIND_ALB_DARK = ['#0f1513', '#12261f', '#16402f', '#1d6248', '#2b8f68'], WIND_LINE_DARK = ['#2c6e59', '#3f9a7b', '#5fc29d', '#93e0c1', '#d6fff0'];
+/** albom «Tezlik»: oq izlar har joyda koʻrinsin — eng tez qism ham toʻq (sariq-toʻq sariq), oq emas */
+const WIND_ALB_FIELD = ['#13235e', '#1f4fa8', '#1f9e9a', '#3fae5a', '#c9b42a', '#d9701f'];
+const WIND_LINE_DARK = ['#2c6e59', '#3f9a7b', '#5fc29d', '#93e0c1', '#d6fff0'];
 /** Albom uchun maxsus shartli belgilar (ekrandagidan farq qiladigan qatlamlar) */
 function albomLegend(id: LayerId): import('./report').RepLegend[] | null {
   if (id === 'oqim' && V('oqim').st !== 'dasta') return [{ title: tr('Odamlar oqimi (model)'), items: FLOW_PAL.map((c, i) => [c, i === 0 ? tr('Past') : i === FLOW_PAL.length - 1 ? tr('Yuqori') : ''] as [string, string]) }];
+  if (id === 'shamol' && V('shamol').st === 'maydon') return [{ title: `${tr('Shamol')} · ${tr('Tezlik')}`, items: WIND_ALB_FIELD.map((c, i) => [c, i === 0 ? tr('Past') : i === WIND_ALB_FIELD.length - 1 ? tr('Yuqori') : ''] as [string, string]) }];
   if (id === 'shamol') { const lp = ALB.t === 'qora' ? WIND_LINE_DARK : WIND_LINE_PAL; return [{ title: `${tr('Shamol')} · ${tr('Tezlik')}`, items: lp.map((c, i) => [c, i === 0 ? tr('Past') : i === lp.length - 1 ? tr('Yuqori') : ''] as [string, string]) }]; }
   if (id === 'piyoda' && NM?.pers !== 'hammasi' && walkMode() === 'daqiqa') return [{ title: tr('Markazdan yurish, daqiqa'), items: [[rampColor(WALK_MIN_PAL, 0), '0'], [rampColor(WALK_MIN_PAL, 5 / 15), tr('5 daq')], [rampColor(WALK_MIN_PAL, 10 / 15), tr('10 daq')], [rampColor(WALK_MIN_PAL, 1), `≥ ${tr('15 daq')}`]] }];
   if (id === 'xizmat') return [{ title: tr('Eng yaqin obyektgacha piyoda yoʻl'), items: SVC_KINDS.map(k => [SVC_COL[k], tr(SVC_SHORT[k])] as [string, string]) }];

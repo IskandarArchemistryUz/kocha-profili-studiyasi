@@ -73,7 +73,13 @@ test('albom varaqlari: uslub tanlovi, doira, halqalar, piyoda yoʻli, toza tavsi
   await page.locator('#albDlg [data-k=albom]').click();
   // har qatlam uchun koʻrinish tanlovi; piyoda — sukut boʻyicha «Har koʻcha daqiqasi»
   await expect(page.locator('#albSt [data-l=piyoda]')).toBeVisible();
-  await expect(page.locator('#albSt [data-l=izovist]')).toHaveCount(0);
+  await expect(page.locator('#albSt [data-l=izovist] select, #albSt [data-l=izovist] .seg')).toHaveCount(0);   // izovist — faqat yoqish/oʻchirish
+  // bitta boʻlimdan ikki uslub (shamol: Tezlik + Oqim chiziqlari), boshqasi oʻchiq (odamlar oqimi)
+  await page.locator('#albSt [data-l=shamol] [data-st=oqim]').click();
+  await expect(page.locator('#albSt [data-l=shamol] [data-st=oqim]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#albSt [data-on=oqim]').click();
+  if (process.env.ALB_DUMP) await page.screenshot({ path: `${process.env.ALB_DUMP}/dlg.png` });
+  await expect(page.locator('#albSt [data-on=oqim]')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#albSt [data-l=piyoda] select[data-ax="1"]')).toHaveValue('daqiqa');
   await page.evaluate(() => { (window as unknown as { __joyAlb: unknown }).__joyAlb = 1; });
   const dl = page.waitForEvent('download', { timeout: 240_000 });
@@ -82,6 +88,8 @@ test('albom varaqlari: uslub tanlovi, doira, halqalar, piyoda yoʻli, toza tavsi
   const pages = await page.evaluate(() => ((window as unknown as { __joyAlb: { name: string; svg: string }[] }).__joyAlb).map(p => ({ name: p.name, svg: p.svg })));
   const pg = (re: RegExp) => pages.find(p => re.test(p.name))!.svg;
   expect(pages.length).toBeGreaterThanOrEqual(6);
+  expect(pages.filter(p => /Shamol/.test(p.name)).length).toBe(2);
+  expect(pages.some(p => /Odamlar oqimi/.test(p.name))).toBe(false);
   for (const p of pages) {
     expect(p.svg, p.name).not.toMatch(/Koʻrish radiusi|Marshrutni chiz|bosing|>Yil\d/);   // tugma va tanlov matnlari tavsifga tushmaydi
     expect(p.svg, p.name).not.toMatch(/<circle[^>]*fill="#c0643a"/);                    // uchastka bor — markaz nuqtasi yoʻq
@@ -90,7 +98,9 @@ test('albom varaqlari: uslub tanlovi, doira, halqalar, piyoda yoʻli, toza tavsi
   }
   expect(pg(/Xizmatlar/)).toMatch(/stroke-width="0\.55"/);                                // eng yaqin obyektgacha piyoda yoʻli
   expect(pg(/Piyoda/)).toContain('≥ 15 daq');
-  expect(pg(/Shamol/)).toMatch(/<path d="M[^"]*Z" fill="#16171a"/);                       // yoʻnalish strelkasi uchi
+  expect(pg(/Shamol/)).toMatch(/<path d="M[^"]*Z" fill="#(16171a|ffffff)"/);              // yoʻnalish strelkasi uchi
+  expect((pg(/Shamol/).match(/stroke="#ffffff"/g) ?? []).length).toBeGreaterThan(5);          // «Tezlik»: maydon ustida oq oqim izlari
+  if (process.env.ALB_DUMP) { const fs = await import('node:fs'); pages.forEach((p, i) => fs.writeFileSync(`${process.env.ALB_DUMP}/p${String(i).padStart(2, '0')}.svg`, p.svg)); }
   expect((pg(/Shovqin/).match(/data:image\/png;base64,/g) ?? []).length).toBe(1);        // rasm bir marta (href takrorlanmaydi)
   expect(errs).toEqual([]);
 });
