@@ -1,4 +1,4 @@
-import{t as e}from"./config-CoSo9uNo.js";import{a as t,i as n}from"./tiles-VMngMu1g.js";function r(e,t){let n=t/111132,r=t/(111320*Math.cos(e[1]*Math.PI/180));return[e[1]-n,e[0]-r,e[1]+n,e[0]+r]}function i(e){return`[out:json][timeout:90][bbox:${e.map(e=>e.toFixed(6)).join(`,`)}];
+import{t as e}from"./config-BIrmIsa_.js";import{a as t,i as n}from"./tiles-DDt6ACvT.js";function r(e,t){let n=t/111132,r=t/(111320*Math.cos(e[1]*Math.PI/180));return[e[1]-n,e[0]-r,e[1]+n,e[0]+r]}function i(e){return`[out:json][timeout:90][bbox:${e.map(e=>e.toFixed(6)).join(`,`)}];
 (
   way["building"];
   relation["building"]["type"="multipolygon"];
