@@ -1,5 +1,6 @@
 /* Ishga tushirish: node src/server.js
    Muhit oʻzgaruvchilari (.env.example ga qarang). Maxfiy qiymatlar repoga yozilmaydi. */
+import { SIGNUP_BONUS } from './prices.js';
 import pg from 'pg';
 import { fromPool, migrate } from './db.js';
 import { pruneEvents } from './events.js';
@@ -42,6 +43,7 @@ const app = await buildApp({
   pepper: need('OTP_PEPPER'),
   secret: need('TICKET_SECRET'),
   send: makeSender(env.OTP_SENDER || 'log'),
+  signupBonus: env.SIGNUP_BONUS !== undefined ? Math.max(0, parseInt(env.SIGNUP_BONUS, 10) || 0) : SIGNUP_BONUS,
   googleClientId: env.GOOGLE_CLIENT_ID || null,
   google: env.GOOGLE_CLIENT_ID ? makeGoogleVerifier(env.GOOGLE_CLIENT_ID) : null,
   payme: env.PAYME_MERCHANT_ID && env.PAYME_KEY ? { merchantId: env.PAYME_MERCHANT_ID, key: env.PAYME_KEY, test: env.PAYME_TEST === '1' } : null,

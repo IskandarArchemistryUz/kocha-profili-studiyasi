@@ -49,6 +49,9 @@ export const TRIALS = Object.freeze({
   'gen':   { coins: 1, mr: true },  // «Variant taklif qil»
   'view':  { coins: 2, mr: true },  // koʻrinish tekshiruvi — hozir ↔ loyiha (VGA), 13.11
 });
+/** Roʻyxatdan oʻtish sovgʻasi (16.11.2026): bitta toza DXF (12) + bitta quyosh hisobi sigʻadigan miqdor.
+ *  Egasi paneli: 87 foydalanuvchining hammasida balans 0 — pullik eksportni hech kim sinab koʻra olmagan. Env SIGNUP_BONUS bilan oʻzgartiriladi. */
+export const SIGNUP_BONUS = 15;
 export const TRIALS_PER_WEEK = 3;   // 14.11: egasi qarori (oldin 1)
 export const GEN_FREE = 3;
 
