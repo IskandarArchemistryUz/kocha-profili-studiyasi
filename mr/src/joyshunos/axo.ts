@@ -5,7 +5,7 @@
  * Koordinatalar: x — sharq, y — yuqoriga, z — janubga (−shimol); markaz — tanlangan nuqta.
  */
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SafeOrbitControls as OrbitControls } from '../scene/orbit';
 import type { LngLat } from '../core/doc';
 import type { ContextBundle } from '../context/load';
 import { frame } from '../core/geo';
