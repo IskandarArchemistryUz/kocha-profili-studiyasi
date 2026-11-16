@@ -1,6 +1,9 @@
 /* Archemistry Lab — bosh sahifa (maket «Sayt v2»): til (uz · en · ru), tungi rejim, jonli model, loyihalar.
    Til va mavzu kalitlari ilova bilan umumiy: mr-lang (+ eski sahifalar uchun kps_lang), mr-theme. */
 (function(){'use strict';
+/* UTM: bosh sahifaga belgili havola bilan kelganda — sessiyada saqlanadi, ilova (/app/) statistikasi oʻqiydi (stats.ts) */
+try{var uq=new URLSearchParams(location.search),uo={};['utm_source','utm_medium','utm_campaign'].forEach(function(k){var v=uq.get(k);if(v)uo[k.slice(4)]=v.slice(0,60);});
+if(uo.source||uo.campaign)sessionStorage.setItem('kps_utm',JSON.stringify(uo));}catch(e){}
 var D={
 "Asosiy menyu":["Main menu","Главное меню"],"Master reja":["Master plan","Мастер-план"],"Asboblar":["Tools","Инструменты"],"Loyihalar":["Projects","Проекты"],"Atamalar":["Glossary","Глоссарий"],
 "Til":["Language","Язык"],"Tungi rejim":["Dark mode","Тёмная тема"],"Loyihalarim":["My projects","Мои проекты"],"Bepul boshlash":["Start free","Начать бесплатно"],
