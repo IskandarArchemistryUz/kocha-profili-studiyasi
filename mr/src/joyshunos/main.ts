@@ -1903,7 +1903,7 @@ function focusMap(m: MLMap): void {
 }
 /* ---------------- Albom, hisobot va plakat (26.10) ---------------- */
 type AlbKind = 'hisobot' | 'albom' | 'plakat';
-const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora'; /** 16.11 (egasi): har qatlam albomda qaysi koʻrinishda chiqadi */ st?: Record<string, string> } | null; } catch { return null; } })() ?? {};
+const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora'; /** 16.11 (egasi): har qatlam albomda qaysi koʻrinishda chiqadi */ st?: Record<string, string>; /** bir qatlamdan bir necha uslub — har biri alohida varaq */ ms?: Record<string, string[]>; /** albomga chiqmaydigan qatlamlar */ ex?: string[] } | null; } catch { return null; } })() ?? {};
 /** Albomdagi koʻrinish: tanlangani, aks holda ekrandagisi (piyoda — sukut boʻyicha «Har koʻcha daqiqasi», uzoqqa qarab rang oʻzgaradi) */
 function albSt(id: LayerId): string {
   const cur = V(id).st, v = ALB.st?.[id], d = VIEW[id];
@@ -1912,6 +1912,15 @@ function albSt(id: LayerId): string {
 }
 /** Albom oynasida koʻrinish tanlanadigan qatlamlar (izovist rejimi ogʻir hisob — ekrandagisi olinadi) */
 const albStOk = (id: string) => !!(VIEW[id]?.styles || VIEW[id]?.axes) && id !== 'izovist';
+/** 16.11 (egasi: «xohlasa bitta boʻlimdan ikkita, xohlasa bitta, xohlasa oʻchiq»): qatlamning albomdagi varaqlari — har biri bitta uslub */
+function albVariants(id: LayerId): string[] {
+  if (ALB.ex?.includes(id)) return [];
+  if (!albStOk(id)) return [V(id).st];
+  const d = VIEW[id];
+  if (d.styles) { const m = (ALB.ms?.[id] ?? []).filter(v => d.styles!.some(x => x[0] === v)); return m.length ? m : [albSt(id)]; }
+  return [albSt(id)];
+}
+const albStName = (id: LayerId, st: string): string => { const d = VIEW[id]; return d?.styles ? tr(d.styles.find(x => x[0] === st)?.[1] ?? st) : d?.axes ? st.split('|').map((v, i) => tr(d.axes![i][1].find(x => x[0] === v)?.[1] ?? v)).slice(-1)[0] : st; };
 const albSave = () => { try { localStorage.setItem('joy-albom', JSON.stringify(ALB)); } catch { /* */ } };
 function cityName(): string {
   const tz = placeOf(S.c[0], S.c[1]).tz ?? '', c = tz.split('/').pop()?.replace(/_/g, ' ') ?? '', lang = getLang();
@@ -1927,7 +1936,7 @@ function albomDialog(): void {
   const kinds: [AlbKind, string, string][] = [['hisobot', 'Qisqa hisobot', 'A4 · muqova, qisqa xulosa, har qatlamga sahifa'], ['albom', 'Albom varaqlari', 'A3 · Shveytsar toʻri, har qatlamga varaq'], ['plakat', 'Plakat · Galereya', '50 × 70 sm · faol qatlam']];
   const draw = () => {
     const k = ALB.k ?? 'hisobot', f = ALB.f ?? 'kvadrat', th = ALB.t ?? 'oq';
-    const nOn = collectCards().filter(c => LAYERS.some(l => l.id === c.id)).length;
+    const nOn = collectCards().filter(c => LAYERS.some(l => l.id === c.id) && albVariants(c.id as LayerId).length).length;
     const seg = (lab: string, id: string, opts: [string, string][], cur: string, on: (v: string) => void) => h('div', { class: 'alb-row' }, h('span', { class: 't-small' }, tr(lab)),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr(lab), id }, ...opts.map(([v, n]) => h('button', { type: 'button', 'aria-pressed': v === cur, onclick: () => { on(v); albSave(); draw(); } }, tr(n)))));
     box.replaceChildren(
@@ -1944,13 +1953,20 @@ function albomDialog(): void {
   };
   /** 16.11 (egasi): har boʻlimda albomga qaysi variant chiqishini tanlash */
   const stRows = (): HTMLElement | null => {
-    const ids = collectCards().map(c => c.id).filter(id => LAYERS.some(l => l.id === id) && albStOk(id)) as LayerId[]; if (!ids.length) return null;
+    const ids = collectCards().map(c => c.id).filter(id => LAYERS.some(l => l.id === id)) as LayerId[]; if (!ids.length) return null;
     const pick = (id: LayerId, v: string) => { ALB.st = { ...ALB.st, [id]: v }; albSave(); };
+    const setOn = (id: LayerId, on: boolean) => { ALB.ex = on ? (ALB.ex ?? []).filter(x => x !== id) : [...new Set([...(ALB.ex ?? []), id])]; albSave(); draw(); };
     return h('div', { class: 'alb-st', id: 'albSt' }, h('span', { class: 't-small' }, tr('Koʻrinish')), ...ids.map(id => {
-      const d = VIEW[id], cur = albSt(id), nm = tr(LAYERS.find(l => l.id === id)!.name);
+      const d = VIEW[id], cur = albSt(id), nm = tr(LAYERS.find(l => l.id === id)!.name), vs = albVariants(id), on = vs.length > 0;
+      const tog = h('button', { type: 'button', class: 'alb-on', 'aria-pressed': on, 'data-on': id, onclick: () => setOn(id, !on) }, nm);
+      if (!on || !albStOk(id)) return h('div', { class: 'alb-st-r', 'data-l': id }, tog);
+      // uslublar — bir nechtasi tanlanadi (har biri alohida varaq); oxirgisi oʻchirilsa — qatlam albomga chiqmaydi
       const dds = d.axes ? d.axes.map(([lb, o], i) => dropdown({ 'aria-label': `${nm} · ${tr(lb)}`, 'data-ax': String(i), onchange: v => { const p = albSt(id).split('|'); p[i] = v; pick(id, p.join('|')); } }, o.map(([k, n]) => ({ value: k, label: tr(n), selected: cur.split('|')[i] === k }))))
-        : [dropdown({ 'aria-label': nm, onchange: v => pick(id, v) }, d.styles!.map(([k, n]) => ({ value: k, label: tr(n), selected: cur === k })))];
-      return h('div', { class: 'alb-st-r', 'data-l': id }, h('b', {}, nm), h('div', { class: 'alb-st-d' }, ...dds));
+        : [h('div', { class: 'seg sm wrap', role: 'group', 'aria-label': nm }, ...d.styles!.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': vs.includes(k), 'data-st': k, onclick: () => {
+            const nx = vs.includes(k) ? vs.filter(x => x !== k) : [...vs, k];
+            if (!nx.length) { ALB.ms = { ...ALB.ms, [id]: [vs[0]] }; setOn(id, false); return; }
+            ALB.ms = { ...ALB.ms, [id]: d.styles!.map(x => x[0]).filter(x => nx.includes(x)) }; albSave(); draw(); } }, tr(n))))];
+      return h('div', { class: 'alb-st-r', 'data-l': id }, tog, h('div', { class: 'alb-st-d' }, ...dds));
     }));
   };
   const box = h('div', { class: 'alb', id: 'albDlg', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Albom, hisobot va plakat') });
@@ -1970,18 +1986,18 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
     const cards = collectCards().filter(c => LAYERS.some(l => l.id === c.id));
     await baseReady();
     const base0 = albomBase();
-    const kind = ALB.k ?? 'hisobot', only = kind === 'plakat' ? cards.filter(c => c.id === (actId() ?? cards[0]?.id)) : cards;
+    const kind = ALB.k ?? 'hisobot', only = kind === 'plakat' ? cards.filter(c => c.id === (actId() ?? cards[0]?.id)) : cards.filter(c => albVariants(c.id as LayerId).length);
     const layers: import('./albom').AlbumLayer[] = [];
     const resetKeys = () => { heatKey = noiseKey = slopeKey = ''; isoKey = ''; gipsKey = ''; kadKey = ''; sunKey = ''; narxKey = ''; skKey = ''; };
-    for (const c of only) {
+    for (const c of only) for (const want of (kind === 'plakat' ? [albVariants(c.id as LayerId)[0] ?? V(c.id as LayerId).st] : albVariants(c.id as LayerId))) {
       const L = LAYERS.find(l => l.id === c.id)!;
-      const cid = c.id as LayerId, keepV = S.v?.[cid], want = albStOk(cid) ? albSt(cid) : V(cid).st;
+      const cid = c.id as LayerId, keepV = S.v?.[cid], many = albVariants(cid).length > 1 && kind !== 'plakat';
       if (want !== V(cid).st) {   // 16.11: albom uchun tanlangan koʻrinish (vaqtincha), keyin ekrandagisi qaytariladi
         S.v = { ...S.v, [cid]: { ...keepV, st: want } }; resetKeys();
         if (cid === 'piyoda') { computeNet(); for (let i = 0; i < 160 && !(NM?.reach && NM.pers === pers()); i++) { computeNet(); await new Promise(r => setTimeout(r, 125)); } }
       }
       S.on = cid === 'relyef' ? keepOn.filter(x => x === 'relyef' || x === 'nishab') : [cid]; S.act = cid; paint();
-      layers.push({ id: c.id, name: c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: null, legend: albomLegend(cid) ?? collectLegends(), ov: albomOverlay(cid, base0) });
+      layers.push({ id: c.id, name: many ? `${c.name} · ${albStName(cid, want)}` : c.name, group: L.g, groupName: tr(GROUPS.find(g => g[0] === L.g)![1]), color: c.color, big: c.big, text: c.text, norms: c.norms, src: c.src, beta: c.beta, map: null, legend: albomLegend(cid) ?? collectLegends(), ov: albomOverlay(cid, base0) });
       if (S.v?.[cid] !== keepV) { const nv = { ...S.v }; if (keepV) nv[cid] = keepV; else delete nv[cid]; S.v = nv; resetKeys(); if (cid === 'piyoda') computeNet(); }
     }
     S.on = keepOn; S.act = keepAct; paint();
