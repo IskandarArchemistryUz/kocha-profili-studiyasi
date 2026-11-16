@@ -95,6 +95,11 @@ function pvProps(view: string): Record<string, string | number | boolean> {
   try { const r = document.referrer ? new URL(document.referrer).hostname : ''; if (r && r !== location.hostname) p.ref = r.replace(/^www\./, ''); } catch { /* */ }
   const q = new URLSearchParams(location.search);
   for (const k of ['utm_source', 'utm_medium', 'utm_campaign']) { const v = q.get(k); if (v) p[k.slice(4)] = v.slice(0, 60); }
+  // bosh sahifadan oʻtganda manzilda UTM qolmaydi — sessiyada saqlangani (js/site.js); bir marta yuboriladi
+  if (!p.source && !p.campaign) try {
+    const s = JSON.parse(sessionStorage.getItem('kps_utm') || 'null') as Record<string, unknown> | null;
+    if (s) { for (const k of ['source', 'medium', 'campaign']) if (typeof s[k] === 'string') p[k] = (s[k] as string).slice(0, 60); sessionStorage.removeItem('kps_utm'); }
+  } catch { /* */ }
   try { p.lang = (navigator.language || '').slice(0, 5); } catch { /* */ }
   return p;
 }
