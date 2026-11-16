@@ -66,7 +66,8 @@ test('albom varaqlari: uslub tanlovi, doira, halqalar, piyoda yoʻli, toza tavsi
   await page.route(/raw\.githubusercontent\.com\/.*toshkent_hex\.json/, r => r.fulfill({ path: NARX, contentType: 'application/json' }));
   await open(page, errs);
   await page.setViewportSize({ width: 1440, height: 900 });
-  for (const id of ['xizmat', 'piyoda', 'oqim', 'shovqin', 'izovist']) await expect(page.locator(`[data-card=${id}] .big`)).not.toHaveText(/^(—|…)?$/, { timeout: 90_000 });
+  for (const id of ['xizmat', 'oqim', 'shovqin', 'izovist']) await expect(page.locator(`[data-card=${id}] .big`)).not.toHaveText(/^(—|…)?$/, { timeout: 90_000 });
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga/, { timeout: 90_000 });
   await expect(page.locator('[data-card=quyosh] .big')).toHaveText(/soat/, { timeout: 90_000 });
   await joyRep(page, 'albOpen');
   await page.locator('#albDlg [data-k=albom]').click();
