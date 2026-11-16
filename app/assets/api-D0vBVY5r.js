@@ -1,0 +1,1 @@
+export{s as toUpload}from"./api-D9c9rkvh.js";
