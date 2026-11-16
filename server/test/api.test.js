@@ -186,3 +186,26 @@ describe('haftalik sinovlar', () => {
     expect((await post('/project/info', { project: 'p_cap', areaHa: 2 }, c)).json()).toMatchObject({ spent: 195, cap: 195, k: 1, genFree: 3 });
   });
 });
+
+describe('roʻyxatdan oʻtish sovgʻasi', () => {
+  it('yangi hisobga bir marta beriladi, qayta kirishda yoʻq; sotuv emas', async () => {
+    await app.close();
+    app = await buildApp({
+      db, pepper: 'p'.repeat(20), secret: 's'.repeat(40), secure: false, signupBonus: 15,
+      send: async (t, code) => { sent.push({ ...t, code }); }, origins: ['https://archemistry.uz'], now: () => clock,
+    });
+    await post('/auth/code', { target: 'yangi@mail.uz' });
+    const r = await post('/auth/verify', { target: 'yangi@mail.uz', code: sent.at(-1).code });
+    expect(r.json()).toMatchObject({ ok: true, isNew: true, bonus: 15 });
+    const c = `${COOKIE}=${r.cookies.find((x) => x.name === COOKIE).value}`;
+    expect((await get('/me', c)).json().balance).toBe(15);
+    tick(120);
+    await post('/auth/code', { target: 'yangi@mail.uz' });
+    const r2 = await post('/auth/verify', { target: 'yangi@mail.uz', code: sent.at(-1).code });
+    expect(r2.json()).toMatchObject({ isNew: false, bonus: 0 });
+    expect((await get('/me', c)).json().balance).toBe(15);
+    const { rows } = await db.query(`SELECT reason, delta FROM ledger`);
+    expect(rows).toEqual([{ reason: 'signup', delta: 15 }]);
+    expect((await get('/prices')).json().signupBonus).toBe(15);
+  });
+});

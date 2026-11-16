@@ -33,12 +33,19 @@ export const COOKIE = 'ks_sess';
  * @param {{arcgis?: string|null}} [o.mapKeys]  brauzerga beriladigan ochiq xarita kalitlari (ARCGIS_API_KEY)
  * @param {object|null} [o.agent] agent «Maslahatchi» sozlamasi (agent.js: apiKey, services, …); null — agent oʻchiq
  * @param {object|null} [o.render] render navbati (render/routes.js: fal, r2, hookUrl, dailyUsd, notify …); null — «Render vaqtincha ishlamayapti»
+ * @param {number} [o.signupBonus] yangi hisobga bir martalik sovgʻa tanga (ledger reason 'signup'); 0 — yoʻq
  * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, projects = null, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, projects = null, signupBonus = 0, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
+  /** Yangi hisob — bir martalik sovgʻa; (user, 'signup', 'signup') takrorlanmaydi. Xato kirishni toʻxtatmaydi. */
+  async function welcome(r, log) {
+    if (!r.isNew || !(signupBonus > 0)) return;
+    try { await wallet.credit(r.userId, signupBonus, 'signup', 'signup', 'Roʻyxatdan oʻtish sovgʻasi'); }
+    catch (e) { log?.error?.({ err: e }, 'signup bonus'); }
+  }
   const OWN = new Set(owners.map((e) => String(e).trim().toLowerCase()).filter(Boolean));
 
   await app.register(cookie);
@@ -78,7 +85,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   // brauzer uchun ochiq xarita kalitlari (referrer bilan cheklangan; repoga yozilmaydi — .env dan)
   app.get('/config/maps', async (req, reply) => { reply.header('cache-control', 'public, max-age=3600'); return { arcgis: mapKeys.arcgis || null }; });
 
-  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, genFree: GEN_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS, render: RENDER_COINS }));
+  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, signupBonus, genFree: GEN_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS, render: RENDER_COINS }));
 
   app.post('/quote', async (req) => {
     const { items, areaHa } = req.body ?? {};
@@ -95,7 +102,8 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     if (limited('v:' + req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
     const r = await auth.verifyCode(req.body?.target, req.body?.code, geoOf(req.headers));
     setSession(reply, r.token);
-    return { ok: true, isNew: r.isNew };
+    await welcome(r, req.log);
+    return { ok: true, isNew: r.isNew, bonus: r.isNew ? signupBonus : 0 };
   });
 
   /** Brauzerga: qaysi kirish usullari yoqilgan */
@@ -109,7 +117,8 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     catch { return reply.code(401).send({ error: 'google', message: 'Google tokeni tasdiqlanmadi' }); }
     const r = await auth.loginGoogle(claims, geoOf(req.headers));
     setSession(reply, r.token);
-    return { ok: true, isNew: r.isNew };
+    await welcome(r, req.log);
+    return { ok: true, isNew: r.isNew, bonus: r.isNew ? signupBonus : 0 };
   });
 
   app.post('/auth/logout', async (req, reply) => {
