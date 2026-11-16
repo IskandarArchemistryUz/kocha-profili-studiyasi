@@ -9,7 +9,7 @@ import { bLevels } from '../core/levels';
 import { prodChecks } from '../core/prodcheck';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SafeOrbitControls as OrbitControls } from './orbit';
 import type { LngLat, Project, Shade } from '../core/doc';
 import { frame, centroid, area, signedArea, type XY } from '../core/geo';
 import type { ContextBundle } from '../context/load';

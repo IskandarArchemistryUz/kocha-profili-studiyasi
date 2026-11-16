@@ -5,7 +5,7 @@
 import { langMenu } from '../ui/langmenu';
 import '../ui/ds2.css';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SafeOrbitControls as OrbitControls } from '../scene/orbit';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { h, svgIcon, download } from '../ui/dom';
 import '../account/pay';   // E1: yuklash darvozasi (GLB — faqat tanga)
