@@ -1,0 +1,1 @@
+export{t as svgPdf}from"./pdf-D_-ckj06.js";

@@ -296,3 +296,6 @@ CREATE TABLE IF NOT EXISTS project_uploads (
   bytes        BIGINT NOT NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- sovgʻa xabarnomalari (16.11): ledger dagi sovgʻa yozuvlari (signup, promo) — shu id gacha koʻrilgan
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notice_seen BIGINT NOT NULL DEFAULT 0;

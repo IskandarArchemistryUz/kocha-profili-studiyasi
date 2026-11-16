@@ -3,7 +3,7 @@
 import './account.css';
 import { h, fmt, icl, IC, svgIcon } from '../ui/dom';
 import { tr, tf, getLang } from '../i18n';
-import { ownerStats, ownerGrant, ownerReveal, ownerUser, ownerUsage, check, type OwnerStats, type OwnerContact, type OwnerUsage } from './session';
+import { ownerStats, ownerGrant, ownerGiftSignup, ownerReveal, ownerUser, ownerUsage, check, type OwnerStats, type OwnerContact, type OwnerUsage } from './session';
 
 const GOAT = 'https://archemistry.goatcounter.com';
 const MERCHANT = 'https://merchant.multicard.uz';
@@ -77,7 +77,21 @@ function grantForm(reload: () => void): HTMLElement {
     }, (err: Error) => { msg.textContent = err.message; }).finally(() => { busy = false; armed = false; go.disabled = false; go.textContent = tr('Tanga berish'); });
   } }, email, coins, note, go);
   return h('section', { class: 'own-sec', id: 'ownGrantSec' }, h('h2', {}, tr('Sinov kirishi')),
-    h('p', { class: 't-small' }, tr('Pochta boʻyicha tanga berish — sotuv emas, statistikada «sovgʻa» qatorida koʻrinadi.')), form, msg);
+    h('p', { class: 't-small' }, tr('Pochta boʻyicha tanga berish — sotuv emas, statistikada «sovgʻa» qatorida koʻrinadi.')), form, msg, giftAllForm(reload));
+}
+
+/** 16.11: roʻyxatdan oʻtish sovgʻasini hali olmagan barcha hisoblarga — bir marta; har biriga kirganda xabar chiqadi */
+function giftAllForm(reload: () => void): HTMLElement {
+  let armed = false, busy = false;
+  const msg = h('p', { class: 't-small own-grant-msg', id: 'ownGiftAllMsg', role: 'status' });
+  const go = h('button', { class: 'btn btn-sm', id: 'ownGiftAll', type: 'button', onclick: () => {
+    if (busy) return;
+    if (!armed) { armed = true; go.textContent = tr('Tasdiqlash'); msg.textContent = tr('Roʻyxatdan oʻtish sovgʻasini hali olmagan barcha hisoblarga beriladi (har biriga bir marta). Kirganda xabar chiqadi.'); return; }
+    busy = true; go.disabled = true;
+    void ownerGiftSignup().then((r) => { msg.textContent = tf('Berildi: ${n} hisobga ${c} tangadan.', { n: fmt(r.credited), c: fmt(r.coins) }); reload(); },
+      (err: Error) => { msg.textContent = err.message; }).finally(() => { busy = false; armed = false; go.disabled = false; go.textContent = tr('Eski hisoblarga sovgʻa'); });
+  } }, tr('Eski hisoblarga sovgʻa'));
+  return h('div', { class: 'own-giftall' }, go, msg);
 }
 
 function render(s: OwnerStats, grant: HTMLElement, toggle: HTMLElement): HTMLElement[] {
