@@ -209,3 +209,43 @@ describe('roʻyxatdan oʻtish sovgʻasi', () => {
     expect((await get('/prices')).json().signupBonus).toBe(15);
   });
 });
+
+describe('sovgʻa xabarnomalari', () => {
+  it('orqaga sovgʻa: hammaga bir marta (egasidan tashqari), /me da xabar, koʻrilgach yoʻqoladi', async () => {
+    await app.close();
+    app = await buildApp({
+      db, pepper: 'p'.repeat(20), secret: 's'.repeat(40), secure: false, signupBonus: 15,
+      send: async (t, code) => { sent.push({ ...t, code }); }, origins: ['https://archemistry.uz'],
+      owners: [' Boss@Mail.uz '], now: () => clock,
+    });
+    // «eski» hisoblar — sovgʻasiz (bevosita bazaga)
+    await db.query(`INSERT INTO users (email) VALUES ('eski1@mail.uz'), ('eski2@mail.uz'), ('boss@mail.uz')`);
+    const boss = await login('boss@mail.uz');
+    expect((await post('/owner/gift-signup', {}, await login('eski1@mail.uz'))).statusCode).toBe(403);
+    const r = await post('/owner/gift-signup', {}, boss);
+    expect(r.json()).toEqual({ credited: 2, coins: 15 });
+    expect((await post('/owner/gift-signup', {}, boss)).json()).toEqual({ credited: 0, coins: 15 });   // qayta — yoʻq
+
+    const c = await login('eski2@mail.uz');
+    const me = (await get('/me', c)).json();
+    expect(me.balance).toBe(15);
+    expect(me.notices).toHaveLength(1);
+    expect(me.notices[0]).toMatchObject({ coins: 15, kind: 'signup' });
+    expect(JSON.stringify(me.notices)).not.toMatch(/orqaga|by /);   // izoh yuborilmaydi
+    expect((await post('/me/notices/seen', { upTo: me.notices[0].id }, c)).json()).toEqual({ ok: true });
+    expect((await get('/me', c)).json().notices).toEqual([]);
+    expect((await get('/me', boss)).json().balance).toBe(0);
+  });
+
+  it('sinov kirishi (promo) ham xabar boʻladi; begona id koʻrilgan deb belgilanmaydi', async () => {
+    const boss = await login('boss@mail.uz');
+    const a = await login('ali@mail.uz');
+    await post('/owner/grant', { email: 'ali@mail.uz', coins: 100, note: 'test', key: 'k-12345678' }, boss);
+    const n = (await get('/me', a)).json().notices;
+    expect(n).toMatchObject([{ coins: 100, kind: 'promo' }]);
+    // boshqa hisobning katta id si bilan — oʻz yozuvlarigacha siljiydi, xolos
+    await post('/me/notices/seen', { upTo: 999999 }, await login('vali@mail.uz'));
+    expect((await get('/me', a)).json().notices).toHaveLength(1);
+    expect((await post('/me/notices/seen', { upTo: 'x' }, a)).json()).toEqual({ ok: false });
+  });
+});

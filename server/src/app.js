@@ -9,6 +9,7 @@ import { makeAuth, AuthError } from './auth.js';
 import { makeWallet, WalletError } from './wallet.js';
 import { registerData } from './data/routes.js';
 import { ownerStats, grantCoins, ownerUser, ownerReveal, geoOf } from './owner.js';
+import { listNotices, markSeen, giftSignupAll } from './notices.js';
 import { parseBatch, insertEvents, eventStats } from './events.js';
 import { makePrivate, parseBbox, PrivateError } from './private.js';
 import { registerAgent } from './agent.js';
@@ -129,7 +130,13 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.get('/me', async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
-    return { id: u.id, email: u.email, phone: u.phone, name: u.name ?? null, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id), owner: !!u.email && OWN.has(u.email.toLowerCase()) };
+    return { id: u.id, email: u.email, phone: u.phone, name: u.name ?? null, balance: await wallet.balance(u.id), trialsLeft: await wallet.trialsLeft(u.id), owner: !!u.email && OWN.has(u.email.toLowerCase()), notices: await listNotices(db, u.id) };
+  });
+
+  // Sovgʻa xabari koʻrildi (notices.js)
+  app.post('/me/notices/seen', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    return { ok: await markSeen(db, u.id, req.body?.upTo) };
   });
 
   // Egasi paneli — faqat OWNER_EMAILS dagi hisob; boshqalarga 403
@@ -190,6 +197,17 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     const b = req.body ?? {};
     const r = await grantCoins(db, wallet, { email: b.email, coins: b.coins, note: b.note, key: b.key, by: u.email.toLowerCase() });
     req.log.info({ grant: { by: u.id, who: r.who, coins: r.coins, applied: r.applied } }, 'sinov kirishi: tanga berildi');
+    return r;
+  });
+
+  // Roʻyxatdan oʻtish sovgʻasini hali olmagan barcha hisoblarga (16.11) — bir marta; kirganda xabar chiqadi
+  app.post('/owner/gift-signup', async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    if (!isOwner(u)) return reply.code(403).send({ error: 'forbidden', message: 'faqat egasi uchun' });
+    if (limited(`giftall:${u.id}`, 3)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
+    if (!(signupBonus > 0)) return reply.code(400).send({ error: 'off', message: 'roʻyxatdan oʻtish sovgʻasi oʻchiq (SIGNUP_BONUS=0)' });
+    const r = await giftSignupAll(db, signupBonus, [...OWN]);
+    req.log.info({ giftSignup: { by: u.id, credited: r.credited, coins: r.coins } }, 'roʻyxatdan oʻtish sovgʻasi orqaga berildi');
     return r;
   });
 

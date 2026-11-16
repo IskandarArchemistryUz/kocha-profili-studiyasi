@@ -3,7 +3,7 @@ import { apiBase } from './config';
 import { getLang } from '../i18n';
 import { syncAcctOwner } from '../core/wm';
 
-export interface Me { id: number; email: string | null; phone: string | null; name: string | null; balance: number; trialsLeft: number; owner?: boolean }
+export interface Me { id: number; email: string | null; phone: string | null; name: string | null; balance: number; trialsLeft: number; owner?: boolean; notices?: { id: number; coins: number; kind: string; at: string }[] }
 export interface AuthCfg { email: boolean; phone: boolean; google: string | null }
 export class ApiError extends Error { constructor(public code: string, msg: string, public status = 0, public details?: { need?: number; balance?: number }) { super(msg); } }
 
@@ -25,9 +25,15 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 /** Sessiya bormi (bir marta soʻraladi; xato — kirilmagan deb hisoblanadi) */
 export function check(force = false): Promise<Me | null> {
-  if (!checked || force) checked = call<Me>('/me').then(m => { syncAcctOwner(!!m.owner); set(m); return m; }, (e: unknown) => { if (e instanceof ApiError && e.status === 401) syncAcctOwner(false); set(null); return null; });
+  if (!checked || force) checked = call<Me>('/me').then(m => { syncAcctOwner(!!m.owner); set(m); giftNotes(m); return m; }, (e: unknown) => { if (e instanceof ApiError && e.status === 401) syncAcctOwner(false); set(null); return null; });
   return checked;
 }
+/** Sovgʻa xabari (account/notices.ts) — faqat koʻrilmagan sovgʻa boʻlsa yuklanadi */
+function giftNotes(m: Me): void {
+  if (!m.notices?.length) return;
+  void import('./notices').then(x => x.showNotices(m.notices!, (upTo) => call('/me/notices/seen', { upTo }))).catch(() => { /* */ });
+}
+export const ownerGiftSignup = (): Promise<{ credited: number; coins: number }> => call('/owner/gift-signup', {});
 export const config = (): Promise<AuthCfg> => call<AuthCfg>('/auth/config');
 export const requestCode = (target: string): Promise<{ sent: boolean; kind: string }> => call('/auth/code', { target, lang: getLang() });
 export async function verifyCode(target: string, code: string): Promise<Me | null> { await call('/auth/verify', { target, code }); return check(true); }
