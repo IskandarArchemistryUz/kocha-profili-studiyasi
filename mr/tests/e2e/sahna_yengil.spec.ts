@@ -12,6 +12,8 @@ test('soya xaritasi faqat mazmun oʻzgarganda yangilanadi', async ({ page }) => 
     const sc = (window as any).__mr.scene, r = sc.renderer; r.info.autoReset = false; await new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f)));
     r.info.reset(); sc.invalidate(sh); await new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f))); const n = r.info.render.calls; r.info.autoReset = true; return n;
   }, shadow);
+  // 18.11: hisob natijasi (Web Worker) kech kelsa, sahna soyani qayta chizishni kutayotgan boʻlishi mumkin — avval bir kadr bilan tozalanadi
+  await calls(true);
   const view = await calls(false), full = await calls(true);
   expect(view).toBeGreaterThan(0);
   expect(full).toBeGreaterThan(view + 30);   // soya oʻtishi qoʻshiladi
