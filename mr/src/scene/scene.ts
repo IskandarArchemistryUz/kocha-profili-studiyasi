@@ -32,7 +32,7 @@ import { winDef, balAt, strSeed, type Bal, type BalPat } from '../core/facade';
 import { buildFacade, emptyGeo, matTexture, tileTexture, roofUV, type PartIn, type FacadeGeo, type Layer } from './facade3d';
 import { MOD_W } from '../core/apartments';
 import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
-import { landscape } from '../core/landscape';
+import { landscape, landscapeCached, primeLandscape, type Yard } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES, useDef } from '../core/uses';
 import { gstyleById, gsScenePal, sceneBase, sceneTreeCols, type GStyle } from '../core/gstyle';
@@ -428,7 +428,7 @@ export class Scene3D {
   fireCross(doc: Project): { polys: XY[][]; curbs: [XY, XY][]; open: XY[] } {
     const out = { polys: [] as XY[][], curbs: [] as [XY, XY][], open: [] as XY[] };
     if (!doc.settings.yards) return out;
-    const all = landscape(doc), ys = all.filter(y => y.fire?.mouths?.length && !y.z);
+    const all = this.yardsOf(doc), ys = all.filter(y => y.fire?.mouths?.length && !y.z);
     if (!ys.length) return out;
     const roads = (this.ctx?.roads ?? []).filter(r => r.pts.length >= 2 && !/^(footway|path|steps|track|bridleway|corridor|cycleway|pedestrian)$/.test(r.cls));
     const key = { ys: all, roads };
@@ -612,6 +612,44 @@ export class Scene3D {
   private static LOD_VIEW = 320;
   private static LOD_TRIS = 1_200_000;
   private detIds = new Set<string>();
+  /**
+   * 18.11 (T2b): hovlilar (core/landscape) — faqat binolar / avtoturargohlar / sozlama oʻzgargan boʻlsa (uchastka, koʻchalar, zonalar,
+   * parsellar, markaz oʻsha), Web Worker da hisoblanadi, shu orada avvalgi hovlilar koʻrinadi; natija kelgach — qayta chiziladi.
+   * Boshqa hollarda (birinchi marta, uchastka yoki koʻcha oʻzgardi, worker yoʻq) — darhol, avvalgidek
+   */
+  private land: { doc: Project; v: Yard[] } | null = null;
+  private landW: Worker | null | undefined;
+  private landBusy = false;
+  private landNext: Project | null = null;
+  private yardsOf(doc: Project): Yard[] {
+    const hit = landscapeCached(doc); if (hit) { this.land = { doc, v: hit }; return hit; }
+    const o = this.land?.doc, same = !!o && o.site === doc.site && o.streets === doc.streets && o.zones === doc.zones && o.parcels === doc.parcels && o.origin === doc.origin && o.limits === doc.limits && o.keepRings === doc.keepRings;
+    if (same && this.landWorker()) { this.landAsk(doc); return this.land!.v; }
+    const v = landscape(doc); this.land = { doc, v }; return v;
+  }
+  private landWorker(): Worker | null {
+    if (this.landW !== undefined) return this.landW;
+    try {
+      const w = new Worker(new URL('../workers/landscape.worker.ts', import.meta.url), { type: 'module' });
+      w.onmessage = (e: MessageEvent<{ id: number; v?: Yard[]; error?: string }>) => {
+        const d = this.landSent; this.landBusy = false;
+        if (d && e.data.v) { primeLandscape(d, e.data.v); this.land = { doc: d, v: e.data.v }; }
+        const n = this.landNext; this.landNext = null;
+        if (n && n !== d) this.landAsk(n);
+        else if (d && this.lastDoc === d) this.update(d);   // hovlilar tayyor — qayta chizish (natija keshda, worker chaqirilmaydi)
+      };
+      w.onerror = () => { this.landW = null; this.landBusy = false; if (this.lastDoc) this.update(this.lastDoc); };
+      this.landW = w;
+    } catch { this.landW = null; }
+    return this.landW;
+  }
+  private landSent: Project | null = null;
+  private landAsk(doc: Project): void {
+    if (this.landBusy) { this.landNext = doc; return; }
+    this.landBusy = true; this.landSent = doc; this.landW!.postMessage({ id: 1, doc });
+  }
+  /** 18.11 (T2b): hovlilar qatlami keshi — kalit va obyektlar (update ichida qayta ishlatiladi) */
+  private yardC: { k: unknown[]; objs: THREE.Object3D[] } | null = null;
   private lodKey = '';
   private lodT = 0;
   private lodSoon(): void { clearTimeout(this.lodT); this.lodT = window.setTimeout(() => { this.applyLite(); this.refreshLod(); }, 250); }
@@ -1107,7 +1145,14 @@ export class Scene3D {
     { const g = gstyleById(this.gsOv ?? doc.gstyle), was = this.gsc; this.gsc = g.id === 'joriy' ? null : g; if (was !== this.gsc) this.applyStyle(); this.syncCtxTrees(); }
     { const f0 = frame(doc.origin); this.isoLocal = this.iso ? this.iso.map(r => r.map(f0.toLocal)) : null; }
     this.detIds = this.pickLod(doc); this.lodKey = [...this.detIds].sort().join('|'); this.liteOn = this.liteWanted(); this.liteDirty = true;
-    disposeGroup(this.world);
+    // 18.11 (T2b, egasi: «generatsiyada qotadi»): hovlilar qatlami (qoplama, maysa, maydonchalar, daraxtlar, kirishlar) — kirish
+    // maʼlumoti (landscape memo, kvartallar, uslub, izolyatsiya, relyef) oʻzgarmasa qayta qurilmaydi va GPU ga qayta yuklanmaydi.
+    // Eski obyektlar sahnadan darhol olinadi, xotiradan boʻshatish keyinroq (retireGroup) — bosish javobini kutdirmaydi
+    const yk: unknown[] = doc.site && doc.settings.yards ? [this.yardsOf(doc), computePlan(doc), this.style, this.album, this.gsc, this.isoLocal ? JSON.stringify(this.iso) : '', this.H, !!this.ctx] : [];
+    const reuseY = !!this.yardC && yk.length > 0 && this.yardC.k.length === yk.length && this.yardC.k.every((x, i) => x === yk[i]);
+    if (reuseY) for (const o of this.yardC!.objs) this.world.remove(o);
+    else this.yardC = null;
+    retireGroup(this.world);
     const fr = frame(doc.origin);
     const toV2 = (p: XY) => new THREE.Vector2(p[0], p[1]);
     const tag = (L: number) => { for (const o of this.world.children) o.userData.layer ??= L; };
@@ -1135,7 +1180,9 @@ export class Scene3D {
       // daha va yer uchastkasi yozuvlari (4.1): yerga yotadi, boʻsh joyda, masshtabga qarab qisqaradi; tanlanganida — oq kartochka
       this.buildLabels(doc, plan, fr);
       // hovlilar: trotuar, maysa, yoʻlaklar, maydonchalar, daraxtlar
-      if (doc.settings.yards) {
+      const yardN0 = this.world.children.length;
+      if (doc.settings.yards && reuseY) this.world.add(...this.yardC!.objs);
+      else if (doc.settings.yards) {
         const alb = this.album, plainS = st === 'arctic' || st === 'minimal';
         const col = { pave: plainS ? 0xf4f3f0 : alb ? 0xf1eee8 : 0xdcd6cb, green: plainS ? 0xeceee8 : alb ? 0xd5e4c4 : 0xa9cc8c, path: plainS ? 0xf7f6f4 : alb ? 0xf6f3ee : 0xe7e0d2,
           bolalar: plainS ? 0xf0ede8 : 0xf0c58a, kattalar: plainS ? 0xf0ede8 : 0xeadfc8, sport: plainS ? 0xe9ece6 : 0x8fbf98, xojalik: plainS ? 0xeeeeee : 0xcfcac1, tajriba: plainS ? 0xeceee8 : 0xc9b48f };
@@ -1148,7 +1195,7 @@ export class Scene3D {
           const gg = drape(new THREE.ShapeGeometry(sh), Hf, lift, this.ctx ? 8 : 1e9), bk = `${c}|${order}`;
           (fillB.get(bk) ?? fillB.set(bk, { c, order, gs: [] }).get(bk)!).gs.push(gg.index ? gg.toNonIndexed() : gg);
         });
-        const yards = landscape(doc), trees: XY[] = [], siteRL = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
+        const yards = this.yardsOf(doc), trees: XY[] = [], siteRL = doc.site ? doc.site.rings[0].map(fr.toLocal) : null;
         // maydoncha jihozlari (playkit): rang boʻyicha bitta mesh va bitta LineSegments — sahna yengil
         const kitF: Record<string, THREE.Shape[]> = {}, kitL: Record<string, number[]> = {}, fenceV: number[] = [], fenceTop: number[] = [];
         for (const y of yards) {
@@ -1239,6 +1286,7 @@ export class Scene3D {
           const m = new THREE.Mesh(drape(new THREE.ShapeGeometry(shp[kk]), this.H, 0.45, this.ctx ? 8 : 1e9), new THREE.MeshBasicMaterial({ color: ecol[kk], transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4 }));
           m.renderOrder = 6.6; m.userData.entries = kk; this.world.add(m);
         }
+        this.yardC = { k: yk, objs: this.world.children.slice(yardN0) };
       }
     }
     tag(2);
@@ -2517,6 +2565,14 @@ function disposeGeoSet(s: GeoSet): void { Object.values(s).forEach(g => g?.dispo
  * Guruhni boʻshatish (ichki guruhlar bilan): keshdagi geometriya va materiallar (userData.cache) saqlanadi,
  * yorliqlarning oʻz kanvas teksturalari (userData.own) GPU dan oʻchiriladi — aks holda har yangilanishda xotira oqib ketadi.
  */
+/** 18.11 (T2b): guruhni sahnadan darhol boʻshatadi, geometriya va materiallarni keyin (boʻsh vaqtda, boʻlib-boʻlib) yoʻq qiladi */
+function retireGroup(g: THREE.Group): void {
+  const tmp = new THREE.Group(); for (const o of g.children.slice()) { g.remove(o); tmp.add(o); }
+  if (!tmp.children.length) return;
+  const ric = (globalThis as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  const run = () => disposeGroup(tmp);
+  if (ric) ric(run, { timeout: 1500 }); else setTimeout(run, 60);
+}
 function disposeGroup(g: THREE.Group): void {
   g.children.slice().forEach(o => {
     g.remove(o);
