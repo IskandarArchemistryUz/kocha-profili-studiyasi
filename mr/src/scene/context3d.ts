@@ -244,6 +244,8 @@ function treePositions(b: ContextBundle, fr: Frame, R: number, avoid: (p: XY) =>
 export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: CtxBld[]; /** uchastkadan tashqaridagi koʻrinadigan binolar (tanlash uchun) */ blds: CtxBld[]; /** koʻrsatilgan OSM yoʻllari (mahalliy) — loyiha koʻchalari ularga ulanadi */ roads: StreetIn[]; dispose(): void; maskTrees(ring: XY[] | null): void;
   /** 11.11: grafika shablonida OSM daraxtlari — shablon toj shakllari va och ranglari (null — asl dumaloq tojlar) */
   setTreeStyle(cols: number[] | null): void;
+  /** 18.11 (T2a): faqat yoʻllar (set — olib tashlangan / loyihaga olingan OSM yoʻllari) yoki binolar (set — olib tashlangan binolar) qatlamini qayta qurish */
+  rebuild(part: 'roads' | 'blds', set: Set<number>, src: ContextBundle): void;
   /** hozirgi daraxtlar: «asl» yoki «shablon» */
   readonly treeStyle: 'asl' | 'shablon' | null }
 
@@ -324,9 +326,14 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   }
   // koʻchalar: trotuar → asfalt → chiziqlar (sunʼiy yoʻldosh ustida ham toʻliq koʻrinadi)
   const shownRoads: StreetIn[] = [];
+  // 18.11 (T2a, egasi: «yoʻllar generatsiyasida qotadi»): yoʻllar va binolar qatlami alohida quriladi — yoʻl tahriri yoki bino
+  // olib tashlanganda butun atrof (yer, suv, yashil, daraxtlar, soya xaritasi) emas, faqat shu qatlam almashtiriladi (rebuild)
+  const tagNew = (from: number, part: string) => { for (let i = from; i < g.children.length; i++) g.children[i].userData.part = part; };
+  const addRoads = (skip: Set<number>, src: ContextBundle = b) => { const n0 = g.children.length; addRoadsRaw(skip, src); tagNew(n0, 'roads'); };
+  const addRoadsRaw = (skipRoads: Set<number>, src: ContextBundle) => {
   if (L.roads) {
     // 02.11: koʻpriklar (OSM bridge + layer) koʻtariladi, ularga ulangan boʻlaklar — pandus; qolgani tekis (bridges3d.ts)
-    const ev = elevateRoads(b.osm.roads.filter(r => !skipRoads.has(r.id)).map(r => ({ id: r.id, pts: r.pts.map(fr.toLocal), w: r.w, cls: r.cls, lvl: r.lvl, lanes: r.lanes, oneway: r.oneway })), b.osm.rails.map(r => r.pts.map(fr.toLocal)));
+    const ev = elevateRoads(src.osm.roads.filter(r => !skipRoads.has(r.id)).map(r => ({ id: r.id, pts: r.pts.map(fr.toLocal), w: r.w, cls: r.cls, lvl: r.lvl, lanes: r.lanes, oneway: r.oneway })), src.osm.rails.map(r => r.pts.map(fr.toLocal)));
     const sts: StreetIn[] = ev.flat.flatMap(r => clipLine(r.pts, C0[0] - R, C0[1] - R, C0[0] + R, C0[1] + R)
       .map(pts => ({ pts, cls: r.cls, w: r.w, lanes: r.lanes, oneway: r.oneway })));
     const inR = (pts: XY[]) => pts.some(p => Math.abs(p[0] - C0[0]) < R && Math.abs(p[1] - C0[1]) < R);
@@ -344,13 +351,17 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
     if (sg.kerb.length) { const kg = new THREE.BufferGeometry(); kg.setAttribute('position', new THREE.Float32BufferAttribute(sg.kerb, 3)); const km = overlay(kg, flatMat(CC.sidewalk, 3.08), 3.08, 'bordyurlar'); km.visible = false; g.add(km); }
     add(sg.asphalt, CC.asphalt, 3.1, 'yoʻllar'); add(sg.major, CC.asphaltMajor, 3.15, 'yoʻllar'); add(sg.marks, CC.mark, 3.3, 'chiziqlar');
   }
+  };
+  addRoads(skipRoads);
   if (L.rail) {
     const rg = ribbonGeo(cut(b.osm.rails.map(r => ({ pts: r.pts.map(fr.toLocal), w: r.w }))), H);
     if (rg) g.add(overlay(rg, flatMat(CC.rail, 3.5), 3.5, 'temir yoʻl'));
   }
   // binolar
+  const addBlds = (rm: Set<number>, src: ContextBundle = b) => { const n0 = g.children.length; addBldsRaw(rm, src); tagNew(n0, 'blds'); };
+  const addBldsRaw = (removed: Set<number>, src: ContextBundle) => {
   if (L.buildings) {
-    const all = b.osm.buildings.map(x => ({ id: x.id, rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]) && !removed.has(x.id));
+    const all = src.osm.buildings.map(x => ({ id: x.id, rings: x.rings.map(r => r.map(fr.toLocal)), h: x.h, kind: x.kind })).filter(x => clip(x.rings[0]) && !removed.has(x.id));
     // uchastka ichidagilar (markazi boʻyicha) — alohida: saqlash/buzish qarori loyihada
     const cen = (r: XY[]): XY => { let x = 0, y = 0; r.forEach(p => { x += p[0]; y += p[1]; }); return [x / r.length, y / r.length]; };
     const bl = site ? all.filter(x => !pip(cen(x.rings[0]), site)) : all;
@@ -364,6 +375,8 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
       if (bg.roof) { const rm = new THREE.Mesh(bg.roof, new THREE.MeshLambertMaterial({ color: CC.roof, side: THREE.DoubleSide })); rm.name = 'tomlar'; rm.castShadow = rm.receiveShadow = true; rm.renderOrder = 10; g.add(rm); }
     }
   }
+  };
+  addBlds(removed);
   // daraxtlar
   if (L.trees) {
     const bldRings = L.buildings ? b.osm.buildings.map(x => x.rings[0].map(fr.toLocal)) : [];
@@ -415,6 +428,10 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
       classicSet.forEach(detach);
       styled = styledTreeMeshes(treePts, H, cols) as THREE.InstancedMesh[];
       for (const m of styled) { m.name = m.userData.tree === 'trunk' ? 'shablon tanalari' : 'shablon daraxtlari'; m.userData.ctxTree = true; m.userData.m0 = Float32Array.from(m.instanceMatrix.array); maskOne(m); g.add(m); }
+    },
+    rebuild(part, set, src) {
+      for (const o of [...g.children]) if (o.userData.part === part) { g.remove(o); o.traverse(x => { const m = x as THREE.Mesh; m.geometry?.dispose(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach(q => q.dispose()); }); }
+      if (part === 'roads') { shownRoads.length = 0; addRoads(set, src); } else { inSite.length = 0; blds.length = 0; addBlds(set, src); }
     },
     dispose() {
       disposeStyled();

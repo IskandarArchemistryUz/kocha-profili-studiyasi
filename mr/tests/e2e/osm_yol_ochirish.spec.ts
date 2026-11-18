@@ -22,7 +22,11 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`uchastka i
   const btn = page.locator('#siteRoadsDel');
   await expect(btn).toContainText('(2)');
   if (process.env.GX_SHOTS) { await btn.scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: `${process.env.GX_SHOTS}/osm_yol_${w}${dark ? 'd' : 'l'}.png` }); }
+  // 18.11 (T2a): yoʻl olib tashlanganda atrof toʻliq qayta qurilmaydi — yer va daraxtlar oʻsha obyekt, faqat yoʻllar qatlami yangilanadi
+  const ground0 = await page.evaluate(() => (window as any).__mr.scene.ctx.ground.uuid);
   await btn.click();
   await expect.poll(() => page.evaluate(() => ((window as any).__mr.store.doc.removedRoads ?? []).slice().sort())).toEqual([801, 802]);
+  expect(await page.evaluate(() => (window as any).__mr.scene.ctx.ground.uuid)).toBe(ground0);
+  expect(await page.evaluate(() => (window as any).__mr.scene.ctx.roads.length)).toBeGreaterThan(0);
   await expect(btn).toHaveCount(0);
 });

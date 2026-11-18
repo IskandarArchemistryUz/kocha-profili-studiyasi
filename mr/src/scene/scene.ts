@@ -1628,6 +1628,8 @@ export class Scene3D {
   }
 
   /** Import qilingan binolar bilan ustma-ust tushgan OSM binolari — dublikat chizilmasin (hujjatdagi «removed» dan alohida) */
+  /** 18.11 (T2a): atrof kalitining qismlari — asos (yuklangan maʼlumot, markaz, sozlama, uchastka), yoʻllar, olib tashlangan binolar */
+  private ctxBase = ''; private ctxRoad = ''; private ctxBld = '';
   private hideOsm = new Set<number>();
   private hideOsmKey = '';
   /** true — kontekstni qayta qurish kerak (chaqiruvchi setContext ni qayta chaqiradi) */
@@ -1642,9 +1644,26 @@ export class Scene3D {
     // 11.11: grafika shablonida xarita qatlami — shablonning och vektor foni (sputnik — faqat qoʻlda, cs.gsSat); «Asl uslub»da — cs.base
     const { gsSat: _gs, ...cs0 } = doc.context, cs = { ...cs0, base: sceneBase(doc.gstyle, doc.context) };
     const adopted = [...doc.streets.filter(x => x.osm != null).map(x => x.osm!), ...(doc.removedRoads ?? [])];
-    const key = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}|${adopted.join(',')}|${(doc.removed ?? []).join(',')}|${this.hideOsmKey}|${JSON.stringify(doc.roadEdits ?? [])}` : '';
+    const baseKey = b ? `${b.fetched}|${doc.origin.join(',')}|${JSON.stringify(cs)}|${JSON.stringify(doc.site)}` : '';
+    const roadKey = `${adopted.join(',')}|${JSON.stringify(doc.roadEdits ?? [])}`, bldKey = `${(doc.removed ?? []).join(',')}|${this.hideOsmKey}`;
+    const key = b ? `${baseKey}|${roadKey}|${bldKey}` : '';
     if (key === this.ctxKey) return;
-    this.ctxKey = key; this.bundle = b;
+    // 18.11 (T2a, egasi: «yoʻllar generatsiyasida qotadi»): faqat yoʻl tahriri / loyihaga olingan yoʻl yoki olib tashlangan bino oʻzgarsa —
+    // butun atrof (yer, suv, yashillik, daraxtlar) va 4096² soya xaritasi qayta yaratilmaydi: faqat shu qatlam almashtiriladi.
+    // Yoʻl oʻzgarishida loyiha sahnasi (update) bu yerda chizilmaydi — onChange uni baribir chizadi (oldin ikki marta chizilardi)
+    if (b && this.ctx && baseKey === this.ctxBase) {
+      this.ctxKey = key; this.bundle = b;
+      const roads = roadKey !== this.ctxRoad, blds = bldKey !== this.ctxBld;
+      if (roads) this.ctx.rebuild('roads', new Set(adopted), b);
+      if (blds) this.ctx.rebuild('blds', new Set([...(doc.removed ?? []), ...this.hideOsm]), b);
+      this.ctxRoad = roadKey; this.ctxBld = bldKey;
+      if (this.album || this.gsc) this.applyStyle();
+      if (this.iso || this.aptView) this.applyIsoCtx();
+      this.invalidate(true);
+      if (blds) this.update(doc);   // uchastka ichidagi mavjud binolar (inSite) roʻyxati oʻzgargan boʻlishi mumkin
+      return;
+    }
+    this.ctxKey = key; this.bundle = b; this.ctxBase = baseKey; this.ctxRoad = roadKey; this.ctxBld = bldKey;
     if (this.ctx) { this.scene.remove(this.ctx.group); this.ctx.dispose(); this.ctx = null; }
     if (!b) { this.ctxSat = false; this.H = () => 0; this.setSatLayer(null, doc.origin); this.grid.forEach(g => g.visible = !this.baseMap); this.ground.position.y = 0; this.update(doc); return; }
     const fr = frame(doc.origin);
