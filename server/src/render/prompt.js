@@ -14,7 +14,12 @@ export const SUBJECT = Object.freeze({
   joy: 'an axonometric urban site analysis model (terrain, streets, buildings, greenery)',
   interyer: 'an interior space (3D model or photo of a room)',
   eskiz: 'an architectural hand sketch or line drawing',
+  /* 18.11 (taqqoslov №2, sahna 6): kesim «devor + osmon» yoki fasadga aylanib, qavatlar pasaygan — alohida tur */
+  kesim: 'a street section-perspective drawing: a vertical cut through the street showing road lanes, sidewalks, trees and the buildings on both sides',
 });
+
+/** Kesim uchun qoʻshimcha geometriya bandi (sodiqlikdan qatʼi nazar) */
+const SECTION = 'SECTION: this is a cross-section, not a facade view. Keep the cut line and the exact cross-section geometry; keep the widths of lanes, sidewalks and planting strips as drawn; keep the eye-level horizon of the drawing. The ground below the cut line is a clean section fill (soil and pavement layers), not a black mass. Do not turn it into a facade elevation or a wall with sky. Ignore dimension lines, labels and interface chips; do not reproduce them.';
 
 /** Uslublar — brauzerdagi STY roʻyxati bilan bir xil id; har biri bandlarga ajratilgan */
 export const STYLE = Object.freeze({
@@ -50,9 +55,12 @@ function factsLine(f) {
   if (!f || typeof f !== 'object') return '';
   const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
   const n = int(f.buildings, 1, 500), lo = int(f.floorsMin, 1, 120), hi = int(f.floorsMax, 1, 120);
+  const fl = int(f.floorsLeft, 1, 120), fr = int(f.floorsRight, 1, 120);   // kesim: chap / oʻng tomondagi bino
   const parts = [];
   if (n) parts.push(`exactly ${n} building${n > 1 ? 's' : ''}`);
   if (lo && hi) parts.push(lo === hi ? `${lo} floors each` : `${lo} to ${hi} floors`);
+  if (fl) parts.push(`a ${fl}-floor building on the left`);
+  if (fr) parts.push(`a ${fr}-floor building on the right`);
   return parts.length ? ` The scene contains ${parts.join(', ')}.` : '';
 }
 
@@ -88,7 +96,7 @@ export function compilePrompt(p) {
     slot('CONTEXT', sty?.context, 'kontekst'),
     slot('MATERIALS', sty?.material, 'material'),
     extra ? ` ADDITIONAL: ${extra}.` : '',
-    ` ${fid}${factsLine(p.facts)}`,
+    ` ${fid}${p.subj === 'kesim' ? ` ${SECTION}` : ''}${factsLine(p.facts)}`,
     ` QUALITY: ${[sty?.look ?? 'high-quality architectural visualization', ...by('uslub')].join('; ')}. ${QUALITY}`,
   ].join('');
 }

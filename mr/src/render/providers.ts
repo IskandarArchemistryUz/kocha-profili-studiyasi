@@ -12,8 +12,8 @@ export const STY: [string, string][] = [
   ['toshkent', 'Toshkent ruhida'], ['akvarel', 'Akvarel eskiz'], ['maket', 'Oq maket (fotosi)'], ['diagramma', 'Diagramma'],
 ];
 /** Nima tasvirlangan */
-export type Subject = 'reja' | 'bino' | 'kocha' | 'joy' | 'interyer' | 'eskiz';
-export const SUBJECTS: [Subject, string][] = [['reja', 'Master reja'], ['bino', 'Bitta bino'], ['kocha', 'Koʻcha'], ['joy', 'Aksonometriya'], ['interyer', 'Interyer'], ['eskiz', 'Eskiz / qoʻl chizma']];
+export type Subject = 'reja' | 'bino' | 'kocha' | 'kesim' | 'joy' | 'interyer' | 'eskiz';
+export const SUBJECTS: [Subject, string][] = [['reja', 'Master reja'], ['bino', 'Bitta bino'], ['kocha', 'Koʻcha'], ['kesim', 'Koʻcha kesimi'], ['joy', 'Aksonometriya'], ['interyer', 'Interyer'], ['eskiz', 'Eskiz / qoʻl chizma']];
 /** Asosga sodiqlik */
 export type Fidelity = 'qatiy' | 'muvozanat' | 'erkin';
 export const FIDELITY: [Fidelity, string][] = [['qatiy', 'Qatʼiy'], ['muvozanat', 'Muvozanat'], ['erkin', 'Erkin']];
