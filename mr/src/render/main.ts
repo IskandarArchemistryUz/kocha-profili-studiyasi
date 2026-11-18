@@ -68,7 +68,7 @@ const UP = new Map<string, { key: string; w: number; h: number }>();   // mahall
 const FOLLOW = new Set<string>();         // kuzatilayotgan ishlar
 const HIDDEN_K = 'ren-hidden';
 const hidden = (): string[] => { try { return JSON.parse(localStorage.getItem(HIDDEN_K) || '[]') as string[]; } catch { return []; } };
-const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, nbpro: 2, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2, up2: 1, up3: 1, up4: 1, um2: 2, um3: 3, um4: 4, ui2: 2, ui3: 3, ui4: 4, enhance: 2 };
+const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, nbpro: 2, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2, up2: 1, up3: 1, up4: 1, um2: 2, um3: 3, um4: 3, ui2: 2, ui3: 3, ui4: 3, enhance: 2 };
 const coinsOf = (e: Engine) => CFG?.engines?.[e]?.coins ?? DEF_COINS[e];
 let upBusy = '';
 const UPM_K = 'ren-up-mode';
