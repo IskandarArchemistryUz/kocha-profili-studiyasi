@@ -120,12 +120,17 @@ describe('render — sozlama', () => {
     // 18.11: Muvozanat / Ijodiy — Clarity, faktor va creativity/resemblance toʻgʻri ketadi; Aniq = SeedVR oʻzgarmadi
     expect(ENGINES.um4).toMatchObject({ kind: 'up', factor: 4, model: 'fal-ai/clarity-upscaler' });
     expect(ENGINES.um4.input({ images: ['u'] })).toMatchObject({ image_url: 'u', upscale_factor: 4, creativity: 0.35, resemblance: 0.6 });
+    // natija ≤ 6144 px: 2048 dan ×4 → ×3, 2400 dan → ×2,56, kichik rasm — toʻliq ×4; ×2 3840 dan → 1,6
+    expect(ENGINES.um4.input({ images: ['u'], w: 2048, h: 1152 }).upscale_factor).toBe(3);
+    expect(ENGINES.ui4.input({ images: ['u'], w: 2400, h: 1091 }).upscale_factor).toBe(2.56);
+    expect(ENGINES.um4.input({ images: ['u'], w: 1024, h: 768 }).upscale_factor).toBe(4);
+    expect(ENGINES.um2.input({ images: ['u'], w: 3840, h: 2160 }).upscale_factor).toBe(1.6);
     expect(ENGINES.ui2.input({ images: ['u'] })).toMatchObject({ upscale_factor: 2, creativity: 0.6, resemblance: 0.4 });
     expect(ENGINES.up3.model).toBe('fal-ai/seedvr/upscale/image');
-    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 1, 'ren.enhance': 2, 'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 4, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 4 });
+    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 1, 'ren.enhance': 2, 'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 3, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 3 });
     const r = (await get('/render/config')).json();
     expect(r.enabled).toBe(true);
-    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 1 }, um2: { coins: 2 }, um3: { coins: 3 }, um4: { coins: 4 }, ui2: { coins: 2 }, ui3: { coins: 3 }, ui4: { coins: 4 }, enhance: { coins: 2 } });
+    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 1 }, um2: { coins: 2 }, um3: { coins: 3 }, um4: { coins: 3 }, ui2: { coins: 2 }, ui3: { coins: 3 }, ui4: { coins: 3 }, enhance: { coins: 2 } });
     expect((await get('/prices')).json().render).toEqual(RENDER_COINS);
     const ck = await login();
     expect((await get('/render/config', ck)).json()).toMatchObject({ owner: false, parallel: 1 });

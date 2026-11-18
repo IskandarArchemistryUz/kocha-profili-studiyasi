@@ -20,10 +20,14 @@ const sizeOf = (p, long = 0) => {
 const KONTEXT_AR = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21']);
 
 
-/** Clarity kattalashtirish (Muvozanat / Ijodiy) — creativity: qancha detal qoʻshadi, resemblance: asliga qanchalik yaqin */
+/** Clarity kattalashtirish (Muvozanat / Ijodiy) — creativity: qancha detal qoʻshadi, resemblance: asliga qanchalik yaqin.
+ *  18.11 (egasi, variant b): fal Clarity $0.03 / chiqish MP — natijaning uzun tomoni CLARITY_MAX dan oshmaydi:
+ *  koeffitsiyent kirish oʻlchamiga qarab kamaytiriladi (×4 2048 px dan → 6144 px, ×3 narxida). */
+export const CLARITY_MAX = 6144;
+const clarityFactor = (factor, w, h) => { const side = Math.max(Number(w) || 0, Number(h) || 0); return side > 0 ? Math.max(1, Math.min(factor, Math.floor((CLARITY_MAX / side) * 100) / 100)) : factor; };
 function clarityUp(item, factor, creativity, resemblance) {
-  return { item, kind: 'up', factor, label: 'Kattalashtirish', model: 'fal-ai/clarity-upscaler', usd: +(0.3 * (factor / 2) ** 2).toFixed(2),
-    input: (p) => ({ image_url: p.images[0], upscale_factor: factor, prompt: 'masterpiece, best quality, highres, photorealistic architectural photography, sharp facade details', negative_prompt: '(worst quality, low quality, normal quality:2), blurry, distorted geometry', creativity, resemblance, enable_safety_checker: true }) };
+  return { item, kind: 'up', factor, clampOut: CLARITY_MAX, label: 'Kattalashtirish', model: 'fal-ai/clarity-upscaler', usd: +(0.3 * (Math.min(factor, 3) / 2) ** 2).toFixed(2),
+    input: (p) => ({ image_url: p.images[0], upscale_factor: clarityFactor(factor, p.w, p.h), prompt: 'masterpiece, best quality, highres, photorealistic architectural photography, sharp facade details', negative_prompt: '(worst quality, low quality, normal quality:2), blurry, distorted geometry', creativity, resemblance, enable_safety_checker: true }) };
 }
 
 export const ENGINES = Object.freeze({

@@ -133,7 +133,8 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
       fromJob = r.rows[0];
       const side = Math.max(fromJob.w || 0, fromJob.h || 0) * ENGINES[engine].factor;
       const lim = ENGINES[engine].maxOut ?? c.maxUpSide;
-      if (side > lim) throw new RenderError(400, 'up_too_big', `natija ${lim} px dan oshadi — kichikroq koeffitsiyent tanlang`);
+      // clampOut (Clarity): koeffitsiyentning oʻzi kamaytiriladi — rad etilmaydi
+      if (!ENGINES[engine].clampOut && side > lim) throw new RenderError(400, 'up_too_big', `natija ${lim} px dan oshadi — kichikroq koeffitsiyent tanlang`);
     }
 
     // kirishlar: faqat shu foydalanuvchi yuklagan kalitlar
