@@ -29,8 +29,8 @@ for (const [w, hh, dark] of [[1280, 600, false], [1366, 650, true]] as const) te
   await page.keyboard.press('Escape');
   await expect(page.locator('.sahna-bar')).toHaveCount(0);
   await expect(page.locator('.panel.sp')).toBeVisible();
-  await page.click('#sahnaBtn');
-  await expect(page.locator('#sahnaBtn')).toHaveAttribute('aria-pressed', 'true');
+  await page.click('#presPop'); await page.click('#sahnaBtn');
+  await expect(page.locator('.sahna-bar')).toBeVisible();
   await page.click('#sahnaExit');
   await expect(page.locator('.rail')).toBeVisible();
 });

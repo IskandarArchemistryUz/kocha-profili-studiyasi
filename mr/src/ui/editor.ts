@@ -349,10 +349,10 @@ export class Editor {
       // 31.10 (A variant, «Tartib»): taqdimot vositalari — bitta menyuda (Grafika, Chizmadon); id lar saqlangan
       this.popBtn('presPop', tr('Taqdimot'), () => h('div', { class: 'col menu-col' },
         h('button', { class: 'mi', id: 'gxOpen', onclick: () => { this.closePop(); this.startFrame(); } }, h('b', {}, tr('Grafika')), h('span', {}, tr('Masshtabli varaqlar: bosh reja, zonalash, figure-ground, landshaft — SVG/PNG'))),
-        h('button', { class: 'mi', id: 'chOpen', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari'))))),
+        h('button', { class: 'mi', id: 'chOpen', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari'))),
+        // 18.11 (T1, egasi: taqdimotda noutbuk ekranida sahna koʻrinmay qoldi): sahna rejimi — yuqori panelga yangi tugma sigʻmaydi (kk, 1024 px), shu menyuda; P / Esc
+        h('button', { class: 'mi', id: 'sahnaBtn', 'aria-pressed': String(this.sahna), onclick: () => { this.closePop(); this.setSahna(!this.sahna); } }, h('b', {}, tr('Sahna rejimi (P)')), h('span', {}, tr('Panellar yashiriladi — taqdimot uchun. Chiqish: Esc'))))),
       // til va tema — bitta «Sozlamalar» tugmasida
-      // 18.11 (T1, egasi: taqdimotda noutbuk ekranida sahna koʻrinmay qoldi): sahna rejimi — panellar yashiriladi, P / Esc
-      ib('sahnaBtn', tr('Sahna rejimi (P)'), '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', () => this.setSahna(!this.sahna), 'ib sm'),
       this.agentBtn(), this.prefBtn(lang, theme), this.acctBtn());
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
