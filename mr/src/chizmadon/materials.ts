@@ -267,6 +267,8 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
   for (const p of src.plans ?? []) {
     let M: PlanMap | null | undefined, got = false;
     const fitted = new Map<string, PlanMap | null>();
+    /** 18.11: «Loyiha albomi»da maʼlumoti yoʻq reja (masalan relyef yuklanmagan) boʻsh varaq boʻlib qolmasin — sukut boʻyicha oʻchiq */
+    const probe = () => { if (!got) { got = true; try { M = p.get(); } catch { M = null; } } return !!M; };
     const pm = add({ id: p.id, role: (p.role ?? 'plan') as MRole, name: p.name, title: p.name, ...(p.nav ? { kind: 'floor' } : {}) } as Def, (r, ctx, bare) => {
       if (!got) { got = true; try { M = p.get(); } catch { M = null; } }
       if (!M) return '';
@@ -279,7 +281,7 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
       }
       const lay = planWithLegend(M.legend, r, ctx.u);
       return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name, pm.view) + (lay.legend ? legendBox(M.legend, lay.legend, ctx, lay.lay) : '');
-    }, p.on && (seq || !p.role || p.role === 'plan'));
+    }, p.on && (seq || !p.role || p.role === 'plan') && (!seq || probe()));
     if (p.nav) {
       const nv = p.nav;
       const m = add({ id: nv.id, role: 'locator', kind: 'aptnav', name: nv.name, title: nv.title } as Def, (r) => { try { return nv.draw(r); } catch { return ''; } }, p.on);

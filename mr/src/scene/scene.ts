@@ -1374,7 +1374,8 @@ export class Scene3D {
       doc.streets.forEach(st => { if (st.id !== this.selStreet) return; this.world.add(line(densify(st.axis.map(fr.toLocal), 6), C.preview, 0.6, false, 9.6, this.H)); });
       // 12.11: koʻcha kesimlari A–A — chiziq (shtrix-punktir), uchlarida qalin tirnoq va harf (core/streetcut)
       // 13.11: «Kesim va fasad» chiziqlari (core/siluet) — shtrix chiziq, uchlarida koʻrish tomoniga tirnoq va raqam
-      for (const c of doc.sections ?? []) {
+      // 18.11 (egasi): varaq/albom/render rasmida (drawingShot) kesim belgilari (1–1, A–A) koʻrinmaydi — faqat ish sahnasida
+      for (const c of this.inShot ? [] : doc.sections ?? []) {
         const fr = frame(doc.origin), a = fr.toLocal(c.a) as XY, b = fr.toLocal(c.b) as XY, Lc = Math.hypot(b[0] - a[0], b[1] - a[1]); if (Lc < 5) continue;
         const ux = (b[0] - a[0]) / Lc, uy = (b[1] - a[1]) / Lc, nx = -uy * c.look, ny = ux * c.look, w = 0.35, quads: XY[][] = [];
         const quad = (p0: XY, p1: XY, hw: number) => { const qx = -(p1[1] - p0[1]), qy = p1[0] - p0[0], l = Math.hypot(qx, qy) || 1; quads.push([[p0[0] + qx / l * hw, p0[1] + qy / l * hw], [p1[0] + qx / l * hw, p1[1] + qy / l * hw], [p1[0] - qx / l * hw, p1[1] - qy / l * hw], [p0[0] - qx / l * hw, p0[1] - qy / l * hw]]); };
@@ -1386,7 +1387,7 @@ export class Scene3D {
         const cm = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: 0x8f2f22, depthTest: false, side: THREE.DoubleSide })); cm.renderOrder = 46; cm.userData.sec = c.id; this.world.add(cm);
         for (const p of [a, b]) { const sp = labelSprite(c.label, true), q: XY = [p[0] + nx * 9, p[1] + ny * 9]; sp.position.set(q[0], this.H(q[0], q[1]) + 1, -q[1]); sp.center.set(0.5, 0.5); (sp.material as THREE.SpriteMaterial).depthTest = false; sp.renderOrder = 47; sp.userData.secLbl = c.label; this.world.add(sp); }
       }
-      for (const c of doc.cuts ?? []) {
+      for (const c of this.inShot ? [] : doc.cuts ?? []) {
         const g = cutGeom(doc, c); if (!g) continue;
         // chiziq — 0,5 m enli shtrixlar (WebGL chizigʻi 1 px — xaritada koʻrinmaydi), uchlarida koʻrish yoʻnalishi tirnogʻi
         const quads: XY[][] = [], u: XY = [g.b[0] - g.a[0], g.b[1] - g.a[1]], Lc = Math.hypot(u[0], u[1]), ux = u[0] / Lc, uy = u[1] / Lc, w = 0.3;

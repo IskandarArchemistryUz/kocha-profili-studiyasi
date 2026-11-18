@@ -3,7 +3,7 @@ import GEOJ from '../../public/chizmadon/uz-geo.json';
 import { familyById, paginate, seqRank, type Material } from '../../src/chizmadon/autolayout';
 import { buildAlbum } from '../../src/chizmadon/album';
 import { resolve, presets, setGeo } from '../../src/chizmadon/location';
-import { siteMaterials } from '../../src/chizmadon/materials';
+import { siteMaterials, projectMaterials } from '../../src/chizmadon/materials';
 
 beforeAll(() => { setGeo(JSON.parse(JSON.stringify(GEOJ))); });
 
@@ -53,5 +53,16 @@ describe('Chizmadon — «Loyiha albomi» (18.11)', () => {
   it('SVG chiziladi (hamma format), NaN yoʻq', () => {
     const p = presets()[0], R = resolve(p.lat, p.lon), site = siteMaterials(() => R, {}), all = [...mats().filter(m => !site.some(s => s.id === m.id)), ...site];
     for (const fmt of fam.formats) { const A = buildAlbum({ fam, fmt, pal: 'arch', mats: all, R }); expect(A.pages[1].fill.page.id).toBe('la-site'); for (const ap of A.pages) expect(ap.svg, fmt).not.toMatch(/NaN|undefined|Infinity/); }
+  });
+  it('maʼlumoti yoʻq reja (relyef yuklanmagan) albomda boʻsh varaq boʻlmaydi; oddiy albomda oʻzgarmaydi', () => {
+    const vb = [0, 0, 100, 70] as [number, number, number, number];
+    const src = { plans: [
+      { id: 'p:plan:bosh', name: 'Bosh reja', on: true, get: () => ({ svg: '<g/>', vb, w: 100, h: 70, scale: 1000 }) },
+      { id: 'p:plan:relyef', name: 'Relyef', on: true, get: () => null },
+    ] } as unknown as Parameters<typeof projectMaterials>[0];
+    const seq = projectMaterials(src, {}, true), old = projectMaterials(src, {}, false);
+    expect(seq.find(m => m.id === 'p:plan:relyef')!.visible).toBe(false);
+    expect(seq.find(m => m.id === 'p:plan:bosh')!.visible).toBe(true);
+    expect(old.find(m => m.id === 'p:plan:relyef')!.visible).toBe(true);
   });
 });
