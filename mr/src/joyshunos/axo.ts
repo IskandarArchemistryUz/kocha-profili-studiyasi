@@ -1,3 +1,4 @@
+import { LOW_END } from '../core/device';
 /**
  * Joyshunos · Aksonometriya («Joy-B» + «Joy-D» maketlari): bitta sahnada OSM binolari soyasi bilan, masofa halqalari va kompas,
  * quyosh yoʻli (21 mart · 21 iyun · 21 dekabr, soatlari bilan), shamol guli va ustun shamol strelkalari, xizmatlar va raqobatchilar belgilari.
@@ -145,7 +146,7 @@ export class Axo {
     this.overlay = document.createElement('div'); this.overlay.className = 'axo-ov';
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); this.svg.classList.add('axo-lines');
     host.append(this.svg, this.overlay);
-    this.sun.castShadow = true; this.sun.shadow.mapSize.set(4096, 4096); this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 0.4;
+    this.sun.castShadow = true; this.sun.shadow.mapSize.setScalar(LOW_END ? 2048 : 4096);   // 18.11 (T3): telefonda 2048² this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 0.4;
     this.scene.add(this.sun, this.sun.target, this.hemi);
     for (const l of AX_LAYERS) { const g = new THREE.Group(); g.name = `L-${l.id}`; this.groups.set(l.id, g); this.scene.add(g); }
     this.ctl = new OrbitControls(this.ortho, this.renderer.domElement);

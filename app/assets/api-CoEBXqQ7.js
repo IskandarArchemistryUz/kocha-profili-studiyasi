@@ -1,1 +1,0 @@
-export{l as toUpload}from"./api-CnSWzmY1.js";
