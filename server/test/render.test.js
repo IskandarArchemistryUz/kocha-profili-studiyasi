@@ -125,6 +125,8 @@ describe('render — sozlama', () => {
     expect(ENGINES.ui4.input({ images: ['u'], w: 2400, h: 1091 }).upscale_factor).toBe(2.56);
     expect(ENGINES.um4.input({ images: ['u'], w: 1024, h: 768 }).upscale_factor).toBe(4);
     expect(ENGINES.um2.input({ images: ['u'], w: 3840, h: 2160 }).upscale_factor).toBe(1.6);
+    // kvadrat: 6144² = 37,7 MP > fal 32 MP — maydon boʻyicha ham kamayadi (2048² dan ×4 → ×2,77)
+    expect(ENGINES.ui4.input({ images: ['u'], w: 2048, h: 2048 }).upscale_factor).toBe(2.77);
     expect(ENGINES.ui2.input({ images: ['u'] })).toMatchObject({ upscale_factor: 2, creativity: 0.6, resemblance: 0.4 });
     expect(ENGINES.up3.model).toBe('fal-ai/seedvr/upscale/image');
     expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 1, 'ren.enhance': 2, 'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 3, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 3 });
@@ -403,7 +405,7 @@ describe('render — kattalashtirish va tiniqlashtirish', () => {
     await hook(okPayload((await jobRow(Number((await db.query(`SELECT max(id) AS id FROM render_jobs`)).rows[0].id))).fal_request_id)); await app.render.flush();
     await db.query(`UPDATE render_assets SET w = NULL, h = NULL WHERE job_id = $1 AND role = 'out'`, [j.id]);
     expect((await post('/render/jobs', { engine: 'um3', from: j.id }, own)).statusCode).toBe(200);
-    expect(falCalls.at(-1).body.upscale_factor).toBe(1.42);
+    expect(falCalls.at(-1).body.upscale_factor).toBe(1.31);   // 4320² — maydon chegarasi
   });
   it('boshqaning natijasi yoki tugamagan ish — rad', async () => {
     const a = await login('a@mail.uz'), b = await login('b@mail.uz');
