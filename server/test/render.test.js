@@ -362,7 +362,8 @@ describe('render — kattalashtirish va tiniqlashtirish', () => {
     expect(call.url.startsWith('https://queue.fal.run/fal-ai/seedvr/upscale/image?')).toBe(true);
     expect(call.body).toMatchObject({ upscale_mode: 'factor', upscale_factor: 2, output_format: 'jpg' });
     expect(call.body.image_url).toMatch(/\/get\/out\//);
-    await hook(okPayload((await jobRow(r.json().id)).fal_request_id)); await app.render.flush();
+    // 18.11: kattalashtirgichlar (SeedVR, Clarity) natijani bitta `image` bilan qaytaradi, `images` emas — jonli saytda shu sabab «bajarilmadi» edi
+    await hook({ ...okPayload((await jobRow(r.json().id)).fal_request_id), payload: { image: { url: 'https://v3.fal.media/files/up.jpg', width: 4096, height: 2304, content_type: 'image/jpeg' } } }); await app.render.flush();
     const v = (await get(`/render/jobs/${r.json().id}`, ck)).json();
     expect(v).toMatchObject({ status: 'done', engine: 'up2', tag: 'sMR1', params: { from: String(from), factor: 2 } });
     expect((await post('/render/jobs', { engine: 'up4', from }, ck)).json()).toMatchObject({ coins: 2 });
