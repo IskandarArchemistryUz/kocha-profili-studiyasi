@@ -79,6 +79,14 @@ export function makeR2({ accountId, keyId, secret, bucket, endpoint, region = 'a
       const r = await fetchImpl(url, { method: 'PUT', headers, body, duplex: 'half' });
       if (!r.ok) throw new Error(`R2 PUT ${r.status}`);
     },
+    /** Oʻqish (server orqali brauzerga uzatish uchun): Response yoki null (404) */
+    async get(key) {
+      const { url, headers } = signedInit('GET', key);
+      const r = await fetchImpl(url, { method: 'GET', headers });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`R2 GET ${r.status}`);
+      return r;
+    },
     async del(key) {
       const { url, headers } = signedInit('DELETE', key);
       const r = await fetchImpl(url, { method: 'DELETE', headers });

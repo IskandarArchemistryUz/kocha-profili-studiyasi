@@ -27,6 +27,7 @@ import { cacheGet, cachePut } from '../storage/db';
 import { STY, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
 import { ENGINES, LAB, UP_MODES, UPS_BY, upOf, renderApi, toUpload, waitJob, type Engine, type UpMode, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
+import { apiBase } from '../account/config';
 import { ensureLogin } from '../account/gate';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
 import { initStats, track } from '../core/stats';
@@ -235,6 +236,15 @@ function renderRight(): void {
 
 /* ---------------- render (server navbati) ---------------- */
 const sleep = (ms: number) => new Promise(ok => setTimeout(ok, ms));
+/** 18.11: R2 da CORS yoʻq — fayl baytlari server orqali (/render/jobs/:id/file); oʻxshamasa toʻgʻridan-toʻgʻri */
+const fileUrl = (job: string, role: 'out' | 'thumb' = 'out', dl = false) => `${apiBase()}/render/jobs/${encodeURIComponent(job)}/file?role=${role}${dl ? '&dl=1' : ''}`;
+async function jobBlob(job: string, role: 'out' | 'thumb', direct?: string): Promise<Blob> {
+  try { const r = await fetch(fileUrl(job, role), { credentials: 'include' }); if (r.ok) return await r.blob(); } catch { /* pastda */ }
+  if (!direct) throw new Error('fayl olinmadi');
+  return (await fetch(direct, { mode: 'cors' })).blob();
+}
+/** Natijaning toʻliq rasmi Blob sifatida (saqlash, asos, referens, Chizmadon) */
+const fullBlob = (o: RenderOut): Promise<Blob> => (o.job ? jobBlob(o.job, 'out', FULL.get(o.job)) : fetch(o.src).then(r => r.blob()));
 const dataUrl = (b: Blob) => new Promise<string>((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => no(r.error); r.readAsDataURL(b); });
 async function loadCfg(): Promise<RenderCfg | null> { try { CFG = await renderApi.config(); } catch { CFG = null; } return CFG; }
 
@@ -257,7 +267,7 @@ async function keep(j: Job, srcId: string, name: string, orig: string): Promise<
   if (j.status !== 'done' || !j.thumb) return null;
   if (j.out) FULL.set(j.id, j.out);
   let th = j.thumb;
-  try { th = await dataUrl(await (await fetch(j.thumb, { mode: 'cors' })).blob()); } catch { /* havola qoladi (1 soat) */ }
+  try { th = await dataUrl(await jobBlob(j.id, 'thumb', j.thumb)); } catch { /* havola qoladi (1 soat) */ }
   const sty = j.params.style ?? '';
   return addOut({ job: j.id, status: j.status, srcId, src: th, orig, name, prompt: j.prompt ?? '', model: engName(j.engine), sty, fid: j.params.fid ?? 'qatiy', refs: j.params.refs ?? 0, t: j.created });
 }
@@ -396,23 +406,31 @@ function renderViewer(): void {
         ] : []),
         h('span', { class: 'sp' }),
         h('button', { type: 'button', class: 'btn btn-block', id: 'vBase', onclick: () => void asBase(o) }, tr('Natijani asos rasm qilish')),
-        h('button', { type: 'button', class: 'btn btn-block', id: 'vRef', disabled: REFS.length >= MAX_REFS, onclick: () => void (async () => { const im = await shrink(fullOf(o), 1024).catch(() => ({ url: o.src })); REFS.push({ id: o.id, img: im.url, name: o.name, role: 'uslub' }); saveRefs(); toast(tr('Referensga qoʻshildi')); renderAll(); })() }, tr('Referens qilish')),
+        h('button', { type: 'button', class: 'btn btn-block', id: 'vRef', disabled: REFS.length >= MAX_REFS, onclick: () => void (async () => { const im = await shrink(await readable(o), 1024).catch(() => ({ url: o.src })); REFS.push({ id: o.id, img: im.url, name: o.name, role: 'uslub' }); saveRefs(); toast(tr('Referensga qoʻshildi')); renderAll(); })() }, tr('Referens qilish')),
         h('button', { type: 'button', class: 'btn btn-block btn-danger', id: 'vDel', onclick: () => void (async () => { if (o.job) { try { localStorage.setItem(HIDDEN_K, JSON.stringify([...hidden(), o.job].slice(-300))); } catch { /* */ } } await delOut(o.id); OUT = await listOut(); closeViewer(); renderAll(); })() }, tr('Oʻchirish')))),
   );
 }
 async function asBase(o: RenderOut): Promise<void> {
-  const img = o.job ? await fetch(fullOf(o), { mode: 'cors' }).then(r => r.blob()).then(dataUrl).catch(() => o.src) : o.src;
+  const img = o.job ? await fullBlob(o).then(dataUrl).catch(() => o.src) : o.src;
   const sz = await imgSize(img);
   const s = await addSrc({ name: o.name, from: 'natija', subj: A.subj!, img, w: sz.w, h: sz.h });
   SRC = await listSrc(); setBase(s.id); closeViewer(); renderAll();
 }
 async function savePng(o: RenderOut): Promise<void> {
-  const b = await (await fetch(fullOf(o), { mode: 'cors' })).blob(), u = URL.createObjectURL(b), a = document.createElement('a');
-  a.href = u; a.download = `render-${o.id}.${b.type.includes('jpeg') ? 'jpg' : b.type.includes('webp') ? 'webp' : 'png'}`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+  let b: Blob;
+  try { b = await fullBlob(o); }
+  catch {   // baytlarni oʻqib boʻlmadi — server «attachment» havolasi orqali brauzer oʻzi yuklaydi
+    if (!o.job) { toast(tr('Rasmni saqlab boʻlmadi')); return; }
+    const a = document.createElement('a'); a.href = fileUrl(o.job, 'out', true); a.rel = 'noopener'; document.body.append(a); a.click(); a.remove(); return;
+  }
+  const u = URL.createObjectURL(b), a = document.createElement('a');
+  a.href = u; a.download = `render-${o.job ?? o.id}.${b.type.includes('jpeg') ? 'jpg' : b.type.includes('webp') ? 'webp' : 'png'}`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
 }
+/** shrink uchun oʻqiladigan manba: R2 havolasi oʻrniga data URL */
+const readable = async (o: RenderOut): Promise<string> => (o.job ? dataUrl(await fullBlob(o)).catch(() => fullOf(o)) : o.src);
 /** Chizmadon kiruvchi varagʻi (Koʻchasoz bilan bir xil kalit): A3 albom, rasm sigʻdirilgan, ostida nom */
 async function toChizmadon(o: RenderOut): Promise<void> {
-  const im = await shrink(fullOf(o), 2400), W = 420, H = 297, M = 12, cap = 10, aw = W - 2 * M, ah = H - 2 * M - cap, k = Math.min(aw / im.w, ah / im.h), w = im.w * k, hh = im.h * k, x = (W - w) / 2, y = M + (ah - hh) / 2;
+  const im = await shrink(await readable(o), 2400), W = 420, H = 297, M = 12, cap = 10, aw = W - 2 * M, ah = H - 2 * M - cap, k = Math.min(aw / im.w, ah / im.h), w = im.w * k, hh = im.h * k, x = (W - w) / 2, y = M + (ah - hh) / 2;
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const svg = `<g id="01_Render" data-name="Render"><image x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${hh.toFixed(2)}" href="${im.url}" preserveAspectRatio="xMidYMid meet"/></g><g id="02_Yozuv" data-name="Yozuv"><text x="${M}" y="${H - M}" font-size="4" font-family="Archivo, sans-serif" fill="#1d1d1b">${esc(o.name)}</text><text x="${W - M}" y="${H - M}" font-size="2.6" text-anchor="end" font-family="IBM Plex Mono, monospace" fill="#6b6965">${esc(tr('AI render'))} · ${esc(o.model)}</text></g>`;
   const { sendSheet } = await import('../ui/chzsend');

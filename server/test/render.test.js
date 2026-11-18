@@ -25,6 +25,7 @@ function fakeR2() {
       if (buf.length !== bytes) throw new Error(`hajm mos emas: ${buf.length} != ${bytes}`);
       objs.set(key, { bytes, type, buf });
     },
+    get: async (key) => (objs.has(key) ? new Response(objs.get(key).buf, { headers: { 'content-type': objs.get(key).type, 'content-length': String(objs.get(key).bytes) } }) : null),
     del: async (key) => { objs.delete(key); },
   };
 }
@@ -190,6 +191,14 @@ describe('render — tanga: hold → capture / release', () => {
     expect((await hook(okPayload(row.fal_request_id))).json()).toMatchObject({ repeat: true });
     const assets = (await db.query(`SELECT role FROM render_assets WHERE job_id = $1 ORDER BY role`, [j.id])).rows.map((x) => x.role);
     expect(assets).toEqual(['input', 'out', 'thumb']);
+    // 18.11: fayl server orqali (R2 da CORS yoʻq) — PNG saqlash va Chizmadon uchun
+    const f = await get(`/render/jobs/${j.id}/file?dl=1`, ck);
+    expect(f.statusCode).toBe(200); expect(f.headers['content-type']).toBe('image/png');
+    expect(f.headers['content-disposition']).toBe(`attachment; filename="render-${j.id}.png"`);
+    expect(f.rawPayload.length).toBe(png.length);
+    expect((await get(`/render/jobs/${j.id}/file?role=thumb`, ck)).headers['content-type']).toBe('image/webp');
+    expect((await get(`/render/jobs/${j.id}/file`)).statusCode).toBe(401);
+    expect((await get(`/render/jobs/${j.id}/file`, await login('vali@mail.uz'))).statusCode).toBe(404);
   });
   it('fal xatosi — tanga qaytadi (refunded), daftarda render_refund', async () => {
     const ck = await login(); await give('ali@mail.uz', 5);
