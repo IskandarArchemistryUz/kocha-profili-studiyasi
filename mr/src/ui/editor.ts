@@ -2700,12 +2700,21 @@ export class Editor {
   private varSt = new Map<string, { key: string; used: number; seen: Set<string> }>();
   private varKey(i: number): { grp: string; key: string } | null {
     const b = this.plan().blocks[i], lab = this.blockLabel(i); if (!b || !lab) return null;
-    const { variant: _v, ...g } = this.gen; return { grp: b.parcelId ?? lab.id, key: JSON.stringify(g) };
+    const { variant: _v, ...g } = this.gen;
+    // ijtimoiy obyekt (maktab, MTM, poliklinika) — oʻz parametrlari (modul, qavat, maydon, korpus)
+    return { grp: b.parcelId ?? lab.id, key: JSON.stringify(isSocial(b.use) ? [b.use, this.socMod, this.socFloors, this.socM2, this.socBW, this.socBL] : g) };
   }
   /** shu daha va parametrlarda qolgan bepul variantlar; daha hali generatsiya qilinmagan boʻlsa — null */
   private variantsLeft(i: number): number | null {
     const k = this.varKey(i); if (!k || !this.store.doc.buildings.some(b => b.gen?.grp === k.grp)) return null;
     const st = this.varSt.get(k.grp); return Math.max(0, VARIANT_FREE - (st && st.key === k.key ? st.used : 0));
+  }
+  /** «Boshqa variant» tugmasi (turar joy va ijtimoiy obyektlar uchun bitta) — burchakda qolgan bepul variantlar soni */
+  private nextBtn(): HTMLElement {
+    const left = this.selBlock != null ? this.variantsLeft(this.selBlock) : null;
+    return h('button', { class: 'btn btn-lg icon-btn', id: 'genNext', disabled: this.selBlock == null, title: left != null ? tf('Boshqa variant — yana ${k} ta bepul', { k: left }) : tr('Boshqa variant'), 'aria-label': tr('Boshqa variant'), 'data-v': String(this.gen.variant ?? 0),
+      onclick: () => { const i = this.selBlock; if (i != null) void this.nextVariant(i); } },
+      svgIcon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'), left != null ? h('small', { class: 'gen-left' }, String(left)) : '');
   }
   private async nextVariant(i: number): Promise<void> {
     const k = this.varKey(i); if (!k) return;
@@ -2744,7 +2753,7 @@ export class Editor {
     // 05.11: «Avtoturargoh» — koʻp qavatli tanlangan boʻlsa, «Hammasi» ham qayta quradi
     if (b.use === 'avtoturargoh' && this.savedGen(i)?.mlType === 'kop') return this.generateParking(i, Number(this.savedGen(i)?.mlFloors) || 3, quiet);
     if (!ud.build) { if (!quiet) toast(`${name} — «${ud.name}», binolar joylashtirilmaydi`); return 0; }
-    if (isSocial(b.use)) return this.generateSocial(i, quiet);
+    if (isSocial(b.use)) return this.generateSocial(i, quiet, skip);
     // 02.11: past qavatli tipologiya, chuqur kvartal — avval ichki koʻchalar, keyin har yangi kvartal alohida (faqat bitta kvartal tugmasida)
     if (!quiet && this.lowInner && !b.parcelId) { const t0 = ({ ...(i === this.selBlock || !this.savedGen(i) ? this.gen : { ...DEFAULT_GEN, ...(this.savedGen(i) as Partial<GenParams>) }), ...over }).typology; if (['yakka', 'juft', 'taunhaus', 'hovli'].includes(t0) && typoAllowed(b.use).includes(t0)) { const n = this.innerStreetsGen(i, t0 as LowKind, over); if (n >= 0) return n; } }
     // 12-band: tanlangan birlik — paneldagi parametrlar; qolganlari («Hammasi») — oʻzida saqlangan parametrlar (boʻlmasa panel)
@@ -2989,8 +2998,10 @@ export class Editor {
     const key = `${b.parcelId ?? b.labelId ?? String(i)}|${b.use}`, typical = { maktab: 1000, mtm: 240, poliklinika: 500 }[b.use], auto = demand > 0 ? Math.min(demand, plot) : Math.min(plot, typical);
     return { use: b.use, demand, plot, cap: this.socCap[key] ?? Math.max(b.use === 'poliklinika' ? 50 : 40, auto) };
   }
-  private generateSocial(i: number, quiet = false): number {
+  private generateSocial(i: number, quiet = false, skip?: (sig: string) => boolean): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i), t = this.socTarget(i); if (!b || !lab || !t) return 0;
+    // 18.11: «Boshqa variant» — tanlangan birlikda panel varianti, qolganlarida («Hammasi») saqlangani (core/social: socialVary)
+    const sv = this.savedGen(i) as { soc?: { v?: number } } | null, vr = i === this.selBlock ? (this.gen.variant ?? 0) : (sv?.soc?.v ?? 0);
     const doc = this.store.doc, fr = frame(doc.origin), ring = b.rings[0], n = ring.length;
     // 39-jadval: qizil chiziqqa (loyiha koʻchasi koridori yoki uchastka chegarasi) yaqin qirralardan 25 m, qolganidan 6 m
     const lines = [...plan.corridors.flatMap(mp => mp), ...(doc.site?.rings.map(r => r.map(fr.toLocal)) ?? [])];
@@ -3000,14 +3011,15 @@ export class Editor {
     // 06.11 (c62): QMQ 2.01.03-19, 3.1-jadval 2-izoh — 8–9 ballda bogʻcha 2 qavat, maktab 3; > 9 ballda ikkalasi 2 qavat
     const fLim = socialFloorLimit(t.use, this.store.doc.settings.seismic) ?? SOCIAL[t.use].maxFloors, fl0 = Math.min(this.socFloors[t.use], fLim), fNotes: string[] = [];
     if (fl0 < this.socFloors[t.use]) fNotes.push(tf('Qavatlar ${a} → ${b}: QMQ 2.01.03-19, 3.1-jadval 2-izoh (${s} ball).', { a: this.socFloors[t.use], b: fl0, s: this.store.doc.settings.seismic }));
-    const run = (f: number) => socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], f, sb, this.socBW[t.use] ?? undefined, this.socBL[t.use] || undefined);
+    const run = (f: number) => socialPlan(ring, t.use, t.cap, this.socMod[t.use], this.socM2[t.use], f, sb, this.socBW[t.use] ?? undefined, this.socBL[t.use] || undefined, vr);
     let sp = run(fl0), fl = fl0;
     // MTM: sigʻmasa — qavat meʼyor chegarasigacha oshiriladi (avval 1–2 qavat; ANDOZA tartibi)
     // 11.11 (c75): maktab ham — sigʻmasa qavat meʼyor chegarasigacha (QMQ 2.01.03-19: 8–9 ballda 3; past seysmiklikda — 4, ANDOZA)
     if ((t.use === 'mtm' || t.use === 'maktab') && (sp.scale ?? 1) < 0.99 && fl0 < fLim) { const sp2 = run(fLim); if (sp2.sections.length && (sp2.scale ?? 1) > (sp.scale ?? 1)) { sp = sp2; fl = fLim; fNotes.push(tf('Bino sigʻmadi — ${n} qavat olindi (meʼyor chegarasi).', { n: fLim })); } }
     const capAct = t.use !== 'poliklinika' ? Math.min(t.cap, Math.floor(sp.gfa / this.socM2[t.use] + 1e-6)) : t.cap;   // MTM, maktab: bino sigʻimi (5-ilova: 33 / 24 m²/oʻrin)
     if (t.use !== 'poliklinika' && sp.sections.length && capAct < t.cap * 0.95 && (sp.scale ?? 1) >= 0.99) fNotes.push(tf('Bino toʻliq sigʻmadi: ${a} / ${b} oʻrin — chekinishlar ichida joy kam (qizil chiziqdan 25 m, 39-jadval). Parselni kattalashtiring yoki modulni oʻzgartiring.', { a: capAct, b: t.cap }));
-    const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap } };
+    if (sp.sections.length && skip?.(secSig(sp.sections))) return -1;
+    const soc = { soc: { mod: this.socMod[t.use], m2: this.socM2[t.use], floors: this.socFloors[t.use], bw: this.socBW[t.use], bl: this.socBL[t.use], cap: t.cap, ...(vr ? { v: vr } : {}) } };
     const grp = t.use === 'mtm' ? [tf('Guruhlar: ${g} (${n} boladan — ANDOZA); guruh maydonchalari ${g} × ${p} m² soyabon bilan, sport maydoni, xoʻjalik zonasi — uchastkada.', { g: mtmGroups(capAct), n: MTM.group, p: MTM.play })] : [];
     this.genNotes = [tf('${n}: ${c} ${u} · ${g} m² GFA · ${f} qavat (${m} m²/${u})', { n: tr(SOCIAL[t.use].name), c: fmt(capAct), u: tr(SOCIAL[t.use].unit), g: fmt(sp.gfa), f: fl, m: this.socM2[t.use] }), ...fNotes, ...grp, ...sp.notes]; this.genFar = null;
     if (!sp.sections.length) { if (!quiet) toast(sp.notes[0] ?? 'Joylashmadi'); return 0; }
@@ -3164,7 +3176,9 @@ export class Editor {
       if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
     } else if (socI != null) {
       body.append(this.socialSection(socI),
-        h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (ok) this.generateSocial(socI); }) }, tr('Joylashtirish'), this.ptag('gen')), allBtn(), clearBtn(socI)));
+        h('div', { class: 'row' }, h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; const k = this.varKey(socI); if (k) this.varSt.set(k.grp, { key: k.key, used: 0, seen: new Set() }); this.gen = { ...this.gen, variant: 0 }; this.generateBlock(socI); this.renderPanel(); }) }, tr('Joylashtirish'), this.ptag('gen')), this.nextBtn()),
+        // 18.11: «Boshqa variant» birinchi qatorga — «Hammasi» va tozalash ikkinchisida (turar joy paneli kabi)
+        h('div', { class: 'row', id: 'genRow2' }, (() => { const b = allBtn(); b.classList.add('grow'); return b; })(), clearBtn(socI)));
       if (this.genNotes.length) body.append(h('div', { class: 'note warn', id: 'genNotes' }, ...this.genNotes.map(n => h('div', {}, n))));
     } else {
       // parsel funksiyasiga mos tipologiyalar (31.10): mos kelmaydiganlari oʻchiq; tanlangani mos boʻlmasa — birinchi mosi
@@ -3209,9 +3223,7 @@ export class Editor {
           // 12.11 (egasi: «yoqmasa — yoqqan variant chiqquncha yangilab generatsiya qiladigan tugma»): har bosilganda keyingi variant
           // (boʻlinish boshqa burchakdan, seksiya uzunligi, balandlik sxemasi — core/generator varyGen/varyScheme); cheklanmagan
           // 18.11 (T0, egasi): bir xil daha va parametrlarda «Boshqa variant» — VARIANT_FREE tagacha bepul (server soʻrovisiz), takror joylashuv oʻtkazib yuboriladi
-          (() => { const left = this.selBlock != null ? this.variantsLeft(this.selBlock) : null; return h('button', { class: 'btn btn-lg icon-btn', id: 'genNext', disabled: this.selBlock == null, title: left != null ? tf('Boshqa variant — yana ${k} ta bepul', { k: left }) : tr('Boshqa variant'), 'aria-label': tr('Boshqa variant'), 'data-v': String(g.variant ?? 0),
-            onclick: () => { const i = this.selBlock; if (i != null) void this.nextVariant(i); } },
-            svgIcon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'), left != null ? h('small', { class: 'gen-left' }, String(left)) : ''); })()),
+          this.nextBtn()),
         // 12.11: «Hammasi» va tozalash — ikkinchi qatorda (birinchi qatorga «Boshqa variant» sigʻsin)
         h('div', { class: 'row', id: 'genRow2' }, (() => { const b = allBtn(); b.classList.add('grow'); return b; })(), clearBtn(this.selBlock)),
         isLow ? this.lowRowBox(fr, g.maxF) : '',
