@@ -19,6 +19,13 @@ const sizeOf = (p, long = 0) => {
 };
 const KONTEXT_AR = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16', '9:21']);
 
+
+/** Clarity kattalashtirish (Muvozanat / Ijodiy) — creativity: qancha detal qoʻshadi, resemblance: asliga qanchalik yaqin */
+function clarityUp(item, factor, creativity, resemblance) {
+  return { item, kind: 'up', factor, label: 'Kattalashtirish', model: 'fal-ai/clarity-upscaler', usd: +(0.3 * (factor / 2) ** 2).toFixed(2),
+    input: (p) => ({ image_url: p.images[0], upscale_factor: factor, prompt: 'masterpiece, best quality, highres, photorealistic architectural photography, sharp facade details', negative_prompt: '(worst quality, low quality, normal quality:2), blurry, distorted geometry', creativity, resemblance, enable_safety_checker: true }) };
+}
+
 export const ENGINES = Object.freeze({
   /* 13.11 kechqurun (egasi tasdiqladi, project claude/render-model-taqqoslov-13-11.md):
      Tez — Seedream 5 Lite (aniq o'lcham — kadr saqlanadi); Pro / Pro 4K — GPT Image 2 (eng realistik, kamera saqlanadi) */
@@ -31,6 +38,10 @@ export const ENGINES = Object.freeze({
   up2: { item: 'ren.up2', kind: 'up', factor: 2, label: 'Kattalashtirish', model: 'fal-ai/seedvr/upscale/image', usd: 0.02, input: (p) => ({ image_url: p.images[0], upscale_mode: 'factor', upscale_factor: 2, noise_scale: 0.1, output_format: 'jpg' }) },
   up3: { item: 'ren.up3', kind: 'up', factor: 3, label: 'Kattalashtirish', model: 'fal-ai/seedvr/upscale/image', usd: 0.04, input: (p) => ({ image_url: p.images[0], upscale_mode: 'factor', upscale_factor: 3, noise_scale: 0.1, output_format: 'jpg' }) },
   up4: { item: 'ren.up4', kind: 'up', factor: 4, label: 'Kattalashtirish', model: 'fal-ai/seedvr/upscale/image', usd: 0.06, input: (p) => ({ image_url: p.images[0], upscale_mode: 'factor', upscale_factor: 4, noise_scale: 0.1, output_format: 'jpg' }) },
+  /* 18.11: kattalashtirish rejimlari — Aniq = up2/3/4 (SeedVR), Muvozanat / Ijodiy = Clarity (detal qoʻshadi).
+     Clarity narxi fal'da eʼlon qilinmagan — usd taxminiy (enhance ×2 ≈ $0.3, maydon bilan oʻsadi), kunlik $ chegarasi uchun */
+  um2: clarityUp('ren.um2', 2, 0.35, 0.6), um3: clarityUp('ren.um3', 3, 0.35, 0.6), um4: clarityUp('ren.um4', 4, 0.35, 0.6),
+  ui2: clarityUp('ren.ui2', 2, 0.6, 0.4), ui3: clarityUp('ren.ui3', 3, 0.6, 0.4), ui4: clarityUp('ren.ui4', 4, 0.6, 0.4),
   enhance: { item: 'ren.enhance', kind: 'up', factor: 2, maxOut: 4096, label: 'Tiniqlashtirish', model: 'fal-ai/clarity-upscaler', usd: 0.3, input: (p) => ({ image_url: p.images[0], upscale_factor: 2, prompt: 'masterpiece, best quality, highres, photorealistic architectural photography, sharp facade details', negative_prompt: '(worst quality, low quality, normal quality:2), blurry, distorted geometry', creativity: 0.3, resemblance: 0.7, enable_safety_checker: true }) },
   /* Sinov modellari (13.11, lab: true) — hozircha faqat egasiga: geometriya taqqoslovi, keyin eng yaxshisi «Tez» boʻladi */
   qwen: { item: 'ren.fast', lab: true, model: 'fal-ai/qwen-image-edit-2511', usd: 0.07, input: (p) => ({ prompt: p.prompt, image_urls: p.images, num_images: 1, output_format: 'png', enable_safety_checker: true }) },

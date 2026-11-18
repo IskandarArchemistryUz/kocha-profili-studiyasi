@@ -117,10 +117,15 @@ describe('render — sozlama', () => {
     expect(await balance('ali@mail.uz')).toBe(5);
   });
   it('narxlar: Tez 1 · Pro 2K 2 · Pro 4K 4; /prices da ham', async () => {
-    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 2, 'ren.enhance': 2 });
+    // 18.11: Muvozanat / Ijodiy — Clarity, faktor va creativity/resemblance toʻgʻri ketadi; Aniq = SeedVR oʻzgarmadi
+    expect(ENGINES.um4).toMatchObject({ kind: 'up', factor: 4, model: 'fal-ai/clarity-upscaler' });
+    expect(ENGINES.um4.input({ images: ['u'] })).toMatchObject({ image_url: 'u', upscale_factor: 4, creativity: 0.35, resemblance: 0.6 });
+    expect(ENGINES.ui2.input({ images: ['u'] })).toMatchObject({ upscale_factor: 2, creativity: 0.6, resemblance: 0.4 });
+    expect(ENGINES.up3.model).toBe('fal-ai/seedvr/upscale/image');
+    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 2, 'ren.enhance': 2, 'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 4, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 4 });
     const r = (await get('/render/config')).json();
     expect(r.enabled).toBe(true);
-    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 2 }, enhance: { coins: 2 } });
+    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 2 }, um2: { coins: 2 }, um3: { coins: 3 }, um4: { coins: 4 }, ui2: { coins: 2 }, ui3: { coins: 3 }, ui4: { coins: 4 }, enhance: { coins: 2 } });
     expect((await get('/prices')).json().render).toEqual(RENDER_COINS);
     const ck = await login();
     expect((await get('/render/config', ck)).json()).toMatchObject({ owner: false, parallel: 1 });
@@ -314,13 +319,13 @@ describe('render — cheklovlar', () => {
 describe('render — sinov modellari (lab)', () => {
   it('faqat egasiga: konfigda koʻrinadi va ishlaydi; boshqalarga — bad_engine', async () => {
     const ck = await login(); await give('ali@mail.uz', 5);
-    expect(Object.keys((await get('/render/config', ck)).json().engines)).toEqual(['fast', 'pro', 'pro4k', 'up2', 'up3', 'up4', 'enhance']);
+    expect(Object.keys((await get('/render/config', ck)).json().engines)).toEqual(['fast', 'pro', 'pro4k', 'up2', 'up3', 'up4', 'um2', 'um3', 'um4', 'ui2', 'ui3', 'ui4', 'enhance']);
     expect((await job(ck, { engine: 'qwen' })).json().error).toBe('bad_engine');
     expect(await balance('ali@mail.uz')).toBe(5);
     const own = await login('boss@mail.uz');
     const cfg = (await get('/render/config', own)).json();
     expect(cfg.engines.qwen).toMatchObject({ lab: true });
-    expect(Object.keys(cfg.engines)).toEqual(['fast', 'pro', 'pro4k', 'nbpro', 'up2', 'up3', 'up4', 'enhance', 'qwen', 'kontext', 'seedream5', 'gptimg']);
+    expect(Object.keys(cfg.engines)).toEqual(['fast', 'pro', 'pro4k', 'nbpro', 'up2', 'up3', 'up4', 'um2', 'um3', 'um4', 'ui2', 'ui3', 'ui4', 'enhance', 'qwen', 'kontext', 'seedream5', 'gptimg']);
   });
   it('har model oʻz sxemasi bilan; Kontext — faqat asos rasm, kadr nisbati saqlanadi', async () => {
     const own = await login('boss@mail.uz');
@@ -357,7 +362,8 @@ describe('render — kattalashtirish va tiniqlashtirish', () => {
     expect(call.url.startsWith('https://queue.fal.run/fal-ai/seedvr/upscale/image?')).toBe(true);
     expect(call.body).toMatchObject({ upscale_mode: 'factor', upscale_factor: 2, output_format: 'jpg' });
     expect(call.body.image_url).toMatch(/\/get\/out\//);
-    await hook(okPayload((await jobRow(r.json().id)).fal_request_id)); await app.render.flush();
+    // 18.11: kattalashtirgichlar (SeedVR, Clarity) natijani bitta `image` bilan qaytaradi, `images` emas — jonli saytda shu sabab «bajarilmadi» edi
+    await hook({ ...okPayload((await jobRow(r.json().id)).fal_request_id), payload: { image: { url: 'https://v3.fal.media/files/up.jpg', width: 4096, height: 2304, content_type: 'image/jpeg' } } }); await app.render.flush();
     const v = (await get(`/render/jobs/${r.json().id}`, ck)).json();
     expect(v).toMatchObject({ status: 'done', engine: 'up2', tag: 'sMR1', params: { from: String(from), factor: 2 } });
     expect((await post('/render/jobs', { engine: 'up4', from }, ck)).json()).toMatchObject({ coins: 2 });
