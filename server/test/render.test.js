@@ -204,6 +204,18 @@ describe('render — tanga: hold → capture / release', () => {
     const l = (await db.query(`SELECT delta, reason FROM ledger WHERE ref = $1 ORDER BY id`, [`render:${j.id}`])).rows;
     expect(l).toEqual([{ delta: -4, reason: 'render' }, { delta: 4, reason: 'render_refund' }]);
     expect((await get(`/render/jobs/${j.id}`, ck)).json()).toMatchObject({ status: 'refunded', error: 'render bajarilmadi' });
+    // oddiy foydalanuvchiga sabab koʻrinmaydi
+    expect((await get(`/render/jobs/${j.id}`, ck)).json().errDetail).toBeUndefined();
+  });
+  it('egasiga xato sababi koʻrinadi (fal 422 tafsiloti bilan), boshqalarga — yoʻq', async () => {
+    const own = await login('boss@mail.uz');
+    const j = (await job(own, { engine: 'fast' })).json();
+    const row = await jobRow(j.id);
+    await hook({ request_id: row.fal_request_id, status: 'ERROR', error: 'Error validating the input', payload: { detail: [{ loc: ['body', 'image_url'], msg: 'The image is too large to upscale. Maximum is 32 MP.' }] } });
+    await app.render.flush();
+    const v = (await get(`/render/jobs/${j.id}`, own)).json();
+    expect(v).toMatchObject({ status: 'failed', error: 'render bajarilmadi', errDetail: 'fal: Error validating the input — The image is too large to upscale. Maximum is 32 MP.' });
+    expect((await get('/render/history', own)).json().items[0].errDetail).toContain('32 MP');
   });
   it('natijani saqlab boʻlmasa (CDN 404) — ham qaytadi', async () => {
     const ck = await login(); await give('ali@mail.uz', 2);
