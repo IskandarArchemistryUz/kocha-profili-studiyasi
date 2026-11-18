@@ -387,6 +387,24 @@ describe('render — kattalashtirish va tiniqlashtirish', () => {
     expect((await post('/render/jobs', { engine: 'up4', from: big }, own)).json().error).toBe('up_too_big');
     expect((await post('/render/jobs', { engine: 'up2', from: big }, own)).statusCode).toBe(200);
   });
+  it('Clarity (Muvozanat/Ijodiy): natija ≤ 6144 px — oʻlcham fal bermasa rasmdan olinadi, eski natijada ehtiyot', async () => {
+    const own = await login('boss@mail.uz');
+    // fal natijada width/height yoʻq (Seedream shunday) — oʻlcham PNG ning oʻzidan (1600×900)
+    const j = (await job(own, { engine: 'fast' })).json();
+    await hook({ ...okPayload((await jobRow(j.id)).fal_request_id), payload: { images: [{ url: 'https://v3.fal.media/files/out.png' }] } }); await app.render.flush();
+    expect((await db.query(`SELECT w, h FROM render_assets WHERE job_id = $1 AND role = 'out'`, [j.id])).rows[0]).toEqual({ w: 1600, h: 900 });
+    expect((await post('/render/jobs', { engine: 'um4', from: j.id }, own)).statusCode).toBe(200);
+    expect(falCalls.at(-1).body).toMatchObject({ upscale_factor: 3.84, creativity: 0.35 });
+    await hook(okPayload((await jobRow(Number((await db.query(`SELECT max(id) AS id FROM render_jobs`)).rows[0].id))).fal_request_id)); await app.render.flush();
+    // 4240 px (jonli holat 18.11) — ×4 emas, ×1,44; oʻlchami nomaʼlum eski natija — 4320 px deb olinadi
+    await db.query(`UPDATE render_assets SET w = 4240, h = 1920 WHERE job_id = $1 AND role = 'out'`, [j.id]);
+    expect((await post('/render/jobs', { engine: 'ui4', from: j.id }, own)).statusCode).toBe(200);
+    expect(falCalls.at(-1).body.upscale_factor).toBe(1.44);
+    await hook(okPayload((await jobRow(Number((await db.query(`SELECT max(id) AS id FROM render_jobs`)).rows[0].id))).fal_request_id)); await app.render.flush();
+    await db.query(`UPDATE render_assets SET w = NULL, h = NULL WHERE job_id = $1 AND role = 'out'`, [j.id]);
+    expect((await post('/render/jobs', { engine: 'um3', from: j.id }, own)).statusCode).toBe(200);
+    expect(falCalls.at(-1).body.upscale_factor).toBe(1.42);
+  });
   it('boshqaning natijasi yoki tugamagan ish — rad', async () => {
     const a = await login('a@mail.uz'), b = await login('b@mail.uz');
     await give('a@mail.uz', 5); await give('b@mail.uz', 5);
