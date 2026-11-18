@@ -9,6 +9,7 @@ import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
 import { langMenu } from '../ui/langmenu';
+import { sahnaBtn } from '../ui/sahna';
 import '../ui/ds2.css';
 import './ks.css';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
@@ -123,6 +124,7 @@ function renderHeader(): void {
     ...(BETA ? [(() => { const b = ib('ksGrafika', 'Grafik kutubxona', ICON.lib, () => go('grafika')); b.setAttribute('aria-pressed', String(cur === 'grafika')); return b; })()] : []),
     (() => { const b = ib('ksVaraq', 'Chizmadon varagʻi', ICON.sheet, () => go('varaq')); b.setAttribute('aria-pressed', String(cur === 'varaq')); return b; })(),
     fileMenu(),
+    sahnaBtn(),   // 18.11 (T1): sahna rejimi — P / Esc
     langMenu(l => { void setLang(l); }),
     ib('themeBtn', isDark() ? 'Yorugʻ rejim' : 'Tungi rejim', isDark() ? ICON.sun : ICON.moon, () => toggleTheme()),
   );

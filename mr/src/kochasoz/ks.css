@@ -285,3 +285,7 @@ body.ks-embed .ws-b{top:-64px}
 #ks .eko .svc a.on{background:var(--ks-clay);color:var(--ks-ink);box-shadow:inset 0 -2px 0 rgba(var(--ks-c),.25)}
 [data-theme="dark"] #ks .seg button[aria-pressed="true"],[data-theme="dark"] #ks .tile[aria-pressed=true],[data-theme="dark"] #ks .btn-primary{box-shadow:inset 0 0 0 1px rgba(var(--ks-c),.7),0 0 14px -6px rgba(var(--ks-c),.8)}
 #ks .mtab[aria-pressed="true"]{background:var(--ks-clay) !important;color:var(--ks-ink) !important;box-shadow:inset 0 -2px 0 rgba(var(--ks-c),.28) !important}
+
+/* 18.11 (T1): sahna rejimi — chap va oʻng panel yashirinadi, koʻrinish butun eniga */
+.sahna .ws aside.panel{display:none !important}
+.sahna .ws main{left:12px !important;right:12px !important;bottom:60px !important}
