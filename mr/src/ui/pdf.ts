@@ -1,5 +1,5 @@
 /** Vektor PDF: jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari). Varaqlar va Chizmadon uchun umumiy. */
-import { exportGate, asClean, needWm, svgCanvas, wmCanvas, FREE_PX } from '../core/wm';
+import { exportGate, asClean, needWm, svgCanvas, wmCanvas, FREE_PX, withNs } from '../core/wm';
 export interface PdfPage { svg: string; widthMm: number; heightMm: number }
 /* ---------- PDF (vektor): jsPDF + svg2pdf, DejaVu Sans (lotin, kirill, oʻzbek belgilari) ---------- */
 let pdfLib: Promise<{ jsPDF: typeof import('jspdf').jsPDF; svg2pdf: typeof import('svg2pdf.js').svg2pdf; fonts: [string, string] }> | null = null;
@@ -20,6 +20,7 @@ export async function svgPdf(pages: PdfPage[], name: string, item?: string): Pro
   // E1 (11.11): bepul PDF — vektor emas, har sahifa bitta rasm (uzun tomoni 1600 px, belgi pishirilgan)
   return mode === 'clean' ? asClean(() => makePdf(pages, name)) : needWm() ? makeRasterPdf(pages, name) : makePdf(pages, name);
 }
+const PDF_FALLBACK_PX = 3300;
 async function makePdf(pages: PdfPage[], name: string): Promise<void> {
   const { jsPDF, svg2pdf, fonts } = await loadPdf();
   const first = pages[0];
@@ -29,7 +30,12 @@ async function makePdf(pages: PdfPage[], name: string): Promise<void> {
   for (let i = 0; i < pages.length; i++) {
     const r = pages[i];
     if (i) pdf.addPage([r.widthMm, r.heightMm], r.widthMm > r.heightMm ? 'landscape' : 'portrait');
-    const el = new DOMParser().parseFromString(r.svg.replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'), 'image/svg+xml').documentElement;
+    // 18.11 (egasi: «PDF da xaritali varaqlar boʻsh»): Varaqlar rejalaridagi Illustrator qatlamlari (inkscape:groupmode) — ildizda
+    // xmlns:inkscape boʻlmasa XML tahlili yiqiladi va svg2pdf boʻsh sahifa chizadi. Nomlar maydoni qoʻshiladi; baribir xato boʻlsa — sahifa rasm sifatida
+    const src = withNs(r.svg.replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'));
+    const xd = new DOMParser().parseFromString(src, 'image/svg+xml');
+    if (xd.getElementsByTagName('parsererror').length) { const c = await svgCanvas(r.svg, PDF_FALLBACK_PX); pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, r.widthMm, r.heightMm); continue; }
+    const el = xd.documentElement;
     const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0'; host.append(el); document.body.append(host);
     try { await svg2pdf(el as unknown as Element, pdf, { x: 0, y: 0, width: r.widthMm, height: r.heightMm }); } finally { host.remove(); }
   }

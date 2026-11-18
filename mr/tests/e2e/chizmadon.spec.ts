@@ -17,11 +17,11 @@ async function openCh(page: Page): Promise<void> {
   await expect(page.locator('#chStMats [data-vis="loc1"]')).toBeVisible();   // chegaralar yuklandi
 }
 
-test('Chizmadon: kirish oynasi → avtomatik albom, 8 oila, format, hamma varaqlar', async ({ page }) => {
+test('Chizmadon: kirish oynasi → avtomatik albom, 9 oila, format, hamma varaqlar', async ({ page }) => {
   test.setTimeout(150_000);
   await project(page);
   await openCh(page);
-  await expect(page.locator('#chStFams [data-fam]')).toHaveCount(8);
+  await expect(page.locator('#chStFams [data-fam]')).toHaveCount(9);
   if (shots) await page.screenshot({ path: `${shots}/ch_kirish.png` });
   await page.click('#chStGo');
   await expect(page.locator('.ch-start .ch-stbox')).toHaveCount(0);
@@ -31,7 +31,7 @@ test('Chizmadon: kirish oynasi → avtomatik albom, 8 oila, format, hamma varaql
   if (shots) await page.screenshot({ path: `${shots}/ch_oyna.png` });
   // 7 oila × formatlar — xatosiz
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
-  for (const f of ['kz', 'mr', 'tq', 'st', 'kp', 'kl', 'iu']) {
+  for (const f of ['kz', 'mr', 'tq', 'st', 'kp', 'kl', 'iu', 'la']) {
     await page.click('#chFam'); await page.click(`#chFamMenu [data-fam=${f}]`);
     for (const b of await page.locator('#chFmt button').all()) { await b.click(); await expect(page.locator('.ch-page svg').first()).toBeVisible(); }
   }

@@ -109,7 +109,15 @@ export function freeDims(w: number, h: number, maxPx = FREE_PX, exact = false): 
   return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))];
 }
 /** SVG → oq fonli kanvas (uzun tomoni maxPx) */
-export async function svgCanvas(svg: string, maxPx = FREE_PX): Promise<HTMLCanvasElement> {
+/** 18.11: ichki SVG larda eʼlon qilinmagan nomlar maydonlari (inkscape:groupmode va h.k.) boʻlsa XML tahlili yiqiladi — PDF/PNG/PPTX da boʻsh sahifa */
+const NS: Record<string, string> = { inkscape: 'http://www.inkscape.org/namespaces/inkscape', sodipodi: 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd', xlink: 'http://www.w3.org/1999/xlink' };
+export function withNs(svg: string): string {
+  const m = /^\s*(<\?xml[^>]*>\s*)?<svg\b[^>]*>/.exec(svg); if (!m) return svg;
+  const head = m[0], add = Object.entries(NS).filter(([k]) => svg.includes(`${k}:`) && !head.includes(`xmlns:${k}=`)).map(([k, v]) => ` xmlns:${k}="${v}"`).join('');
+  return add ? svg.replace(/<svg\b/, `<svg${add}`) : svg;
+}
+export async function svgCanvas(svg0: string, maxPx = FREE_PX): Promise<HTMLCanvasElement> {
+  const svg = withNs(svg0);
   let [w, h] = svgSize(svg); if (!(w > 0 && h > 0)) { w = maxPx; h = maxPx; }
   const [cw, ch] = freeDims(w, h, maxPx, true), c = document.createElement('canvas'); c.width = cw; c.height = ch;
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));

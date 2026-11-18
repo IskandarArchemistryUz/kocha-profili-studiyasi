@@ -51,7 +51,8 @@ export function buildAlbum(a: AlbumIn): Album {
   const pages = PG.pages.map((pk, pi): AlbumPage => {
     // varaq sarlavhasi: 1-varaqda — «Sarlavha» materiali, keyin — eng katta material nomi (tahlil modullari boʻlsa — «Hudud tahlili»)
     const own = a.ttl?.[pi]?.trim();
-    const ttl = own ? own : pi === 0 && PG.titleEl && f.chrome !== 'poster' ? PG.titleEl.title : (() => {
+    // 18.11: «Loyiha albomi» — muqovada loyiha nomi, koʻp materialli varaqda (hudud) — varaq turi nomi
+    const ttl = own ? own : f.seq && pi === 0 && a.txt?.proj ? a.txt.proj : f.seq && pk.page.slots.some(q => q.role === 'locator') ? pk.page.title : pi === 0 && PG.titleEl && f.chrome !== 'poster' ? PG.titleEl.title : (() => {
       let b: Material | null = null, bs = 0;
       pk.assign.forEach((el, k) => { const ar = cellsArea(pk.page.slots[k]); if (ar > bs && el.role !== 'legend') { bs = ar; b = el; } });
       const bb = b as Material | null;

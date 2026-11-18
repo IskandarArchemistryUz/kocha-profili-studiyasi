@@ -24,6 +24,47 @@ export default class Component extends DCLogic {
         nodeSrc: r.notes.concat(A.src.map(function (x) { return 'A: ' + x; }), B.src.map(function (x) { return 'B: ' + x; })) });
     } catch (e) { this.setState({ nodeSt: 'err', nodeErr: String((e && e.message) || e) }); }
   }
+  /** 18.11 (egasi: «chorraha va mikromodel — faqat loyihadagi haqiqiy koʻcha»): Master reja loyihasi (?p=) koʻchasi uchi tutashgan
+   *  OSM yoʻli — asosiy, loyiha koʻchasi (oʻz profili bilan) — kesishuvchi; T-chorraha, burchak va tezlik — haqiqiy geometriyadan */
+  async fromProject() {
+    const { ctxProject } = await import('../../core/projctx');
+    const pid = ctxProject(); if (!pid) { this.setState({ projSt: 'none' }); return; }
+    this.setState({ projSt: 'load' });
+    try {
+      const { getProject } = await import('../../storage/db');
+      const doc = await getProject(pid);
+      const st = ((doc && doc.streets) || []).filter(function (x) { return x.axis && x.axis.length >= 2; });
+      if (!st.length) { this.setState({ projSt: 'nost' }); return; }
+      const P = await import('../../core/profiles'); P.setUserProfiles(doc.profiles);
+      const { profileToKs } = await import('../fromMr');
+      const N = await import('../node'), { overpass } = await import('../../context/load');
+      let best = null;
+      for (const x of st) {
+        const L = x.axis.length;
+        for (const [e, inn] of [[x.axis[0], x.axis[1]], [x.axis[L - 1], x.axis[L - 2]]]) {
+          const j = await overpass(N.nodeQuery(e, 50), fetch.bind(globalThis), function () {});
+          const r = N.joinNode(j.elements || [], e, inn);
+          if (r && (!best || r.dist < best.r.dist)) best = { r: r, s: x };
+        }
+      }
+      if (!best) { this.setState({ projSt: 'nojoin' }); return; }
+      const A = N.tplFromArm(best.r.main[0], best.r.main[1]);
+      const prof = P.profileById(best.s.profile), k = profileToKs(prof, prof.name);
+      const nm = 'Loyiha · ' + tr(prof.name);
+      const B = [nm, null, k.els, k.sk, k.uk, []];
+      const TPL = this.state.TPL.filter(function (t) { return !/^(OSM|Loyiha) · /.test(t[0]); }).concat([A.tpl, B]);
+      const vB = { tz1: 80, tz2: 60, sh1: 60, sh2: 60, sh3: 50, tm: 50, mh: 40, pd: 30 }[k.sk] || 40;
+      this.setState({ TPL: TPL, a: TPL.length - 2, b: TPL.length - 1, vA: A.v, vB: vB, ang: best.r.ang, miss: best.r.miss, extra: [], nodeSt: 'ok',
+        nodeInfo: { d: Math.round(best.r.dist), n: best.r.main[1] ? 3 : 2, lat: best.r.at[1].toFixed(5), lon: best.r.at[0].toFixed(5) },
+        nodeSrc: best.r.notes.concat(A.src.map(function (x) { return 'A: ' + x; }), [tf('B: loyiha koʻchasi profili — Master reja («${n}», ${w} m)', { n: tr(prof.name), w: String(k.rl).replace('.', ',') })]),
+        projSt: 'ok', projName: nm });
+    } catch (e) { this.setState({ projSt: 'err', nodeErr: String((e && e.message) || e) }); }
+  }
+  componentDidMount() {
+    // loyiha ichida ochilgan boʻlsa va hali loyiha tutashuvi olinmagan — avtomatik (keyin foydalanuvchi oʻzgartirishi saqlanadi)
+    var self = this;
+    import('../../core/projctx').then(function (m) { if (m.ctxProject() && !self.state.TPL.some(function (t) { return /^Loyiha · /.test(t[0]); }) && !self.state.projSt) self.fromProject(); });
+  }
   /* ===== Harakat modeli (BETA, 13.11): chorraha maketi → boʻlaklar va ulagichlar → js/kssim-graph.js =====
      Geometriya renderVals da this._geo ga yoziladi (metr, y pastga). */
   _simOpts() { var s = this.state, n = function (v, d, lo, hi) { v = +v; return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
@@ -585,6 +626,7 @@ export default class Component extends DCLogic {
     return {
       modes: [['A', 'Tarmoq'], ['B', 'Kesim'], ['C', 'Chorraha'], ['D', 'Koʻcha muhiti'], ['E', 'Mikromodel']].map(function (m, i) { return { k: m[0], n: m[1], p: i === 2 ? 'true' : 'false' }; }),
       title: MA.n + ' × ' + MB.n, sub: SKN[MA.sk] + ' / ' + SKN[MB.sk] + ' · ' + MA.uk + ' / ' + MB.uk,
+      projBtn: (typeof location !== 'undefined' && /[?&]p=/.test(location.search)) ? [{ go: function () { self.fromProject(); }, n: tr(s.projSt === 'ok' ? 'Qayta olish' : 'Loyiha koʻchasi tutashuvi'), m: (s.projSt === 'load' ? tr('Loyiha koʻchalari va OSM yoʻllari oʻqilmoqda…') : s.projSt === 'ok' ? tf('${n} — atrofdagi yoʻlga tutashuvi olindi', { n: s.projName || '' }) : s.projSt === 'nost' ? tr('Loyihada koʻcha chizilmagan — Master reja, 2-qadam') : s.projSt === 'nojoin' ? tr('Loyiha koʻchasi uchi mavjud yoʻlga yetmagan (≤ 45 m)') : s.projSt === 'err' ? tr('Loyiha oʻqilmadi') : '') }] : [],
       nodeQ: s.nodeQ || '', nodeIn: function (e) { self.state.nodeQ = e.target.value; }, nodeKey: function (e) { if (e.key === 'Enter') { self.state.nodeQ = e.target.value; self.findReal(); } },
       nodeGo: function () { var el = document.getElementById('ksNodeIn'); if (el) self.state.nodeQ = el.value; self.findReal(); },
       nodeMsg: s.nodeSt === 'load' ? tr('OSM dan yoʻllar yuklanmoqda…') : s.nodeSt === 'bad' ? tr('Koordinata yoki xarita havolasini kiriting (masalan: 41.311, 69.279)') : s.nodeSt === 'none' ? tr('80 m ichida avtomobil yoʻllari kesishgan tugun topilmadi') : s.nodeSt === 'err' ? tr('OSM serveri javob bermadi') + ': ' + (s.nodeErr || '') : s.nodeSt === 'ok' && s.nodeInfo ? tf('Tugun ${d} m narida · ${n} ta tarmoq · ${lat}, ${lon}', s.nodeInfo) : tr('Nuqta atrofidagi (80 m) eng yaqin chorraha OSM dan olinadi.'),
