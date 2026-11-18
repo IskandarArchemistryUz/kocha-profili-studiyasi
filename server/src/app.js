@@ -37,7 +37,7 @@ export const COOKIE = 'ks_sess';
  * @param {number} [o.signupBonus] yangi hisobga bir martalik sovgʻa tanga (ledger reason 'signup'); 0 — yoʻq
  * @param {string[]} [o.owners]   egasi pochtalari (OWNER_EMAILS): /me da owner: true — ilova suv belgisisiz ishlaydi
  */
-export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, projects = null, signupBonus = 0, now, logger = false }) {
+export async function buildApp({ db, pepper, secret, send, google = null, googleClientId = null, payme = null, click = null, multicard = null, fetchImpl, returnUrl, origins, cookieDomain, secure = true, owners = [], data = null, mapKeys = {}, agent = null, render = null, projects = null, signupBonus = 0, geoip = null, now, logger = false }) {
   const app = Fastify({ logger, trustProxy: true, bodyLimit: 64 * 1024 });
   const auth = makeAuth({ db, pepper, send, now });
   const wallet = makeWallet({ db, secret, now });
@@ -101,7 +101,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
 
   app.post('/auth/verify', async (req, reply) => {
     if (limited('v:' + req.ip, 20)) return reply.code(429).send({ error: 'rate', message: 'juda koʻp soʻrov' });
-    const r = await auth.verifyCode(req.body?.target, req.body?.code, geoOf(req.headers));
+    const r = await auth.verifyCode(req.body?.target, req.body?.code, geoOf(req.headers, req.ip, geoip));
     setSession(reply, r.token);
     await welcome(r, req.log);
     return { ok: true, isNew: r.isNew, bonus: r.isNew ? signupBonus : 0 };
@@ -116,7 +116,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     let claims;
     try { claims = await google(req.body?.credential); }
     catch { return reply.code(401).send({ error: 'google', message: 'Google tokeni tasdiqlanmadi' }); }
-    const r = await auth.loginGoogle(claims, geoOf(req.headers));
+    const r = await auth.loginGoogle(claims, geoOf(req.headers, req.ip, geoip));
     setSession(reply, r.token);
     await welcome(r, req.log);
     return { ok: true, isNew: r.isNew, bonus: r.isNew ? signupBonus : 0 };
@@ -158,7 +158,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
     let u = null;
     try { u = await auth.userByToken(req.cookies[COOKIE]); } catch { /* sessiyasiz ham yoziladi */ }
     if (u && isOwner(u)) return reply.code(204).send();
-    await insertEvents(db, b, u?.id ?? null, geoOf(req.headers)?.country ?? null);
+    await insertEvents(db, b, u?.id ?? null, geoOf(req.headers, req.ip, geoip)?.country ?? null);
     return reply.code(204).send();
   });
 

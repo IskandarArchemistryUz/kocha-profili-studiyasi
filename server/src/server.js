@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import nodemailer from 'nodemailer';
 import { makeFal } from './render/fal.js';
 import { makeR2 } from './render/r2.js';
+import { makeGeoIp } from './geoip.js';
 
 const env = process.env;
 const need = (k) => { if (!env[k]) { console.error(`${k} berilmagan`); process.exit(1); } return env[k]; };
@@ -38,11 +39,15 @@ const r2 = r2On ? makeR2({ accountId: env.R2_ACCOUNT_ID.trim(), keyId: env.R2_AC
 const renderOn = !!(env.FAL_KEY && r2On);
 if (!renderOn) console.warn('render: FAL_KEY yoki R2_* berilmagan — render oʻchiq');
 
+// 18.11: IP → davlat (DB-IP Lite, CC BY 4.0); kuniga bir marta tekshiriladi, oyda bir yangilanadi. GEOIP=0 — oʻchiq
+const geoip = env.GEOIP === '0' ? null : makeGeoIp({ dir: env.GEOIP_DIR || fileURLToPath(new URL('../geoip', import.meta.url)) });
+if (geoip) { void geoip.refresh(); setInterval(() => void geoip.refresh(), 24 * 3600e3).unref(); }
 const app = await buildApp({
   db,
   pepper: need('OTP_PEPPER'),
   secret: need('TICKET_SECRET'),
   send: makeSender(env.OTP_SENDER || 'log'),
+  geoip,
   signupBonus: env.SIGNUP_BONUS !== undefined ? Math.max(0, parseInt(env.SIGNUP_BONUS, 10) || 0) : SIGNUP_BONUS,
   googleClientId: env.GOOGLE_CLIENT_ID || null,
   google: env.GOOGLE_CLIENT_ID ? makeGoogleVerifier(env.GOOGLE_CLIENT_ID) : null,

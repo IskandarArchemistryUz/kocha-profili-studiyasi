@@ -35,13 +35,14 @@ export const maskEmail = (e) => {
 export const maskPhone = (p) => (p ? `${String(p).slice(0, 4)}${'•'.repeat(5)}${String(p).slice(-4)}` : null);
 
 /**
- * Cloudflare sarlavhalaridan davlat va shahar (IP manzil saqlanmaydi). Cloudflare boʻlmasa — null.
- * CF-IPCountry: ISO 3166-1 alpha-2; XX — nomaʼlum, T1 — Tor. cf-ipcity — «visitor location headers» yoqilganda.
+ * Davlat va shahar (IP manzil saqlanmaydi). Avval Cloudflare sarlavhalari (CF-IPCountry: ISO 3166-1 alpha-2; XX — nomaʼlum,
+ * T1 — Tor; cf-ipcity — «visitor location headers» yoqilganda). Cloudflare boʻlmasa (18.11: sayt toʻgʻridan-toʻgʻri ulanadi) —
+ * geoip.lookup(ip) (DB-IP Lite, faqat davlat, shahar yoʻq). Hech biri boʻlmasa — null.
  */
-export function geoOf(h = {}) {
+export function geoOf(h = {}, ip = null, geoip = null) {
   const c = String(h['cf-ipcountry'] ?? '').trim().toUpperCase();
   const country = /^[A-Z][A-Z0-9]$/.test(c) && c !== 'XX' ? c : null;
-  if (!country) return null;
+  if (!country) { const g = geoip?.lookup?.(ip) ?? null; return g ? { country: g, city: null } : null; }
   let city = String(h['cf-ipcity'] ?? '').trim();
   try { if (/%[0-9a-f]{2}/i.test(city)) city = decodeURIComponent(city); } catch { /* xom holicha qoladi */ }
   city = city.replace(/[\u0000-\u001f<>]/g, '').slice(0, 80) || null;
