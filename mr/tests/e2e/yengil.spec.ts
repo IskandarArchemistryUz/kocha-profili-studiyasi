@@ -16,7 +16,7 @@ test('sahna: LOD va qayta qurishda xotira oqmaydi', async ({ page }) => {
   // 5 marta qayta qurish: geometriya va teksturalar soni oʻsmaydi
   const a = await info();
   await page.evaluate(() => { const m = (window as any).__mr; for (let i = 0; i < 5; i++) m.scene.update(m.store.doc); m.scene.invalidate(); });
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(2500);   // 18.11 (T2b): eski obyektlar boʻsh vaqtda boʻshatiladi (retireGroup, requestIdleCallback ≤ 1,5 s)
   const b = await info();
   // koʻcha geometriyasi qayta hisoblanmaydi (koʻchalar oʻzgarmagan)
   expect(await page.evaluate(() => { const m = (window as any).__mr, sc = m.scene, g0 = sc.streetGeoKey?.sg; sc.update(m.store.doc); return !!g0 && sc.streetGeoKey.sg === g0; })).toBe(true);
