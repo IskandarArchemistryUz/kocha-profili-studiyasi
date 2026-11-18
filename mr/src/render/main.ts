@@ -287,7 +287,7 @@ async function go(): Promise<void> {
     for (const r of REFS) refs.push({ key: (await upKey(`r:${r.id}`, r.img, 1024)).key, role: r.role });
     const orig = (await shrink(b.img, 512)).url;
     const styN = tr((STY.find(x => x[0] === A.sty) ?? ['', 'Referens boʻyicha'])[1]);
-    const body: JobBody = { engine: LAB.some(([k]) => k === A.engine) && !CFG?.owner ? 'pro' : A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id };
+    const body: JobBody = { engine: LAB.some(([k]) => k === A.engine) && !CFG?.owner ? 'pro' : A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id, ...(b.facts && A.subj === b.subj ? { facts: b.facts } : {}) };
     const waits: Promise<void>[] = [];
     for (let i = 0; i < n; i++) {
       tick();
