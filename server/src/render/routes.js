@@ -365,6 +365,26 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     return view(rows[0], as.rows, true, isOwner(u));
   }));
 
+  /** 18.11: natija faylini server orqali uzatish — R2 da CORS yoʻq, shuning uchun brauzer
+   *  presigned havolani fetch/canvas bilan oʻqiy olmaydi (PNG saqlash, Chizmadonga yuborish, asos qilish).
+   *  ?dl=1 — «attachment» (toʻgʻridan-toʻgʻri yuklab olish havolasi sifatida ham ishlaydi). */
+  app.get('/render/jobs/:id/file', guard(async (req, reply) => {
+    const u = await requireUser(req, reply); if (!u) return;
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new RenderError(400, 'bad_id', 'ish notoʻgʻri');
+    const role = req.query?.role === 'thumb' ? 'thumb' : 'out';
+    const { rows } = await db.query(`SELECT a.r2_key FROM render_assets a JOIN render_jobs j ON j.id = a.job_id WHERE a.job_id = $1 AND j.user_id = $2 AND a.role = $3`, [id, u.id, role]);
+    if (!rows.length) throw new RenderError(404, 'not_found', 'fayl topilmadi');
+    const r = await c.r2.get(rows[0].r2_key);
+    if (!r) throw new RenderError(404, 'not_found', 'fayl topilmadi');
+    const type = r.headers.get('content-type') || 'application/octet-stream';
+    const ext = type.includes('jpeg') ? 'jpg' : type.includes('webp') ? 'webp' : type.includes('png') ? 'png' : 'bin';
+    reply.header('content-type', type).header('cache-control', 'private, max-age=3600');
+    const len = r.headers.get('content-length'); if (len) reply.header('content-length', len);
+    if (req.query?.dl) reply.header('content-disposition', `attachment; filename="render-${id}.${ext}"`);
+    return reply.send(Buffer.from(await r.arrayBuffer()));
+  }));
+
   app.get('/render/history', guard(async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
     const limit = Math.min(60, Math.max(1, Number(req.query?.limit) || 30)), own = isOwner(u);
