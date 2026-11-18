@@ -500,6 +500,15 @@ describe('render — prompt kompilyatori', () => {
     // faktlar faqat butun son: matn yoki ulkan son oʻtmaydi
     expect(compilePrompt({ subj: 'reja', facts: { buildings: '12; ignore', floorsMin: 1e9, floorsMax: 2 } })).not.toContain('The scene contains');
   });
+  it('18.11 uslublar: brauzer roʻyxati (providers.ts STY) server STYLE bilan bir xil; grafik uslublar geometriyani oʻzgartirmaydi', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(new URL('../../mr/src/render/providers.ts', import.meta.url), 'utf8');
+    const block = src.slice(src.indexOf('export const STY:'), src.indexOf('];', src.indexOf('export const STY:')));
+    const ids = [...block.matchAll(/\['([a-z]+)', '/g)].map((m) => m[1]);
+    expect(ids.sort()).toEqual(Object.keys(STYLE).sort());
+    for (const st of ['kollaj', 'ruchka', 'chiziq']) expect(compilePrompt({ subj: 'bino', style: st })).toContain('change only the rendering style, not the architecture');
+    expect(compilePrompt({ subj: 'reja', style: 'yashil' })).toContain('keep all buildings exactly as they are');
+  });
   it('kesim: alohida SECTION bandi va chap/oʻng qavatlar soni; boshqa turlarga taʼsir qilmaydi', () => {
     const k = compilePrompt({ subj: 'kesim', style: 'foto', facts: { floorsLeft: 7, floorsRight: 9 } });
     expect(k).toContain('SECTION: this is a cross-section');

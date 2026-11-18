@@ -96,6 +96,9 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 .ren-chips button{height:28px;padding:0 10px;border:0;border-radius:8px;background:var(--fill);color:var(--ink);font:600 12px var(--sans);cursor:pointer}
 .ren-chips button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
 .ren-sty .tile{min-height:36px;align-items:flex-start;padding:6px 10px;font-size:12.5px;font-weight:600;text-align:left}
+.ren-sty{display:flex;flex-direction:column;gap:8px}
+.ren-styg{display:flex;flex-direction:column;gap:4px}
+.ren-styg>.t-small{color:var(--faint);text-transform:none}
 .ren-ta{height:auto;min-height:56px;padding:8px 10px;resize:vertical;font-family:var(--sans);line-height:1.4}
 .ren-row{display:flex;align-items:center;gap:10px}.ren-row .glabel{flex:1;margin:0 4px}
 .ren-row .seg{width:132px}

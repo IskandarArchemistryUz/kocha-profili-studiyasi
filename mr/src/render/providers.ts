@@ -10,6 +10,13 @@ import type { Engine } from './api';
 export const STY: [string, string][] = [
   ['foto', 'Fotorealistik kunduz'], ['oltin', 'Oltin soat'], ['kech', 'Kechki chiroqlar'], ['qish', 'Qish'],
   ['toshkent', 'Toshkent ruhida'], ['akvarel', 'Akvarel eskiz'], ['maket', 'Oq maket (fotosi)'], ['diagramma', 'Diagramma'],
+  /* 18.11 (PR-U): grafik uslublar va koʻkalamzorlashtirish */
+  ['yashil', 'Koʻkalamzorlashtirish'], ['kollaj', 'Kollaj'], ['ruchka', 'Ruchka chizmasi'], ['chiziq', 'Chiziqli grafika'], ['qogoz', 'Qogʻoz maket'],
+];
+/** Uslublar guruhi: rasm (foto) va grafika — panelda ikki qator sarlavha bilan */
+export const STY_GROUPS: [string, string[]][] = [
+  ['Foto', ['foto', 'oltin', 'kech', 'qish', 'toshkent', 'yashil']],
+  ['Grafik uslublar', ['akvarel', 'ruchka', 'chiziq', 'kollaj', 'diagramma', 'maket', 'qogoz']],
 ];
 /** Nima tasvirlangan */
 export type Subject = 'reja' | 'bino' | 'kocha' | 'kesim' | 'joy' | 'interyer' | 'eskiz';
