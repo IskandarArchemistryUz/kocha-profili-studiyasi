@@ -114,7 +114,9 @@ function render(s: OwnerStats, grant: HTMLElement, toggle: HTMLElement): HTMLEle
       cs ? h('div', { class: 'own-two', id: 'ownCountries' },
         h('div', {}, h('h3', {}, tr('Roʻyxatdan oʻtganlar davlati')), table([tr('Davlat'), tr('Soni')], cs.users.map((r) => [country(r.country), r.c]), tr('Hali davlat maʼlumoti yoʻq'))),
         h('div', {}, h('h3', {}, tr('30 kunda kirganlar')), table([tr('Davlat'), tr('Soni')], cs.active30.map((r) => [country(r.country), r.c]), tr('Hali davlat maʼlumoti yoʻq'))),
-        cs.unknown ? h('p', { class: 't-small own-empty own-span' }, tf('Davlati nomaʼlum: ${n} — eski hisoblar yoki Cloudflare davlatni bermagan', { n: fmt(cs.unknown) })) : '') : ''),
+        cs.unknown ? h('p', { class: 't-small own-empty own-span' }, tf('Davlati nomaʼlum: ${n} — eski hisoblar yoki Cloudflare davlatni bermagan', { n: fmt(cs.unknown) })) : '',
+        // 18.11: davlat IP manzildan (server/src/geoip.js) — DB-IP Lite litsenziyasi (CC BY 4.0) shu yozuvni talab qiladi; brend matni tarjima qilinmaydi
+        h('p', { class: 't-small own-span', id: 'ownGeoCredit' }, 'IP Geolocation by ', h('a', { href: 'https://db-ip.com', target: '_blank', rel: 'noopener' }, 'DB-IP'))) : ''),
     h('section', { class: 'own-sec' }, h('h2', {}, tr('Toʻlovlar')),
       h('div', { class: 'own-kpis' },
         kpi('revenue', tr('Jami tushum'), so(p.revenue), tf('30 kunda ${s}', { s: so(p.revenue30) })),
