@@ -156,7 +156,7 @@ import { mrTools, type MrHost } from '../agent/tools-mr';
 import { quote as quoteApi } from '../account/session';
 import { pgaToBall, SEIS_HINT, SCALE_TXT } from '../core/seismichint';
 import { suggestBall } from '../core/seismicgrid';
-import { coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, itemTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
+import { VARIANT_FREE, coinsDialog, useHeavy, siteGate, siteOk, PAID_STEP_FROM, priceTag, itemTag, onPrices, autoPayOn, autoPayOff } from '../account/pay';
 
 /** yer sathi xaritasi legendasi (Qatlamlar paneli va varaq) */
 type MapInfo = { title: string; bins: { color: number; label: string }[]; stats: string[]; note: string };
@@ -173,6 +173,8 @@ const TYPO_SHORT: Record<string, string> = { avto: 'Avto (UMN)', yakka: 'Yakka u
  *  Parselga mos kelmaydigan plitkalar koʻrsatilmaydi — guruhda faqat mosi (sanoq «N ta» bilan bir xil). */
 const TYPO_GROUPS: [string, Typology[]][] = [['Past qavatli', ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster']], ['Koʻp qavatli turar joy', ['avto', 'perimetr', 'qatorlar', 'blok_minora', 'minora', 'villa', 'blok_villa']], ['Noturar', ['ofis_plita', 'ofis_minora', 'ofis_hovli', 'meh_plita', 'meh_minora', 'savdo_blok', 'savdo_minora', 'savdo_qator', 'ombor']]];
 const LOW_T: Typology[] = ['yakka', 'juft', 'taunhaus', 'hovli', 'klaster'];
+/** 18.11 (T0): generatsiya natijasi imzosi (mahalliy metr, 1 m ga yaxlitlangan halqalar + qavat) — takror variantni aniqlash uchun */
+const secSig = (xs: { ring: XY[]; floors: number }[]): string => xs.map(x => `${Math.round(x.floors)}:${x.ring.map(p => `${Math.round(p[0])},${Math.round(p[1])}`).join(';')}`).sort().join('|');
 const ICON = {
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',
@@ -2685,7 +2687,7 @@ export class Editor {
     } else {
       void useHeavy('gen').then(ok => {
         if (!ok) return; const plan = this.plan(); let n = 0;
-        for (let i = 0; i < plan.blocks.length; i++) { const b = plan.blocks[i]; if (useDef(b.use).res <= 0 || isSocial(b.use) || !this.savedGen(i)) continue; try { if (this.generateBlock(i, true, { parking: 'yer_osti', parkNorm: true })) n++; } catch (e) { console.error(e); } }
+        this.store.batch(() => { for (let i = 0; i < plan.blocks.length; i++) { const b = plan.blocks[i]; if (useDef(b.use).res <= 0 || isSocial(b.use) || !this.savedGen(i)) continue; try { if (this.generateBlock(i, true, { parking: 'yer_osti', parkNorm: true })) n++; } catch (e) { console.error(e); } } });
         toast(n ? tf('${n} ta kvartalga yer osti avtoturargoh qoʻshildi (sathlar — meʼyor boʻyicha)', { n }) : tr('Generatsiya qilingan turar joy kvartali yoʻq'));
       });
     }
@@ -2694,7 +2696,49 @@ export class Editor {
   /** 04.11 (Murad Buildings sinovi, 3-band): «Hammasi» — sukut boʻyicha hamma dahalar paneldagi sozlamalar bilan qayta quriladi;
    *  «har daha oʻz sozlamasi bilan» — «Qoʻshimcha» dagi kalit (oldingi xatti-harakat) */
   private allOwn = (() => { try { return localStorage.getItem('mr-all-own') === '1'; } catch { return false; } })();
-  private generateBlock(i: number, quiet = false, over: Partial<GenParams> = {}, panelAll = false): number {
+  /** 18.11 (T0): «Boshqa variant» holati daha guruhi boʻyicha — parametrlar kaliti (variantsiz), bepul ishlatilgani, koʻrilgan joylashuvlar imzosi */
+  private varSt = new Map<string, { key: string; used: number; seen: Set<string> }>();
+  private varKey(i: number): { grp: string; key: string } | null {
+    const b = this.plan().blocks[i], lab = this.blockLabel(i); if (!b || !lab) return null;
+    const { variant: _v, ...g } = this.gen; return { grp: b.parcelId ?? lab.id, key: JSON.stringify(g) };
+  }
+  /** shu daha va parametrlarda qolgan bepul variantlar; daha hali generatsiya qilinmagan boʻlsa — null */
+  private variantsLeft(i: number): number | null {
+    const k = this.varKey(i); if (!k || !this.store.doc.buildings.some(b => b.gen?.grp === k.grp)) return null;
+    const st = this.varSt.get(k.grp); return Math.max(0, VARIANT_FREE - (st && st.key === k.key ? st.used : 0));
+  }
+  private async nextVariant(i: number): Promise<void> {
+    const k = this.varKey(i); if (!k) return;
+    const hasGen = this.store.doc.buildings.some(b => b.gen?.grp === k.grp);
+    let st = this.varSt.get(k.grp);
+    if (!st || st.key !== k.key) { st = { key: k.key, used: 0, seen: new Set() }; this.varSt.set(k.grp, st); }
+    // birinchi generatsiya yoki bepul variantlar tugagan — oddiy generatsiya kabi (tanga / bepul generatsiya); keyin yana VARIANT_FREE ta bepul
+    if (!hasGen || st.used >= VARIANT_FREE) {
+      if (hasGen) toast(tr('Bepul variantlar tugadi — keyingisi generatsiya sifatida hisoblanadi'));
+      if (!await useHeavy('gen')) return;
+      st.used = 0;
+    }
+    const S = st;
+    // hozirgi joylashuv imzosi (hujjat oʻzgarmaydi) — birinchi bosishda xuddi shu natija qaytmasin
+    if (!S.seen.size && hasGen) this.generateBlock(i, true, {}, false, sig => { S.seen.add(sig); return true; });
+    let v = this.gen.variant ?? 0, n = -1;
+    // takror joylashuv dispatch qilinmaydi (skip); topilgani va meʼyoriy tuzatish — bitta amal, sahna bir marta yangilanadi
+    this.store.batch(() => {
+      for (let t = 0; t < 8 && n < 0; t++) { v++; this.gen = { ...this.gen, variant: v }; n = this.generateBlock(i, true, {}, false, sig => { if (S.seen.has(sig)) return true; S.seen.add(sig); return false; }); }
+      if (n >= 0) { const fx = this.repairNorms(new Set([k.grp])); if (fx.length) this.genNotes = [...this.genNotes, ...fx]; }
+    });
+    if (n < 0) { toast(tr('Bu dahada boshqa joylashuv sigʻmadi — tipologiya, qavat yoki chekinishni oʻzgartirib koʻring')); this.renderPanel(); return; }
+    if (hasGen) S.used++;
+    toast(tf('Variant ${v} · yana ${k} ta bepul', { v, k: Math.max(0, VARIANT_FREE - S.used) }));
+    this.renderPanel();
+  }
+
+  /** 18.11 (T0): bitta generatsiya — bitta amal (Store.batch): dispatch, kirishlar va meʼyoriy tuzatish sahnani bir marta qayta quradi.
+   *  skip(sig) true boʻlsa — natija oldingi variant bilan bir xil, hujjat oʻzgarmaydi, −1 qaytadi */
+  private generateBlock(i: number, quiet = false, over: Partial<GenParams> = {}, panelAll = false, skip?: (sig: string) => boolean): number {
+    return this.store.batch(() => this.generateBlockRaw(i, quiet, over, panelAll, skip));
+  }
+  private generateBlockRaw(i: number, quiet = false, over: Partial<GenParams> = {}, panelAll = false, skip?: (sig: string) => boolean): number {
     const plan = this.plan(), b = plan.blocks[i], lab = this.blockLabel(i); if (!b || !lab) return 0;
     const ud = useDef(b.use), name = this.unitName(i);
     // 05.11: «Avtoturargoh» — koʻp qavatli tanlangan boʻlsa, «Hammasi» ham qayta quradi
@@ -2741,6 +2785,7 @@ export class Editor {
       r.sections = [...byUse].flatMap(([u, xs]) => clipToSzz(xs, dz(u), r.notes));
       // 12.11 (G1): hammasi SMZ da qolgan boʻlsa — haqiqiy sabab: yaroqli maydon qancha va qayerda
       if (had && !built(r)) { const ua = usableOf(R0, dz(b.use)); r.notes.unshift(tf('Turar joy uchun yaroqli maydon ${u} ga — qolgan ${s} ga SMZ ichida (SanQvaN 0103-25, 12-band); yaroqli qismga chekinishlardan keyin seksiya sigʻmadi', { u: fmt(ua.usable / 1e4, 2), s: fmt(Math.max(0, ua.total - ua.usable) / 1e4, 2) })); } }
+    if (skip?.(secSig(r.sections))) return -1;
     if (slit.n) r.notes.push(tf('Daha chegarasidagi ${n} ta tor tirqish (ichki servis yoʻli, eni < 10 m) generatsiya uchun yopildi — ${a} m² (TALQIN)', { n: slit.n, a: Math.round(slit.area) }));
     this.genNotes = asb ? [this.autoSbNote(asb), ...r.notes] : r.notes; this.genFar = r.far ?? null;
     const use: Use = b.use;
@@ -2760,10 +2805,10 @@ export class Editor {
    * seismic-height) ishga tushiriladi; avtomatik binolar qavati pasaytiriladi yoki seksiya olinadi (core/normfix). grps — faqat shu guruhlar.
    */
   private repairNorms(grps?: Set<string>): string[] {
-    const before = this.store.doc, r = repairGen(before, { grps });
+    const before = this.store.doc, r = repairGen(before, { grps, norms: this.genNorms() });
     if (r.lowered || r.removed || r.joints) {
       const after = new Map(r.doc.buildings.map(b => [b.id, b]));
-      this.run(() => { for (const b of before.buildings) { const a = after.get(b.id); if (!a) this.store.dispatch({ type: 'removeBuilding', id: b.id }); else if (a.floors !== b.floors || !!a.joint !== !!b.joint) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: a.floors, ...(a.joint ? { joint: true } : {}), gen: b.gen } }); } });
+      this.run(() => this.store.batch(() => { for (const b of before.buildings) { const a = after.get(b.id); if (!a) this.store.dispatch({ type: 'removeBuilding', id: b.id }); else if (a.floors !== b.floors || !!a.joint !== !!b.joint) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: a.floors, ...(a.joint ? { joint: true } : {}), gen: b.gen } }); } }));
     }
     return r.notes;
   }
@@ -2892,7 +2937,7 @@ export class Editor {
         todo.push(i); const ne = auto.filter(x => x.gen?.edited).length; if (ne) editedN.push(ne);
       });
       if (!todo.length) return;
-      const go = () => { let n = 0; for (const i of todo) if (this.generateBlock(i, true) > 0) n++; if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); } this.warnOverlap(); };
+      const go = () => { let n = 0; this.store.batch(() => { for (const i of todo) if (this.generateBlock(i, true) > 0) n++; }); if (n) { toast(tf('${n} ta kvartal yoʻlga moslab qayta generatsiya qilindi', { n })); this.renderPanel(); this.renderKpi(); } this.warnOverlap(); };
       // qoʻlda tahrirlangan avtomatik binolar bor — avval soʻraladi (egasi, 30.10): tahrir yoʻqoladi
       if (editedN.length) this.askRegen(editedN.reduce((t, v) => t + v, 0), go, () => this.warnOverlap()); else go();
     }, 400);
@@ -3108,7 +3153,7 @@ export class Editor {
       h('span', { class: 't-small' }, tr('yoki xaritada daha ichini bosing')));
     // 04.11 (egasi: interfeysni soddalashtirish, A): izolyatsiya — «Batafsil» ichida; izolyatsiya yoqiq boʻlsa chiqish tugmasi koʻrinib turadi
     if (this.scene.isolated) body.append(this.isoBtn(this.selBlock));
-    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } const fx = this.repairNorms(); if (fx.length) { this.genNotes = fx; this.renderPanel(); } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
+    const allBtn = () => h('button', { class: 'btn btn-lg', id: 'genAll', title: tr(this.allOwn ? 'Hamma dahalar — har biri oʻz sozlamasi bilan' : 'Hamma dahalar — paneldagi sozlamalar bilan'), onclick: () => void useHeavy('gen').then(ok => { if (!ok) return; let n = 0, bad = 0; const cnt = plan.blocks.length; const fx = this.store.batch(() => { for (let i = 0; i < cnt; i++) { try { n += this.generateBlock(i, true, {}, !this.allOwn); } catch (e) { bad++; console.error(`generateBlock ${i}`, e); } } return this.repairNorms(); }); if (fx.length) { this.genNotes = fx; this.renderPanel(); } toast(bad ? tf('${n} seksiya generatsiya qilindi; ${b} kvartalda xato — oʻtkazib yuborildi', { n, b: bad }) : tf('${n} seksiya generatsiya qilindi', { n })); }) }, tr('Hammasi'));
     const clearBtn = (i: number | null) => h('button', { class: 'btn btn-lg icon-btn', id: 'genClear', title: tr('Tozalash'), 'aria-label': tr('Tozalash'), disabled: i == null, onclick: () => { const u = i != null ? plan.blocks[i] : null, lab = i != null ? this.blockLabel(i) : null; if (u && lab) { const grp = u.parcelId ?? lab.id; this.run(() => this.store.dispatch({ type: 'replaceGroup', grp, sections: [], drop: staleGen(this.store.doc, grp, u.rings[0], []) })); } } }, svgIcon(IC.trash));
     const socI = this.selBlock != null && isSocial(plan.blocks[this.selBlock]?.use ?? '') ? this.selBlock : null;
     const parkI = this.selBlock != null && plan.blocks[this.selBlock]?.use === 'avtoturargoh' ? this.selBlock : null;
@@ -3160,12 +3205,13 @@ export class Editor {
           ['minora', 'blok_minora', 'avto'].includes(g.typology) ? stp('gTower', tr('Minora qavati'), '9–60', g.towerF ?? 16, 9, 60, 1, x => { g.towerF = x; }) : '',
           seisNote),
         h('div', { class: 'row' },
-          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (ok) this.generateBlock(i); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
+          h('button', { class: 'btn btn-primary btn-lg grow', id: 'genGo', disabled: this.selBlock == null, onclick: () => { const i = this.selBlock; if (i != null) void useHeavy('gen').then(ok => { if (!ok) return; const k = this.varKey(i); if (k) this.varSt.set(k.grp, { key: k.key, used: 0, seen: new Set() }); this.generateBlock(i); this.renderPanel(); }); } }, tr('Variant taklif qil'), this.ptag('gen')),
           // 12.11 (egasi: «yoqmasa — yoqqan variant chiqquncha yangilab generatsiya qiladigan tugma»): har bosilganda keyingi variant
           // (boʻlinish boshqa burchakdan, seksiya uzunligi, balandlik sxemasi — core/generator varyGen/varyScheme); cheklanmagan
-          h('button', { class: 'btn btn-lg icon-btn', id: 'genNext', disabled: this.selBlock == null, title: tr('Boshqa variant'), 'aria-label': tr('Boshqa variant'), 'data-v': String(g.variant ?? 0),
-            onclick: () => { const i = this.selBlock; if (i == null) return; void useHeavy('gen').then(ok => { if (!ok) return; this.gen = { ...this.gen, variant: (this.gen.variant ?? 0) + 1 }; this.generateBlock(i); toast(tf('Variant ${n}', { n: this.gen.variant ?? 0 })); }); } },
-            svgIcon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'))),
+          // 18.11 (T0, egasi): bir xil daha va parametrlarda «Boshqa variant» — VARIANT_FREE tagacha bepul (server soʻrovisiz), takror joylashuv oʻtkazib yuboriladi
+          (() => { const left = this.selBlock != null ? this.variantsLeft(this.selBlock) : null; return h('button', { class: 'btn btn-lg icon-btn', id: 'genNext', disabled: this.selBlock == null, title: left != null ? tf('Boshqa variant — yana ${k} ta bepul', { k: left }) : tr('Boshqa variant'), 'aria-label': tr('Boshqa variant'), 'data-v': String(g.variant ?? 0),
+            onclick: () => { const i = this.selBlock; if (i != null) void this.nextVariant(i); } },
+            svgIcon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'), left != null ? h('small', { class: 'gen-left' }, String(left)) : ''); })()),
         // 12.11: «Hammasi» va tozalash — ikkinchi qatorda (birinchi qatorga «Boshqa variant» sigʻsin)
         h('div', { class: 'row', id: 'genRow2' }, (() => { const b = allBtn(); b.classList.add('grow'); return b; })(), clearBtn(this.selBlock)),
         isLow ? this.lowRowBox(fr, g.maxF) : '',

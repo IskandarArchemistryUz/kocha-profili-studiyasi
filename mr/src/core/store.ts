@@ -31,6 +31,11 @@ export class Store {
    */
   dispatch(c: Command, mergeKey?: string): Project {
     const next = apply(this.cur, c);
+    // 18.11 (T0): paket ichida — tarixda bitta qadam, obunachilarga xabar paket oxirida bir marta
+    if (this.depth > 0) {
+      if (!this.bPushed) { this.past.push({ doc: this.bStart!, label: this.bLabel || label(c), t: this.clock() }); if (this.past.length > this.limit) this.past.shift(); this.bPushed = true; }
+      this.bLabel ||= label(c); this.future = []; this.cur = next; return next;
+    }
     const now = this.clock(), last = this.past.at(-1);
     if (mergeKey && last && last.key === mergeKey && now - last.t < 800) { last.t = now; }
     else {
@@ -43,9 +48,27 @@ export class Store {
     return next;
   }
 
+  /**
+   * 18.11 (T0, egasi: «generatsiyada qotadi»): bir nechta buyruq — bitta amal. Ichidagi dispatch lar hujjatni darhol oʻzgartiradi
+   * (store.doc yangi), lekin tarixda bitta qadam va obunachilarga (sahna, panel, avtosaqlash, bulut) paket oxirida **bitta** xabar.
+   * Ichma-ich chaqirilsa — tashqi paketga qoʻshiladi. Xato boʻlsa ham shu paytgacha qoʻllangan oʻzgarish koʻrsatiladi.
+   */
+  batch<T>(fn: () => T, lbl?: string): T {
+    if (this.depth++ === 0) { this.bStart = this.cur; this.bLabel = lbl ?? ''; this.bPushed = false; }
+    try { return fn(); }
+    finally {
+      if (--this.depth === 0) { const s0 = this.bStart; this.bStart = null; if (this.cur !== s0) this.emit({ doc: this.cur, reason: 'dispatch', label: this.bLabel }); }
+    }
+  }
+  private depth = 0;
+  private bStart: Project | null = null;
+  private bLabel = '';
+  private bPushed = false;
+
   /** Tarixga yozmasdan tuzatish (masalan, atrof qayta yuklangach id'larni moslash) — foydalanuvchi amali emas */
   amend(c: Command): Project {
     const next = apply(this.cur, c); this.cur = next;
+    if (this.depth > 0) return next;
     this.emit({ doc: next, reason: 'dispatch', label: label(c) }); return next;
   }
 

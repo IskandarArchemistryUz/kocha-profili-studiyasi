@@ -13,6 +13,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`hovli mayd
   await page.click('[data-step=yashil]');
   await page.click('#greenMore > summary');
   await expect(page.locator('#play90')).toBeVisible();
+  // 18.11: hisob (Web Worker) natijasi generatsiyadan keyin keladi
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.last?.d.playNeed ?? 0)).toBeGreaterThan(0);
   const need0 = await page.evaluate(() => (window as any).__mr.last?.d.playNeed);
   expect(need0).toBeGreaterThan(0);
   await page.click('#play90Sport');

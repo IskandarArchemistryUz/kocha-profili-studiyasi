@@ -54,6 +54,8 @@ export const TRIALS = Object.freeze({
 export const SIGNUP_BONUS = 15;
 export const TRIALS_PER_WEEK = 3;   // 14.11: egasi qarori (oldin 1)
 export const GEN_FREE = 3;
+/** 18.11 (egasi): bir xil daha va parametrlarda «Boshqa variant» — shuncha marta bepul (generatsiya brauzerda). Env VARIANT_FREE bilan oʻzgartiriladi */
+export const VARIANT_FREE = (() => { const v = parseInt(process.env.VARIANT_FREE ?? '', 10); return Number.isFinite(v) && v >= 0 ? v : 20; })();
 
 /**
  * Agent «Maslahatchi» (13.11.2026, project claude/agent-1-bosqich-maslahatchi-13-11.md):

@@ -6,6 +6,7 @@ test('soya xaritasi faqat mazmun oʻzgarganda yangilanadi', async ({ page }) => 
   await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
+  await page.waitForFunction(() => (window as any).__mr.store.doc.buildings.length > 1, null, { timeout: 30_000 });   // 18.11: generatsiya bitta amal — binolar paket oxirida
   await page.waitForTimeout(800);
   const calls = (shadow: boolean) => page.evaluate(async (sh) => {
     const sc = (window as any).__mr.scene, r = sc.renderer; r.info.autoReset = false; await new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f)));

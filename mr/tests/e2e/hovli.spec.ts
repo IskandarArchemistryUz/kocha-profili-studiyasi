@@ -10,8 +10,8 @@ test('hovli obodonlashtirish va yashillik balansi', async ({ page }) => {
   await page.click('[data-step=yashil]');
   await expect(page.locator('#greenSt')).toContainText('Hovlilar maysasi');
   await expect(page.locator('#greenSt')).not.toContainText('Hovli maydonchalari—');
-  const t = (await page.locator('#greenSt').textContent())!;
-  expect(t).toMatch(/Hovli maydonchalari(4-jadval)?[\d\s]+\/[\d\s]+m²/);
+  // 18.11: hisob (Web Worker) natijasi generatsiyadan keyin keladi — panel shu paytgacha «—» koʻrsatadi
+  await expect(page.locator('#greenSt')).toHaveText(/Hovli maydonchalari(4-jadval)?[\d\s]+\/[\d\s]+m²/);
   if (shots) await page.screenshot({ path: `${shots}/hovli.png` });
   await page.click('#kMore');
   await expect(page.locator('.drawer [data-rule=green-86]')).toContainText('86-band (01/2-15 tahririda), 87-band');

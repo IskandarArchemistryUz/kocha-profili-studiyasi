@@ -15,7 +15,7 @@ import { makePrivate, parseBbox, PrivateError } from './private.js';
 import { registerAgent } from './agent.js';
 import { registerRender } from './render/routes.js';
 import { registerProjects } from './projects.js';
-import { RENDER_COINS, AGENT_COINS, AGENT_FREE_PER_WEEK, ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
+import { RENDER_COINS, AGENT_COINS, AGENT_FREE_PER_WEEK, ITEMS, TRIALS, TRIALS_PER_WEEK, GEN_FREE, VARIANT_FREE, PACKS, priceOf, projectCap, PriceError } from './prices.js';
 
 export const COOKIE = 'ks_sess';
 
@@ -86,7 +86,7 @@ export async function buildApp({ db, pepper, secret, send, google = null, google
   // brauzer uchun ochiq xarita kalitlari (referrer bilan cheklangan; repoga yozilmaydi — .env dan)
   app.get('/config/maps', async (req, reply) => { reply.header('cache-control', 'public, max-age=3600'); return { arcgis: mapKeys.arcgis || null }; });
 
-  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, signupBonus, genFree: GEN_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS, render: RENDER_COINS }));
+  app.get('/prices', async () => ({ items: ITEMS, trials: TRIALS, trialsPerWeek: TRIALS_PER_WEEK, signupBonus, genFree: GEN_FREE, variantFree: VARIANT_FREE, caps: [3, 10, 25, 60, 150, Infinity].map(ha => ({ ha: Number.isFinite(ha) ? ha : null, coins: projectCap(ha) })), packs: PACKS, render: RENDER_COINS }));
 
   app.post('/quote', async (req) => {
     const { items, areaHa } = req.body ?? {};

@@ -1,0 +1,1 @@
+export{s as toUpload}from"./api-DldNUau7.js";

@@ -1161,3 +1161,6 @@ body:has(.home2){background-color:var(--bg);background-image:radial-gradient(col
 .home2.enter .card{animation:hcard .44s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 45ms + .15s)}
 @keyframes hcard{from{opacity:0;transform:translateY(12px)}}
 @media (prefers-reduced-motion:reduce){.home2 .card,.home2 .home-bar::after{animation:none}}
+
+/* 18.11 (T0): «Boshqa variant» tugmasida qolgan bepul variantlar soni */
+#genNext{position:relative}#genNext .gen-left{position:absolute;top:3px;right:5px;font-size:10px;line-height:1;font-variant-numeric:tabular-nums;opacity:.6;pointer-events:none}

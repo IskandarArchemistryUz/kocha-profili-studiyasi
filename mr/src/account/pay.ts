@@ -25,7 +25,7 @@ const listeners = new Set<() => void>();
 export const onPrices = (f: () => void): (() => void) => { listeners.add(f); return () => listeners.delete(f); };
 const emit = () => listeners.forEach(f => { try { f(); } catch { /* */ } });
 /** Narxlar; xatoda — daqiqada bir marta qayta urinadi */
-function loadPrices(): Promise<void> { return prP ??= prices().then(p => { PR = p; emit(); }, () => { setTimeout(() => { prP = null; }, 60_000); }); }
+function loadPrices(): Promise<void> { return prP ??= prices().then(p => { PR = p; const vf = Number((p as { variantFree?: number }).variantFree); if (vf >= 0) VARIANT_FREE = Math.round(vf); emit(); }, () => { setTimeout(() => { prP = null; }, 60_000); }); }
 const kOf = (ha: number): number => Math.round(Math.max(1, Math.sqrt((ha || 0) / 3)) * 10) / 10;
 let PI: (ProjInfo & { id: string }) | null = null, projLoading = false;
 async function loadProject(): Promise<ProjInfo | null> {
@@ -278,6 +278,9 @@ initPay();
 export const FREE_SITE_HA = 3;
 /** shu qadam raqamidan boshlab 3 ga dan katta uchastka loyihasi ochilishi kerak (1–6 — bepul) */
 export const PAID_STEP_FROM = 7;
+/** 18.11 (egasi): bir xil daha va parametrlarda «Boshqa variant» — shuncha marta bepul (generatsiya brauzerda, server xarajati yoʻq);
+ *  narxlar jadvalida variantFree boʻlsa — oʻsha. Keyingisi oddiy generatsiya kabi hisoblanadi va yana shuncha bepul ochiladi */
+export let VARIANT_FREE = 20;
 /** Maydon koeffitsiyenti pogʻonasi — server/src/prices.js areaK bilan bir xil (≤ 15 → 1, ≤ 60 → 1,5, katta → 2) */
 const bracket = (ha: number): number => ha <= 15 ? 1 : ha <= 60 ? 1.5 : 2;
 const UNLOCK_KEY = 'kps_site_unlock';
