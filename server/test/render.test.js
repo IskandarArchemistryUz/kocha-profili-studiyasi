@@ -122,10 +122,10 @@ describe('render — sozlama', () => {
     expect(ENGINES.um4.input({ images: ['u'] })).toMatchObject({ image_url: 'u', upscale_factor: 4, creativity: 0.35, resemblance: 0.6 });
     expect(ENGINES.ui2.input({ images: ['u'] })).toMatchObject({ upscale_factor: 2, creativity: 0.6, resemblance: 0.4 });
     expect(ENGINES.up3.model).toBe('fal-ai/seedvr/upscale/image');
-    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 2, 'ren.enhance': 2, 'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 4, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 4 });
+    expect(RENDER_COINS).toMatchObject({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 1, 'ren.enhance': 2, 'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 4, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 4 });
     const r = (await get('/render/config')).json();
     expect(r.enabled).toBe(true);
-    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 2 }, um2: { coins: 2 }, um3: { coins: 3 }, um4: { coins: 4 }, ui2: { coins: 2 }, ui3: { coins: 3 }, ui4: { coins: 4 }, enhance: { coins: 2 } });
+    expect(r.engines).toEqual({ fast: { coins: 1 }, pro: { coins: 2 }, pro4k: { coins: 4 }, up2: { coins: 1 }, up3: { coins: 1 }, up4: { coins: 1 }, um2: { coins: 2 }, um3: { coins: 3 }, um4: { coins: 4 }, ui2: { coins: 2 }, ui3: { coins: 3 }, ui4: { coins: 4 }, enhance: { coins: 2 } });
     expect((await get('/prices')).json().render).toEqual(RENDER_COINS);
     const ck = await login();
     expect((await get('/render/config', ck)).json()).toMatchObject({ owner: false, parallel: 1 });
@@ -352,7 +352,7 @@ describe('render — kattalashtirish va tiniqlashtirish', () => {
     await app.render.flush();
     return j.id;
   }
-  it('×2 / ×4: kirish — oʻz natijasi (R2 out), SeedVR2, tanga 1 / 2', async () => {
+  it('×2 / ×4: kirish — oʻz natijasi (R2 out), SeedVR2, tanga 1 / 1', async () => {
     const ck = await login(); await give('ali@mail.uz', 10); await paid('ali@mail.uz');
     const from = await doneJob(ck);
     const r = await post('/render/jobs', { engine: 'up2', from }, ck);
@@ -366,7 +366,7 @@ describe('render — kattalashtirish va tiniqlashtirish', () => {
     await hook({ ...okPayload((await jobRow(r.json().id)).fal_request_id), payload: { image: { url: 'https://v3.fal.media/files/up.jpg', width: 4096, height: 2304, content_type: 'image/jpeg' } } }); await app.render.flush();
     const v = (await get(`/render/jobs/${r.json().id}`, ck)).json();
     expect(v).toMatchObject({ status: 'done', engine: 'up2', tag: 'sMR1', params: { from: String(from), factor: 2 } });
-    expect((await post('/render/jobs', { engine: 'up4', from }, ck)).json()).toMatchObject({ coins: 2 });
+    expect((await post('/render/jobs', { engine: 'up4', from }, ck)).json()).toMatchObject({ coins: 1 });
   });
   it('tiniqlashtirish — Clarity, 4096 px dan oshmaydi; ×4 — 8192 px dan oshmaydi', async () => {
     const own = await login('boss@mail.uz');
