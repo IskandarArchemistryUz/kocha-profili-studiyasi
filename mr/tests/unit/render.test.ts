@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderApi, setFetch, waitJob, type Job } from '../../src/render/api';
-import { loadState } from '../../src/render/providers';
+import { loadState, STY, STY_GROUPS } from '../../src/render/providers';
 
 /** 13.11 (Render 1-bosqich): kalitsiz — hamma soʻrov serverga; provayder va kalit yoʻq */
 const store = new Map<string, string>();
@@ -18,6 +18,14 @@ describe('Render studiyasi · holat', () => {
   it('notoʻgʻri qiymatlar sukutga qaytadi', () => {
     store.set('ren-state', JSON.stringify({ engine: 'turbo', n: 7, fid: 'x', subj: 'y', sty: 'neon' }));
     expect(loadState()).toMatchObject({ engine: 'pro', n: 1, fid: 'qatiy', subj: 'reja', sty: 'foto' });
+  });
+});
+
+describe('Render studiyasi · uslublar guruhi', () => {
+  it('har uslub aynan bitta guruhda (Foto · Grafik uslublar)', () => {
+    const all = STY_GROUPS.flatMap(([, ids]) => ids);
+    expect(new Set(all).size).toBe(all.length);
+    expect([...all].sort()).toEqual(STY.map(([k]) => k).sort());
   });
 });
 
