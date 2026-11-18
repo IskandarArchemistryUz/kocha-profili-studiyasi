@@ -11,6 +11,7 @@ import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
 import { langMenu } from '../ui/langmenu';
+import { sahnaBtn } from '../ui/sahna';
 import '../ui/ds2.css';
 import './joy.css';
 import type { Map as MLMap, GeoJSONSource, Marker } from 'maplibre-gl';
@@ -779,6 +780,7 @@ function renderHeader(): void {
     h('span', { class: 'vr' }),
     h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
+    sahnaBtn(),   // 18.11 (T1): sahna rejimi — P / Esc
     agentBtn(),
     langMenu(l => { void setLang(l); }),
     (() => { const b = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'themeBtn', type: 'button', title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }); b.append(ic(isDark() ? ICON.sun : ICON.moon)); return b; })(),
