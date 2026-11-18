@@ -65,7 +65,23 @@ const rot = (U: XY, c: XY) => (u: number, v: number): XY => [c[0] + U[0] * u - U
  */
 /** Modul boʻyicha odatiy korpus eni, m (12-band: foydalanuvchi oʻzgartirishi mumkin) */
 export const MOD_BW: Record<Module, number> = { taroq: 15, hovli: 14, u: 13, kompakt: 30, chiziq: 12, blok: 18, l: 18 };
-export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module, m2: number, floors: number, edgeSetback: number[], bw?: number, bl?: number): SocialPlan {
+/** 18.11 (egasi: «maktab, bogʻcha, poliklinika uchun ham Boshqa variant»): variant raqamidan joylashuv — oʻqlar almashinuvi (90°),
+ *  koʻzgu (chap/oʻng, shimol/janub). MTM: bino doim shimolda (guruh maydonchalari quyosh tomonda) — faqat chap/oʻng koʻzgu.
+ *  Chekinishlar (39-jadval) va sigʻim hisobi oʻzgarmaydi — faqat bino uchastka ichida qayerda turishi */
+export function socialVary(use: SocialUse, v0: number): { swap: boolean; mu: 1 | -1; mv: 1 | -1 } {
+  const v = Math.max(0, Math.round(v0));
+  if (use === 'mtm') return { swap: false, mu: v % 2 ? -1 : 1, mv: 1 };
+  const k = v % 8;
+  return { swap: k >= 4, mu: k % 2 ? -1 : 1, mv: Math.floor(k / 2) % 2 ? -1 : 1 };
+}
+export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module, m2: number, floors: number, edgeSetback: number[], bw?: number, bl?: number, variant = 0): SocialPlan {
+  const r = socialPlanRaw(ring, use, cap, mod, m2, floors, edgeSetback, bw, bl, variant);
+  // 90° burilgan joylashuv sigʻimni kamaytirsa — burilmagani olinadi (variant sigʻim hisobiga boʻlmaydi; takror — editor oʻtkazib yuboradi)
+  if (socialVary(use, variant).swap) { const b = socialPlanRaw(ring, use, cap, mod, m2, floors, edgeSetback, bw, bl, variant - 4); if (b.gfa > r.gfa * 1.02 || (b.sections.length && !r.sections.length)) return b; }
+  return r;
+}
+function socialPlanRaw(ring: XY[], use: SocialUse, cap: number, mod: Module, m2: number, floors: number, edgeSetback: number[], bw: number | undefined, bl: number | undefined, variant: number): SocialPlan {
+  const VR = socialVary(use, variant);
   const BW = bw && bw > 0 ? bw : MOD_BW[mod], BL = bl && bl > 0 ? bl : Infinity;   // korpus eni va eng katta uzunligi
   const notes: string[] = [];
   const ccw = signedArea(ring) > 0, R = ccw ? ring : [...ring].reverse(), d = ccw ? edgeSetback : [...edgeSetback.slice(0, -1)].reverse().concat(edgeSetback.slice(-1));
@@ -73,12 +89,13 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   if (!inner || area(inner) < 400) { inner = offsetEdges(R, R.map(() => 6)) ?? insetRobust(R, 6, 20); notes.push('Qizil chiziqdan 25 m chekinish (39-jadval) sigʻmadi — 6 m qabul qilindi: meʼyordan chetlanish, ekspertizada asoslash kerak.'); }
   if (!inner || area(inner) < 200) return { sections: [], gfa: 0, footprint: 0, notes: ['Parsel juda kichik — bino sigʻmaydi'] };
   const gfaT = cap * m2, A = gfaT / floors;
-  const { U, L, S } = obb2(inner), V: XY = [-U[1], U[0]];
+  const ob = obb2(inner), U: XY = VR.swap ? [-ob.U[1], ob.U[0]] : ob.U, L = VR.swap ? ob.S : ob.L, S = VR.swap ? ob.L : ob.S, V: XY = [-U[1], U[0]];
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
   for (const p of inner) { const u = p[0] * U[0] + p[1] * U[1], v = p[0] * V[0] + p[1] * V[1]; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
   void L; void S;
   const c: XY = [U[0] * (u0 + u1) / 2 + V[0] * (v0 + v1) / 2, U[1] * (u0 + u1) / 2 + V[1] * (v0 + v1) / 2];
-  let P = rot(U, c), W = u1 - u0, D = v1 - v0;
+  const P00 = rot(U, c);
+  let P = VR.mu === 1 && VR.mv === 1 ? P00 : (u: number, v: number) => P00(VR.mu * u, VR.mv * v), W = u1 - u0, D = v1 - v0;
   // 06.11 (c62): MTM — bino uchastkaning shimoliy chetida, guruh maydonchalari janubda (quyosh tomonda); toʻrtburchak qirralar
   // uchastka OBB oʻqiga parallel (90°). v = −D/2 — shimol: V shimolga qarasa oʻq teskari olinadi
   const flip = use === 'mtm' && V[1] > 1e-6, P1 = P;
@@ -129,7 +146,10 @@ export function socialPlan(ring: XY[], use: SocialUse, cap: number, mod: Module,
   // 04.11 (Murad Buildings sinovi, 1-band — red-line-39): avval qatʼiy — bino va sport zali chekinish ichida (39-jadval: 25 m);
   // sigʻmasa — parsel ichida (avvalgidek), izohda chetlanish aytiladi
   let strict = true;
-  const inside = () => [...secs, ...gym].every(r => r.every(p => pointIn(p, [inner!]) || (!strict && pointIn(p, [ring]))));
+  // 18.11: burchak chekinish chizigʻining aynan ustida boʻlsa (−W/2 chet) suzuvchi nuqta xatosi «tashqarida» deb hisoblardi — toʻrtburchak
+  // parselda ham maktab 44 % ga kichrayardi. Tekshiruv nuqtasi bino markaziga 5 sm suriladi
+  const tin = (r: XY[]) => { const cx = r.reduce((a, q) => a + q[0], 0) / r.length, cy = r.reduce((a, q) => a + q[1], 0) / r.length; return r.map(q => { const dx = cx - q[0], dy = cy - q[1], l = Math.hypot(dx, dy) || 1; return [q[0] + dx / l * 0.05, q[1] + dy / l * 0.05] as XY; }); };
+  const inside = () => [...secs, ...gym].every(r => tin(r).every(p => pointIn(p, [inner!]) || (!strict && pointIn(p, [ring]))));
   let sc = 1; fit(sc);
   for (let k = 0; k < 14 && (!inside() || secs.some(r => area(r) < 20)); k++) { sc *= 0.85; fit(sc); }   // 04.11: 5-ilova maydoni kattaroq — koʻproq qadam
   if (!inside()) {
