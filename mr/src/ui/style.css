@@ -1164,3 +1164,16 @@ body:has(.home2){background-color:var(--bg);background-image:radial-gradient(col
 
 /* 18.11 (T0): «Boshqa variant» tugmasida qolgan bepul variantlar soni */
 #genNext{position:relative}#genNext .gen-left{position:absolute;top:3px;right:5px;font-size:10px;line-height:1;font-variant-numeric:tabular-nums;opacity:.6;pointer-events:none}
+
+/* 18.11 (T1, egasi: taqdimotda noutbuk ekranida oynalar sahnani yopdi) — sahna rejimi (P / Esc) */
+.sahna .panel.sp,.sahna .rail,.sahna .kpibar,.sahna .lblbar,.sahna .hint,.sahna .drawer,.sahna .issuecard,.sahna .toolpanel,.sahna .ctxbadge,.sahna .ulcard,.sahna .mapctl,.sahna .tour-card,.sahna .tour-spot{display:none!important}
+.sahna .tb{left:50%;transform:translateX(-50%)}
+#sahnaBtn[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+.sahna-bar{position:absolute;left:12px;bottom:12px;z-index:14;display:flex;align-items:center;gap:6px;height:48px;padding:0 6px 0 6px;border-radius:var(--r-pill);font-size:13px}
+.sahna-bar .sb-step{font-weight:600;padding:0 4px;white-space:nowrap;max-width:28vw;overflow:hidden;text-overflow:ellipsis}
+.sahna-bar #sahnaExit{margin-left:4px}
+@media (max-width:1180px){.sahna-bar #sahnaExit{font-size:0;gap:0;width:32px;padding:0}.sahna-bar #sahnaExit::after{content:'×';font-size:18px}}
+/* 18.11 (T1): 1181–1500 px — asboblar paneli va koʻrsatkichlar tasmasi bir qatorga sigʻmaydi (1280 da ustma-ust tushardi): tasma tepaga, ≤ 1180 dagi kabi */
+@media (min-width:1181px) and (max-width:1500px){.kpibar,.kpibar.all{bottom:70px}.drawer{bottom:126px}.lblbar{bottom:132px}.issuecard{bottom:132px}.toast{bottom:132px}}
+/* 18.11 (T1): yuqori panel ≤ 1440 px — «Maslahatchi» faqat ikonka (title saqlanadi), loyiha nomi qisqaroq */
+@media (max-width:1440px){.top .agbtn>span:not(.ag-dot){display:none}.top .pname{max-width:140px}}

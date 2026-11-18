@@ -351,6 +351,8 @@ export class Editor {
         h('button', { class: 'mi', id: 'gxOpen', onclick: () => { this.closePop(); this.startFrame(); } }, h('b', {}, tr('Grafika')), h('span', {}, tr('Masshtabli varaqlar: bosh reja, zonalash, figure-ground, landshaft — SVG/PNG'))),
         h('button', { class: 'mi', id: 'chOpen', onclick: () => { this.closePop(); this.openCh(); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari'))))),
       // til va tema — bitta «Sozlamalar» tugmasida
+      // 18.11 (T1, egasi: taqdimotda noutbuk ekranida sahna koʻrinmay qoldi): sahna rejimi — panellar yashiriladi, P / Esc
+      ib('sahnaBtn', tr('Sahna rejimi (P)'), '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', () => this.setSahna(!this.sahna), 'ib sm'),
       this.agentBtn(), this.prefBtn(lang, theme), this.acctBtn());
     const rail = h('nav', { class: 'rail', 'aria-label': tr('Qadamlar') });
     const panel = h('section', { class: 'panel sp', 'aria-live': 'polite' });
@@ -5867,6 +5869,28 @@ export class Editor {
     });
   }
 
+  /** 18.11 (T1): sahna rejimi — taqdimot uchun: qadamlar, panel, koʻrsatkichlar, yozuvlar yashiriladi; qoladi — yuqori panel, asboblar,
+   *  pastda ixcham «Oldingi · qadam · Keyingi» va chiqish. Saqlanmaydi: loyiha har doim panellar bilan ochiladi */
+  sahna = false;
+  private sahnaBar: HTMLElement | null = null;
+  private setSahna(on: boolean): void {
+    this.sahna = on; this.root.classList.toggle('sahna', on);
+    const b = this.root.querySelector('#sahnaBtn'); b?.setAttribute('aria-pressed', String(on));
+    if (on) this.renderSahnaBar(); else { this.sahnaBar?.remove(); this.sahnaBar = null; }
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  }
+  private renderSahnaBar(): void {
+    if (!this.sahna) return;
+    const i = STEPS.findIndex(x => x.id === this.step.id), prev = STEPS[i - 1], next = STEPS[i + 1];
+    const bar = h('div', { class: 'sahna-bar glassbar', role: 'toolbar', 'aria-label': tr('Sahna rejimi') },
+      h('button', { class: 'ib sm', disabled: !prev, title: tr('Oldingi'), 'aria-label': tr('Oldingi'), onclick: () => { if (prev) { this.go(prev); this.renderSahnaBar(); } } }, svgIcon(IC.back)),
+      h('span', { class: 'sb-step' }, `${i + 1}. ${tr(this.step.title)}`),
+      h('button', { class: 'ib sm', disabled: !next, title: tr('Keyingi'), 'aria-label': tr('Keyingi'), onclick: () => { if (next) { this.go(next); this.renderSahnaBar(); } } }, svgIcon(IC.next)),
+      h('button', { class: 'btn btn-sm', id: 'sahnaExit', onclick: () => this.setSahna(false) }, tr('Sahna rejimidan chiqish (Esc)')));
+    if (this.sahnaBar) this.sahnaBar.replaceWith(bar); else this.el.stage.append(bar);
+    this.sahnaBar = bar;
+  }
+
   private bindKeys(): void {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('.gx')) return;
@@ -5877,6 +5901,8 @@ export class Editor {
       const hadBuf = !!(this.tool as { buf?: string } | null)?.buf;
       if (!typing && this.tool?.key?.(e)) { e.preventDefault(); if (this.tool) this.el.hint.textContent = this.tool.hint; if (e.key === 'Escape' && !hadBuf) this.setTool(null); return; }
       if (typing) return;
+      if (this.sahna && e.key === 'Escape') { e.preventDefault(); this.setSahna(false); return; }
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'p' && !this.tool) { e.preventDefault(); this.setSahna(!this.sahna); return; }
       if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey && !(document.activeElement && document.activeElement !== document.body && this.root.contains(document.activeElement) && document.activeElement.closest('.panel,.pop,.drawer'))) { e.preventDefault(); this.panelOpen = !this.panelOpen; this.closePop(); this.renderRail(); this.renderPanel(); return; }
       const z = e.key.toLowerCase() === 'z' && (e.ctrlKey || e.metaKey);
       if (z && !e.shiftKey) { e.preventDefault(); this.store.undo(); }
