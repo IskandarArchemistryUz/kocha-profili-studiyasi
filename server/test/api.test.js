@@ -207,6 +207,7 @@ describe('roʻyxatdan oʻtish sovgʻasi', () => {
     const { rows } = await db.query(`SELECT reason, delta FROM ledger`);
     expect(rows).toEqual([{ reason: 'signup', delta: 15 }]);
     expect((await get('/prices')).json().signupBonus).toBe(15);
+    expect((await get('/prices')).json().variantFree).toBe(20);   // 18.11: «Boshqa variant» bepul chegarasi
   });
 });
 

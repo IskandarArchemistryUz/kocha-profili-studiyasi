@@ -110,6 +110,10 @@ const cross = (a: XY, b: XY) => a[0] * b[1] - a[1] * b[0];
 
 /** 12-band: aniq oʻlcham statistikasi (generate() da nolga tushiriladi) */
 let XS = { full: 0, short: 0, gap: 0, stretch: 0 };
+/** 18.11 (T0): variant boʻyicha joylashuv tutqichlari — generate() har chaqiruvda oʻrnatadi. ox/oy — nuqtali binolar toʻrining
+ *  boʻsh joyda siljishi (0 — bir chetga, 0,5 — markaz, 1 — ikkinchi chetga); stg — har ikkinchi qatorni yarim qadamga surish (shaxmat);
+ *  cs — «blok + minora» da minora burchaklari: 0 — ikkala shimoliy, 1 — shimoli-gʻarbiy, 2 — shimoli-sharqiy. Meʼyoriy masofalar oʻzgarmaydi */
+let PV = { ox: 0.5, oy: 0.5, stg: false, cs: 0 };
 /** 11.11 (L3): UMN maqsadi boʻyicha tanlovda erishilgan eng kam / eng koʻp UMN (qavat minF…maxF) */
 let farLo = Infinity, farHi = 0;
 /**
@@ -817,9 +821,11 @@ function points(A: XY[], size: number, gap: number, avoid: XY[][] = []): XY[][] 
   const ang = longestAngle(A), c = Math.cos(ang), s = Math.sin(ang), rot = (p: XY): XY => [p[0] * c + p[1] * s, -p[0] * s + p[1] * c], un = (p: XY): XY => [p[0] * c - p[1] * s, p[0] * s + p[1] * c];
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of A.map(rot)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
   const step = size + gap, nx = Math.max(1, Math.floor((x1 - x0 + gap) / step)), ny = Math.max(1, Math.floor((y1 - y0 + gap) / step));
-  const ox = x0 + (x1 - x0 - (nx * step - gap)) / 2, oy = y0 + (y1 - y0 - (ny * step - gap)) / 2, out: XY[][] = [];
-  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
-    const q = ([[0, 0], [size, 0], [size, size], [0, size]] as XY[]).map(p => un([ox + i * step + p[0], oy + j * step + p[1]]));
+  const ox = x0 + (x1 - x0 - (nx * step - gap)) * PV.ox, oy = y0 + (y1 - y0 - (ny * step - gap)) * PV.oy, out: XY[][] = [];
+  for (let i = 0; i < nx + (PV.stg ? 1 : 0); i++) for (let j = 0; j < ny; j++) {
+    const sx = PV.stg && j % 2 ? -step / 2 : 0;   // shaxmat: toq qatorlar yarim qadam chapga (chetdan chiqqani olinmaydi — inside tekshiruvi)
+    if (!PV.stg && i >= nx) continue;
+    const q = ([[0, 0], [size, 0], [size, size], [0, size]] as XY[]).map(p => un([ox + i * step + sx + p[0], oy + j * step + p[1]]));
     if (q.every(p => inside(p, A)) && !avoid.some(av => q.some(p => inside(p, av)) || av.some(p => inside(p, q)))) out.push(q);
   }
   return out;
@@ -878,7 +884,9 @@ function typoCore(block: XY[], t: Typology, g: GenParams, floorH: number): GenRe
     case 'blok_minora': {
       const r = generateBase(block, { ...g, typology: 'perimetr' }, floorH);
       // shimoliy burchak(lar) — minora (janubiy hovliga soya tushmasin)
-      const corners = r.sections.map((s, i) => ({ s, i, y: s.ring.reduce((a, p) => a + p[1], 0) / s.ring.length })).filter(x => x.s.kind === 'burchak').sort((a, b) => b.y - a.y).slice(0, 2);
+      const cn = r.sections.map((s, i) => ({ s, i, x: s.ring.reduce((a, p) => a + p[0], 0) / s.ring.length, y: s.ring.reduce((a, p) => a + p[1], 0) / s.ring.length })).filter(x => x.s.kind === 'burchak').sort((a, b) => b.y - a.y).slice(0, 2);
+      // 18.11 (T0): variant — ikkala shimoliy burchak yoki bittasi (gʻarbiy / sharqiy); janubga minora qoʻyilmaydi (hovliga soya)
+      const corners = PV.cs && cn.length === 2 ? [[...cn].sort((a, b) => a.x - b.x)[PV.cs === 1 ? 0 : 1]] : cn;
       corners.forEach(c => { c.s.floors = tf; c.s.kind = 'minora'; });
       if (corners.length) r.notes.push(`${corners.length} ta shimoliy burchak — ${tf} qavatli minora (hovliga soya tushirmasligi uchun shimolda)`);
       return r;
@@ -993,9 +1001,20 @@ export function varyGen(block: XY[], g: GenParams): { block: XY[]; g: GenParams 
   let st = (v * 0x9e3779b9) >>> 0; const rnd = () => { st = (st + 0x6d2b79f5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const n = block.length, k = (Math.floor(rnd() * n) + v) % n;
   const rot = <T>(r: T[] | undefined, kk: number): T[] | undefined => r && r.length ? [...r.slice(kk % r.length), ...r.slice(0, kk % r.length)] : r;
-  const sl0 = g.secLen * (0.8 + 0.4 * rnd()), secLen = g.exact ? g.secLen : Math.max(18, Math.min(g.maxLen ?? Infinity, Math.round(sl0 / 3.3) * 3.3));
+  // 18.11 (T0): uzunlik koeffitsiyenti tasodifiy emas, aylanma roʻyxatdan — qoʻshni variantlar bir-biridan sezilarli farq qiladi;
+  // seysmik chegara (maxLen) uzunlikni kesib qoʻysa, qisqa tomonga (×0,7…0,9) oʻtiladi
+  const KL = [1.2, 0.8, 1.35, 0.7, 1.1, 0.9, 1.25, 0.75], lim = g.maxLen ?? Infinity, kl0 = KL[(v - 1) % KL.length];
+  const kl = g.secLen * kl0 > lim && g.secLen >= lim * 0.95 ? [0.75, 0.85, 0.7, 0.9][(v - 1) % 4] : kl0;
+  const sl0 = g.secLen * kl * (0.97 + 0.06 * rnd()), secLen = g.exact ? g.secLen : Math.max(18, Math.min(lim, Math.round(sl0 / 3.3) * 3.3));
   const m = g.setbackRing?.length ?? 0, u = g.ugRing?.length ?? 0;
   return { block: rot(block, k)!, g: { ...g, secLen, ...(m ? { setbackRing: rot(g.setbackRing, Math.round(k * m / n)) } : {}), ...(u ? { ugRing: rot(g.ugRing, Math.round(k * u / n)) } : {}) } };
+}
+
+/** 18.11 (T0): variant raqamidan joylashuv tutqichlari (PV); 0 — asosiy (markazda, shaxmatsiz, ikkala burchak) */
+export function pvOf(v0: number): typeof PV {
+  const v = Math.max(0, Math.round(v0)); if (!v) return { ox: 0.5, oy: 0.5, stg: false, cs: 0 };
+  const O = [0, 1, 0.5];
+  return { ox: O[v % 3], oy: O[Math.floor(v / 3) % 3], stg: Math.floor(v / 2) % 2 === 1, cs: v % 3 };
 }
 
 /**
@@ -1025,6 +1044,7 @@ function varyScheme(r: GenResult, g: GenParams, t: Typology, far: number): void 
 
 export function generate(block0: XY[], g0: GenParams, floorH = FLOOR_H, opts: GenOpts = {}): GenResult {
   const { block, g } = varyGen(block0, g0);
+  PV = pvOf(g0.variant ?? 0);
   farLo = Infinity; farHi = 0;
   XS = { full: 0, short: 0, gap: 0, stretch: 0 };
   const site = aOf(clean(block));
@@ -1036,7 +1056,8 @@ export function generate(block0: XY[], g0: GenParams, floorH = FLOOR_H, opts: Ge
     let best: GenResult | null = null, bd = Infinity, bx = { ...XS };
     farLo = Infinity; farHi = 0;
     for (let f = Math.max(1, g.minF); f <= Math.max(g.minF, g.maxF); f++) {
-      const gg = { ...g, maxF: f, towerF: Math.max(f, Math.min(g.towerF ?? 16, f + 6)) }, rr = typoCore(block, t, gg, floorH), v = gfaOf(rr) / site;
+      // 18.11 (T0): variant sxemasi (qavat pasayishi, U-shakl, ritm) har qavat sinovida qoʻllanadi — UMN maqsadi sxemadan keyingi natija boʻyicha tanlanadi
+      const gg = { ...g, maxF: f, towerF: Math.max(f, Math.min(g.towerF ?? 16, f + 6)) }, rr = typoCore(block, t, gg, floorH); varyScheme(rr, gg, t, 0); const v = gfaOf(rr) / site;
       farLo = Math.min(farLo, v); farHi = Math.max(farHi, v);   // 11.11 (L3): erishiladigan oraliq (qavat minF…maxF)
       const d = Math.abs(v - far) + (v > far ? 0.15 : 0);
       if (d < bd) { bd = d; best = rr; bx = { ...XS }; }
@@ -1074,7 +1095,7 @@ export function generate(block0: XY[], g0: GenParams, floorH = FLOOR_H, opts: Ge
   }
   if (g.typology === 'avto') r.notes.unshift(`Avto: UMN ${String(far || 2).replace('.', ',')} → «${TYPO_NAME[t]}»`);
   // stilobat: chekinish ichidagi butun maydon, seksiyalar uning ustida
-  varyScheme(r, g, t, far);
+  if (!(far > 0 && !['yakka', 'taunhaus', 'juft', 'hovli', 'klaster'].includes(t))) varyScheme(r, g, t, far);   // UMN shoxobchasida sxema allaqachon qoʻllangan
   const st = Math.max(0, Math.round(g.stylobate ?? 0)), outer = (g.setbackRing ?? inset(clean(block), g.setback));
   const podiumOk = st > 0 && outer && ['perimetr', 'qatorlar', 'minora', 'blok_minora', 'ofis_plita'].includes(t);
   if (podiumOk) {
