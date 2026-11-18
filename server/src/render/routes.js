@@ -56,6 +56,13 @@ export async function defaultThumb(input) {
   } finally { busyThumbs--; waiters.shift()?.(); }
 }
 
+/** fal webhook xatosi → qisqa matn: umumiy xato + birinchi tafsilot (masalan 422 «32 MP dan oshadi») */
+export function falErr(m) {
+  const d = m?.payload?.detail, first = Array.isArray(d) ? d[0] : d;
+  const det = typeof first === 'string' ? first : first?.msg ?? (typeof m?.payload_error === 'string' ? m.payload_error : '');
+  return `fal: ${String(m?.error ?? 'error')}${det ? ` — ${det}` : ''}`.slice(0, 500);
+}
+
 const days = (d, n) => new Date(d.getTime() + n * 864e5);
 
 /**
@@ -210,7 +217,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     } catch (e) {
       const kind = e instanceof FalError ? e.kind : 'server';
       req.log.warn({ render: { job: job.id, kind, msg: e.message } }, 'render: fal ga yuborilmadi');
-      await failJob(job.id, `submit:${kind}`);
+      await failJob(job.id, `submit:${kind}: ${String(e.message).slice(0, 300)}`);
       if (kind === 'balance') notify('Render: fal balansi tugadi', 'fal.ai hisobida mablagʻ qolmadi — renderlar toʻxtadi, tangalar qaytarildi. Balansni toʻldiring.');
       throw new RenderError(503, 'render_busy', 'render xizmati javob bermadi — tanga qaytarildi, birozdan keyin urinib koʻring');
     }
@@ -298,7 +305,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
       const job = await claim(rows[0].id);
       if (!job) return reply.code(200).send({ ok: true, repeat: true });
       // fal ga darhol javob (u ~15 s kutadi), qolgani fonda; tekshiruvchi zaxira
-      track(m.status === 'OK' && !m.payload_error ? finish(job, m.payload) : failJob(job.id, `fal:${String(m.error ?? m.payload_error ?? 'error').slice(0, 120)}`));
+      track(m.status === 'OK' && !m.payload_error ? finish(job, m.payload) : failJob(job.id, falErr(m)));
       return reply.code(200).send({ ok: true });
     });
   });
@@ -333,14 +340,15 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
   }
 
   /** Brauzerga ish koʻrinishi: natija va eskiz — qisqa muddatli GET havolalari */
-  async function view(job, assets, full = true) {
+  /** owner: true — egasiga xato sababi (err: «fal: …», «submit: …») ham koʻrinadi; boshqalarga faqat umumiy matn */
+  async function view(job, assets, full = true, owner = false) {
     const a = (role) => assets.find((x) => x.role === role);
     const out = a('out'), th = a('thumb');
     return {
       id: String(job.id), status: job.status, engine: job.engine, source: job.source, coins: job.coins,
       created: job.created_at, finished: job.finished_at, downgraded: !!job.params?.downgraded,
       params: { subj: job.params?.subj, style: job.params?.style, fid: job.params?.fid, refs: job.params?.refs?.length ?? 0, ...(job.params?.from ? { from: String(job.params.from), factor: job.params.factor } : {}) }, tag: job.params?.tag ?? null,
-      ...(job.status === 'failed' || job.status === 'refunded' ? { error: 'render bajarilmadi' } : {}),
+      ...(job.status === 'failed' || job.status === 'refunded' ? { error: 'render bajarilmadi', ...(owner && job.err ? { errDetail: String(job.err) } : {}) } : {}),
       ...(th ? { thumb: c.r2.presignGet(th.r2_key, c.getTtl) } : {}),
       ...(full && out ? { out: c.r2.presignGet(out.r2_key, c.getTtl), w: out.w, h: out.h, prompt: job.prompt } : {}),
     };
@@ -354,17 +362,17 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     if (!rows.length) throw new RenderError(404, 'not_found', 'ish topilmadi');
     const as = await db.query(`SELECT role, r2_key, w, h FROM render_assets WHERE job_id = $1`, [id]);
     reply.header('cache-control', 'no-store');
-    return view(rows[0], as.rows, true);
+    return view(rows[0], as.rows, true, isOwner(u));
   }));
 
   app.get('/render/history', guard(async (req, reply) => {
     const u = await requireUser(req, reply); if (!u) return;
-    const limit = Math.min(60, Math.max(1, Number(req.query?.limit) || 30));
+    const limit = Math.min(60, Math.max(1, Number(req.query?.limit) || 30)), own = isOwner(u);
     const { rows } = await db.query(`SELECT * FROM render_jobs WHERE user_id = $1 ORDER BY id DESC LIMIT $2`, [u.id, limit]);
     const ids = rows.map((r) => r.id);
     const as = ids.length ? (await db.query(`SELECT job_id, role, r2_key, w, h FROM render_assets WHERE job_id = ANY($1::bigint[]) AND role IN ('thumb', 'out')`, [ids])).rows : [];
     reply.header('cache-control', 'no-store');
-    return { items: await Promise.all(rows.map((j) => view(j, as.filter((a) => String(a.job_id) === String(j.id)), false))) };
+    return { items: await Promise.all(rows.map((j) => view(j, as.filter((a) => String(a.job_id) === String(j.id)), false, own))) };
   }));
 
   let timer = null;

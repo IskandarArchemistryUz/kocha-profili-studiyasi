@@ -14,7 +14,7 @@ export type Status = 'queued' | 'running' | 'done' | 'failed' | 'refunded';
 export interface Job {
   id: string; status: Status; engine: Engine; source: string; coins: number; created: string; finished: string | null; downgraded: boolean;
   params: { subj?: string; style?: string; fid?: string; refs: number; from?: string; factor?: number }; tag: string | null;
-  thumb?: string; out?: string; w?: number | null; h?: number | null; prompt?: string; error?: string;
+  thumb?: string; out?: string; w?: number | null; h?: number | null; prompt?: string; error?: string; errDetail?: string;
 }
 /** Yangi render (input…) yoki tayyor natijani kattalashtirish (from — ish id si) */
 export interface JobBody {

@@ -282,7 +282,7 @@ async function go(): Promise<void> {
   if (!CFG!.enabled) { err = tr('Render vaqtincha ishlamayapti'); renderRight(); return; }
   if (!await ensureLogin(undefined, 'Render qilish uchun kiring. Hisob bepul.')) return;
   err = ''; needBuy = false; busy = true;
-  const n = A.n ?? 1; let ok = 0, bad = 0, first = '';
+  const n = A.n ?? 1; let ok = 0, bad = 0, first = '', why = '';
   const tick = () => { prog = n > 1 ? tf('Yaratilmoqda… ${i} / ${n}', { i: Math.min(n, ok + bad + 1), n }) : tr('Yaratilmoqda… (20–60 soniya)'); renderStage(); renderRight(); };
   prog = tr('Rasm yuklanmoqda…'); renderStage(); renderRight();
   try {
@@ -300,11 +300,12 @@ async function go(): Promise<void> {
       FOLLOW.add(j.id);
       waits.push(waitJob(j.id).then(async r => {
         if (r.status === 'done' && await keep(r, b.id, `${b.name} · ${styN}`, orig)) { ok++; first ||= `j${r.id}`; OUT = await listOut(); view = 'natija'; }
-        else bad++;
+        else { bad++; if (r.errDetail) why = r.errDetail; }
       }, () => { bad++; }).finally(() => { FOLLOW.delete(j.id); tick(); }));
     }
     await Promise.all(waits);
     if (bad) err = ok ? tf('${n} ta render bajarilmadi — tanga qaytarildi', { n: bad }) : tr('Render bajarilmadi — tanga qaytarildi. Boshqa uslub yoki rasm bilan urinib koʻring.');
+    if (bad && why) err += ` · ${why}`;   // faqat egasiga keladi (server errDetail)
   } catch (e) { err = errText(e); }
   busy = false; prog = ''; renderStage(); renderRight();
   if (first && OUT.some(o => o.id === first)) openViewer(first);
@@ -324,7 +325,7 @@ async function upscale(o: RenderOut, engine: Engine): Promise<void> {
     const it = r.status === 'done' ? await keep(r, o.srcId, `${o.name} · ${lbl}`, o.orig) : null;
     upBusy = '';
     if (it) { OUT = await listOut(); renderAll(); openViewer(it.id); }
-    else { toast(tr('Render bajarilmadi — tanga qaytarildi. Boshqa uslub yoki rasm bilan urinib koʻring.')); renderViewer(); }
+    else { toast(tr('Render bajarilmadi — tanga qaytarildi. Boshqa uslub yoki rasm bilan urinib koʻring.') + (r.errDetail ? ` · ${r.errDetail}` : '')); renderViewer(); }
   } catch (e) { upBusy = ''; toast(errText(e)); renderViewer(); renderStage(); }
 }
 
