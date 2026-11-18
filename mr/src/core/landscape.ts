@@ -146,11 +146,18 @@ const tryOp = <T>(f: () => T, fb: T): T => { try { return f(); } catch { return 
 const rectAt = (c: XY, a: number): XY[] => { const w = Math.min(40, Math.sqrt(a * 1.5)), h = a / w; return [[c[0] - w / 2, c[1] - h / 2], [c[0] + w / 2, c[1] - h / 2], [c[0] + w / 2, c[1] + h / 2], [c[0] - w / 2, c[1] + h / 2]]; };
 
 let memo: { k: unknown[]; v: Yard[] } | null = null;
+const landKey = (doc: Project): unknown[] => [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross, doc.keepRings, doc.limits];
 export function landscape(doc: Project): Yard[] {
-  const k = [doc.site, doc.buildings, doc.streets, doc.zones, doc.parcels, doc.garages, doc.origin, doc.settings.m2PerPerson, doc.settings.netToGross, doc.keepRings, doc.limits];
+  const k = landKey(doc);
   if (memo && memo.k.every((x, i) => x === k[i])) return memo.v;
   const v = landscapeRaw(doc); memo = { k, v }; return v;
 }
+/** 18.11 (T2b): keshda boʻlsa — natija, boʻlmasa null (hisoblamaydi; sahna Web Worker natijasini kutadi) */
+export function landscapeCached(doc: Project): Yard[] | null {
+  if (!memo) return null; const k = landKey(doc); return memo.k.every((x, i) => x === k[i]) ? memo.v : null;
+}
+/** 18.11 (T2b): Web Worker da hisoblangan natijani shu hujjat uchun keshga qoʻyish — keyingi sinxron chaqiruvlar (meʼyorlar, varaqlar) qayta hisoblamaydi */
+export function primeLandscape(doc: Project, v: Yard[]): void { memo = { k: landKey(doc), v }; }
 /** Qavariq qobiq (avtoturargoh maydoni yaxlit — joylar orasidagi kichik boʻshliqlarga maydoncha tushmaydi) */
 function hull(P: XY[]): XY[] {
   const p = [...P].sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
