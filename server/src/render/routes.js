@@ -47,10 +47,12 @@ export async function defaultThumb(input) {
   try {
     sharpP ??= import('sharp').then((m) => m.default);
     const sharp = await sharpP;
-    const t = sharp({ limitInputPixels: 80e6 }).rotate().resize(512, 512, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 });
-    if (Buffer.isBuffer(input)) t.end(input); else Readable.fromWeb(input).pipe(t);
-    const { data, info } = await t.toBuffer({ resolveWithObject: true });
-    return { buf: data, w: info.width, h: info.height };
+    // 18.11: asl oʻlcham ham — fal (Seedream va b.) natijada width/height bermasa, kattalashtirish koeffitsiyenti shundan hisoblanadi
+    const src = sharp({ limitInputPixels: 80e6 }), metaP = src.clone().metadata();
+    const t = src.clone().rotate().resize(512, 512, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 });
+    if (Buffer.isBuffer(input)) src.end(input); else Readable.fromWeb(input).pipe(src);
+    const [{ data, info }, meta] = await Promise.all([t.toBuffer({ resolveWithObject: true }), metaP]);
+    return { buf: data, w: info.width, h: info.height, srcW: meta.width, srcH: meta.height };
   } finally { busyThumbs--; waiters.shift()?.(); }
 }
 
@@ -199,7 +201,9 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
     try {
       // bitta rasm qabul qiladigan model (refs: false) — faqat asos rasm
       const images = (ENGINES[engine].refs === false ? inputs.slice(0, 1) : inputs).map((x) => c.r2.presignGet(x.key, c.getTtl));
-      const w = up ? fromJob.w : Number(b.input?.w), h = up ? fromJob.h : Number(b.input?.h);
+      // eski natijalarda oʻlcham yozilmagan boʻlishi mumkin: Clarity uchun ehtiyot — eng katta odatiy natija (Tez ≈ 4240 px) deb olinadi
+      const unk = up && ENGINES[engine].clampOut && !(fromJob.w > 0 && fromJob.h > 0);
+      const w = unk ? 4320 : up ? fromJob.w : Number(b.input?.w), h = unk ? 4320 : up ? fromJob.h : Number(b.input?.h);
       const s = await c.fal.submit(engine, { prompt, images, aspect: nearAR(w, h), w: Number.isFinite(w) ? w : 0, h: Number.isFinite(h) ? h : 0 }, c.hookUrl);
       await db.query(`UPDATE render_jobs SET status = 'running', fal_request_id = $2, submitted_at = $3, params = params || $4::jsonb WHERE id = $1`,
         [job.id, s.request_id, now(), JSON.stringify({ fal: { status_url: s.status_url, response_url: s.response_url } })]);
@@ -267,7 +271,7 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
         const r = await q.query(`UPDATE render_jobs SET status = 'done', finished_at = $2, err = NULL WHERE id = $1 AND status IN ('queued', 'running') RETURNING id`, [job.id, t]);
         if (!r.rows.length) return false;
         await q.query(`INSERT INTO render_assets (job_id, role, r2_key, w, h, bytes, expires_at) VALUES ($1, 'out', $2, $3, $4, $5, $6), ($1, 'thumb', $7, $8, $9, $10, $6)`,
-          [job.id, outKey, Number.isInteger(img.width) ? img.width : null, Number.isInteger(img.height) ? img.height : null, bytes, days(t, keep), thKey, th.w, th.h, th.buf.length]);
+          [job.id, outKey, Number.isInteger(img.width) ? img.width : Number.isInteger(th.srcW) ? th.srcW : null, Number.isInteger(img.height) ? img.height : Number.isInteger(th.srcH) ? th.srcH : null, bytes, days(t, keep), thKey, th.w, th.h, th.buf.length]);
         return true;
       });
       if (ok && job.coins > 0) await wallet.capture(`render:${job.id}`);
