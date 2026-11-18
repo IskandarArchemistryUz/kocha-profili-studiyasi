@@ -260,7 +260,8 @@ function tableArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string,
   });
   return g;
 }
-export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>): Material[] {
+/** seq — «Loyiha albomi» (ketma-ket) oilasi: aksonometriya va kesimlar sukut boʻyicha faqat unda yoqilgan (eski albomlar oʻzgarmaydi) */
+export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>, seq = false): Material[] {
   const out: Material[] = [];
   const add = (d: Def, render: NonNullable<Material['render']>, vis = true) => { const m: Material = withSet(d, sets[d.id], render, vis); out.push(m); return m; };
   for (const p of src.plans ?? []) {
@@ -278,7 +279,7 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
       }
       const lay = planWithLegend(M.legend, r, ctx.u);
       return fitMap(p.id.replace(/[^\w-]/g, '_'), M, lay.plan, p.name, pm.view) + (lay.legend ? legendBox(M.legend, lay.legend, ctx, lay.lay) : '');
-    }, p.on);
+    }, p.on && (seq || !p.role || p.role === 'plan'));
     if (p.nav) {
       const nv = p.nav;
       const m = add({ id: nv.id, role: 'locator', kind: 'aptnav', name: nv.name, title: nv.title } as Def, (r) => { try { return nv.draw(r); } catch { return ''; } }, p.on);

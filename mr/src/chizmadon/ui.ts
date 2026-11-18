@@ -203,7 +203,7 @@ export function openChizmadon(host: ChHost): void {
     const s = site(); R = resolve(s.lat, s.lon);
     // c74: shablon oʻzgargan boʻlsa — rejalar keshi yangilanadi
     if ((d.auto.gstyle ?? '') !== GSK) { GSK = d.auto.gstyle ?? ''; host.gstyle?.(d.auto.gstyle); PLANS = undefined; }
-    MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats), ...siteMaterials(() => R!, d.auto.mats)];
+    MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats, !!fam().seq), ...siteMaterials(() => R!, d.auto.mats)];
     setCustomPal(d.auto.custom); if (d.auto.pal === 'custom' && !d.auto.custom) d.auto.pal = 'arch';
     const f = fam(), fmt = fmtOf(f);
     taqdimotDefaults(f);
