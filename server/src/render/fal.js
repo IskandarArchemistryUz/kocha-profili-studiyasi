@@ -24,7 +24,13 @@ const KONTEXT_AR = new Set(['21:9', '16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '
  *  18.11 (egasi, variant b): fal Clarity $0.03 / chiqish MP — natijaning uzun tomoni CLARITY_MAX dan oshmaydi:
  *  koeffitsiyent kirish oʻlchamiga qarab kamaytiriladi (×4 2048 px dan → 6144 px, ×3 narxida). */
 export const CLARITY_MAX = 6144;
-const clarityFactor = (factor, w, h) => { const side = Math.max(Number(w) || 0, Number(h) || 0); return side > 0 ? Math.max(1, Math.min(factor, Math.floor((CLARITY_MAX / side) * 100) / 100)) : factor; };
+/** fal Clarity chegarasi (422 xabaridan, 18.11): w·h·f² / 1024² ≤ 32 — kvadrat rasmda 6144 px ham oshib ketadi */
+const CLARITY_MP = 32 * 1024 ** 2;
+const clarityFactor = (factor, w, h) => {
+  const W = Number(w) || 0, H = Number(h) || 0; if (!(W > 0 && H > 0)) return factor;
+  const f = Math.min(factor, CLARITY_MAX / Math.max(W, H), Math.sqrt(CLARITY_MP / (W * H)) * 0.98);
+  return Math.max(1, Math.floor(f * 100) / 100);
+};
 function clarityUp(item, factor, creativity, resemblance) {
   return { item, kind: 'up', factor, clampOut: CLARITY_MAX, label: 'Kattalashtirish', model: 'fal-ai/clarity-upscaler', usd: +(0.3 * (Math.min(factor, 3) / 2) ** 2).toFixed(2),
     input: (p) => ({ image_url: p.images[0], upscale_factor: clarityFactor(factor, p.w, p.h), prompt: 'masterpiece, best quality, highres, photorealistic architectural photography, sharp facade details', negative_prompt: '(worst quality, low quality, normal quality:2), blurry, distorted geometry', creativity, resemblance, enable_safety_checker: true }) };
