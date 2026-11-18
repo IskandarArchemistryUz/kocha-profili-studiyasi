@@ -236,7 +236,8 @@ export function registerRender(app, { db, wallet, requireUser, optionalUser, isO
 
   /** Natijani R2 ga koʻchirish, eskiz, CAPTURE. output — fal natijasi ({ images: [...] }) */
   async function finish(job, output) {
-    const img = output?.images?.[0];
+    // generatorlar `images: [...]` qaytaradi, kattalashtirgichlar (SeedVR, Clarity) — bitta `image`
+    const img = output?.images?.[0] ?? output?.image;
     if (!img?.url) return failJob(job.id, 'no_image');
     try {
       const res = await fetchImpl(img.url, { signal: AbortSignal.timeout(120_000) });
