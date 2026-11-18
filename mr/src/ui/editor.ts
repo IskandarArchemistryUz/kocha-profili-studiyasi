@@ -259,6 +259,8 @@ export class Editor {
     this.scene.onLabels = () => this.renderLblBar();
     try { if (localStorage.getItem('mr-detail') === '0') this.scene.detail = false; } catch { /* */ }
     try { if (localStorage.getItem('mr-lite') === 'toliq') this.scene.lite = 'toliq'; } catch { /* */ }
+    // 18.11 (T3): «Toʻliq» rejimida kamera harakatida kadrlar sekin (≤ 18 kadr/s) — bir marta «Sodda»ga oʻtiladi va aytiladi
+    this.scene.onSlow = () => { (this.root?.querySelector('#liteSeg [data-lite=sodda]') as HTMLButtonElement | null)?.click(); toast(tr('Sahna sekin ishlayapti — «Sodda» rejim yoqildi (uzoqdagi derazalar va daraxt tanalari yashirindi). «Toʻliq» ga qaytish mumkin.')); };
     this.safeSceneUpdate(doc); this.scene.frameDoc(doc);
     this.ul = new UserLayersUI({ store: this.store, scene: this.scene, run: fn => this.run(fn), refresh: () => this.refreshPop(), bundle: () => (this.store.doc.context.loaded ? this.ctxMgr.current : null), redrawContext: () => { if (this.store.doc.context.loaded) this.showContext(this.ctxMgr.current); } });
     this.ul.sync(doc);

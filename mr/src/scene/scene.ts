@@ -32,6 +32,7 @@ import { winDef, balAt, strSeed, type Bal, type BalPat } from '../core/facade';
 import { buildFacade, emptyGeo, matTexture, tileTexture, roofUV, type PartIn, type FacadeGeo, type Layer } from './facade3d';
 import { MOD_W } from '../core/apartments';
 import { seams, seamEdges, edgeCover, type Prism3 } from '../core/seams';
+import { LOW_END } from '../core/device';
 import { landscape, landscapeCached, primeLandscape, type Yard } from '../core/landscape';
 import { tierParts, type TierPart } from '../core/tiers';
 import { USES, useDef } from '../core/uses';
@@ -169,8 +170,8 @@ export class Scene3D {
   onPick?: (id: string | null) => void;
 
   constructor(private host: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer = new THREE.WebGLRenderer({ antialias: !Scene3D.LOW, preserveDrawingBuffer: true });   // 18.11 (T3): telefonda silliqlashsiz (piksel zichligi ≥ 1,5 — sezilmaydi)
+    this.renderer.setPixelRatio(this.basePR());
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // 02.11 (egasi: «sahna juda ogʻir»): soya xaritasi faqat sahna mazmuni yoki quyosh oʻzgarganda qayta chiziladi — kamera aylanganda emas
@@ -181,7 +182,7 @@ export class Scene3D {
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0xb9b2a4, 1.6); this.scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(-300, 500, 250); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 1, far: 2000 }); sun.shadow.bias = -0.0005;
+    sun.shadow.mapSize.setScalar(Scene3D.LOW ? 1024 : 2048); Object.assign(sun.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 1, far: 2000 }); sun.shadow.bias = -0.0005;
     this.scene.add(sun); this.sun = sun;
 
     this.ground = new THREE.Mesh(new THREE.PlaneGeometry(200000, 200000), new THREE.MeshLambertMaterial({ color: C.ground }));
@@ -195,7 +196,7 @@ export class Scene3D {
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -10000, 10000);
     this.cam = this.persp;
     this.ctl = new OrbitControls(this.persp, this.renderer.domElement);
-    this.ctl.addEventListener('change', () => { this.invalidate(false); this.onView?.(); this.lodSoon(); });
+    this.ctl.addEventListener('change', () => this.onCtl());
     this.setView('plan', true);
 
     // uzoqlashtirish chegarasida yana gʻildirak «tashqariga» — dunyo xaritasi ochiladi (editor: onZoomOutLimit).
@@ -212,7 +213,7 @@ export class Scene3D {
     }, { passive: true, capture: true });
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
-    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.liteDirty) { this.liteDirty = false; this.applyLite(true); } if (this.dirty) { this.dirty = false; if (this.shadowDirty) { this.shadowDirty = false; this.renderer.shadowMap.needsUpdate = true; } const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
+    const loop = () => { this.raf = requestAnimationFrame(loop); if (this.liteDirty) { this.liteDirty = false; this.applyLite(true); } if (this.dirty) { this.dirty = false; this.noteFrame(); if (this.shadowDirty) { this.shadowDirty = false; this.renderer.shadowMap.needsUpdate = true; } const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
     loop();
   }
 
@@ -266,7 +267,7 @@ export class Scene3D {
     this.ctl.maxPolarAngle = m === 'persp' ? Math.PI * 0.5 : Math.PI * 0.49;
     if (m === 'plan') { this.ctl.enableRotate = false; this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }; }
     else if (this.hand) this.ctl.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-    this.ctl.addEventListener('change', () => { this.invalidate(false); this.onView?.(); this.lodSoon(); });
+    this.ctl.addEventListener('change', () => this.onCtl());
     this.ctl.update(); this.onView?.();
     this.resize();
   }
@@ -665,7 +666,40 @@ export class Scene3D {
   /** sahna (yoki binolar qismi) qayta qurilgach — keyingi kadrda «Sodda» holati daraxt va materiallarga qayta qoʻllanadi */
   private liteDirty = false;
   onLite?: (on: boolean) => void;
-  setLite(m: 'sodda' | 'toliq'): void { this.lite = m; this.applyLite(true); this.refreshLod(); }
+  setLite(m: 'sodda' | 'toliq'): void { this.lite = m; this.applyLite(true); this.refreshLod(); this.syncShadowSize(); }
+  /**
+   * 18.11 (T3, egasi: noutbukda taqdimotda qotdi): sifat qurilmaga va rejimga moslashadi.
+   * LOW — telefon / planshet (sensorli, kichik ekran) yoki ≤ 4 GB xotira: piksel zichligi ≤ 1,5, soya xaritasi 1024².
+   * Soya xaritasi: «Toʻliq» — 4096², «Sodda» — 2048² (atrof bilan ~0,3 m/px — loyiha masshtabi uchun yetarli; 4 baravar kam xotira va chizish).
+   * Kamera harakatlanayotganda piksel zichligi 1 ga tushadi, toʻxtagach 250 ms da qaytadi. Harakat paytida kadrlar sekin
+   * (mediana > 55 ms, ≥ 24 kadr) va «Toʻliq» boʻlsa — onSlow (muharrir «Sodda»ga oʻtkazadi, bir marta)
+   */
+  static LOW = LOW_END;
+  private basePR(): number { return Math.min(Scene3D.LOW ? 1.5 : 2, window.devicePixelRatio || 1); }
+  private shadowSize(): number { const full = this.forceFull || this.lite === 'toliq'; return Scene3D.LOW ? (full ? 2048 : 1024) : full ? 4096 : 2048; }   // rasm, albom, hisobot (forceFull) — doim toʻliq
+  private syncShadowSize(): void {
+    const n = this.shadowSize(); if (this.sun.shadow.mapSize.x === n) return;
+    this.sun.shadow.mapSize.setScalar(n); this.sun.shadow.map?.dispose(); (this.sun.shadow as { map: unknown }).map = null; this.renderer.shadowMap.needsUpdate = true; this.invalidate(true);
+  }
+  onSlow?: () => void;
+  private movT = 0;
+  private moveOn = false;
+  private frames: number[] = [];
+  private slowSent = false;
+  private onCtl(): void {
+    this.invalidate(false); this.onView?.(); this.lodSoon();
+    this.moveOn = true;
+    if (this.renderer.getPixelRatio() > 1) { this.renderer.setPixelRatio(1); this.resize(); }
+    clearTimeout(this.movT);
+    this.movT = window.setTimeout(() => { this.moveOn = false; this.frames = []; const pr = this.basePR(); if (this.renderer.getPixelRatio() !== pr) { this.renderer.setPixelRatio(pr); this.resize(); } }, 250);
+  }
+  private noteFrame(): void {
+    if (!this.moveOn || this.slowSent) return;
+    const t = performance.now(), F = this.frames; F.push(t);
+    if (F.length < 25) return;
+    const d = F.slice(1).map((x, i) => x - F[i]).filter(x => x < 300).sort((a, b) => a - b); this.frames = [t];
+    if (d.length >= 24 && d[d.length >> 1] > 55 && this.lite === 'toliq') { this.slowSent = true; this.onSlow?.(); }
+  }
   /** 04.11 (egasi): «Fasad va tom» qadamida — materiallar va fasad ranglari uzoqdan ham koʻrinsin: «Sodda» shu qadamda ishlamaydi */
   private liteOff = false;
   setLiteOff(on: boolean): void { if (on === this.liteOff) return; this.liteOff = on; this.applyLite(true); this.refreshLod(); }
@@ -1625,10 +1659,10 @@ export class Scene3D {
   captureViews(doc: Project): Record<'plan' | 'axo' | 'persp', string> {
     const mode = this.mode, t = this.ctl.target.clone(), pp = this.persp.position.clone(), op = this.ortho.position.clone(), os = this.ortho.userData.s, oz = this.ortho.zoom;
     const out = {} as Record<'plan' | 'axo' | 'persp', string>;
-    this.forceFull = true; this.applyLite(); this.refreshLod();
+    this.forceFull = true; this.applyLite(); this.refreshLod(); this.syncShadowSize();
     for (const m of ['plan', 'axo', 'persp'] as const) { this.setView(m); this.frameDoc(doc); { const c = this.rcam(); this.fitSprites(c); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, c); } out[m] = this.renderer.domElement.toDataURL('image/jpeg', 0.9); }
     this.setView(mode); this.ctl.target.copy(t); this.persp.position.copy(pp); this.ortho.position.copy(op); this.ortho.userData.s = os; this.ortho.zoom = oz; this.capOrtho();
-    this.forceFull = false; this.applyLite(); this.refreshLod();
+    this.forceFull = false; this.applyLite(); this.refreshLod(); this.syncShadowSize();
     this.resize(); this.ctl.update(); this.invalidate();
     return out;
   }
@@ -1741,7 +1775,7 @@ export class Scene3D {
     const T = cs.layers.relief ? b.terrain : null;
     this.ground.position.y = T ? T.min - T.h[((T.n - 1) >> 1) * T.n + ((T.n - 1) >> 1)] - h0 - 1 : -0.3;
     const r = Math.max(300, b.radius);
-    Object.assign(this.sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, far: 4000 }); this.sun.shadow.mapSize.set(4096, 4096);
+    Object.assign(this.sun.shadow.camera, { left: -r, right: r, top: r, bottom: -r, far: 4000 }); this.sun.shadow.mapSize.setScalar(this.shadowSize());
     this.sun.shadow.map?.dispose(); (this.sun.shadow as { map: unknown }).map = null; this.sun.shadow.camera.updateProjectionMatrix();
     this.update(doc);
   }
@@ -2374,7 +2408,7 @@ export class Scene3D {
 
   /** Sahna rasmi; kadr nisbati berilsa — markazdan shu nisbatda kesiladi */
   snapshot(ratio = 0): string {
-    this.forceFull = true; try { return this.snapshot0(ratio); } finally { this.forceFull = false; this.applyLite(); this.refreshLod(); }
+    this.forceFull = true; this.syncShadowSize(); try { return this.snapshot0(ratio); } finally { this.forceFull = false; this.applyLite(); this.refreshLod(); this.syncShadowSize(); }
   }
   private snapshot0(ratio: number): string {
     this.applyLite(); this.refreshLod();

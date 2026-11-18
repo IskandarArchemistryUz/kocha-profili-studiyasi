@@ -5,6 +5,7 @@
  */
 import type { LngLat } from '../core/doc';
 import { mapStyle } from './mapstyle';
+import { LOW_END } from '../core/device';
 import { initEsriKey } from './esrikey';
 
 export interface BaseImage { canvas: HTMLCanvasElement; nw: LngLat; se: LngLat }
@@ -13,7 +14,8 @@ type ML = typeof import('maplibre-gl');
 /** Ekranga mos oʻlcham: tekstura ≈ ekran piksellari (retinada ham tiniq), lekin 3072² dan oshmaydi — katta kanvas sekin va xotirani koʻp oladi */
 export function liveSize(host: HTMLElement): [number, number] {
   const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1)), px = Math.max(host.clientWidth, host.clientHeight, 800);
-  const P = Math.min(3072, Math.max(1536, Math.round(px * dpr * 1.15)));
+  // 18.11 (T3): telefon / kam xotirali qurilmada — 2048 dan oshmaydi (yashirin MapLibre kanvasi xotirani koʻp oladi)
+  const P = Math.min(LOW_END ? 2048 : 3072, Math.max(1536, Math.round(px * dpr * 1.15)));
   return [Math.round(P / dpr), dpr];
 }
 
