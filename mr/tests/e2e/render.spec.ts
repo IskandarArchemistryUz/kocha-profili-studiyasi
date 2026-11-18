@@ -105,7 +105,15 @@ test('Render studiyasi: kalitsiz — server navbati, R2 ga yuklash, 2 variant, h
   await page.locator('#vUp [data-up=up2]').click();
   await expect(page.locator('.ren-vh .nm b')).toContainText('×2', { timeout: 30_000 });
   expect(hits.jobs.at(-1)).toMatchObject({ engine: 'up2', from: expect.stringMatching(/^[12]$/) });
-  await expect(page.locator('.ren-va .ren-gal button')).toHaveCount(3);
+  // 18.11: kattalashtirish usuli — standart «Aniq»; «Muvozanat» ×3 → Clarity (um3), tanlov eslab qolinadi
+  await expect(page.locator('#vUpM [data-upm=a]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#vUpM [data-upm=m]').click();
+  await expect(page.locator('#vUp [data-up=um3]')).toBeVisible();
+  await page.locator('#vUp [data-up=um3]').click();
+  await expect(page.locator('.ren-vh .nm b')).toContainText('×3 · Muvozanat', { timeout: 30_000 });
+  expect(hits.jobs.at(-1)).toMatchObject({ engine: 'um3' });
+  expect(await page.evaluate(() => localStorage.getItem('ren-up-mode'))).toBe('m');
+  await expect(page.locator('.ren-va .ren-gal button')).toHaveCount(4);
   await page.locator('.ren-va .ren-gal button').first().click();
   await page.setViewportSize({ width: 1024, height: 768 }); await page.screenshot({ path: 'test-results/render-viewer-1024.png' }); await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator('#vMode button', { hasText: 'Yonma-yon' }).click();
@@ -114,15 +122,15 @@ test('Render studiyasi: kalitsiz — server navbati, R2 ga yuklash, 2 variant, h
   await page.locator('#vRef').click();
   await expect(page.locator('.ren-refs .ref')).toHaveCount(2);
   await page.locator('#vBack').click();
-  await expect(page.locator('#renGal button')).toHaveCount(3);
+  await expect(page.locator('#renGal button')).toHaveCount(4);
   await page.locator('#stView button', { hasText: 'Solishtirish' }).click();
   await expect(page.locator('.ren-frame .ren-cmp')).toBeVisible();
   await page.screenshot({ path: 'test-results/render-studiya.png' });
   // saqlanish: kesh (eskiz) + server tarixi — takrorlanmaydi
   await page.reload();
-  await expect(page.locator('#renGal button')).toHaveCount(3);
+  await expect(page.locator('#renGal button')).toHaveCount(4);
   await page.waitForTimeout(600);
-  await expect(page.locator('#renGal button')).toHaveCount(3);
+  await expect(page.locator('#renGal button')).toHaveCount(4);
   await expect(page.locator('.ren-refs .ref')).toHaveCount(2);
   await expect(page.locator('#sty [data-sty=toshkent]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#eng [data-eng=pro4k]')).toHaveAttribute('aria-pressed', 'true');

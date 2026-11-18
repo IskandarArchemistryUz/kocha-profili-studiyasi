@@ -108,4 +108,6 @@ export function priceOf(items, areaHa = 0) {
  * Render (13.11.2026, project claude/render-lab-mexanizm-13-11.md): dvigatel → tanga. Koeffitsiyent k va loyiha shifti yoʻq —
  * har render fal.ai da haqiqiy pul turadi. Tanga ushlanadi (hold), natija kelsa yechiladi, xatoda qaytadi.
  */
-export const RENDER_COINS = Object.freeze({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 2, 'ren.enhance': 2 });
+export const RENDER_COINS = Object.freeze({ 'ren.fast': 1, 'ren.pro': 2, 'ren.pro4k': 4, 'ren.up2': 1, 'ren.up3': 1, 'ren.up4': 2, 'ren.enhance': 2,
+  /* 18.11: Muvozanat / Ijodiy (Clarity) — ×2 = 2, ×3 = 3, ×4 = 4 tanga (egasi tasdiqladi) */
+  'ren.um2': 2, 'ren.um3': 3, 'ren.um4': 4, 'ren.ui2': 2, 'ren.ui3': 3, 'ren.ui4': 4 });

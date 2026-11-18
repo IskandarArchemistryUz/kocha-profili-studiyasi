@@ -6,7 +6,7 @@ import { apiBase } from '../account/config';
 import { ApiError } from '../account/session';
 
 /** Hammaga: fast · pro · pro4k. Sinov modellari (lab) — faqat egasiga, server konfigida keladi */
-export type Engine = 'fast' | 'pro' | 'pro4k' | 'nbpro' | 'qwen' | 'kontext' | 'seedream5' | 'gptimg' | 'up2' | 'up3' | 'up4' | 'enhance';
+export type Engine = 'fast' | 'pro' | 'pro4k' | 'nbpro' | 'qwen' | 'kontext' | 'seedream5' | 'gptimg' | 'up2' | 'up3' | 'up4' | 'um2' | 'um3' | 'um4' | 'ui2' | 'ui3' | 'ui4' | 'enhance';
 export const ENGINES: [Engine, string][] = [['fast', 'Tez'], ['pro', 'Pro 2K'], ['pro4k', 'Pro 4K']];
 export const LAB: [Engine, string][] = [['nbpro', 'Nano Banana Pro'], ['qwen', 'Qwen Edit'], ['kontext', 'FLUX Kontext'], ['seedream5', 'Seedream 5'], ['gptimg', 'GPT Image 2']];
 export interface RenderCfg { enabled: boolean; message: string | null; engines: Partial<Record<Engine, { coins: number; lab?: boolean }>>; maxBytes: number; maxSide: number; maxRefs: number; types: string[]; owner?: boolean; parallel?: number }
@@ -23,6 +23,20 @@ export interface JobBody {
 }
 /** Kattalashtirish: SeedVR2 (asliga sodiq) va tiniqlashtirish (detal qo'shadi, 2×) */
 export const UPS: [Engine, string][] = [['up2', '×2'], ['up3', '×3'], ['up4', '×4']];
+/** 18.11: kattalashtirish usuli — Aniq (SeedVR, asliga sodiq) · Muvozanat / Ijodiy (Clarity, detal qoʻshadi) */
+export type UpMode = 'a' | 'm' | 'i';
+export const UP_MODES: [UpMode, string, string][] = [
+  ['a', 'Aniq', 'Aniq — asliga sodiq, yangi detal qoʻshmaydi (chizma, rasmiy taqdimot)'],
+  ['m', 'Muvozanat', 'Muvozanat — mayda detal qoʻshadi, shakllar saqlanadi'],
+  ['i', 'Ijodiy', 'Ijodiy — koʻp detal qoʻshadi, mayda shakllar oʻzgarishi mumkin (konsept, ijtimoiy tarmoq)'],
+];
+export const UPS_BY: Record<UpMode, [Engine, string][]> = {
+  a: UPS,
+  m: [['um2', '×2'], ['um3', '×3'], ['um4', '×4']],
+  i: [['ui2', '×2'], ['ui3', '×3'], ['ui4', '×4']],
+};
+/** Kattalashtirish dvigateli → [usul, ×N] (natija nomi va tarix uchun) */
+export const upOf = (e: string): [UpMode, string] | null => { for (const m of ['a', 'm', 'i'] as UpMode[]) { const u = UPS_BY[m].find(x => x[0] === e); if (u) return [m, u[1]]; } return null; };
 export const TERMINAL: Status[] = ['done', 'failed', 'refunded'];
 export const POLL_MS = 3000;
 
