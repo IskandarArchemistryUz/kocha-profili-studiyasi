@@ -7,13 +7,13 @@ test('soya xaritasi faqat mazmun oʻzgarganda yangilanadi', async ({ page }) => 
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.waitForFunction(() => (window as any).__mr.store.doc.buildings.length > 1, null, { timeout: 30_000 });   // 18.11: generatsiya bitta amal — binolar paket oxirida
-  await page.waitForTimeout(800);
+  // 18.11: hisob natijasi (Web Worker) sahnani yana yangilaydi (koʻcha kesishuvi, soya) — natija kelib, sahna tinchigach oʻlchanadi
+  await expect.poll(() => page.evaluate(() => (window as any).__mr.last?.d.population ?? 0), { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
   const calls = (shadow: boolean) => page.evaluate(async (sh) => {
     const sc = (window as any).__mr.scene, r = sc.renderer; r.info.autoReset = false; await new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f)));
     r.info.reset(); sc.invalidate(sh); await new Promise(f => requestAnimationFrame(() => requestAnimationFrame(f))); const n = r.info.render.calls; r.info.autoReset = true; return n;
   }, shadow);
-  // 18.11: hisob natijasi (Web Worker) kech kelsa, sahna soyani qayta chizishni kutayotgan boʻlishi mumkin — avval bir kadr bilan tozalanadi
-  await calls(true);
   const view = await calls(false), full = await calls(true);
   expect(view).toBeGreaterThan(0);
   expect(full).toBeGreaterThan(view + 30);   // soya oʻtishi qoʻshiladi
