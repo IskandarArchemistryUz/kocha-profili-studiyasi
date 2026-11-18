@@ -57,6 +57,8 @@ export interface ChHost {
   /** ochilganda «Loyihadan» ga qoʻshiladigan narsa */
   incoming?: Omit<ChInbox, 'id' | 'at'>;
   onClose?: () => void;
+  /** 18.11: atrof (OSM) yuklanganda chaqiriladigan funksiyani roʻyxatdan oʻtkazish — rejalar atrof bilan qayta chiziladi */
+  ctxReady?: (cb: () => void) => void;
 }
 
 const PT = 0.3528;
@@ -85,6 +87,8 @@ const PKEYS: [string, string][] = [['acc', 'Asosiy'], ['acc2', '2-rang'], ['acc3
 const SW = ['#c0643a', '#e08a3a', '#8b4a9c', '#0f8a7e', '#4f9a6e', '#3f6fa8', '#c9a227', '#d0473b', '#141414'];
 const SECS = [['loyiha', 'Loyihadan', I.imp], ['varaq', 'Varaqlar', I.pages], ['qatlam', 'Qatlamlar', I.layers], ['uslub', 'Uslub', I.pal], ['kutubxona', 'Kutubxona', I.lib], ['hudud', 'Loyiha hududi', I.pin]] as const;
 type SecId = typeof SECS[number][0];
+/** 18.11: «Loyiha albomi» roʻyxatda birinchi */
+const famList = () => [...LAYOUTS.families].sort((a, b) => (b.id === 'la' ? 1 : 0) - (a.id === 'la' ? 1 : 0));
 const fmtName = (k: string) => (LAYOUTS.formats[k]?.name ?? k).replace(' landshaft', '').replace(' portret', '');
 
 export function openChizmadon(host: ChHost): void {
@@ -297,7 +301,7 @@ export function openChizmadon(host: ChHost): void {
   function famMenu(anchor: HTMLElement): void {
     wrap.querySelector('.ch-menu')?.remove();
     const m = h('div', { class: 'menu ch-menu', role: 'menu', id: 'chFamMenu' }, h('div', { class: 'mh' }, tr('Maket')),
-      ...LAYOUTS.families.map(x => h('button', { class: 'mi', 'data-fam': x.id, role: 'menuitemradio', 'aria-checked': x.id === d.auto.fam, onclick: () => { m.remove(); setFam(x.id); } }, h('span', {}, tr(x.name), h('small', {}, tf('${n} varaq turi', { n: x.pages.length }))), h('span', { class: 'd' }, x.id === d.auto.fam ? '✓' : ''))));
+      ...famList().map(x => h('button', { class: 'mi', 'data-fam': x.id, role: 'menuitemradio', 'aria-checked': x.id === d.auto.fam, onclick: () => { m.remove(); setFam(x.id); } }, h('span', {}, tr(x.name), h('small', {}, tf('${n} varaq turi', { n: x.pages.length }))), h('span', { class: 'd' }, x.id === d.auto.fam ? '✓' : ''))));
     m.addEventListener('click', e => e.stopPropagation()); wrap.append(m);
     const r = anchor.getBoundingClientRect(); m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))}px`; m.style.top = `${r.bottom + 6}px`;
     setTimeout(() => document.addEventListener('click', () => m.remove(), { once: true }), 0);
@@ -1512,7 +1516,7 @@ export function openChizmadon(host: ChHost): void {
           h('b', { class: 'ch-sth' }, tr('Loyihadan tayyor')),
           h('div', { class: 'group', id: 'chStMats' }, ...mats.map(m => h('button', { class: 'li ch-ck', 'data-vis': m.id, 'aria-pressed': m.visible, onclick: () => autoMut(() => { matSet(m.id).visible = !m.visible; d.auto.force = {}; }) }, h('span', { class: 'cb' }, m.visible ? svgIcon('<path d="M5 12l5 5 9-10"/>') : ''), h('span', { class: 'k' }, tr(m.name)))))),
         h('div', { class: 'ch-str' }, h('b', { class: 'ch-sth' }, tr('Maket')), h('span', { class: 't-small' }, tr('Keyin istalgan vaqtda almashtiriladi')),
-          h('div', { class: 'ch-fams', id: 'chStFams' }, ...LAYOUTS.families.map(x => h('button', { class: 'ch-famt', 'data-fam': x.id, 'aria-pressed': x.id === d.auto.fam, onclick: () => setFam(x.id) }, h('span', { class: 'ft', html: famThumb(x) }), h('b', {}, tr(x.name))))),
+          h('div', { class: 'ch-fams', id: 'chStFams' }, ...famList().map(x => h('button', { class: 'ch-famt', 'data-fam': x.id, 'aria-pressed': x.id === d.auto.fam, onclick: () => setFam(x.id) }, h('span', { class: 'ft', html: famThumb(x) }), h('b', {}, tr(x.name))))),
           h('div', { class: 'ch-stf' }, h('div', { class: 'seg' }, ...f.formats.map(k => h('button', { 'data-fmt': k, 'aria-pressed': k === fk, onclick: () => autoMut(() => { d.auto.fmt[f.id] = k; }) }, tr(fmtName(k))))), h('span', { class: 'spacer' }),
             h('span', { class: 't-small', id: 'chStSum' }, tf('${a} material → ${b} varaq', { a: mats.filter(m => m.visible).length, b: nAuto })),
             h('button', { class: 'btn btn-primary', id: 'chStGo', onclick: () => startGo() }, tr('Albomni tuzish'))))));
@@ -1637,5 +1641,6 @@ export function openChizmadon(host: ChHost): void {
   void legacyPending().then(L => { if (!document.body.contains(wrap) || (!L.doc && !L.mats.length)) return; LEG = L; renderLeft(); });
   if (!saved) dirty();
   // Oʻzbekiston chegaralari kelgach — hudud materiallari va qidiruv (tarmoqsiz fayl)
+  host.ctxReady?.(() => { if (!document.body.contains(wrap)) return; PLANS = undefined; relayout(); renderAll(); });
   void loadGeo().then(g => { if (!g || !document.body.contains(wrap)) return; relayout(false); if (host.incoming) { const id = `i:${d.inbox[Math.max(0, d.inbox.length - 1 - (host.incoming.more?.length ?? 0))].id}`; const p = PLACE[id]; if (p) d.cur = p.pi; } renderAll(); });
 }

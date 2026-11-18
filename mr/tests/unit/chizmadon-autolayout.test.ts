@@ -17,9 +17,9 @@ const mats = (): Material[] => ([
 ] as Omit<Material, 'visible' | 'accent' | 'scale'>[]).map(e => ({ visible: true, accent: null, scale: 1, ...e }));
 
 describe('Chizmadon — maketlar kutubxonasi', () => {
-  it('8 oila, 83 varaq turi (+ 3 ta kvartirografiya); har katak roli maʼlum', () => {
-    expect(LAYOUTS.families).toHaveLength(8);
-    expect(LAYOUTS.families.reduce((a, f) => a + f.pages.length, 0)).toBe(83);
+  it('9 oila, 94 varaq turi (+ 3 ta kvartirografiya); har katak roli maʼlum', () => {
+    expect(LAYOUTS.families).toHaveLength(9);
+    expect(LAYOUTS.families.reduce((a, f) => a + f.pages.length, 0)).toBe(94);
     for (const f of LAYOUTS.families) {
       for (const k of f.formats) expect(LAYOUTS.formats[k], `${f.id}:${k}`).toBeTruthy();
       for (const p of f.pages) for (const s of p.slots) expect(LAYOUTS.roles[s.role], `${p.id}:${s.role}`).toBeTruthy();

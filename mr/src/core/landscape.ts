@@ -141,6 +141,21 @@ const toMP = (mp: MultiPolygon): XY[][][] => mp.map(p => p.map(open));
 const segD = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0; return Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]); };
 const ringD = (p: XY, r: XY[]) => { let m = Infinity; for (let i = 0; i < r.length; i++) m = Math.min(m, segD(p, r[i], r[(i + 1) % r.length])); return m; };
 const tryOp = <T>(f: () => T, fb: T): T => { try { return f(); } catch { return fb; } };
+/** Koordinatalarni 1 mm ga yaxlitlash — polygon-clipping «Unable to complete output ring» xatosidan keyin qayta urinish uchun */
+const snapMP = (g: Polygon | MultiPolygon, q: number): MultiPolygon => {
+  const mp = (typeof g[0][0][0] === 'number' ? [g as Polygon] : g as MultiPolygon);
+  return mp.map(p => p.map(r => r.map(pt => [Math.round(pt[0] / q) * q, Math.round(pt[1] / q) * q] as [number, number])));
+};
+/**
+ * 18.11 (egasi: «ikkinchi blok hovlisida yashil uchastkalar va yongʻin yoʻllari koʻrinmayapti»): katta kvartalda polygon-clipping
+ * brauzer yigʻmasida «Unable to complete output ring» bilan yiqilardi → hovli boʻsh (free = []) → kvartal hovlisiz qolardi.
+ * Endi: toʻgʻridan-toʻgʻri → 1 mm / 1 cm yaxlitlab → ketma-ket ayirish; hammasi yiqilsa — fb.
+ */
+function diffSafe(a: Polygon | MultiPolygon, rest: (Polygon | MultiPolygon)[], fb: MultiPolygon): MultiPolygon {
+  try { return polygonClipping.difference(a, ...rest); } catch { /* qayta urinish */ }
+  for (const q of [1e-3, 1e-2]) { try { return polygonClipping.difference(snapMP(a, q), ...rest.filter(x => x.length).map(x => snapMP(x, q))); } catch { /* */ } }
+  try { let cur: MultiPolygon = snapMP(a, 1e-3); for (const x of rest) { if (!x.length) continue; try { cur = polygonClipping.difference(cur, snapMP(x, 1e-3)); } catch { /* bu qismsiz */ } } return cur; } catch { return fb; }
+}
 
 /** Toʻrtburchak maydoncha: markaz, oʻlcham (kvadratga yaqin, eni ≤ 40 m) */
 const rectAt = (c: XY, a: number): XY[] => { const w = Math.min(40, Math.sqrt(a * 1.5)), h = a / w; return [[c[0] - w / 2, c[1] - h / 2], [c[0] + w / 2, c[1] - h / 2], [c[0] + w / 2, c[1] + h / 2], [c[0] - w / 2, c[1] + h / 2]]; };
@@ -626,10 +641,10 @@ function yardOf(blk: { rings: XY[][]; area: number }, bi: number, own: Own[], pa
     const ring3 = safeUnion(own.flatMap(x => corridor([...x.r, x.r[0]], 3)));
     const paveAll = tryOp(() => polygonClipping.intersection(polygonClipping.difference(ring3, fp), B), [] as MultiPolygon);
     // yer usti avtoturargoh (joylar va boʻlaklar) — hovli maydonchalari uning ustiga tushmaydi
-    let free = tryOp(() => polygonClipping.difference(B, fp, paveAll, ...park), [] as MultiPolygon);
+    let free = diffSafe(B, [fp, paveAll, ...park], []);
     // yongʻin-qutqaruv yoʻlagi: maydonchalar va maysa unga tushmaydi
     const fire = fireLane(own, free, doc.settings, arches, B, roof);
-    if (fire?.mp.length) free = tryOp(() => polygonClipping.difference(free, fire.mp), free);
+    if (fire?.mp.length) free = diffSafe(free, [fire.mp], free);
     if (!free.length) return null;
     // aholi (shu kvartal binolari)
     const pop = own.reduce((t, x) => t + area(x.r) * Math.max(0, x.b.floors - x.b.nonRes) * resShare(x.b.use, x.b.nonRes) * doc.settings.netToGross / doc.settings.m2PerPerson, 0);

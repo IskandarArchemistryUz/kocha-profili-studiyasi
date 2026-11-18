@@ -25,7 +25,7 @@ describe('Chizmadon — kutubxona (eski Albom inventari)', () => {
     expect(DASHES).toHaveLength(6); expect(ICON_GROUPS).toHaveLength(6); expect(ICONS.length).toBeGreaterThanOrEqual(45);
     expect(TREES).toHaveLength(12); expect(PALETTES).toHaveLength(8); expect(FONTS).toHaveLength(6);
     // namunalar — maket oilalari (eski 24 namuna oʻrnida): 8 oila, shu jumladan Portfolio
-    expect(LAYOUTS.families.map(f => f.id)).toEqual(['kz', 'mr', 'tq', 'st', 'kp', 'kl', 'iu', 'pf']);
+    expect(LAYOUTS.families.map(f => f.id)).toEqual(['kz', 'mr', 'tq', 'st', 'kp', 'kl', 'iu', 'pf', 'la']);
   });
 });
 

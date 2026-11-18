@@ -10,7 +10,8 @@ import { LAYOUTS, type LFamily, type LPage, type LRole, type LSlot } from './lay
 
 /** Material roli — qaysi katak turlariga tushishi shundan aniqlanadi */
 /** plan — loyiha xaritasi (bosh reja, Varaqlardan); image — render, foto, sahna rasmi */
-export type MRole = 'title' | 'locator' | 'legend' | 'table' | 'chart' | 'text' | 'image' | 'plan';
+export type MRole = 'title' | 'locator' | 'legend' | 'table' | 'chart' | 'text' | 'image' | 'plan' | 'axon' | 'section' | 'page';
+/** 18.11: axon — aksonometriya (sahnadan), section — koʻcha profili / kesim va fasad, page — boshqa xizmatdan kelgan tayyor varaq (Joyshunos hisoboti va h.k.) */
 
 /** Chizish konteksti: varaq birligi (u, mm), palitra va h.k. — render.ts beradi */
 export interface MatCtx { u: number; P: Record<string, string>; [k: string]: unknown }
@@ -24,6 +25,8 @@ export interface Material {
   level?: number;
   /** juft material: shu id dagi reja bilan bitta varaqda (masalan, kvartirografiya — reja chapda, eksplikatsiya oʻng panelda) */
   pair?: string;
+  /** 18.11: erkin juft — «Loyiha albomi»da shu id dagi reja bilan bitta varaqda (yer / yashil balansi jadvali) */
+  near?: string;
   /** joysiz qolsa kam jarima (juft bezak materiallari — vaziyat sxemasi) */
   minor?: boolean;
   kind?: string;
@@ -41,10 +44,10 @@ export interface Material {
 
 /** Katak roli → qabul qiladigan material rollari (birinchisi — afzal) */
 export const ACCEPT: Partial<Record<LRole, MRole[]>> = {
-  title: ['title'], figure: ['image', 'plan', 'locator', 'chart', 'table'], render: ['image'], photo: ['image'],
-  locator: ['locator'], map: ['plan', 'locator'], map_small: ['locator', 'chart', 'plan'], module: ['chart', 'locator', 'plan', 'table', 'text'],
+  title: ['title'], figure: ['image', 'plan', 'axon', 'section', 'page', 'locator', 'chart', 'table'], render: ['image', 'axon'], photo: ['image'],
+  locator: ['locator'], map: ['plan', 'locator', 'axon', 'section', 'page'], map_small: ['locator', 'chart', 'plan'], module: ['chart', 'locator', 'plan', 'table', 'text'],
   chart: ['chart'], table: ['table'], kpi: ['table'], checklist: ['table', 'text'], lead: ['text'], text: ['text', 'legend'],
-  note: ['text', 'legend'], caption: ['text'], legend: ['legend'], section: ['image'], axon: ['image'],
+  note: ['text', 'legend'], caption: ['text'], legend: ['legend'], section: ['section', 'image'], axon: ['axon', 'image'],
 };
 /** Bezak kataklari — toʻldirilmaydi va boʻsh hisoblanmaydi */
 export const NEUTRAL: Partial<Record<LRole, 1>> = { field: 1, chapter: 1, stamp: 1, shifr: 1, toc: 1 };
@@ -126,6 +129,7 @@ export interface Paginated { pages: Fill[]; left: Material[]; titleEl: Material 
  * Plakat oilasi (poster) — bitta varaq; boshqalar ≤ 6 varaq chuqurlikda qidiriladi.
  */
 export function paginate(fam: LFamily, mats: Material[], force: Record<number, string> = {}): Paginated {
+  if (fam.seq) return paginateSeq(fam, mats, force);
   let pool0 = mats.filter(e => e.visible);
   const titleEl = pool0.find(e => e.role === 'title') ?? null;
   if (fam.chrome !== 'poster') pool0 = pool0.filter(e => e.role !== 'title'); // sarlavha varaq tepasida (chrome)
@@ -227,3 +231,50 @@ export function placements(PG: Paginated): Record<string, { pi: number; k: numbe
 }
 
 export const familyById = (id: string): LFamily => LAYOUTS.families.find(f => f.id === id) ?? LAYOUTS.families[0];
+
+/** «Loyiha albomi» (18.11): har material oʻz varaq turida, mantiqiy tartibda */
+export const SITE_IDS = new Set(['loc0', 'loc1', 'loc2', 'legend', 'pass', 'sun', 'izoh', 'day', 'temp']);
+const ANALYSIS = /^p:plan:(insol|relyef|shamol|issiq|hand|twi|svc:|cheklov|navbat)/;
+/** Tartib: rejalar → aksonometriya → kesimlar → tahlil → kvartirografiya → jadvallar → renderlar → boshqa xizmat varaqlari */
+export function seqRank(m: Material): number {
+  if (m.role === 'plan') return m.id.startsWith('p:apt') || m.kind === 'floor' ? 5 : ANALYSIS.test(m.id) ? 4 : m.id.startsWith('i:') ? 1.5 : 1;
+  return ({ axon: 2, section: 3, table: 6, chart: 6.5, image: 7, page: 8, text: 9, locator: 9, legend: 9.5 } as Partial<Record<MRole, number>>)[m.role] ?? 9;
+}
+/**
+ * Ketma-ket sahifalash (fam.seq): 1) hudud varagʻi — joylashuv (davlat, viloyat, tuman), quyosh yoʻli, kun uzunligi, pasport, xulosa;
+ * 2) har reja, aksonometriya, kesim, render — alohida varaqda katta; reja jufti (eksplikatsiya, vaziyat sxemasi, balans jadvali) — shu varaqda.
+ * force[i] — i-varaq turini almashtirish (mos kelsa).
+ */
+export function paginateSeq(fam: LFamily, mats: Material[], force: Record<number, string> = {}): Paginated {
+  let pool = mats.filter(e => e.visible);
+  const titleEl = pool.find(e => e.role === 'title') ?? null;
+  pool = pool.filter(e => e.role !== 'title');
+  const pg = (id: string) => fam.pages.find(p => p.id === id);
+  const vis = new Set(pool.map(e => e.id)), used = new Set<string>(), out: Fill[] = [];
+  const put = (pageId: string, sub: Material[]) => {
+    const forced = force[out.length], P = (forced && pg(forced)) || pg(pageId); if (!P) return;
+    const f = tryFill(P, sub.filter(e => !used.has(e.id)), fam, vis);
+    if (!f.assign.size) return;
+    f.used.forEach(id => used.add(id)); out.push({ ...f, alts: [f] });
+  };
+  // muqova — birinchi render (yoʻq boʻlsa — fasadli aksonometriya)
+  const cover = pool.find(e => e.role === 'image') ?? pool.find(e => e.id === 'p:axo:fasad');
+  if (cover) put('la-cover', [cover]);
+  const site = pool.filter(e => SITE_IDS.has(e.id));
+  if (site.some(e => e.role === 'locator' || e.role === 'chart')) put('la-site', site);
+  const rest = pool.filter(e => !used.has(e.id) && !SITE_IDS.has(e.id)).map((e, i) => [e, i] as const).sort((a, b) => seqRank(a[0]) - seqRank(b[0]) || a[1] - b[1]).map(x => x[0]);
+  for (const m of rest) {
+    if (used.has(m.id) || (m.pair && vis.has(m.pair)) || (m.near && vis.has(m.near) && !used.has(m.near))) continue;
+    const mates = pool.filter(e => e.pair === m.id || e.near === m.id);
+    if (m.role === 'plan') put(mates.some(e => e.role === 'locator') ? 'la-apt' : mates.length ? 'la-plan-t' : 'la-plan', [m, ...mates]);
+    else if (m.role === 'axon') put('la-axon', [m]);
+    else if (m.role === 'section') put('la-sec', [m]);
+    else if (m.role === 'image') put('la-image', [m]);
+    else if (m.role === 'page') put('la-page', [m]);
+    else if (m.role === 'table') put('la-table', [m]);
+    else if (m.role === 'chart') put('la-chart', rest.filter(e => e.role === 'chart' && !used.has(e.id)));
+  }
+  // qolgan shartli belgilar — tegishli varaqqa (attachLeft); qolganlar — joysiz
+  // harorat — namuna (ERA5 ulanmagan): hudud varagʻiga sigʻmasa albomga kirmaydi, «joy topilmadi» deb koʻrsatilmaydi
+  return { pages: out, left: pool.filter(e => !used.has(e.id) && e.role !== 'title' && e.id !== 'temp'), titleEl };
+}

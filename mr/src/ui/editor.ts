@@ -131,6 +131,8 @@ import { norm as normSheet } from './sheets';
 import { openChizmadon } from '../chizmadon/ui';
 import type { ChInbox } from '../chizmadon/model';
 import type { PlanSrc, PlanMap } from '../chizmadon/materials';
+import { cutSheet } from '../core/streetcutsvg';
+import { silSheet } from '../core/siluetsvg';
 import { aptPicks, houseTypes } from '../core/albumset';
 import { aptSheet } from '../core/aptsheet';
 import { sheetSvg, sheetLayout, recommendScale, SHEET_DEFAULT, SHEET_KINDS, SCALES, type SheetCtx, type SheetKind, type SheetOpts, type SheetSvc, balanceTable, transportTable } from '../core/sheet';
@@ -1234,6 +1236,8 @@ export class Editor {
   private ctxRoads(): (ContextBundle['osm']['roads'][number] & { part?: number })[] { const b = this.ctxMgr.current; return b ? this.ctxEdited(b).osm.roads : []; }
   private showContext(b0: ContextBundle | null): void {
     const doc = this.store.doc, b = this.ctxView(b0);
+    // 18.11 (egasi: «genplanlarda atrof yoʻq»): Chizmadon ochiq boʻlsa — atrof kelgach rejalar qayta chiziladi
+    if (b0 && b0 !== this.chCtxB) { this.chCtxB = b0; setTimeout(() => this.chCtxCb?.(), 0); }
     if (b) { this.baseKey = ''; this.liveAt = null; this.ctxLive = null; void this.scene.setBaseMap(null, doc.origin); (this.el.attr.querySelector('.carto') as HTMLElement).hidden = true; }
     void this.scene.setContext(b, doc).then(() => {
       if (b) this.followCtx(true);
@@ -5209,6 +5213,9 @@ export class Editor {
   }
   /** c74: Chizmadon albomi rejalarining grafika shabloni (albom ochilganda va «Uslub» boʻlimida beriladi) */
   private chGs: string | undefined;
+  /** 18.11: atrof yuklanganda Chizmadon rejalarini yangilash (Chizmadon oʻzi roʻyxatdan oʻtkazadi) */
+  private chCtxCb: (() => void) | null = null;
+  private chCtxB: ContextBundle | null = null;
   /** funksiya rangi sahna shabloni boʻyicha (ro'yxat va legendalar sahna bilan bir xil) */
   private zcol(u: string): number { const g = gstyleById(this.store.doc.gstyle); return g.id === 'joriy' ? ZONE_COL[u] ?? 0xcccccc : useColorOf(g, u); }
   /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
@@ -5233,7 +5240,8 @@ export class Editor {
       // 04.11: Chizmadon «Sahna rasmi» — joriy kamera va uslub, lekin ish belgilarisiz (izolyatsiya, tanlov, tutqichlar, kesim)
       scene: () => { try { return this.scene.drawingShot(() => this.scene.snapshot()); } catch { return null; } },
       // yopilganda manzil loyihaning oʻziga qaytadi (aks holda qayta yuklashda Chizmadon yana ochiladi)
-      onClose: () => { if (/\/chizmadon$/.test(location.hash)) history.replaceState(null, '', `#/p/${this.store.doc.id}`); },
+      ctxReady: cb => { this.chCtxCb = cb; },
+      onClose: () => { this.chCtxCb = null; if (/\/chizmadon$/.test(location.hash)) history.replaceState(null, '', `#/p/${this.store.doc.id}`); },
     });
   }
 
@@ -5246,7 +5254,7 @@ export class Editor {
     let ctx: SheetCtx | null | undefined;
     const off = { title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false };
     const mk = (id: string, name: string, on: boolean, o: Partial<SheetOpts>): PlanSrc => ({ id, name, on, get: () => {
-      if (ctx === undefined) ctx = this.sheetCtx();
+      if (!ctx) ctx = this.sheetCtx();   // 18.11: atrof hali yoʻq boʻlsa — keyingi chaqiruvda qayta (null keshlanmaydi)
       const r = sheetSvg(this.store.doc, ctx, { ...SHEET_DEFAULT, ...o, gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
       const m = mapOnly(r.svg, r.scale); return m ? { ...m, north: -(o.rot ?? 0), legend: r.legend } : null;
     } });
@@ -5288,7 +5296,7 @@ export class Editor {
       } } as PlanSrc; })),
       // 02.11: tahlil varaqlari — xizmat radiusi (piyoda tarmogʻi boʻylab, 9-qadam tahlili); asosiylari sukut boʻyicha yoqilgan
       ...SERVICES.map(sv => { let c2: SheetCtx | null | undefined; return { id: `p:plan:svc:${sv.id}`, name: `${tr('Xizmat radiusi')} · ${tr(sv.name)}`, on: SVC_ON.includes(sv.id), get: () => {
-        if (c2 === undefined) c2 = this.sheetCtxFor('xizmat');
+        if (!c2) c2 = this.sheetCtxFor('xizmat');
         const r = sheetSvg(this.store.doc, c2, { ...SHEET_DEFAULT, kind: 'xizmat', svc: sv.id, gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, ...off } }, new Date(), false, tr);
         const m = mapOnly(r.svg, r.scale); return m ? { ...m, north: 0, legend: r.legend } : null;
       } } as PlanSrc; }),
@@ -5323,6 +5331,33 @@ export class Editor {
       if (f) out.push(aptItem(pl, bi, f.gi, true, true));
       out.push(aptItem(pl, bi, t?.gi, false, !!t || (!!f && !t)));   // tipik qavat (1 qavatli boʻlsa — faqat 1-qavat)
     });
+    // 18.11 (egasi: «albomda aksonometriya turlari va kesimlar boʻlsin — hammasi loyihaga tegishli»):
+    // aksonometriya — sahnadan, Varaqlardagi akso uslublari bilan (oq maket, funksiya, fasad, qavatlilik, loyiha va kontekst, saqlanadi/buziladi)
+    const AXO: [string, string, boolean][] = [['oq', 'Aksonometriya · oq maket', true], ['funksiya', 'Aksonometriya · funksiya', true], ['fasad', 'Aksonometriya · fasadlar', true], ['qavatlilik', 'Aksonometriya · qavatlilik', true], ['kontekst', 'Aksonometriya · loyiha va kontekst', true], ['demontaj', 'Aksonometriya · saqlanadi va buziladi', false], ['figura', 'Aksonometriya · figura-fon', false]];
+    if (d2.buildings.length) for (const [look, nm, on] of AXO) {
+      let memo: { doc: Project; v: PlanMap | null } | null = null;
+      out.push({ id: `p:axo:${look}`, name: tr(nm), on, role: 'axon', get: () => {
+        const doc = this.store.doc; if (memo?.doc === doc) return memo.v;
+        let v: PlanMap | null = null;
+        try {
+          const W = 320, H = 200, url = this.axoShot(look, undefined, true, W / H, false, this.chGs);
+          const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+          v = { svg: `<image href="${url}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid meet"/>`, vb: [0, 0, W, H], w: W, h: H, contain: true,
+            legend: this.axoLegend(look).map(q => ({ type: q.hatch ? 'hatch' : 'fill', fill: hex(q.color), label: q.label })) };
+        } catch { v = null; }
+        memo = { doc, v }; return v;
+      } });
+    }
+    // koʻcha profillari (2-qadam «Kesim chizigʻi») — loyiha koʻchasining haqiqiy kesimi, binolar bilan
+    for (const c of d2.cuts ?? []) out.push({ id: `p:cut:${c.id}`, name: `${tr('Koʻcha profili')} ${c.label}–${c.label}`, on: true, role: 'section', get: (fit) => {
+      const W = fit?.w ?? 360, H = fit?.h ?? 200, r = cutSheet(this.store.doc, c.id, tr, W, H);
+      return { svg: r.body(0, 0, W, H), vb: [0, 0, W, H], w: W, h: H, contain: true, legend: r.legend, sub: '' };
+    } });
+    // kesim va fasad (5-qadam «Kesim va fasad») — loyiha va atrof binolari
+    for (const c of d2.sections ?? []) out.push({ id: `p:sec:${c.id}`, name: `${tr('Kesim va fasad')} ${c.label}–${c.label}`, on: true, role: 'section', get: (fit) => {
+      const W = fit?.w ?? 360, H = fit?.h ?? 200, r = silSheet(this.store.doc, this.sheetCtx(), c.id, tr, W, H, 'kesim');
+      return { svg: r.body(0, 0, W, H), vb: [0, 0, W, H], w: W, h: H, contain: true, legend: r.legend, sub: '' };
+    } });
     // past qavatli uylar: har tur, har qavat (02.11)
     for (const [ti, T] of houseTypes(d2).entries()) for (let fl = 1; fl <= T.floors; fl++) {
       const title = `${tr(T.name)} · ${tf('${n}-qavat', { n: fl })}`;

@@ -144,3 +144,47 @@ export function tplFromArm(a: Arm, b: Arm | null): { tpl: Tpl; v: number; src: s
   const name = `OSM · ${a.name || (b?.name ?? '') || a.cls}`;
   return { tpl: [name, null, els, sk, uk], v, src };
 }
+
+/**
+ * 18.11 (egasi: «chorraha va mikromodel — faqat bizning loyiha koʻchasi; boshqa profilda modellasak aldaymiz»):
+ * loyiha koʻchasi uchi (end) mavjud OSM yoʻliga tutashgan joy. Asosiy — eng yaqin OSM avtomobil yoʻli (≤ maxD m),
+ * kesishuvchi — loyiha koʻchasi (inn — uchdan koʻcha ichiga yoʻnalgan ikkinchi nuqta). Natija — T-chorraha (loyiha koʻchasi bir tomonda).
+ */
+export interface JoinResult { at: LL; dist: number; main: [Arm, Arm | null]; crossBear: number; ang: number; miss: 'N' | 'S'; notes: string[] }
+export function joinNode(els: OsmEl[], end: LL, inn: LL, maxD = 45): JoinResult | null {
+  const nodes = new Map<number, LL>();
+  for (const e of els) if (e.type === 'node' && e.lat != null && e.lon != null) nodes.set(e.id, [e.lon, e.lat]);
+  const clsOf = (w: OsmEl) => (w.tags!.highway.replace(/_link$/, ''));
+  // mahalliy tekislik (m): end — markaz
+  const k = Math.cos(end[1] * rad) * rad * R, ky = rad * R, xy = (p: LL): [number, number] => [(p[0] - end[0]) * k, (p[1] - end[1]) * ky], ll = (q: [number, number]): LL => [end[0] + q[0] / k, end[1] + q[1] / ky];
+  let best: { w: OsmEl; i: number; t: number; d: number; q: [number, number] } | null = null;
+  for (const w of els) {
+    if (w.type !== 'way' || !w.nodes || !w.tags?.highway || !(clsOf(w) in DRIVE)) continue;
+    for (let i = 0; i + 1 < w.nodes.length; i++) {
+      const a = nodes.get(w.nodes[i]), b = nodes.get(w.nodes[i + 1]); if (!a || !b) continue;
+      const A = xy(a), B = xy(b), dx = B[0] - A[0], dy = B[1] - A[1], L = dx * dx + dy * dy; if (!L) continue;
+      const t = Math.max(0, Math.min(1, -(A[0] * dx + A[1] * dy) / L)), q: [number, number] = [A[0] + dx * t, A[1] + dy * t], d = Math.hypot(q[0], q[1]);
+      const rk = DRIVE[clsOf(w)], bk = best ? DRIVE[clsOf(best.w)] : 0;
+      if (d <= maxD && (!best || d < best.d - 6 || (Math.abs(d - best.d) <= 6 && rk > bk))) best = { w, i, t, d, q };
+    }
+  }
+  if (!best) return null;
+  const at = ll(best.q), ns = best.w.nodes!, cls = clsOf(best.w);
+  // tutashuv nuqtasidan yoʻl boʻylab ~25 m har ikki tomonga
+  const walk = (dir: 1 | -1): LL | null => {
+    let prev = at, acc = 0, j = dir > 0 ? best!.i + 1 : best!.i, q: LL | null = null;
+    while (j >= 0 && j < ns.length) { const c = nodes.get(ns[j]); if (!c) break; acc += dist(prev, c); q = c; prev = c; if (acc >= 25) break; j += dir; }
+    return q && acc >= 3 ? q : null;
+  };
+  const arm = (q: LL | null): Arm | null => q ? { way: best!.w.id, bear: bearing(at, q), tags: best!.w.tags!, cls, rank: DRIVE[cls], name: best!.w.tags!.name ?? '' } : null;
+  const a1 = arm(walk(1)), a2 = arm(walk(-1));
+  const mainA = a1 ?? a2; if (!mainA) return null;
+  const mainB = a1 && a2 ? a2 : null;
+  const crossBear = bearing(end, inn);
+  const phi = (crossBear - mainA.bear + 360) % 360, side: 'N' | 'S' = phi < 180 ? 'S' : 'N';
+  const ang = Math.round(side === 'S' ? phi : phi - 180), notes: string[] = [];
+  notes.push(`Tutashuv: loyiha koʻchasi uchi «${mainA.name || cls}» yoʻlidan ${Math.round(best.d)} m`);
+  notes.push('T-chorraha: loyiha koʻchasi bir tomonda, qarshi tarmoq chizilmaydi');
+  if (ang < ANG_MIN || ang > ANG_MAX) notes.push(`Kesishish burchagi ${ang}° — maket ${ANG_MIN}–${ANG_MAX}° oraligʻida chizadi`);
+  return { at, dist: best.d, main: [mainA, mainB], crossBear, ang: Math.max(ANG_MIN, Math.min(ANG_MAX, ang)), miss: side === 'S' ? 'N' : 'S', notes };
+}

@@ -12,7 +12,7 @@ import { tr, tf } from '../i18n';
 import type { LngLat } from '../core/doc';
 
 export const CHZ_INBOX = 'ks-chz-inbox';
-export interface ChzItem { name: string; kind: 'sheet'; svg: string; vb: [number, number, number, number]; w: number; h: number; /** qoʻshimcha varaqlar (albom) — hammasi birga tushadi */ more?: Omit<ChzItem, 'more'>[] }
+export interface ChzItem { name: string; kind: 'sheet'; svg: string; vb: [number, number, number, number]; w: number; h: number; /** 18.11: tayyor varaq (oʻz ramkasi bilan) — Chizmadon «Loyiha albomi»da butun varaqqa */ page?: boolean; /** qoʻshimcha varaqlar (albom) — hammasi birga tushadi */ more?: Omit<ChzItem, 'more'>[] }
 export interface ChzTarget { target: string | 'new'; newName?: string; center?: LngLat }
 /** Bir loyihaga tegishli deb tavsiya qilinadigan masofa, m */
 export const SAME_SITE_M = 3000;
@@ -71,7 +71,7 @@ export async function chzTarget(name: string, center?: LngLat | null): Promise<C
 /** Varaqni navbatga qoʻyib, Chizmadonni ochadi. 'cancel' — foydalanuvchi bekor qildi; false — brauzer xotirasi toʻla */
 export async function sendSheet(item: ChzItem, center?: LngLat | null, base = './'): Promise<boolean | 'cancel'> {
   const t = await chzTarget(item.name, center); if (!t) return 'cancel';
-  try { localStorage.setItem(CHZ_INBOX, JSON.stringify({ ...item, ...t })); } catch { return false; }
+  try { localStorage.setItem(CHZ_INBOX, JSON.stringify({ ...item, page: true, more: item.more?.map(x => ({ ...x, page: true })), ...t })); } catch { return false; }
   location.href = `${base}#/chizmadon`;
   return true;
 }

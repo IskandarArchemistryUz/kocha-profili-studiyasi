@@ -98,7 +98,7 @@ export interface ChTxt { proj?: string; stamp?: string; shifr?: string; tik?: st
 export interface ChLayer { id: string; name: string; visible: boolean; locked: boolean }
 export interface ChPage { id: string; name: string; paper: ChPaper; landscape: boolean; w?: number; h?: number; layers: ChLayer[]; els: ChEl[]; tpl?: string }
 /** «Loyihadan» — boshqa oynalardan yuborilgan xarita, varaq va rasmlar (bir marta bosish — varaqqa qoʻyiladi) */
-export interface ChInbox { id: string; name: string; kind: 'sheet' | 'scene' | 'plan'; svg?: string; vb?: [number, number, number, number]; src?: string; w: number; h: number; scale?: number; north?: number; at: string; /** kirishda: qoʻshimcha varaqlar (albom) */ more?: Omit<ChInbox, 'id' | 'at' | 'more'>[] }
+export interface ChInbox { id: string; name: string; kind: 'sheet' | 'scene' | 'plan'; svg?: string; vb?: [number, number, number, number]; src?: string; w: number; h: number; scale?: number; north?: number; /** 18.11: boshqa xizmatdan kelgan tayyor varaq (oʻz ramkasi bilan) */ page?: boolean; at: string; /** kirishda: qoʻshimcha varaqlar (albom) */ more?: Omit<ChInbox, 'id' | 'at' | 'more'>[] }
 export interface ChUi { left: boolean; right: boolean; leftTab: 'varaq' | 'qatlam' | 'kutubxona'; rightTab: 'element' | 'tekshiruv'; libTab: 'belgi' | 'daraxt' | 'yol' | 'rang'; lockL: boolean; lockR: boolean }
 export interface ChDoc {
   /** 2 — bitta oyna: avtomatik maket varaqlari (auto) + qoʻlda chizilganlar (hand) + erkin varaqlar (pages) */
@@ -215,7 +215,7 @@ export function normDoc(o: unknown, title = ''): ChDoc {
   d.title = str(x.title, title, 200);
   d.palette = str(x.palette, 'asosiy', 40);
   if (x.album && typeof x.album === 'object') d.album = { stamp: x.album.stamp !== false, numbering: x.album.numbering !== false, toc: !!x.album.toc, author: str(x.album.author, '', 120) };
-  if (Array.isArray(x.inbox)) d.inbox = x.inbox.filter((i: any) => i && typeof i.id === 'string').slice(-30).map((i: any) => ({ id: i.id, name: str(i.name, '', 120), kind: i.kind === 'scene' || i.kind === 'plan' ? i.kind : 'sheet', ...(typeof i.svg === 'string' ? { svg: i.svg } : {}), ...(Array.isArray(i.vb) ? { vb: i.vb.map(Number) } : {}), ...(typeof i.src === 'string' ? { src: i.src } : {}), w: num(i.w, 200, 1, 5000), h: num(i.h, 150, 1, 5000), ...(typeof i.scale === 'number' ? { scale: i.scale } : {}), ...(Number.isFinite(i.north) ? { north: Number(i.north) } : {}), at: str(i.at, new Date().toISOString(), 40) }));
+  if (Array.isArray(x.inbox)) d.inbox = x.inbox.filter((i: any) => i && typeof i.id === 'string').slice(-30).map((i: any) => ({ id: i.id, name: str(i.name, '', 120), kind: i.kind === 'scene' || i.kind === 'plan' ? i.kind : 'sheet', ...(typeof i.svg === 'string' ? { svg: i.svg } : {}), ...(Array.isArray(i.vb) ? { vb: i.vb.map(Number) } : {}), ...(typeof i.src === 'string' ? { src: i.src } : {}), w: num(i.w, 200, 1, 5000), h: num(i.h, 150, 1, 5000), ...(typeof i.scale === 'number' ? { scale: i.scale } : {}), ...(Number.isFinite(i.north) ? { north: Number(i.north) } : {}), ...(i.page === true ? { page: true } : {}), at: str(i.at, new Date().toISOString(), 40) }));
   if (x.ui && typeof x.ui === 'object') d.ui = { ...d.ui, ...x.ui };
   return d;
 }

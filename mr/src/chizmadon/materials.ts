@@ -167,6 +167,7 @@ export interface PlanMap { svg: string; vb: [number, number, number, number]; w:
   /** katak tepasida sarlavha (material nomi) va shu kichik sarlavha — qavat rejalari */ sub?: string }
 /** 19-band: Master reja rejalari — bosh reja, zonalashtirish (land use), funksional, qavatlilik, kvartirografiya…; get — dangasa (faqat koʻrinsa hisoblanadi) */
 export interface PlanSrc { id: string; name: string; on: boolean;
+  /** 18.11: material roli — sukut «plan»; aksonometriya «axon», kesim/profil «section» */ role?: MRole;
   /** fit — katak oʻlchami (mm): berilsa, reja shu oʻlchamga mos masshtabda chiziladi (qavat rejalari) */
   get: (fit?: { w: number; h: number; scale?: number }) => PlanMap | null | undefined;
   /** reja bilan juft jadval (oʻng panelda) */ table?: { id: string; name: string; title: string; rows: () => string[][] | null; /** 02.11: erkin jadval (yer / yashil balansi) — reja bilan bitta varaqda boʻlishi shart emas */ free?: boolean };
@@ -265,7 +266,7 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
   for (const p of src.plans ?? []) {
     let M: PlanMap | null | undefined, got = false;
     const fitted = new Map<string, PlanMap | null>();
-    const pm = add({ id: p.id, role: 'plan' as MRole, name: p.name, title: p.name, ...(p.nav ? { kind: 'floor' } : {}) } as Def, (r, ctx, bare) => {
+    const pm = add({ id: p.id, role: (p.role ?? 'plan') as MRole, name: p.name, title: p.name, ...(p.nav ? { kind: 'floor' } : {}) } as Def, (r, ctx, bare) => {
       if (!got) { got = true; try { M = p.get(); } catch { M = null; } }
       if (!M) return '';
       // qavat rejasi (sub): tepada sarlavha, ostida — katakka mos standart masshtabdagi reja (choʻzilmaydi, belgilar — juft jadvalda)
@@ -286,13 +287,13 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
     if (p.table) {
       const tb = p.table; let rows: string[][] | null | undefined;
       const m = add({ id: tb.id, role: 'table', kind: 'expl', name: tb.name, title: tb.title } as Def, (r, ctx, bare) => { if (rows === undefined) { try { rows = tb.rows(); } catch { rows = null; } } return rows ? tableArt(rows, r, ctx, m, bare) : ''; }, p.on);
-      if (!tb.free) m.pair = p.id;
+      if (!tb.free) m.pair = p.id; else m.near = p.id;
     }
   }
   if (src.plan && !src.plans) { const p = src.plan; const m = add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja', m.view)); }
   if (src.tik?.length) { const rows = [['Koʻrsatkich', 'Birlik', 'Qiymat'], ...src.tik]; const m = add({ id: 'p:tik', role: 'table', kind: 'tik', name: 'TIK jadvali', title: 'Texnik-iqtisodiy koʻrsatkichlar' }, (r, ctx, bare) => tableArt(rows, r, ctx, m, bare)); }
   if (src.scene) { const s = src.scene; const m = add({ id: 'p:scene', role: 'image', name: 'Sahna rasmi', title: 'Sahna rasmi' }, (r) => fitMap('scene', { src: s, w: r.w, h: r.h }, r, 'Sahna rasmi', m.view)); }
-  for (const it of src.inbox ?? []) { const m = add({ id: `i:${it.id}`, role: (it.svg ? 'plan' : 'image') as MRole, name: it.name, title: it.name }, (r) => fitMap(it.id, it, r, it.name, m.view)); }
+  for (const it of src.inbox ?? []) { const m = add({ id: `i:${it.id}`, role: (it.page ? 'page' : it.svg ? 'plan' : 'image') as MRole, name: it.name, title: it.name }, (r) => fitMap(it.id, it.page ? { ...it, contain: true } : it, r, it.name, m.view)); }
   return out;
 }
 /** Hudud bilan bogʻliq boʻlmagan xaritalar yoʻq — sarlavha matni (Hudud tahlili) loyiha nomi boʻlishi mumkin */
