@@ -76,7 +76,7 @@ function gate(v: Record<string, unknown>): Record<string, unknown> {
 const STREET = ['PL', 'els', 'rl', 'tplName', 'TPL', 'sk', 'uk', 'U', 'bL', 'bR', 'eL', 'eR', 'gfx', 'showU'];
 const SHARED: Partial<Record<BoardId, string[]>> = { b: STREET, varaq: STREET, c: ['TPL'] };
 /** faqat oʻsha oynada kerak (saqlanmaydi): tanlangan zona/tarmoq */
-const VOLATILE = new Set(['sel', 'selU', 'vw', 'skMenu', 'ukMenu', 'peMenu', 'zaMenu']);
+const VOLATILE = new Set(['sel', 'selU', 'vw', 'skMenu', 'ukMenu', 'peMenu', 'zaMenu', 'noCap']);
 const LS = { get(k: string): Record<string, unknown> | null { try { return JSON.parse(localStorage.getItem(scoped(k)) || 'null'); } catch { return null; } },
   set(k: string, v: unknown): void { try { localStorage.setItem(scoped(k), JSON.stringify(v)); } catch { /* toʻla */ } } };
 const pick = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
@@ -409,28 +409,37 @@ async function varaqToRender(svg: SVGSVGElement, name: string): Promise<void> {
 }
 
 /**
- * B · kesim → Render studiyasi (18.11, taqqoslov №2 sahna 6): oʻlcham zanjiri, zona kodlari, legenda, yozuvlar va
- * «N qavat» tugmalarisiz toza kesim (yer osti pastigacha kesiladi) + chap/oʻng qavatlar soni (subj «kesim»).
- * Bino rasmda uzilish belgisi bilan kesilgan boʻlsa, oʻsha tomon qavati yuborilmaydi — model kadrni choʻzmasin.
+ * B · kesim → Render studiyasi (18.11, taqqoslov №2 sahna 6): oʻlcham zanjiri, zona kodlari, legenda, qizil chiziqlar,
+ * yozuvlar va «N qavat» tugmalarisiz toza kesim (yer osti pastigacha) + chap/oʻng qavatlar soni (subj «kesim»).
+ * Jonli sinov (18.11): uzilish belgisi bilan kesilgan binoni model oʻzicha choʻzardi (9 → ~14 qavat) — shuning uchun
+ * eksport vaqtida bino toʻliq balandlikda chiziladi (noCap) va kadr yuqoriga kengaytiriladi; soʻng ekran avvalgi holatiga qaytadi.
  */
 async function kesimToRender(svg: SVGSVGElement, st: { bL?: number; bR?: number; eL?: string; eR?: string }, name: string): Promise<void> {
+  const inst = current?.m.inst as { setState(p: Record<string, unknown>): void } | undefined, draw = () => current?.m.render();   // setState chizishni rAF ga qoldiradi — eksport uchun darhol chizamiz
   try {
-    const c = svg.cloneNode(true) as SVGSVGElement, px = parseFloat(svg.dataset.px ?? ''), G = parseFloat(svg.dataset.g ?? ''), d1 = parseFloat(svg.dataset.d1 ?? '');
+    const px = parseFloat(svg.dataset.px ?? ''), G = parseFloat(svg.dataset.g ?? ''), d1 = parseFloat(svg.dataset.d1 ?? '');
+    const bino = (n: number | undefined, e: string | undefined) => Number.isInteger(n) && (n as number) > 0 && (!e || e === 'bino');
+    const hOf = (n: number) => (4.2 + (n - 1) * 3.2) * px;
+    const tall = Math.max(bino(st.bL, st.eL) ? hOf(st.bL as number) : 0, bino(st.bR, st.eR) ? hOf(st.bR as number) : 0);
+    inst?.setState({ noCap: true }); draw();
+    const live = stage.querySelector<SVGSVGElement>('.ws-b svg[role=img]') ?? svg;
+    const c = live.cloneNode(true) as SVGSVGElement;
+    inst?.setState({ noCap: false }); draw();
     // cleanSvg (io.ts) bilan bir xil UI tozalash + render uchun: oʻlcham qatlamlari, zona kodlari, legenda, qizil chiziqlar va barcha yozuvlar
     c.querySelectorAll('[data-ly="UI"], [data-ly="DIMROW"], [data-ly="KS_DIM"], [data-ly="KS_TEXT"], [data-ly="KS_LEGEND"], [data-ly="KS_RED_LINE"], text, .ks-hnd, .ks-uh, .ks-bb, rect[style*="cursor"]').forEach(e => e.remove());
     c.querySelectorAll('[data-ly], [data-bk]').forEach(e => { e.removeAttribute('data-ly'); e.removeAttribute('data-bk'); });
-    const vb = svg.viewBox.baseVal, Hc = Number.isFinite(d1) ? Math.min(vb.height, d1 - 28) : vb.height;
-    c.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.width} ${Hc}`); c.removeAttribute('style'); c.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const vb = svg.viewBox.baseVal, y0 = Number.isFinite(G) && tall > 0 ? Math.min(vb.y, Math.floor(G - tall - 24)) : vb.y;
+    const Hc = (Number.isFinite(d1) ? Math.min(vb.y + vb.height, d1 - 28) : vb.y + vb.height) - y0;
+    c.setAttribute('viewBox', `${vb.x} ${y0} ${vb.width} ${Hc}`); c.removeAttribute('style'); c.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     const W = 2400, H = Math.round(W * Hc / (vb.width || 1)); c.setAttribute('width', String(W)); c.setAttribute('height', String(H));
     const u = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(c)], { type: 'image/svg+xml' })), im = new Image(); im.src = u; await im.decode();
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H); URL.revokeObjectURL(u);
-    const whole = (n: number | undefined, e: string | undefined) => Number.isInteger(n) && (n as number) > 0 && (!e || e === 'bino') && Number.isFinite(px) && Number.isFinite(G) && (4.2 + ((n as number) - 1) * 3.2) * px <= G - 34;
     const facts: Record<string, number> = {};
-    if (whole(st.bL, st.eL)) facts.floorsLeft = st.bL as number;
-    if (whole(st.bR, st.eR)) facts.floorsRight = st.bR as number;
+    if (bino(st.bL, st.eL)) facts.floorsLeft = st.bL as number;
+    if (bino(st.bR, st.eR)) facts.floorsRight = st.bR as number;
     const { sendToRender } = await import('../render/inbox');
     await sendToRender({ name, from: 'ks', subj: 'kesim', img: cv.toDataURL('image/png'), w: W, h: H, ...(Object.keys(facts).length ? { facts } : {}) });
-  } catch (e) { toast(`Render: ${(e as Error).message}`); }
+  } catch (e) { inst?.setState({ noCap: false }); draw(); toast(`Render: ${(e as Error).message}`); }
 }
 
 /** A (tarmoq) da tanlangan koʻcha toifasi → B dagi mos tayyor kesim (B ochilganda qoʻllanadi) */

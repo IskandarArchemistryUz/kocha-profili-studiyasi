@@ -623,7 +623,7 @@ export default class Component extends DCLogic {
       [[8, X(-SB), s.eL], [X(rl + SB), HW, s.eR]].forEach(function (bx) { if (bx[2] && bx[2] !== 'bino') return; add('M' + bx[0] + ' ' + G + 'H' + bx[1] + 'V' + (G + 3.2 * px) + 'H' + bx[0] + 'Z', line ? '#fff' : '#ebe7df', INK, 0.8); for (var hh = bx[0] - 3.2 * px; hh < bx[1]; hh += 6) { var xa = Math.max(bx[0], hh), xb = Math.min(bx[1], hh + 3.2 * px); if (xb > xa) add('M' + xa.toFixed(1) + ' ' + (G + 3.2 * px - (xa - hh)).toFixed(1) + 'L' + xb.toFixed(1) + ' ' + (G + 3.2 * px - (xb - hh)).toFixed(1), null, LIGHT, 0.5); } });
       /* binolar — kesimdagi oddiy hajm: kontur, qavat yopmalari, qavat raqamlari va sath belgisi; chuqurligi ≤ 14 m,
          qolgani uzilish chizigʻi bilan. Baland bino sigʻmasa — gorizontal uzilish. Ichida «N qavat · ≈ H m» va − / + */
-      var BB = [], HCAP = G - 34;
+      var BB = [], HCAP = s.noCap ? Infinity : G - 34;   /* noCap — faqat Render eksporti uchun: bino uzilishsiz, toʻliq balandlikda (main.ts kesimToRender) */
       /* chet (qizil chiziq + chekinishdan tashqari): bino oʻrniga bogʻ, ochiq maydon, qiyalik yoki suv (daryo, kanal) */
       function edgeDraw(sd, et) {
         var fx = sd < 0 ? X(-SB) : X(rl + SB), ox = sd < 0 ? 8 : HW, a = Math.min(fx, ox), b = Math.max(fx, ox), w = b - a, n = Math.max(1, Math.floor(w / (7 * px))), o = LYR, q;
@@ -1084,7 +1084,7 @@ export default class Component extends DCLogic {
       fitC: Math.abs(d) < 0.01 ? 'ok' : (d > 0 ? 'bad' : 'warn'), fitT: Math.abs(d) < 0.01 ? 'Qizil chiziqlarga sigʻadi' : (d > 0 ? '+' + fm(d) + ' m ortiqcha' : fm(-d) + ' m boʻsh'),
       fit: function () { upd(function (E) { var u = 0; E.forEach(function (e) { u += e[1]; }); var k = self.state.rl / u; E.forEach(function (e) { e[1] = Math.round(e[1] * k * 100) / 100; }); var u2 = 0; E.forEach(function (e) { u2 += e[1]; }); E[0][1] = Math.round((E[0][1] + self.state.rl - u2) * 100) / 100; }); },
       uOn: s.showU ? 'on' : '', tU: function () { self.setState({ showU: !self.state.showU }); }, showU: s.showU, auto: autoAll, clr: function () { self.setState({ U: [], selU: -1, uSkip: [] }); },
-      clipR: s.view === 1 ? [{ x: 0, y: 0, w: VW, h: 604 }, { x: 0, y: 618, w: 16 + 10 * px + 30, h: 40 }] : [{ x: 0, y: 0, w: VW, h: 680 }], uH: UROW.some(function (r) { return r; }) ? '46px' : '30px',
+      clipR: s.view === 1 ? [{ x: 0, y: 0, w: VW, h: 604 }, { x: 0, y: 618, w: 16 + 10 * px + 30, h: 40 }] : [{ x: 0, y: s.noCap ? -4000 : 0, w: VW, h: s.noCap ? 4680 : 680 }], uH: UROW.some(function (r) { return r; }) ? '46px' : '30px',
       blks: blks, rlLp: pv(0), rlRp: pv(rl), hnd: HND, uh: UH, bb: BB, shnd: SH, ufb: ufb,
       ubs: U.map(function (u, j) { var c = UCd(u.k), on = s.selU === j, ev = evalU(u, U.filter(function (o, q) { return q !== j; })); return { k: ulbl(u.k), l: pv(u.x), tp: UROW[j] ? '20px' : '4px', down: udown(j, false), c: c[2], bg: on ? c[2] : '#fff', p: on ? 'true' : 'false', sh: ev.worst === 'bad' ? '0 0 0 2px #b23a2e' : 'none', pick: function () { self.setState({ selU: j }); } }; }),
       isPlanZone: isPlanZone,
