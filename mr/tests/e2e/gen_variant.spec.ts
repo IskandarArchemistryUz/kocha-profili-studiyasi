@@ -14,11 +14,16 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`boshqa var
   const seen = new Set([await sig()]);
   const btn = page.locator('#genNext');
   await expect(btn).toBeVisible();
+  // 18.11 (T0): takror joylashuv oʻtkazib yuboriladi — variant raqami bittadan koʻproq oshishi mumkin; har bosish yangi joylashuv
+  await expect(page.locator('#genNext .gen-left')).toHaveText('20');
+  let v0 = 0;
   for (let k = 1; k <= 4; k++) {
     await btn.click();
-    await expect(page.locator('#genNext')).toHaveAttribute('data-v', String(k));
+    await expect.poll(async () => Number(await page.locator('#genNext').getAttribute('data-v'))).toBeGreaterThan(v0);
+    v0 = Number(await page.locator('#genNext').getAttribute('data-v'));
     seen.add(await sig());
   }
-  expect(seen.size).toBeGreaterThanOrEqual(3);
+  expect(seen.size).toBe(5);
+  await expect(page.locator('#genNext .gen-left')).toHaveText('16');   // 20 tagacha bepul (egasi qarori)
   if (process.env.GX_SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: `${process.env.GX_SHOTS}/gen_variant_${w}${dark ? 'd' : 'l'}.png` }); }
 });

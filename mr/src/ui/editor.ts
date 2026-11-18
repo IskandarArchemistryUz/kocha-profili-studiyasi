@@ -2805,7 +2805,7 @@ export class Editor {
    * seismic-height) ishga tushiriladi; avtomatik binolar qavati pasaytiriladi yoki seksiya olinadi (core/normfix). grps — faqat shu guruhlar.
    */
   private repairNorms(grps?: Set<string>): string[] {
-    const before = this.store.doc, r = repairGen(before, { grps });
+    const before = this.store.doc, r = repairGen(before, { grps, norms: this.genNorms() });
     if (r.lowered || r.removed || r.joints) {
       const after = new Map(r.doc.buildings.map(b => [b.id, b]));
       this.run(() => this.store.batch(() => { for (const b of before.buildings) { const a = after.get(b.id); if (!a) this.store.dispatch({ type: 'removeBuilding', id: b.id }); else if (a.floors !== b.floors || !!a.joint !== !!b.joint) this.store.dispatch({ type: 'updateBuilding', id: b.id, patch: { floors: a.floors, ...(a.joint ? { joint: true } : {}), gen: b.gen } }); } }));
