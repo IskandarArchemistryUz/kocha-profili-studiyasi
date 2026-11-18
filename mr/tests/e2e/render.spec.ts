@@ -195,6 +195,8 @@ test('Koʻchasoz B kesimidan «Render studiyasiga» — toza kesim, «Koʻcha ke
   await expect(page).toHaveURL(/render\.html/, { timeout: 20_000 });
   await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Koʻcha kesimi');
   await expect(page.locator('.ren-base .cap code')).toHaveText(/^2400×\d+$/);
+  // Koʻchasoz ekrani avvalgi holatda qolgan (noCap saqlanmaydi)
+  expect(await page.evaluate(() => JSON.stringify(localStorage)).then(t => t.includes('noCap'))).toBe(false);
   const src = await page.evaluate(async () => {
     const db: IDBDatabase = await new Promise((ok, no) => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
     const v: any = await new Promise((ok, no) => { const q = db.transaction('cache').objectStore('cache').get('render-src'); q.onsuccess = () => ok(q.result?.v); q.onerror = () => no(q.error); });
@@ -202,9 +204,9 @@ test('Koʻchasoz B kesimidan «Render studiyasiga» — toza kesim, «Koʻcha ke
     return { subj: s.subj, facts: s.facts, w: im.naturalWidth, h: im.naturalHeight };
   });
   expect(src.subj).toBe('kesim');
-  // 4 qavat toʻliq chizilgan — yuboriladi; 30 qavat uzilish belgisi bilan kesilgan — yuborilmaydi
-  expect(src.facts).toEqual({ floorsLeft: 4 });
-  expect(src.h).toBeLessThan(src.w);
+  // eksportda bino uzilishsiz, toʻliq balandlikda chiziladi — ikkala tomon qavati ham yuboriladi; kadr yuqoriga choʻziladi
+  expect(src.facts).toEqual({ floorsLeft: 4, floorsRight: 30 });
+  expect(src.h).toBeGreaterThan(src.w * 0.6);
   expect(errs).toEqual([]);
 });
 
