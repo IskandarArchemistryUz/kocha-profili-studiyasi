@@ -182,6 +182,32 @@ test('boshqa xizmatdan yuborilgan kadr asos rasm boʻlib ochiladi (#/s/<id>), in
   expect(errs).toEqual([]);
 });
 
+test('Koʻchasoz B kesimidan «Render studiyasiga» — toza kesim, «Koʻcha kesimi», qavatlar soni', async ({ page }) => {
+  const errs: string[] = [];
+  page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.goto('./kochasoz.html#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
+  await page.evaluate(() => (window as any).__ks.m.inst.setState({ bL: 4, bR: 30, eL: 'bino', eR: 'bino' }));
+  await page.click('[data-ksexp]');
+  await page.locator('.ks-menu [role=menuitem]', { hasText: 'Render studiyasiga' }).click();
+  await expect(page).toHaveURL(/render\.html/, { timeout: 20_000 });
+  await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Koʻcha kesimi');
+  await expect(page.locator('.ren-base .cap code')).toHaveText(/^2400×\d+$/);
+  const src = await page.evaluate(async () => {
+    const db: IDBDatabase = await new Promise((ok, no) => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+    const v: any = await new Promise((ok, no) => { const q = db.transaction('cache').objectStore('cache').get('render-src'); q.onsuccess = () => ok(q.result?.v); q.onerror = () => no(q.error); });
+    const s = v[0], im = new Image(); im.src = s.img; await im.decode();
+    return { subj: s.subj, facts: s.facts, w: im.naturalWidth, h: im.naturalHeight };
+  });
+  expect(src.subj).toBe('kesim');
+  // 4 qavat toʻliq chizilgan — yuboriladi; 30 qavat uzilish belgisi bilan kesilgan — yuborilmaydi
+  expect(src.facts).toEqual({ floorsLeft: 4 });
+  expect(src.h).toBeLessThan(src.w);
+  expect(errs).toEqual([]);
+});
+
 test('Koʻchasoz varagʻidan «Render studiyasiga» — kesim asos rasm boʻladi', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));

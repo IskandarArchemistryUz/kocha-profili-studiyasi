@@ -375,6 +375,7 @@ function toggleExportMenu(btn: HTMLElement): void {
     item('SVG', axo ? tr('rasm ichida') : tr('vektor'), async () => { if (axo) { const a = await axoSvg(2); if (a) download(`${safeName(base)}.svg`, svgText(a), 'image/svg+xml'); return; } download(`${safeName(base)}.svg`, svgText(cleanSvg(svg)), 'image/svg+xml'); }),
     item('PNG 2×', tr('rasm'), () => axo ? axoPngDl(base, 2) : exportPng(cleanSvg(svg), `${safeName(base)}.png`, 2)),
     item('PNG 4×', tr('chop etish uchun'), () => axo ? axoPngDl(base, 4) : exportPng(cleanSvg(svg), `${safeName(base)}.png`, 4)),
+    ...(!axo && svg.dataset.g ? [item(tr('Render studiyasiga'), tr('Koʻcha kesimi'), () => kesimToRender(svg, st as { bL?: number; bR?: number; eL?: string; eR?: string }, base))] : []),
     item('PDF', 'A3', async () => { if (axo) { const a = await axoSvg(3); if (a) await exportPdf(a, base); return; } await exportPdf(cleanSvg(svg), base); }),
     h('hr', {}),
     h('div', { class: 'ks-mh' }, tr('DXF ga kiritish')),
@@ -404,6 +405,31 @@ async function varaqToRender(svg: SVGSVGElement, name: string): Promise<void> {
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H); URL.revokeObjectURL(u);
     const { sendToRender } = await import('../render/inbox');
     await sendToRender({ name, from: 'ks', subj: 'kocha', img: cv.toDataURL('image/png'), w: W, h: H });
+  } catch (e) { toast(`Render: ${(e as Error).message}`); }
+}
+
+/**
+ * B · kesim → Render studiyasi (18.11, taqqoslov №2 sahna 6): oʻlcham zanjiri, zona kodlari, legenda, yozuvlar va
+ * «N qavat» tugmalarisiz toza kesim (yer osti pastigacha kesiladi) + chap/oʻng qavatlar soni (subj «kesim»).
+ * Bino rasmda uzilish belgisi bilan kesilgan boʻlsa, oʻsha tomon qavati yuborilmaydi — model kadrni choʻzmasin.
+ */
+async function kesimToRender(svg: SVGSVGElement, st: { bL?: number; bR?: number; eL?: string; eR?: string }, name: string): Promise<void> {
+  try {
+    const c = svg.cloneNode(true) as SVGSVGElement, px = parseFloat(svg.dataset.px ?? ''), G = parseFloat(svg.dataset.g ?? ''), d1 = parseFloat(svg.dataset.d1 ?? '');
+    // cleanSvg (io.ts) bilan bir xil UI tozalash + render uchun: oʻlcham qatlamlari, zona kodlari, legenda, qizil chiziqlar va barcha yozuvlar
+    c.querySelectorAll('[data-ly="UI"], [data-ly="DIMROW"], [data-ly="KS_DIM"], [data-ly="KS_TEXT"], [data-ly="KS_LEGEND"], [data-ly="KS_RED_LINE"], text, .ks-hnd, .ks-uh, .ks-bb, rect[style*="cursor"]').forEach(e => e.remove());
+    c.querySelectorAll('[data-ly], [data-bk]').forEach(e => { e.removeAttribute('data-ly'); e.removeAttribute('data-bk'); });
+    const vb = svg.viewBox.baseVal, Hc = Number.isFinite(d1) ? Math.min(vb.height, d1 - 28) : vb.height;
+    c.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.width} ${Hc}`); c.removeAttribute('style'); c.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    const W = 2400, H = Math.round(W * Hc / (vb.width || 1)); c.setAttribute('width', String(W)); c.setAttribute('height', String(H));
+    const u = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(c)], { type: 'image/svg+xml' })), im = new Image(); im.src = u; await im.decode();
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.drawImage(im, 0, 0, W, H); URL.revokeObjectURL(u);
+    const whole = (n: number | undefined, e: string | undefined) => Number.isInteger(n) && (n as number) > 0 && (!e || e === 'bino') && Number.isFinite(px) && Number.isFinite(G) && (4.2 + ((n as number) - 1) * 3.2) * px <= G - 34;
+    const facts: Record<string, number> = {};
+    if (whole(st.bL, st.eL)) facts.floorsLeft = st.bL as number;
+    if (whole(st.bR, st.eR)) facts.floorsRight = st.bR as number;
+    const { sendToRender } = await import('../render/inbox');
+    await sendToRender({ name, from: 'ks', subj: 'kesim', img: cv.toDataURL('image/png'), w: W, h: H, ...(Object.keys(facts).length ? { facts } : {}) });
   } catch (e) { toast(`Render: ${(e as Error).message}`); }
 }
 

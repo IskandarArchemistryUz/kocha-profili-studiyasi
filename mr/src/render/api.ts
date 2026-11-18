@@ -19,7 +19,7 @@ export interface Job {
 /** Yangi render (input…) yoki tayyor natijani kattalashtirish (from — ish id si) */
 export interface JobBody {
   engine: Engine; input?: { key: string; w: number; h: number }; refs?: { key: string; role: string }[]; from?: string;
-  subj?: string; style?: string; fid?: string; extra?: string; source?: string; tag?: string; project?: string;
+  subj?: string; style?: string; fid?: string; extra?: string; source?: string; tag?: string; project?: string; facts?: Record<string, number>;
 }
 /** Kattalashtirish: SeedVR2 (asliga sodiq) va tiniqlashtirish (detal qo'shadi, 2×) */
 export const UPS: [Engine, string][] = [['up2', '×2'], ['up3', '×3'], ['up4', '×4']];
