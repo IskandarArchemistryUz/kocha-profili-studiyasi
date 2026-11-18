@@ -146,7 +146,7 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 .ren-vh .nm code{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ren-vh #vUp button{padding:0 8px;font-variant-numeric:tabular-nums}
 @media (max-width:1180px){.ren-vh .nm b{max-width:180px}.ren-vh .nm code{max-width:180px}.ren-vh #vMode{grid-auto-columns:auto;flex:none}.ren-vh #vMode button{padding:0 8px}.ren-vh .btn-sm{padding-inline:8px}}
-.ren-va .ren-up{display:flex;gap:8px;align-items:center}.ren-va .ren-up .seg{flex:1}.ren-va .ren-up .seg button{flex:1}
+.ren-va .ren-upm{display:flex;margin-bottom:6px}.ren-va .ren-upm button{flex:1}.ren-va .ren-up{display:flex;gap:8px;align-items:center}.ren-va .ren-up .seg{flex:1}.ren-va .ren-up .seg button{flex:1}
 
 /* ===== 4-bosqich (14.11): Render — kanvas «UI-Render»: grafit fon, oltin aksent, tanlangan = oltin halqa + yengil nur ===== */
 #ren{--gold:255,197,61;--gold-ink:#ffd66b;--gold-btn:#ffd27a;--gold-btn-ink:#1a1408}

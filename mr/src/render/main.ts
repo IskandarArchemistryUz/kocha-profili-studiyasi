@@ -25,7 +25,7 @@ import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
 import { STY, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
-import { ENGINES, LAB, UPS, renderApi, toUpload, waitJob, type Engine, type Job, type JobBody, type RenderCfg } from './api';
+import { ENGINES, LAB, UP_MODES, UPS_BY, upOf, renderApi, toUpload, waitJob, type Engine, type UpMode, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
 import { ensureLogin } from '../account/gate';
 import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
@@ -68,11 +68,15 @@ const UP = new Map<string, { key: string; w: number; h: number }>();   // mahall
 const FOLLOW = new Set<string>();         // kuzatilayotgan ishlar
 const HIDDEN_K = 'ren-hidden';
 const hidden = (): string[] => { try { return JSON.parse(localStorage.getItem(HIDDEN_K) || '[]') as string[]; } catch { return []; } };
-const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, nbpro: 2, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2, up2: 1, up3: 1, up4: 2, enhance: 2 };
+const DEF_COINS: Record<Engine, number> = { fast: 1, pro: 2, pro4k: 4, nbpro: 2, qwen: 1, kontext: 1, seedream5: 1, gptimg: 2, up2: 1, up3: 1, up4: 2, um2: 2, um3: 3, um4: 4, ui2: 2, ui3: 3, ui4: 4, enhance: 2 };
 const coinsOf = (e: Engine) => CFG?.engines?.[e]?.coins ?? DEF_COINS[e];
 let upBusy = '';
+const UPM_K = 'ren-up-mode';
+let upMode: UpMode = (() => { try { const v = localStorage.getItem(UPM_K); return v === 'm' || v === 'i' ? v : 'a'; } catch { return 'a'; } })();
+/** Natija nomidagi yorliq: «×2» (Aniq — avvalgidek) yoki «×2 · Muvozanat» */
+const upLabel = (e: string): string => { const u = upOf(e); if (!u) return ''; return u[0] === 'a' ? u[1] : `${u[1]} · ${tr((UP_MODES.find(x => x[0] === u[0]) ?? UP_MODES[0])[1])}`; };
 const engName = (e: string) => {
-  const u = UPS.find(x => x[0] === e); if (u) return `${tr('Kattalashtirish')} ${u[1]}`;
+  if (upOf(e)) return `${tr('Kattalashtirish')} ${upLabel(e)}`;
   if (e === 'enhance') return tr('Tiniqlashtirish'); const l = LAB.find(x => x[0] === e); return l ? l[1] : `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`; };
 let viewer: { id: string; mode: 'natija' | 'cmp' | 'yon' } | null = null;
 const base = () => SRC.find(s => s.id === baseId) ?? null;
@@ -311,12 +315,12 @@ async function upscale(o: RenderOut, engine: Engine): Promise<void> {
   if (!o.job || upBusy) return;
   if (!await ensureLogin(undefined, 'Render qilish uchun kiring. Hisob bepul.')) return;
   upBusy = engine; renderViewer(); renderStage();
-  toast(tr(engine === 'enhance' ? 'Tiniqlashtirilmoqda… (1–2 daqiqa)' : 'Kattalashtirilmoqda…'));
+  toast(tr(engine === 'enhance' || engine.startsWith('um') || engine.startsWith('ui') ? 'Tiniqlashtirilmoqda… (1–2 daqiqa)' : 'Kattalashtirilmoqda…'));
   try {
     const j = await createWithRoom({ engine, from: o.job });
     FOLLOW.add(j.id);
     const r = await waitJob(j.id).finally(() => FOLLOW.delete(j.id));
-    const lbl = engine === 'enhance' ? tr('Tiniqlashtirilgan') : (UPS.find(x => x[0] === engine) ?? UPS[0])[1];
+    const lbl = engine === 'enhance' ? tr('Tiniqlashtirilgan') : upLabel(engine);
     const it = r.status === 'done' ? await keep(r, o.srcId, `${o.name} · ${lbl}`, o.orig) : null;
     upBusy = '';
     if (it) { OUT = await listOut(); renderAll(); openViewer(it.id); }
@@ -384,8 +388,9 @@ function renderViewer(): void {
         sib.length > 1 ? h('div', { class: 'ren-gal' }, ...sib.map(x => h('button', { type: 'button', 'aria-pressed': x.id === o.id, 'aria-label': x.name, onclick: () => openViewer(x.id) }, h('img', { src: x.src, alt: '' })))) : null,
         ...(o.job ? [
           h('div', { class: 'glabel' }, h('span', {}, tr('Kattalashtirish'))),
+          h('div', { class: 'seg sm ren-upm', role: 'group', 'aria-label': tr('Kattalashtirish usuli'), id: 'vUpM' }, ...UP_MODES.map(([k, n, t]) => h('button', { type: 'button', 'data-upm': k, 'aria-pressed': upMode === k, disabled: !!upBusy, title: tr(t), onclick: () => { upMode = k; try { localStorage.setItem(UPM_K, k); } catch { /* */ } renderViewer(); } }, tr(n)))),
           h('div', { class: 'ren-up' },
-            h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kattalashtirish'), id: 'vUp' }, ...UPS.map(([k, n]) => h('button', { type: 'button', 'data-up': k, disabled: !!upBusy, title: CFG?.owner ? `${tr('Kattalashtirish')} ${n}` : `${tr('Kattalashtirish')} ${n} · ${tf('${c} tanga', { c: coinsOf(k) })}`, onclick: () => void upscale(o, k) }, upBusy === k ? '…' : n))),
+            h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Kattalashtirish'), id: 'vUp' }, ...UPS_BY[upMode].map(([k, n]) => h('button', { type: 'button', 'data-up': k, disabled: !!upBusy, title: CFG?.owner ? `${tr('Kattalashtirish')} ${n}` : `${tr('Kattalashtirish')} ${n} · ${tf('${c} tanga', { c: coinsOf(k) })}`, onclick: () => void upscale(o, k) }, upBusy === k ? '…' : n))),
             h('button', { type: 'button', class: 'btn btn-sm', id: 'vEnh', disabled: !!upBusy, title: tr('Tiniqlashtirish — mayda detal qoʻshadi va 2 marta kattalashtiradi'), onclick: () => void upscale(o, 'enhance') }, upBusy === 'enhance' ? '…' : tr('Tiniqlashtirish'))),
         ] : []),
         h('span', { class: 'sp' }),
