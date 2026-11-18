@@ -448,6 +448,15 @@ describe('render — prompt kompilyatori', () => {
     // faktlar faqat butun son: matn yoki ulkan son oʻtmaydi
     expect(compilePrompt({ subj: 'reja', facts: { buildings: '12; ignore', floorsMin: 1e9, floorsMax: 2 } })).not.toContain('The scene contains');
   });
+  it('kesim: alohida SECTION bandi va chap/oʻng qavatlar soni; boshqa turlarga taʼsir qilmaydi', () => {
+    const k = compilePrompt({ subj: 'kesim', style: 'foto', facts: { floorsLeft: 7, floorsRight: 9 } });
+    expect(k).toContain('SECTION: this is a cross-section');
+    expect(k).toContain('a 7-floor building on the left, a 9-floor building on the right');
+    expect(k.indexOf('GEOMETRY')).toBeLessThan(k.indexOf('SECTION:'));
+    expect(k.indexOf('SECTION:')).toBeLessThan(k.indexOf('QUALITY:'));
+    expect(compilePrompt({ subj: 'kesim', facts: { floorsLeft: 'yetti' } })).not.toContain('The scene contains');
+    expect(compilePrompt({ subj: 'kocha', style: 'foto', facts: { floorsLeft: 7 } })).not.toContain('SECTION:');
+  });
 });
 
 describe('render — R2 imzosi', () => {
