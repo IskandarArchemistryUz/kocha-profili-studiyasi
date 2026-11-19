@@ -13,7 +13,12 @@ describe('aptPicks', () => {
     const ps = [plan(rect(0, 0, 60, 15), 9), plan(rect(100, 0, 60, 15), 9), plan(rect(200, 0, 45, 15), 12)];
     const p = aptPicks(ps);
     expect(p.map(x => [x.bi, x.kind])).toEqual([[0, 'first'], [0, 'typical'], [2, 'first'], [2, 'typical']]);
-    expect(p[0].n).toBe(2);
+    expect(p[0].n).toBe(2); expect(p[0].members).toEqual([0, 1]);
+  });
+  it('19.11: qavatlar soni har xil, reja bir xil — bitta varaq (7 va 9 qavatli bir xil seksiya)', () => {
+    const ps = [plan(rect(0, 0, 60, 15), 7), plan(rect(100, 0, 60, 15), 9)];
+    const p = aptPicks(ps);
+    expect(new Set(p.map(x => x.bi))).toEqual(new Set([0])); expect(p[0].members).toEqual([0, 1]);
   });
   it('turlar soni chegarasi', () => {
     const ps = Array.from({ length: 10 }, (_, i) => plan(rect(i * 100, 0, 40 + i * 3, 15), 9));

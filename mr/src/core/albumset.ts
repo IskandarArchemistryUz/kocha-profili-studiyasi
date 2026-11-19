@@ -13,22 +13,25 @@ import { floorGroups } from './floorplan';
 
 export const MAX_APT_TYPES = 6, MAX_HOUSE_TYPES = 6;
 
-export interface AptPick { bi: number; /** floorGroups indeksi */ gi: number; kind: 'first' | 'typical'; /** shu turdagi binolar soni */ n: number }
-/** Bir xil binolar — bitta tur; har turdan 1-qavat va tipik qavat guruhi */
+export interface AptPick { bi: number; /** floorGroups indeksi */ gi: number; kind: 'first' | 'typical'; /** shu turdagi binolar soni */ n: number; /** 19.11: shu reja takrorlanadigan binolar (indekslar, birinchisi — bi) */ members: number[] }
+/**
+ * Bir xil reja — bitta tur; har turdan 1-qavat va tipik qavat guruhi.
+ * 19.11 (egasi: «seksiya ham, plan ham bir xil boʻlsa — bitta umumiy varaq»): kalit — oyoq izi oʻlchami (0,5 m), shakli,
+ * 1-qavat funksiyasi (f0) va kvartiralar ketma-ketligi; qavatlar soni kalitga kirmaydi (7 va 9 qavatli bir xil seksiya — bitta reja).
+ */
+export function aptKey(pl: SecPlan): string {
+  const o = obb2(pl.ring), h = (v: number) => Math.round(v * 2) / 2;
+  return `${h(o.L)}|${h(o.S)}|${pl.ring.length}|${pl.f0}|${(pl.layout?.apts ?? []).map(a => a.rooms).join('')}`;
+}
 export function aptPicks(plans: SecPlan[], max = MAX_APT_TYPES): AptPick[] {
-  const seen = new Map<string, number>(), reps: number[] = [];
-  plans.forEach((pl, bi) => {
-    const o = obb2(pl.ring), key = `${Math.round(o.L)}|${Math.round(o.S)}|${pl.f1}|${pl.ring.length}`;
-    if (seen.has(key)) { seen.set(key, seen.get(key)! + 1); return; }
-    seen.set(key, 1); reps.push(bi);
-  });
-  const keyOf = (bi: number) => { const pl = plans[bi], o = obb2(pl.ring); return `${Math.round(o.L)}|${Math.round(o.S)}|${pl.f1}|${pl.ring.length}`; };
+  const groups = new Map<string, number[]>();
+  plans.forEach((pl, bi) => { const k = aptKey(pl), g = groups.get(k); if (g) g.push(bi); else groups.set(k, [bi]); });
   const out: AptPick[] = [];
-  for (const bi of reps.slice(0, max)) {
-    const gs = floorGroups(plans[bi]); if (!gs.length) continue;
-    const ti = gs.findIndex(g => g.type === 'typical'), n = seen.get(keyOf(bi)) ?? 1;
-    out.push({ bi, gi: 0, kind: 'first', n });
-    if (ti > 0) out.push({ bi, gi: ti, kind: 'typical', n });
+  for (const members of [...groups.values()].slice(0, max)) {
+    const bi = members[0], gs = floorGroups(plans[bi]); if (!gs.length) continue;
+    const ti = gs.findIndex(g => g.type === 'typical'), n = members.length;
+    out.push({ bi, gi: 0, kind: 'first', n, members });
+    if (ti > 0) out.push({ bi, gi: ti, kind: 'typical', n, members });
   }
   return out;
 }

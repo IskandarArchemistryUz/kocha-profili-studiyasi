@@ -5304,7 +5304,7 @@ export class Editor {
     const plans = planApartments(d2), picks = aptPicks(plans), picked = new Map(picks.map(p => [`${p.bi}|${p.kind}`, p]));
     // 02.11 (egasi: «har qavat rejasi shart emas — tipik va birinchi qavat»): har bino turidan 1-qavat va tipik qavat sukut boʻyicha albomda;
     // qolgan binolar (≤ 12) — materiallarda, oʻchiq
-    const aptItem = (pl: SecPlan, bi: number, gi: number | undefined, first: boolean, on: boolean): PlanSrc => {
+    const aptItem = (pl: SecPlan, bi: number, gi: number | undefined, first: boolean, on: boolean, members: number[] = [bi]): PlanSrc => {
       // 29-band (egasi, 25.10): xonadonlar eksplikatsiyasi — alohida jadval, shu reja bilan bitta varaqning oʻng panelida (autolayout `pair`).
       // Chizmadon tahlili (25.10, 1-bosqich): vaziyat sxemasi ham alohida kichik katakda; reja oʻz katagini toʻldiradi —
       // katakka sigʻadigan eng yirik standart masshtabda (GOST 2.302: 1:50, 1:75, 1:100, 1:200…), choʻzilmaydi.
@@ -5313,13 +5313,15 @@ export class Editor {
         const a = i < 0 ? null : aptSheet(doc, ps, i, gi, 'rang', tr, pl2 => { const bb = doc.buildings.find(x => x.id === pl2.bid); return { tr, fh: doc.settings.floorHeight, fh1: bb ? bLevels(doc.settings, bb).fh1 : undefined, ant: bb && hasAntresol(doc.settings, bb) ? area(bb.footprint.map(frame(doc.origin).toLocal)) * ANTRESOL_SHARE : undefined, bal: doc.buildings.find(b => b.id === pl2.bid)?.bal ?? null }; });
         memo = { doc, a }; return a; };
       const sfx = first ? ':1' : '', nm = first ? ` · ${tr('1-qavat')}` : '';
-      return { id: `p:apt:${pl.bid}${sfx}`, name: `Kvartirografiya · ${bi + 1}-bino${nm}`, on, get: (fit) => {
+      // 19.11: bir xil reja bir nechta binoda — bitta varaq, sarlavhada hamma binolar («1, 3, 5-binolar»)
+      const who = members.length > 1 ? `${members.map(i => i + 1).join(', ')}-${tr('binolar')}` : `${bi + 1}-${tr('bino')}`;
+      return { id: `p:apt:${pl.bid}${sfx}`, name: `Kvartirografiya · ${who}${nm}`, on, get: (fit) => {
         const a = sheet(); if (!a) return null;
         const f = a.fit(fit?.w ?? 240, fit?.h ?? 200, fit?.scale);
         return { svg: f.svg, vb: f.vb, w: f.w, h: f.h, scale: f.scale, north: a.north, contain: true, sub: f.sub };
-      }, nav: { id: `p:aptnav:${pl.bid}${sfx}`, name: `Vaziyat sxemasi · ${bi + 1}-bino${nm}`, title: tr('Vaziyat sxemasi'), draw: (r) => {
+      }, nav: { id: `p:aptnav:${pl.bid}${sfx}`, name: `Vaziyat sxemasi · ${who}${nm}`, title: tr('Vaziyat sxemasi'), draw: (r) => {
         const a = sheet(); return a ? a.nav(r.x, r.y, r.w, r.h) : '';
-      } }, table: { id: `p:aptx:${pl.bid}${sfx}`, name: `Xonadonlar eksplikatsiyasi · ${bi + 1}-bino${nm}`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
+      } }, table: { id: `p:aptx:${pl.bid}${sfx}`, name: `Xonadonlar eksplikatsiyasi · ${who}${nm}`, title: tr('Kvartiralar eksplikatsiyasi'), rows: () => {
         const a = sheet(); if (!a) return null;
         if (!a.rows.length) return [[tr('Bu qavatda xona maʼlumoti yoʻq')]];
         const tot = a.rows.reduce((t, r) => t + r.area, 0), f1 = (v: number) => v.toFixed(1).replace('.', ',');
@@ -5328,8 +5330,8 @@ export class Editor {
     };
     plans.slice(0, 12).forEach((pl, bi) => {
       const f = picked.get(`${bi}|first`), t = picked.get(`${bi}|typical`);
-      if (f) out.push(aptItem(pl, bi, f.gi, true, true));
-      out.push(aptItem(pl, bi, t?.gi, false, !!t || (!!f && !t)));   // tipik qavat (1 qavatli boʻlsa — faqat 1-qavat)
+      if (f) out.push(aptItem(pl, bi, f.gi, true, true, f.members));
+      out.push(aptItem(pl, bi, t?.gi, false, !!t || (!!f && !t), (t ?? f)?.members));   // tipik qavat (1 qavatli boʻlsa — faqat 1-qavat)
     });
     // 18.11 (egasi: «albomda aksonometriya turlari va kesimlar boʻlsin — hammasi loyihaga tegishli»):
     // aksonometriya — sahnadan, Varaqlardagi akso uslublari bilan (oq maket, funksiya, fasad, qavatlilik, loyiha va kontekst, saqlanadi/buziladi)
