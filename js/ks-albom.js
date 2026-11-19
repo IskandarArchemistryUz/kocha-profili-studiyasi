@@ -483,7 +483,17 @@ function infoForm(go){const ds=DS(),un=ds.segs.filter(sg=>!sg.name);let hl=null;
   el.querySelector('[data-go]').onclick=()=>fin(true);el.querySelector('[data-skip]').onclick=()=>fin(false);
   setTimeout(()=>{const f=el.querySelector('input');if(f)f.focus();},50);}
 async function openAlbum(force){if(!DS().segs.length){toast('Loyiha boʻsh.');return;}if(!force&&needInfo()){infoForm(()=>openAlbum(true));return;}const w0=open('','_blank');if(w0)w0.document.write('<p style="font:16px Arial;padding:20px">Albom tayyorlanmoqda (shahar xaritasi yuklanmoqda)…</p>');await prepAlbum();const html=albumHTML(),w=w0;if(!w){toast('Brauzer yangi oynani bloklad.');return;}w.document.open();w.document.write(html);w.document.close();}
-async function albumToChz(force){if(!force&&needInfo()){infoForm(()=>albumToChz(true));return;}await prepAlbum();const sh=buildSheets();let n=0;const t=new Date().toISOString();for(const x of sh){const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x.svg);await kpsMatPut({id:'alb'+Date.now().toString(36)+n,kind:'svg',name:x.title,src,thumb:src,aspect:PW/PH,sub:projName(),t});n++;}
-  toast(`${n} ta varaq Chizmadonga yuborildi.`,()=>window.open('app/#/chizmadon','_blank'),'Chizmadonni ochish');}
+async function albumToChz(force){if(!force&&needInfo()){infoForm(()=>albumToChz(true));return;}await prepAlbum();const sh=buildSheets();if(!sh.length){toast('Albom boʻsh.');return;}
+  /* 19.11 (egasi): varaqlar yangi Chizmadonga — loyiha ichidan ochilgan boʻlsa (?p=) shu loyiha albomiga, aks holda alohida albomga.
+     Har varaq tayyor A3 (oʻz ramkasi va shtampi bilan) — «Loyiha albomi»da butun varaqqa joylashadi (mr/src/ui/chzsend.ts formati). */
+  const inner=x=>x.svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
+  let pid=null;try{pid=new URLSearchParams(location.search).get('p');if(!pid){const r=JSON.parse(sessionStorage.getItem('mr-return')||'null');pid=r&&r.id||null;}}catch(e){}
+  const items=sh.map(x=>({name:`${x.title} · ${projName()}`,kind:'sheet',svg:inner(x),vb:[0,0,PW,PH],w:PW,h:PH,page:true}));
+  let c=null;try{const b=map.getCenter();c=[b.lng,b.lat];}catch(e){}
+  const it={...items[0],name:`Koʻchasoz albomi · ${projName()}`,more:items.slice(1).map(x=>x),...(pid?{target:pid}:{target:'new',newName:`Koʻchasoz · ${projName()}`,center:c})};
+  try{localStorage.setItem('ks-chz-inbox',JSON.stringify(it));}
+  catch(e){/* brauzer xotirasiga sigʻmadi — eski yoʻl (Chizmadon materiallari) */let n=0;const t=new Date().toISOString();for(const x of sh){const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x.svg);await kpsMatPut({id:'alb'+Date.now().toString(36)+n,kind:'svg',name:x.title,src,thumb:src,aspect:PW/PH,sub:projName(),t});n++;}
+    toast(`Albom katta — ${n} ta varaq Chizmadon materiallariga qoʻyildi.`,()=>window.open('app/#/chizmadon','_blank'),'Chizmadonni ochish');return;}
+  location.href='app/#/chizmadon';}
 window.KSALB={prepAlbum,buildSheets,albumHTML,openAlbum,albumToChz,pickCut,cuts,drawCutMarks};
 })();

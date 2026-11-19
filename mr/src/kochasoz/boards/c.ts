@@ -384,7 +384,13 @@ export default class Component extends DCLogic {
       if (s.island) { MA.med.forEach(function (q) { if (q.w < 1.5) return; [zW, zE].forEach(function (z) { add('M' + X(z[0] - 1.5) + ' ' + Y(q.a) + 'H' + X(z[1] + 1.5) + 'V' + Y(q.b) + 'H' + X(z[0] - 1.5) + 'Z', line ? '#fff' : '#ece8df', INK, 1); for (var yy = q.a + 0.25; yy < q.b - 0.3; yy += 1.0) add('M' + X(z[0]) + ' ' + Y(yy) + 'H' + X(z[1]) + 'V' + Y(yy + 0.5) + 'H' + X(z[0]) + 'Z', '#d6d0c4', null, 0); }); }); MB.med.forEach(function (q) { if (q.w < 1.5) return; [zN, zS].forEach(function (z) { add('M' + X(q.a) + ' ' + Y(z[0] - 1.5) + 'H' + X(q.b) + 'V' + Y(z[1] + 1.5) + 'H' + X(q.a) + 'Z', line ? '#fff' : '#ece8df', INK, 1, 1, '', KT); }); }); }
     }
     // 6) yoʻl chiziqlari, toʻxtash chiziqlari, strelkalar (mk)
-    function arrow(cx, cy, kind, Lb) { var d = 'M' + cx + ' ' + (cy + 2.6 * px) + 'V' + (cy - 1.2 * px) + 'M' + (cx - 0.5 * px) + ' ' + (cy - 0.4 * px) + 'L' + cx + ' ' + (cy - 1.5 * px) + 'L' + (cx + 0.5 * px) + ' ' + (cy - 0.4 * px); if (kind === 'r') d += 'M' + cx + ' ' + (cy + 0.6 * px) + 'Q' + cx + ' ' + (cy - 0.1 * px) + ' ' + (cx + 0.9 * px) + ' ' + (cy - 0.1 * px) + 'M' + (cx + 0.6 * px) + ' ' + (cy - 0.5 * px) + 'L' + (cx + 1.1 * px) + ' ' + (cy - 0.1 * px) + 'L' + (cx + 0.6 * px) + ' ' + (cy + 0.3 * px); if (kind === 'l') d += 'M' + cx + ' ' + (cy + 0.6 * px) + 'Q' + cx + ' ' + (cy - 0.1 * px) + ' ' + (cx - 0.9 * px) + ' ' + (cy - 0.1 * px) + 'M' + (cx - 0.6 * px) + ' ' + (cy - 0.5 * px) + 'L' + (cx - 1.1 * px) + ' ' + (cy - 0.1 * px) + 'L' + (cx - 0.6 * px) + ' ' + (cy + 0.3 * px); (Lb || L).add(d, null, WM, 1.6); }
+    /** 19.11: T-chorrahada yoʻq tarmoqqa olib boruvchi manevr strelkadan olib tashlanadi. kind: 's' | 'r' (toʻgʻri+oʻngga) | 'l' (toʻgʻri+chapga); dirs — [chap, toʻgʻri, oʻng] qaysi tarmoqqa olib boradi (N/S/E/W); one — yagona boʻlak */
+    function mv(kind, dirs, one) { var b = one ? 'lsr' : kind === 'r' ? 'sr' : kind === 'l' ? 'sl' : 's', ok = function (c) { return s.miss !== dirs['lsr'.indexOf(c)]; }, m = b.split('').filter(ok).join(''); return m || 'lsr'.split('').filter(ok).join(''); }
+    function arrow(cx, cy, kind, Lb) { return arrowM(cx, cy, kind, Lb); var d = 'M' + cx + ' ' + (cy + 2.6 * px) + 'V' + (cy - 1.2 * px) + 'M' + (cx - 0.5 * px) + ' ' + (cy - 0.4 * px) + 'L' + cx + ' ' + (cy - 1.5 * px) + 'L' + (cx + 0.5 * px) + ' ' + (cy - 0.4 * px); if (kind === 'r') d += 'M' + cx + ' ' + (cy + 0.6 * px) + 'Q' + cx + ' ' + (cy - 0.1 * px) + ' ' + (cx + 0.9 * px) + ' ' + (cy - 0.1 * px) + 'M' + (cx + 0.6 * px) + ' ' + (cy - 0.5 * px) + 'L' + (cx + 1.1 * px) + ' ' + (cy - 0.1 * px) + 'L' + (cx + 0.6 * px) + ' ' + (cy + 0.3 * px); if (kind === 'l') d += 'M' + cx + ' ' + (cy + 0.6 * px) + 'Q' + cx + ' ' + (cy - 0.1 * px) + ' ' + (cx - 0.9 * px) + ' ' + (cy - 0.1 * px) + 'M' + (cx - 0.6 * px) + ' ' + (cy - 0.5 * px) + 'L' + (cx - 1.1 * px) + ' ' + (cy - 0.1 * px) + 'L' + (cx - 0.6 * px) + ' ' + (cy + 0.3 * px); (Lb || L).add(d, null, WM, 1.6); }
+    function arrowM(cx, cy, m, Lb) { var d = 'M' + cx + ' ' + (cy + 2.6 * px) + 'V' + (cy + (m.indexOf('s') >= 0 ? -1.2 : 0.6) * px);
+      if (m.indexOf('s') >= 0) d += 'M' + (cx - 0.5 * px) + ' ' + (cy - 0.4 * px) + 'L' + cx + ' ' + (cy - 1.5 * px) + 'L' + (cx + 0.5 * px) + ' ' + (cy - 0.4 * px);
+      [['r', 1], ['l', -1]].forEach(function (t) { if (m.indexOf(t[0]) < 0) return; var g = t[1]; d += 'M' + cx + ' ' + (cy + 0.6 * px) + 'Q' + cx + ' ' + (cy - 0.1 * px) + ' ' + (cx + g * 0.9 * px) + ' ' + (cy - 0.1 * px) + 'M' + (cx + g * 0.6 * px) + ' ' + (cy - 0.5 * px) + 'L' + (cx + g * 1.1 * px) + ' ' + (cy - 0.1 * px) + 'L' + (cx + g * 0.6 * px) + ' ' + (cy + 0.3 * px); });
+      (Lb || L).add(d, null, WM, 1.6); }
     if (Ly.mk !== false) {
       // asosiy: sharqqa (janubiy yarmi, y>0) — toʻxtash zW[0]-1 da; gʻarbga (y<0) — zE[1]+1 da
       var stopW = hasCore ? zW[0] - 1 : -999, stopE = hasCore ? zE[1] + 1 : 999;
@@ -394,14 +400,14 @@ export default class Component extends DCLogic {
         var inA = MA.z.filter(function (q) { return (q.t === 'qat' || q.t === 'bus') && q.a >= 0; }), outA = MA.z.filter(function (q) { return (q.t === 'qat' || q.t === 'bus') && q.b <= 0; });
         var a0 = inA.length ? inA[0].a : 0, a1 = inA.length ? inA[inA.length - 1].b : 0; if (a1 > a0) add('M' + X(stopW) + ' ' + Y(a0) + 'V' + Y(a1), null, WM, 3);
         var o0 = outA.length ? outA[0].a : 0, o1 = outA.length ? outA[outA.length - 1].b : 0; if (o1 > o0) add('M' + X(stopE) + ' ' + Y(o0) + 'V' + Y(o1), null, WM, 3);
-        inA.forEach(function (q, k) { var cy = Y((q.a + q.b) / 2), cx = X(stopW - 6); arrow(cx, cy, k === inA.length - 1 ? 'r' : (k === 0 && inA.length > 1 ? 'l' : 's'), rot(cx, cy)); });
-        outA.forEach(function (q, k) { var cy = Y((q.a + q.b) / 2), cx = X(stopE + 6); var Lr = { line: line, ink: INK, add: function (d, f, st, w, o, da, t) { add(d, f, st, w, o, da, 'rotate(-90 ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' + (t ? ' ' + t : '')); } }; arrow(cx, cy, k === 0 ? 'r' : (k === outA.length - 1 && outA.length > 1 ? 'l' : 's'), Lr); });
+        inA.forEach(function (q, k) { var cy = Y((q.a + q.b) / 2), cx = X(stopW - 6); arrow(cx, cy, mv(k === inA.length - 1 ? 'r' : (k === 0 && inA.length > 1 ? 'l' : 's'), 'NES', inA.length === 1), rot(cx, cy)); });
+        outA.forEach(function (q, k) { var cy = Y((q.a + q.b) / 2), cx = X(stopE + 6); var Lr = { line: line, ink: INK, add: function (d, f, st, w, o, da, t) { add(d, f, st, w, o, da, 'rotate(-90 ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' + (t ? ' ' + t : '')); } }; arrow(cx, cy, mv(k === 0 ? 'r' : (k === outA.length - 1 && outA.length > 1 ? 'l' : 's'), 'SWN', outA.length === 1), Lr); });
         var sNb = zN[0] - 1, sSb = zS[1] + 1;
         var inB = MB.z.filter(function (q) { return (q.t === 'qat' || q.t === 'bus') && q.b <= 0; }), outB = MB.z.filter(function (q) { return (q.t === 'qat' || q.t === 'bus') && q.a >= 0; });
         if (inB.length) add('M' + X(inB[0].a) + ' ' + Y(sNb) + 'H' + X(inB[inB.length - 1].b), null, WM, 3, 1, '', KT);
         if (outB.length) add('M' + X(outB[0].a) + ' ' + Y(sSb) + 'H' + X(outB[outB.length - 1].b), null, WM, 3, 1, '', KT);
-        inB.forEach(function (q, k) { var cx = X((q.a + q.b) / 2), cy = Y(sNb - 6); var Lr = { line: line, ink: INK, add: function (d, f, st, w, o, da, t) { add(d, f, st, w, o, da, KT + ' rotate(180 ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' + (t ? ' ' + t : '')); } }; arrow(cx, cy, k === 0 ? 'r' : (k === inB.length - 1 && inB.length > 1 ? 'l' : 's'), Lr); });
-        outB.forEach(function (q, k) { var cx = X((q.a + q.b) / 2), cy = Y(sSb + 6); arrow(cx, cy, k === outB.length - 1 ? 'r' : (k === 0 && outB.length > 1 ? 'l' : 's'), LK); });
+        inB.forEach(function (q, k) { var cx = X((q.a + q.b) / 2), cy = Y(sNb - 6); var Lr = { line: line, ink: INK, add: function (d, f, st, w, o, da, t) { add(d, f, st, w, o, da, KT + ' rotate(180 ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' + (t ? ' ' + t : '')); } }; arrow(cx, cy, mv(k === 0 ? 'r' : (k === inB.length - 1 && inB.length > 1 ? 'l' : 's'), 'ESW', inB.length === 1), Lr); });
+        outB.forEach(function (q, k) { var cx = X((q.a + q.b) / 2), cy = Y(sSb + 6); arrow(cx, cy, mv(k === outB.length - 1 ? 'r' : (k === 0 && outB.length > 1 ? 'l' : 's'), 'WNE', outB.length === 1), LK); });
       }
       MA.z.forEach(function (q) { if (q.t !== 'tram') return; [0.27, 0.73].forEach(function (f) { add('M0 ' + Y(q.a + q.w * f) + 'H784', null, '#55524d', 1.1); }); });
       MB.z.forEach(function (q) { if (q.t !== 'tram') return; [0.27, 0.73].forEach(function (f) { add('M' + X(q.a + q.w * f) + ' ' + Y(-EXT) + 'V' + Y(EXT), null, '#55524d', 1.1, 1, '', KT); }); });
@@ -456,7 +462,8 @@ export default class Component extends DCLogic {
       return T1;
     }
     var DIR = s.tdir == null ? 0 : s.tdir;
-    if (hasCore && s.turn) { VKEYS.forEach(function (k, i) { TRS.push(turnOne(k, i)); }); TR0 = TRS[TRS.length - 1]; }
+    var trOK = s.miss !== 'S' && s.miss !== 'W', tlOK = s.miss !== 'N' && s.miss !== 'W';   // 19.11: yoʻq tarmoqqa (yoki undan) burilish izi chizilmaydi
+    if (hasCore && s.turn && trOK) { VKEYS.forEach(function (k, i) { TRS.push(turnOne(k, i)); }); TR0 = TRS[TRS.length - 1]; }
     // 10b) chapga burilish — chorraha markazi orqali, qarshi oqimni kesib
     var TLS = [], CF = [];
     function calcLeft(key) {
@@ -485,7 +492,7 @@ export default class Component extends DCLogic {
       }
       return t;
     }
-    if (hasCore && s.turn && DIR !== 0) VKEYS.forEach(function (k, i) { TLS.push(leftOne(k, i)); });
+    if (hasCore && s.turn && DIR !== 0 && tlOK) VKEYS.forEach(function (k, i) { TLS.push(leftOne(k, i)); });
     // toʻqnashuv nuqtalari (cf) — dizayn avtomobili boʻyicha
     function crossPts(path, fnVal, target) { for (var i = 1; i < path.length; i++) { var v0 = fnVal(path[i - 1]) - target, v1 = fnVal(path[i]) - target; if (v0 === 0 || v0 * v1 < 0) { var f = v0 / (v0 - v1); return [path[i - 1][0] + (path[i][0] - path[i - 1][0]) * f, path[i - 1][1] + (path[i][1] - path[i - 1][1]) * f]; } } return null; }
     function gy(p) { return p[1]; } function lb(p) { return Lc(p)[1]; }
@@ -520,16 +527,21 @@ export default class Component extends DCLogic {
         // asosiy koʻcha chetidan (qizil chiziq oldidagi zaxira tasmasi bilan) — avval tasma rangi, keyin kvartal foni
         var B1 = inter([0, sg * MA.rl / 2], [1, 0], [-w * NV[0], -w * NV[1]], UV), B2 = inter([0, sg * MA.rl / 2], [1, 0], [w * NV[0], w * NV[1]], UV);
         var P1 = inter([0, yR], [1, 0], [-w * NV[0], -w * NV[1]], UV), P2 = inter([0, yR], [1, 0], [w * NV[0], w * NV[1]], UV);
-        fillG([B1, B2, P2, P1], band);
+        // 19.11 (egasi: T-chorrahada geometriya xato): yoʻq tarmoq tomonidagi burchak yoylari (R, qiyshiq burchakda uzunroq) ham yopiladi — asosiy koʻchaning trotuari va bordyuri butun eni boʻylab davom etadi
+        var CX0 = [B1[0], B2[0], P1[0], P2[0]]; CR.forEach(function (c) { if ((c.c > 0) === (sg > 0)) CX0.push(c.T1[0], c.T2[0]); });
+        var xa = Math.min.apply(null, CX0) - 1, xb = Math.max.apply(null, CX0) + 1;
+        fillG([[xa, sg * MA.rl / 2], [xb, sg * MA.rl / 2], [xb, yR], [xa, yR]], band);
         var G4 = [P1, P2, [P2[0] + sg * UV[0] * EXT, P2[1] + sg * UV[1] * EXT], [P1[0] + sg * UV[0] * EXT, P1[1] + sg * UV[1] * EXT]];
         missG = G4; poly = G4.map(scr);
         add('M' + poly.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('L') + 'Z', bg, null, 0); clipHatch(poly);
-        var xa = Math.min(P1[0], P2[0]) - 1, xb = Math.max(P1[0], P2[0]) + 1, ye = sg > 0 ? ym2 : ym1;
+        var ye = sg > 0 ? ym2 : ym1;
         MA.z.forEach(function (q) { if (sg > 0 ? q.a < ym2 - 0.01 : q.b > ym1 + 0.01) return; add('M' + X(xa) + ' ' + Y(q.a) + 'H' + X(xb) + 'V' + Y(q.b) + 'H' + X(xa) + 'Z', line ? '#ffffff' : T[q.t], line ? '#d6d3cc' : null, 0.4); });
         add('M' + X(xa) + ' ' + Y(ye) + 'H' + X(xb), null, INK, 1.4); add('M' + X(xa) + ' ' + Y(yR) + 'H' + X(xb), null, INK, 1.1);
       } else {
         var se = s.miss === 'E' ? 1 : -1, kR = se * (MB.rl / 2 + SB), hA = MA.rl / 2 + SB + 1;
-        var Q1 = inter([0, -hA], [1, 0], [kR * NV[0], kR * NV[1]], UV), Q2 = inter([0, hA], [1, 0], [kR * NV[0], kR * NV[1]], UV), xf = se * (784 / px / 2 + 4);
+        var Q1 = inter([0, -hA], [1, 0], [kR * NV[0], kR * NV[1]], UV), Q2 = inter([0, hA], [1, 0], [kR * NV[0], kR * NV[1]], UV), xf = se * ((se > 0 ? 784 - CX : CX) / px);   // 19.11: fon chegarasidan chiqmasin
+        CR.forEach(function (c) { if ((c.k > 0) === (se > 0)) hA = Math.max(hA, Math.abs(c.T2[1]) + 1); });   // 19.11: burchak yoylari ham yopilsin
+        Q1 = inter([0, -hA], [1, 0], [kR * NV[0], kR * NV[1]], UV); Q2 = inter([0, hA], [1, 0], [kR * NV[0], kR * NV[1]], UV);
         var kB = se * MB.rl / 2, Z1 = inter([0, -hA], [1, 0], [kB * NV[0], kB * NV[1]], UV), Z2 = inter([0, hA], [1, 0], [kB * NV[0], kB * NV[1]], UV);
         fillG([Z1, Q1, Q2, Z2], band);
         var G4 = [Q1, [xf, -hA], [xf, hA], Q2]; missG = G4; poly = G4.map(scr);

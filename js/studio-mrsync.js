@@ -18,12 +18,15 @@ function sync(force){
   const M=J();if(!M||!Array.isArray(M.nodes)||!Array.isArray(M.edges))return 0;
   const h=hash(JSON.stringify([M.nodes,M.edges.map(e=>[e.id,e.a,e.b,e.preset])]));
   const ds=DS();if(!force&&ds.mrH===h)return 0;
+  /* 19.11: loyiha ichidan (Koʻchasoz → Tarmoq, ?p=) — boshqa loyihadan qolgan sinxron koʻchalar olib tashlanadi; qoʻlda chizilganlari qoladi */
+  if(M.pid&&ds.mrPid!==M.pid){const old=new Set(ds.segs.filter(s=>s.mr!=null).map(s=>s.id));for(let i=ds.segs.length-1;i>=0;i--)if(old.has(ds.segs[i].id))ds.segs.splice(i,1);for(let i=ds.nodes.length-1;i>=0;i--){const n=ds.nodes[i];if(n.mr!=null&&!ds.segs.some(s=>s.a===n.id||s.b===n.id))ds.nodes.splice(i,1);}ds.mrPid=M.pid;if(M.name)ds.name=ds.name||M.name;ds.mrFit=1;}
   const byN=new Map(ds.nodes.filter(n=>n.mr!=null).map(n=>[n.mr,n])),idMap={};
   M.nodes.forEach(m=>{const ll=[+(+m.ll[1]).toFixed(7),+(+m.ll[0]).toFixed(7)];let n=byN.get(m.id);
     if(!n){n=newNode(ll);n.mr=m.id;}else{n.ll=ll;byN.delete(m.id);}idMap[m.id]=n.id;});
   const byS=new Map(ds.segs.filter(s=>s.mr!=null).map(s=>[s.mr,s]));let added=0;
   M.edges.forEach(e=>{const a=idMap[e.a],b=idMap[e.b];if(a==null||b==null)return;const pre=PRESETS[e.preset]?e.preset:'r4';let s=byS.get(e.id);
-    if(!s){s={id:ds.sid++,a,b,pts:[],rad:[],p:pre,mr:e.id,mrP:pre};ds.segs.push(s);added++;}
+    const pts=Array.isArray(e.pts)?e.pts.map(q=>[+(+q[0]).toFixed(7),+(+q[1]).toFixed(7)]):[];
+    if(!s){s={id:ds.sid++,a,b,pts,rad:pts.map(()=>0),p:pre,mr:e.id,mrP:pre};if(Array.isArray(e.st)&&e.st.length){s.p='custom';s.st=e.st;s.shift=-autoOff(e.st);}if(e.name)s.name=e.name;ds.segs.push(s);added++;}
     else{byS.delete(e.id);
       /* bu yerda boʻlingan segment (uchlaridan biri mahalliy tugun) — geometriyasi saqlanadi */
       const A=nodeById(s.a),B=nodeById(s.b);if(A&&B&&A.mr!=null&&B.mr!=null){s.a=a;s.b=b;s.pts=[];s.rad=[];}
@@ -33,6 +36,7 @@ function sync(force){
   byN.forEach(n=>{if(ds.segs.some(s=>s.a===n.id||s.b===n.id))delete n.mr;else{const i=ds.nodes.indexOf(n);if(i>=0)ds.nodes.splice(i,1);}});
   ds.mrH=h;
   busy=true;try{afterDesign();}finally{busy=false;}
+  if(ds.mrFit&&typeof map!=='undefined'){ds.mrFit=0;try{const ll=ds.nodes.filter(n=>n.mr!=null).map(n=>n.ll);if(ll.length)map.fitBounds(window.L.latLngBounds(ll).pad(.25),{maxZoom:19,animate:false});}catch(e){}}
   return added;
 }
 /* ← modul almashtirilsa asosiy oynaga */
