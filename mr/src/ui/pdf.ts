@@ -21,7 +21,22 @@ export async function svgPdf(pages: PdfPage[], name: string, item?: string): Pro
   return mode === 'clean' ? asClean(() => makePdf(pages, name)) : needWm() ? makeRasterPdf(pages, name) : makePdf(pages, name);
 }
 const PDF_FALLBACK_PX = 3300;
-async function makePdf(pages: PdfPage[], name: string): Promise<void> {
+/* 19.11 (egasi: «46 varaqli albom PDF da qulaydi»): jsPDF sahifa oqimlarini saqlashgacha siqilmagan satrlarda ushlaydi —
+   SVG ning har belgisiga ~18 bayt xotira (17 mln belgi → +300 MB, saqlashda yana +110 MB). Katta albom shu sababli tab xotirasidan oshardi.
+   Endi varaqlar SVG hajmi boʻyicha boʻlaklarga boʻlinadi: har boʻlak alohida jsPDF da yasalib, siqilgan holda (ArrayBuffer) olinadi va
+   jsPDF tashlab yuboriladi; oxirida boʻlaklar pdf-lib bilan bitta faylga birlashtiriladi. Kichik albom — bitta boʻlak, avvalgidek.
+   Oʻlchov (150 varaq, 100 mln belgi, GC dan keyin): eski +1026 MB, yangi +124 MB; vaqt 66 → 78 s. Har varaqdan keyin setTimeout qoʻyilmaydi —
+   fon tabida u 1 s gacha choʻziladi (vaqt 2 barobar oshgan edi); faqat boʻlaklar orasida. */
+const PDF_CHUNK_CHARS = 8e6;
+/** varaqlar → boʻlaklar (har biri ≤ lim belgi; bitta katta varaq — oʻzi bir boʻlak) */
+export function pdfChunks<T extends { svg: string }>(pages: T[], lim = PDF_CHUNK_CHARS): T[][] {
+  const out: T[][] = []; let g: T[] = [], acc = 0;
+  for (const p of pages) { if (g.length && acc + p.svg.length > lim) { out.push(g); g = []; acc = 0; } g.push(p); acc += p.svg.length; }
+  if (g.length) out.push(g);
+  return out;
+}
+const tick = () => new Promise<void>(r => setTimeout(r, 0));
+async function renderPdf(pages: PdfPage[]): Promise<import('jspdf').jsPDF> {
   const { jsPDF, svg2pdf, fonts } = await loadPdf();
   const first = pages[0];
   const pdf = new jsPDF({ unit: 'mm', format: [first.widthMm, first.heightMm], orientation: first.widthMm > first.heightMm ? 'landscape' : 'portrait', compress: true });
@@ -39,7 +54,23 @@ async function makePdf(pages: PdfPage[], name: string): Promise<void> {
     const host = document.createElement('div'); host.style.cssText = 'position:fixed;left:-99999px;top:0'; host.append(el); document.body.append(host);
     try { await svg2pdf(el as unknown as Element, pdf, { x: 0, y: 0, width: r.widthMm, height: r.heightMm }); } finally { host.remove(); }
   }
-  pdf.save(name);
+  return pdf;
+}
+async function makePdf(pages: PdfPage[], name: string): Promise<void> {
+  const groups = pdfChunks(pages);
+  if (groups.length === 1) { (await renderPdf(pages)).save(name); return; }
+  const parts: ArrayBuffer[] = [];
+  for (const g of groups) { parts.push((await renderPdf(g)).output('arraybuffer')); await tick(); }
+  const { PDFDocument } = await import('pdf-lib');
+  const out = await PDFDocument.create();
+  for (let i = 0; i < parts.length; i++) {
+    const src = await PDFDocument.load(parts[i]); parts[i] = new ArrayBuffer(0);
+    for (const pg of await out.copyPages(src, src.getPageIndices())) out.addPage(pg);
+  }
+  const bytes = await out.save({ useObjectStreams: true });
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /** Bepul PDF: sahifa — rasm (JPEG), belgi piksellarda; matn va vektor yoʻq */
