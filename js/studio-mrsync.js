@@ -51,5 +51,17 @@ const _ad=afterDesign;
 afterDesign=function(){_ad();pushBack();};
 window.addEventListener('storage',e=>{if(e.key===KEY){const n=sync(false);if(n&&typeof toast==='function')toast(`Asosiy oynadan ${n} ta koʻcha keldi.`);}});
 const n0=sync(false);if(n0&&typeof toast==='function')setTimeout(()=>toast(`Asosiy oynadagi ${n0} ta koʻcha shu yerga olindi — kesim, YHQ va belgilar shu yerda.`),800);
-window.KPSMRSYNC={sync};
+/* 19.11 (egasi): loyiha joyida eski OSM binolari koʻrinmasin — uchastka asos xarita ustidan yopiladi, loyiha binolari (qavati bilan) chiziladi.
+   Qatlam koʻchalar (design, z 450) ostida: koʻchalar va chorrahalar ustida qoladi. */
+let projL=null;
+function drawProject(){const M=J();if(projL){projL.remove();projL=null;}if(!M||(!M.site&&!M.bld)||typeof map==='undefined'||!window.L)return;
+  if(!map.getPane('mrProj')){map.createPane('mrProj');map.getPane('mrProj').style.zIndex=420;map.getPane('mrProj').style.pointerEvents='none';}
+  projL=window.L.layerGroup().addTo(map);const o={pane:'mrProj',interactive:false};
+  (M.site||[]).forEach(r=>window.L.polygon(r,{...o,stroke:true,color:'#c0392b',weight:1.5,dashArray:'6 4',fillColor:'#f2efe9',fillOpacity:1}).addTo(projL));
+  (M.bld||[]).forEach(b=>{window.L.polygon(b.r,{...o,color:'#6f6a60',weight:1,fillColor:b.f>=9?'#cfc5b4':'#ddd5c6',fillOpacity:1}).addTo(projL);
+    const c=b.r.reduce((a,p)=>[a[0]+p[0]/b.r.length,a[1]+p[1]/b.r.length],[0,0]);
+    window.L.marker(c,{pane:'mrProj',interactive:false,icon:window.L.divIcon({className:'',html:`<b style="font:600 10px Archivo,sans-serif;color:#4a463f;white-space:nowrap">${b.f}</b>`,iconSize:[16,12],iconAnchor:[8,6]})}).addTo(projL);});}
+window.addEventListener('storage',e=>{if(e.key===KEY)drawProject();});
+drawProject();
+window.KPSMRSYNC={sync,drawProject};
 })();
