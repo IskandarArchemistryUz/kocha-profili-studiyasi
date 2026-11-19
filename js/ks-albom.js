@@ -487,7 +487,7 @@ async function albumToChz(force){if(!force&&needInfo()){infoForm(()=>albumToChz(
   /* 19.11 (egasi): varaqlar yangi Chizmadonga — loyiha ichidan ochilgan boʻlsa (?p=) shu loyiha albomiga, aks holda alohida albomga.
      Har varaq tayyor A3 (oʻz ramkasi va shtampi bilan) — «Loyiha albomi»da butun varaqqa joylashadi (mr/src/ui/chzsend.ts formati). */
   const inner=x=>x.svg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
-  let pid=null;try{pid=new URLSearchParams(location.search).get('p');if(!pid){const r=JSON.parse(sessionStorage.getItem('mr-return')||'null');pid=r&&r.id||null;}}catch(e){}
+  let pid=null;try{pid=new URLSearchParams(location.search).get('p');if(!pid)pid=DS().mrPid||null;if(!pid){const r=JSON.parse(sessionStorage.getItem('mr-return')||'null');pid=r&&r.id||null;}}catch(e){}
   const items=sh.map(x=>({name:`${x.title} · ${projName()}`,kind:'sheet',svg:inner(x),vb:[0,0,PW,PH],w:PW,h:PH,page:true}));
   let c=null;try{const b=map.getCenter();c=[b.lng,b.lat];}catch(e){}
   const it={...items[0],name:`Koʻchasoz albomi · ${projName()}`,more:items.slice(1).map(x=>x),...(pid?{target:pid}:{target:'new',newName:`Koʻchasoz · ${projName()}`,center:c})};

@@ -36,8 +36,7 @@ export function osmPreset(t: Record<string, string>): string {
   if (one) return n >= 3 ? 'one3' : n === 2 || ['primary', 'secondary', 'trunk'].includes(hw) ? 'one2' : 'one1';
   if (n >= 6 || hw === 'trunk') return 'r6';
   if (n >= 4 || hw === 'primary' || hw === 'secondary') return 'r4';
-  if (hw === 'living_street') return 'shared';
-  if (hw === 'residential' || hw === 'unclassified') return 'res1';
+  if (hw === 'residential' || hw === 'unclassified' || hw === 'living_street') return 'res1';
   return 'r2';
 }
 

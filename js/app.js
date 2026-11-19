@@ -4141,7 +4141,8 @@ window.addEventListener('resize',()=>{if(S.app==='prof'&&S.pv&&S.pv!=='map'&&S.p
     const keep={base:S.base,helpSeen:S.helpSeen,gkey:S.gkey};S=Object.assign(sample(),keep);save();}
   const op=q.get('open');if(op){const v=readSaves()[op];if(v)try{S=Object.assign(sample(),JSON.parse(v.d));_id=Math.max(0,...S.prof.ex.map(e=>e.id),...S.prof.pr.map(e=>e.id));save();}catch(e){}}
   if(['area','prof','design'].includes(h))S.app=h;
-  if(q.toString())history.replaceState(null,'',location.pathname+location.hash);})();
+  /* 19.11: ?p= (loyiha) saqlanadi — Chizmadonga yuborishda shu loyiha albomi */
+  if(q.get('new')||q.get('open')){q.delete('new');q.delete('open');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}})();
 setMode('pick'); renderAll(); setApp(S.app||'area');
 
 /* Maʼlumotlar boʻlimidan import qilingan qatlamlar (umumiy IndexedDB) */
