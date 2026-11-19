@@ -367,12 +367,29 @@ export default class Component extends DCLogic {
     if (!hasCore) { if (MA.cw > 0) add('M0 ' + Y(ym1) + 'H784M0 ' + Y(ym2) + 'H784', null, INK, 1.4); if (MB.cw > 0) add('M' + X(xc1) + ' ' + Y(-EXT) + 'V' + Y(EXT) + 'M' + X(xc2) + ' ' + Y(-EXT) + 'V' + Y(EXT), null, INK, 1.4, 1, '', KT); }
     // 4) velo va avtobus davomi (vb)
     if (hasCore && Ly.vb !== false) {
-      MA.bus.forEach(function (q) { add('M' + X(xW) + ' ' + Y(q.a) + 'H' + X(xE) + 'V' + Y(q.b) + 'H' + X(xW) + 'Z', line ? '#ffffff' : T.bus, null, 0, 0.55); add('M' + X(xW) + ' ' + Y(q.a) + 'H' + X(xE) + 'M' + X(xW) + ' ' + Y(q.b) + 'H' + X(xE), null, WM, 1.2, 1, '6 5'); });
-      MB.bus.forEach(function (q) { add('M' + X(q.a) + ' ' + Y(bN) + 'H' + X(q.b) + 'V' + Y(bS) + 'H' + X(q.a) + 'Z', line ? '#ffffff' : T.bus, null, 0, 0.55, '', KT); add('M' + X(q.a) + ' ' + Y(bN) + 'V' + Y(bS) + 'M' + X(q.b) + ' ' + Y(bN) + 'V' + Y(bS), null, WM, 1.2, 1, '6 5', KT); });
+      // 19.11: T-chorrahada avtobus boʻlagi yoʻq tarmoq tomon (berk bordyurga) davom ettirilmaydi — u yerda faqat burilish bor
+      var busA = s.miss !== 'E' && s.miss !== 'W', busB = s.miss !== 'N' && s.miss !== 'S';
+      if (busA) MA.bus.forEach(function (q) { add('M' + X(xW) + ' ' + Y(q.a) + 'H' + X(xE) + 'V' + Y(q.b) + 'H' + X(xW) + 'Z', line ? '#ffffff' : T.bus, null, 0, 0.55); add('M' + X(xW) + ' ' + Y(q.a) + 'H' + X(xE) + 'M' + X(xW) + ' ' + Y(q.b) + 'H' + X(xE), null, WM, 1.2, 1, '6 5'); });
+      if (busB) MB.bus.forEach(function (q) { add('M' + X(q.a) + ' ' + Y(bN) + 'H' + X(q.b) + 'V' + Y(bS) + 'H' + X(q.a) + 'Z', line ? '#ffffff' : T.bus, null, 0, 0.55, '', KT); add('M' + X(q.a) + ' ' + Y(bN) + 'V' + Y(bS) + 'M' + X(q.b) + ' ' + Y(bN) + 'V' + Y(bS), null, WM, 1.2, 1, '6 5', KT); });
       // velo yoʻlini oʻtish joyiga ulash (burchakda egilish)
       var vcol = line ? '#ffffff' : T.velo;
-      if (vwA) MA.velo.forEach(function (q) { var north = q.b <= 0, r = north ? [zN[1], zN[1] + vwA] : [zS[0] - vwA, zS[0]]; [xc1, xc2].forEach(function (xk) { var sd = xk < 0 ? -1 : 1, kr = kLine(sd * (MB.rl / 2 + SB)); var pa = inter(mainLine(q.a)[0], [1, 0], kr[0], kr[1]), pb = inter(mainLine(q.b)[0], [1, 0], kr[0], kr[1]); var g0 = G(xk, r[0]), g1 = G(xk, r[1]); add('M' + pp(pa) + 'L' + pp(pb) + 'L' + pp(g1) + 'L' + pp(g0) + 'Z', vcol, line ? INK : null, 0.6); }); });
-      if (vwB) MB.velo.forEach(function (q) { var west = q.b <= 0, r = west ? [zW[1], zW[1] + vwB] : [zE[0] - vwB, zE[0]]; [ym1, ym2].forEach(function (yk) { var sd = yk < 0 ? -1 : 1, ml = mainLine(sd * (MA.rl / 2 + SB)); var pa = inter(ml[0], ml[1], kLine(q.a)[0], UV), pb = inter(ml[0], ml[1], kLine(q.b)[0], UV); add('M' + pp(pa) + 'L' + pp(pb) + 'L' + X(r[1]) + ' ' + Y(yk) + 'L' + X(r[0]) + ' ' + Y(yk) + 'Z', vcol, line ? INK : null, 0.6); }); });
+      /* 19.11: velo ulagichi burchak bordyuriga parallel yuradi — velo yoʻli bordyurdan qancha uzoq boʻlsa, burchakda ham shuncha (konsentrik yoy),
+         keyin kesib oʻtiladigan koʻcha bordyuri boʻylab oʻtish joyigacha va unga buriladi. Avval bino chizigʻidan toʻgʻri diagonal edi —
+         qiyshiq chorrahada trotuar boʻylab uzun tasma boʻlib, burchak asfaltini ham kesardi. */
+      function vRib(c, entK, o, vw, sN, sF) {
+        var h = vw / 2, Ta = entK ? c.T2 : c.T1, Tb = entK ? c.T1 : c.T2, ea = entK ? c.e2 : c.e1, eb = entK ? c.e1 : c.e2;
+        var bis = [c.e1[0] + c.e2[0], c.e1[1] + c.e2[1]], bl = Math.hypot(bis[0], bis[1]), sh = Math.sin(Math.acos(Math.max(-1, Math.min(1, c.e1[0] * c.e2[0] + c.e1[1] * c.e2[1]))) / 2);
+        var nIn = function (T) { return [(c.C[0] - T[0]) / R, (c.C[1] - T[1]) / R]; }, na = nIn(Ta), nb = nIn(Tb);
+        var at = function (T, e, s, n, d) { return [T[0] + e[0] * s + n[0] * d, T[1] + e[1] * s + n[1] * d]; };
+        function arc(d) { var rr = R - d; if (rr <= 0.05) return [[c.P[0] + bis[0] / bl * d / sh, c.P[1] + bis[1] / bl * d / sh]]; var a1 = Math.atan2(Ta[1] - c.C[1], Ta[0] - c.C[0]), a2 = Math.atan2(Tb[1] - c.C[1], Tb[0] - c.C[0]), da = a2 - a1, out = []; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; for (var k = 0; k <= 16; k++) { var t = a1 + da * k / 16; out.push([c.C[0] + rr * Math.cos(t), c.C[1] + rr * Math.sin(t)]); } return out; }
+        var dO = o + h, dI = Math.max(0, o - h), lead = 1.5;
+        var P = [at(Ta, ea, lead, na, dO)].concat(arc(dO), [at(Tb, eb, sF, nb, dO), at(Tb, eb, sF, nb, 0), at(Tb, eb, sN, nb, 0), at(Tb, eb, sN, nb, dI)], arc(dI).reverse(), [at(Ta, ea, lead, na, dI)]);
+        add(P.map(function (p, k) { return (k ? 'L' : 'M') + pp(p); }).join('') + 'Z', vcol, line ? INK : null, 0.6);
+      }
+      // asosiy koʻcha velo yoʻli → K ustidagi oʻtish (K lokal y boʻylab)
+      if (vwA) MA.velo.forEach(function (q) { var north = q.b <= 0, yk = north ? ym1 : ym2, o = north ? ym1 - (q.a + q.b) / 2 : (q.a + q.b) / 2 - ym2, r = north ? [zN[1], zN[1] + vwA] : [zS[0] - vwA, zS[0]], sg = north ? -1 : 1; [xc1, xc2].forEach(function (xk) { var c = crn(xk, yk); if (!c) return; var t0 = Lc(c.T2)[1], s1 = (r[0] - t0) * sg, s2 = (r[1] - t0) * sg; vRib(c, false, o, q.w, Math.min(s1, s2), Math.max(s1, s2)); }); });
+      // K velo yoʻli → asosiy koʻcha ustidagi oʻtish (global x boʻylab)
+      if (vwB) MB.velo.forEach(function (q) { var west = q.b <= 0, xk = west ? xc1 : xc2, o = west ? xc1 - (q.a + q.b) / 2 : (q.a + q.b) / 2 - xc2, r = west ? [zW[1], zW[1] + vwB] : [zE[0] - vwB, zE[0]]; [ym1, ym2].forEach(function (yk) { var c = crn(xk, yk); if (!c) return; var s1 = (r[0] - c.T1[0]) * c.e1[0], s2 = (r[1] - c.T1[0]) * c.e1[0]; vRib(c, true, o, q.w, Math.min(s1, s2), Math.max(s1, s2)); }); });
       // velo oʻtish: asosiy koʻchaning velo yoʻli K qatnov qismini kesadi (K lokal) va aksincha
       if (vwA) [[zN[1], zN[1] + vwA], [zS[0] - vwA, zS[0]]].forEach(function (r) { add('M' + X(xc1) + ' ' + Y(r[0]) + 'H' + X(xc2) + 'V' + Y(r[1]) + 'H' + X(xc1) + 'Z', line ? '#ffffff' : T.velo, null, 0, 0.9, '', KT); for (var a2 = xc1; a2 < xc2; a2 += 1.0) add('M' + X(a2) + ' ' + Y(r[0]) + 'h' + (0.5 * px) + 'M' + X(a2) + ' ' + Y(r[1]) + 'h' + (0.5 * px), null, WM, 1.6, 1, '', KT); });
       if (vwB) [[zW[1], zW[1] + vwB], [zE[0] - vwB, zE[0]]].forEach(function (r) { add('M' + X(r[0]) + ' ' + Y(ym1) + 'H' + X(r[1]) + 'V' + Y(ym2) + 'H' + X(r[0]) + 'Z', line ? '#ffffff' : T.velo, null, 0, 0.9); for (var y2 = ym1; y2 < ym2; y2 += 1.0) add('M' + X(r[0]) + ' ' + Y(y2) + 'v' + (0.5 * px) + 'M' + X(r[1]) + ' ' + Y(y2) + 'v' + (0.5 * px), null, WM, 1.6); });
