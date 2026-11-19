@@ -12,7 +12,9 @@ export const MR_DOC = 'kps_mr_doc';
 type St = [string, number, number];
 export interface MrNode { id: string; ll: LngLat }
 export interface MrEdge { id: string; a: string; b: string; preset: string; st?: St[]; pts?: [number, number][]; name?: string; osm?: true }
-export interface MrDoc { pid: string; name: string; nodes: MrNode[]; edges: MrEdge[]; at: number }
+/** 19.11 (egasi: «loyiha joyida eski OSM binolari qolib ketyapti»): uchastka (eski binolar yopiladi) va loyiha binolari — [lat, lng] */
+export interface MrBld { r: [number, number][]; f: number }
+export interface MrDoc { pid: string; name: string; nodes: MrNode[]; edges: MrEdge[]; at: number; site?: [number, number][][]; bld?: MrBld[] }
 
 const R = 6371008.8, rad = Math.PI / 180;
 const dist = (a: LngLat, b: LngLat) => Math.hypot((b[0] - a[0]) * Math.cos((a[1] + b[1]) / 2 * rad) * rad * R, (b[1] - a[1]) * rad * R);
@@ -36,8 +38,7 @@ export function osmPreset(t: Record<string, string>): string {
   if (one) return n >= 3 ? 'one3' : n === 2 || ['primary', 'secondary', 'trunk'].includes(hw) ? 'one2' : 'one1';
   if (n >= 6 || hw === 'trunk') return 'r6';
   if (n >= 4 || hw === 'primary' || hw === 'secondary') return 'r4';
-  if (hw === 'living_street') return 'shared';
-  if (hw === 'residential' || hw === 'unclassified') return 'res1';
+  if (hw === 'residential' || hw === 'unclassified' || hw === 'living_street') return 'res1';
   return 'r2';
 }
 
@@ -108,6 +109,9 @@ export async function openTarmoq(pid: string | null, toastFn?: (m: string) => vo
     }
     const streets: StreetIn[] = st.map((x, i) => { const pr = P.profileById(x.profile); return { id: x.id, axis: x.axis, profile: pr, name: (x as { name?: string }).name || `${pr.name} ${i + 1}` }; });
     const M = buildMrDoc(pid, doc.name, streets, e => cache.get(e.join(',')) ?? null, (els, end, inn) => N.joinNode(els, end, inn));
+    const LL = (r: LngLat[]) => r.map(p => [p[1], p[0]] as [number, number]);
+    M.site = (doc.site?.rings ?? []).filter(r => r.length >= 3).map(LL);
+    M.bld = doc.buildings.filter(b => b.footprint.length >= 3).map(b => ({ r: LL(b.footprint), f: b.floors }));
     localStorage.setItem(MR_DOC, JSON.stringify(M));
   } catch { /* tarmoq oʻz holati bilan ochiladi */ }
   location.href = `${base}?p=${encodeURIComponent(pid)}`;

@@ -3378,7 +3378,13 @@ async function open3D(){
   ov.querySelector('#v3b').onclick=async()=>{const b=ov.querySelector('#v3b');b.disabled=true;b.textContent='Yuklanmoqda…';
     const sw=toLL([g.bb[0]-60,g.bb[1]-60],g.o),ne=toLL([g.bb[2]+60,g.bb[3]+60],g.o);
     try{const els=await overpassRaw(`(way["building"](${sw[0]},${sw[1]},${ne[0]},${ne[1]}););out geom;`);let n=0;
-      els.forEach(e=>{if(!e.geometry||e.geometry.length<4)return;const t=e.tags||{};const h=parseFloat(t.height)||(parseFloat(t['building:levels'])||3)*3.2;
+      /* 19.11 (egasi): loyiha ichidan ochilgan boʻlsa — uchastka ichidagi eski OSM binolari oʻrniga loyiha binolari (kps_mr_doc) */
+      let PM=null;try{PM=JSON.parse(localStorage.getItem('kps_mr_doc')||'null');}catch(e){}
+      const inR=(p,R)=>{let c=false;for(let i=0,j=R.length-1;i<R.length;j=i++)if((R[i][0]>p[0])!==(R[j][0]>p[0])&&p[1]<(R[j][1]-R[i][1])*(p[0]-R[i][0])/(R[j][0]-R[i][0])+R[i][1])c=!c;return c;};
+      const inSite=e=>PM&&PM.site&&PM.site.length&&PM.pid===DS().mrPid&&(()=>{const c=e.geometry.reduce((a,q)=>[a[0]+q.lat/e.geometry.length,a[1]+q.lon/e.geometry.length],[0,0]);return PM.site.some(R=>inR(c,R));})();
+      if(PM&&PM.bld&&PM.pid===DS().mrPid)PM.bld.forEach(bd=>{const shp=new TH.Shape(bd.r.map(q=>{const p=toXY([q[0],q[1]],g.o);return new TH.Vector2(p[0],p[1]);}));const geo=new TH.ExtrudeGeometry(shp,{depth:bd.f*3.2,bevelEnabled:false});geo.rotateX(-Math.PI/2);
+        const m=new TH.Mesh(geo,mat('#d9c7ad'));m.castShadow=m.receiveShadow=true;m.name='loyiha binosi';model.add(m);n++;});
+      els.forEach(e=>{if(!e.geometry||e.geometry.length<4)return;if(inSite(e))return;const t=e.tags||{};const h=parseFloat(t.height)||(parseFloat(t['building:levels'])||3)*3.2;
         const shp=new TH.Shape(e.geometry.map(q=>{const p=toXY([q.lat,q.lon],g.o);return new TH.Vector2(p[0],p[1]);}));const geo=new TH.ExtrudeGeometry(shp,{depth:h,bevelEnabled:false});geo.rotateX(-Math.PI/2);
         const m=new TH.Mesh(geo,mat('#e9e4da'));m.castShadow=m.receiveShadow=true;m.name='bino';model.add(m);n++;});
       b.textContent=`Binolar: ${n}`;}catch(e){b.textContent='Binolar yuklanmadi';b.disabled=false;}};
@@ -4141,7 +4147,8 @@ window.addEventListener('resize',()=>{if(S.app==='prof'&&S.pv&&S.pv!=='map'&&S.p
     const keep={base:S.base,helpSeen:S.helpSeen,gkey:S.gkey};S=Object.assign(sample(),keep);save();}
   const op=q.get('open');if(op){const v=readSaves()[op];if(v)try{S=Object.assign(sample(),JSON.parse(v.d));_id=Math.max(0,...S.prof.ex.map(e=>e.id),...S.prof.pr.map(e=>e.id));save();}catch(e){}}
   if(['area','prof','design'].includes(h))S.app=h;
-  if(q.toString())history.replaceState(null,'',location.pathname+location.hash);})();
+  /* 19.11: ?p= (loyiha) saqlanadi — Chizmadonga yuborishda shu loyiha albomi */
+  if(q.get('new')||q.get('open')){q.delete('new');q.delete('open');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}})();
 setMode('pick'); renderAll(); setApp(S.app||'area');
 
 /* Maʼlumotlar boʻlimidan import qilingan qatlamlar (umumiy IndexedDB) */

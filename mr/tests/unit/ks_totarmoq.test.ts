@@ -17,7 +17,7 @@ describe('Koʻchasoz → Tarmoq: loyiha koʻchalari va OSM tutashuvi (19.11)', (
     expect(st.filter(x => x[0] === 'lane').map(x => x[2])).toEqual([-1, 1]);
     expect(st.reduce((a, x) => a + x[1], 0)).toBeCloseTo(15, 5);
   });
-  it('OSM andozasi', () => { expect(osmPreset({ highway: 'living_street', oneway: 'yes' })).toBe('one1'); expect(osmPreset({ highway: 'primary' })).toBe('r4'); expect(osmPreset({ highway: 'residential' })).toBe('res1'); });
+  it('OSM andozasi', () => { expect(osmPreset({ highway: 'living_street', oneway: 'yes' })).toBe('one1'); expect(osmPreset({ highway: 'primary' })).toBe('r4'); expect(osmPreset({ highway: 'residential' })).toBe('res1'); expect(osmPreset({ highway: 'living_street' })).toBe('res1'); });
   it('uch OSM yoʻl oʻqiga koʻchadi, yoʻl ikki tarmoqqa boʻlinadi — T-chorraha', () => {
     const axis: [number, number][] = [[lon0, lat0 - 120 * dLat], [lon0 + 10 * dLon, lat0 - 60 * dLat], [lon0, lat0 - 6 * dLat]];
     const M = buildMrDoc('p_test', 'Test', [{ id: 's1', axis, profile: prof, name: 'Koʻcha 1' }], e => (Math.abs(e[1] - lat0) < 20 * dLat ? els : null), (a, e, i) => joinNode(a, e, i));
