@@ -47,7 +47,7 @@ async function renderPdf(pages: PdfPage[]): Promise<import('jspdf').jsPDF> {
     if (i) pdf.addPage([r.widthMm, r.heightMm], r.widthMm > r.heightMm ? 'landscape' : 'portrait');
     // 18.11 (egasi: «PDF da xaritali varaqlar boʻsh»): Varaqlar rejalaridagi Illustrator qatlamlari (inkscape:groupmode) — ildizda
     // xmlns:inkscape boʻlmasa XML tahlili yiqiladi va svg2pdf boʻsh sahifa chizadi. Nomlar maydoni qoʻshiladi; baribir xato boʻlsa — sahifa rasm sifatida
-    const src = withNs(r.svg.replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"'));
+    const src = pdfFonts(withNs(r.svg));
     const xd = new DOMParser().parseFromString(src, 'image/svg+xml');
     if (xd.getElementsByTagName('parsererror').length) { const c = await svgCanvas(r.svg, PDF_FALLBACK_PX); pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, r.widthMm, r.heightMm); continue; }
     const el = xd.documentElement;
@@ -55,6 +55,18 @@ async function renderPdf(pages: PdfPage[]): Promise<import('jspdf').jsPDF> {
     try { await svg2pdf(el as unknown as Element, pdf, { x: 0, y: 0, width: r.widthMm, height: r.heightMm }); } finally { host.remove(); }
   }
   return pdf;
+}
+/**
+ * PDF da faqat DejaVu (oʻzbek ʻ ʼ, kirill) bor: har qanday shrift (atribut, style, <style>) DejaVuSans ga; 600+ qalinlik — bold.
+ * 20.11: shrift koʻrsatilmagan matn jsPDF ning Times iga tushib «eʼtibor» → «e¼tibor» boʻlardi — ildizga sukut shrift qoʻyiladi.
+ */
+export function pdfFonts(svg: string): string {
+  let s = svg.replace(/font-family="[^"]*"/g, 'font-family="DejaVuSans"').replace(/font-family='[^']*'/g, "font-family='DejaVuSans'")
+    .replace(/font-family\s*:\s*[^;"'}]+/g, 'font-family:DejaVuSans')
+    .replace(/font-weight="(?:[6-9]00|bolder)"/g, 'font-weight="bold"').replace(/font-weight="[1-5]00"/g, 'font-weight="normal"')
+    .replace(/font-weight\s*:\s*(?:[6-9]00|bolder)/g, 'font-weight:bold').replace(/font-weight\s*:\s*[1-5]00/g, 'font-weight:normal');
+  s = s.replace(/^(\s*(?:<\?xml[^>]*>\s*)?<svg\b)([^>]*)>/, (m, a, b) => /font-family=/.test(b) ? m : `${a}${b} font-family="DejaVuSans">`);
+  return s;
 }
 async function makePdf(pages: PdfPage[], name: string): Promise<void> {
   const groups = pdfChunks(pages);
