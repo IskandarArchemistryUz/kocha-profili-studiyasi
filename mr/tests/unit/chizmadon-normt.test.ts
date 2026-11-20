@@ -9,7 +9,7 @@ describe('Chizmadon: meʼyoriy tekshiruv jadvali (20.11)', () => {
     const svg = m!.render!({ x: 0, y: 0, w: 380, h: 220 }, { u: 1, P: {} } as never, false);
     expect(svg).toContain('mos emas');
     expect(svg).toContain('#c23b30');
-    expect(svg).toContain('mos 1 · mos emas 1');
+    expect(svg).toContain('✓ 1   ✗ 1');
   });
   it('normt boʻsh — material yoʻq', () => {
     expect(projectMaterials({}, {}, true).some(x => x.id === 'p:norm')).toBe(false);
