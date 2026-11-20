@@ -1,1 +1,0 @@
-export{n as svgPdf}from"./pdf-CI4GIVa3.js";

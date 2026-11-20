@@ -5,7 +5,7 @@
  */
 import type { LngLat } from '../core/doc';
 
-export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin' | 'overture'; kind: string; /** uy raqami (addr:housenumber) */ num?: string }
+export interface CtxBuilding { id: number; rings: LngLat[][]; h: number; hSrc: 'height' | 'levels' | 'taxmin' | 'overture' | 'loyiha'; kind: string; /** uy raqami (addr:housenumber) */ num?: string }
 /** sub — highway=service uchun service=* (driveway, parking_aisle…): kvartal chegarasi boʻla oladimi */
 export interface CtxLine { id: number; pts: LngLat[]; cls: string; w: number; sub?: string; lanes?: number; oneway?: boolean; name?: string; /** 02.11: koʻprik qavati (OSM bridge + layer, ≥ 1) */ lvl?: number }
 export interface CtxArea { id: number; rings: LngLat[][]; kind: string }

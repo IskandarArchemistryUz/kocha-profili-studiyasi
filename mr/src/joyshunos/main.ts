@@ -35,6 +35,7 @@ import { frame as geoFrame } from '../core/geo';
 import { distAt, snap as snapNet, type Net } from '../core/services';
 import { walkNet, strictNet, reach, sssp, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, NOISE_BINS, WALK, type Reach } from './models';
 import type { ContextBundle } from '../context/load';
+import { projBuildings, withProject, type ProjBuildings } from './project';
 import { narxCallouts, NIGHT_PAL, loadNarx, narxFC, narxAt, narxPolysFine, breaks as narxBreaks, NARX_PAL, sizeOf as narxSize, katOf, hasKat, isIjara, narxDp, type NarxData } from './narx';
 import { loadLst, loadLstLandsat, lstStats, lstTile, parseCmap, LST_CMAP, LST_DEV_BINS, lstMean, bilinear, type LstGrid, type Px, heatSpots } from './heat';
 import { SUN_DAYS_MAP, SUN_BINS, sunColor, sunPoints, sunStats, shadowOf } from './sunmap';
@@ -624,12 +625,28 @@ function computeSun(): void {
   } catch { setTimeout(() => done(insolation(sm.pts, z, sm.prisms, steps)), 10); }
 }
 /** Binolar va relyef toʻplami (OSM) — aksonometriya va quyosh qatlami uchun bitta */
+/** 20.11: Master reja loyihasi binolari tahlilda (shamol, quyosh, koʻrinish, oqim) — uchastka ichidagi OSM binolari oʻrniga (project.ts) */
+let PROJ: ProjBuildings | null = null;
+const projOn = () => { try { return localStorage.getItem(scoped('joy-proj')) !== '0'; } catch { return true; } };
+const projUse = () => (PROJ && projOn() ? PROJ : null);
+async function loadProjB(): Promise<void> {
+  const p = ctxProject(); if (!p) return;
+  const d = await (await import('../storage/db')).getProject(p).catch(() => null); if (!d?.buildings.length) return;
+  PROJ = projBuildings(d);
+  if (axBundle) { axBundle = null; void needCtx(); }
+  renderLeft();
+}
+function setProjOn(v: boolean): void {
+  try { localStorage.setItem(scoped('joy-proj'), v ? '1' : '0'); } catch { /* xotira yopiq */ }
+  if (axBundle) { axBundle = null; void needCtx(); }
+  renderLeft();
+}
 async function needCtx(): Promise<void> {
-  const R = S.r + 100, key = `${S.c.join()}|${R}`;
+  const R = S.r + 100, PU = projUse(), key = `${S.c.join()}|${R}${PU ? `|p${PU.blds.length}` : ''}`;
   if (axBundle?.key === key || axBusy) return;
   axBusy = true; axMsg = tr('Binolar va relyef yuklanmoqda (OSM)…'); if (mode === 'axo') renderAxo();
   const my = seq;
-  try { const b = await ctx.load(S.c, R, (m, f) => { axMsg = `${tr(m)} ${Math.round(f * 100)} %`; if (mode === 'axo') renderAxoMsg(); }); if (my === seq) axBundle = { key, b }; axMsg = ''; }
+  try { const b = await ctx.load(S.c, R, (m, f) => { axMsg = `${tr(m)} ${Math.round(f * 100)} %`; if (mode === 'axo') renderAxoMsg(); }); if (my === seq) axBundle = { key, b: withProject(b, PU) }; axMsg = ''; }
   catch (e) { axMsg = `${tr('Kontekst yuklanmadi')}: ${(e as Error).message}`; }
   axBusy = false;
   if (my !== seq) { void needCtx(); return; }
@@ -862,6 +879,9 @@ function renderLeftH(): void {
         h('button', { type: 'button', class: 'btn btn-sm', id: 'tSite', 'aria-pressed': drawing?.kind === 'site', onclick: () => startDraw('site') }, tr(S.site ? 'Qayta chizish' : 'Chizish')),
         kpsSite() ? h('button', { type: 'button', class: 'btn btn-sm', id: 'tSiteK', title: tr('Joyshunos va Master rejaning «Joy va uchastka» qadamida belgilangan hudud'), onclick: () => { const r = kpsSite(); if (r) setSite(r, false); } }, tr('Master rejadan')) : null,
         S.site ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'tSiteX', onclick: () => setSite(null, false) }, tr('Tozalash')) : null)),
+      PROJ ? h('label', { class: 'row t-small', id: 'tProjB', title: tr('Uchastka ichidagi mavjud (OSM) binolar oʻrniga Master reja loyihasi binolari — shamol, quyosh, koʻrinish va odamlar oqimi shular bilan hisoblanadi') },
+        h('input', { type: 'checkbox', checked: projOn(), onchange: (e: Event) => setProjOn((e.target as HTMLInputElement).checked) }),
+        tf('Loyiha binolari tahlilda (${n} ta)', { n: PROJ.blds.length })) : null,
     /* avvalgi sahifalar hozircha faqat egasiga (js/sinov.js) */
     isOwner() && fly === 'joy' ? h('details', { class: 'joy-old' },
       h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)'), ic(ICON.chev)),
@@ -2014,7 +2034,7 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
     const fname = `joy-${kind}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
     if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${fname}.pdf`, pages.length > 1 ? 'joy.passport.all' : 'joy.passport'); }   // E3
     else {
-      const items = pages.map(p => ({ name: `${p.name} · ${addr}`, kind: 'sheet' as const, svg: p.svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''), vb: [0, 0, p.w, p.h] as [number, number, number, number], w: p.w, h: p.h }));
+      const items = pages.map(p => ({ name: `${p.name} · ${addr}`, kind: 'sheet' as const, svg: chzInner(p.svg), vb: [0, 0, p.w, p.h] as [number, number, number, number], w: p.w, h: p.h }));
       const { sendSheet } = await import('../ui/chzsend');
       const r = await sendSheet({ ...items[0], name: `${tr(kind === 'hisobot' ? 'Qisqa hisobot' : kind === 'albom' ? 'Albom varaqlari' : 'Plakat · Galereya')} · ${addr}`, more: items.slice(1) }, S.c);
       if (r === false) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
@@ -2807,6 +2827,12 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Backspace') { d.pts.pop(); renderLeft(); paintDraw(); }
   }
 });
+/** 20.11: Chizmadonga varaq ichi — ildiz <svg> olib tashlanganda undagi shrift (font-family) yoʻqolib, PDF da Times (ʻ ʼ oʻrniga « ¼ ») chiqardi */
+function chzInner(svg: string): string {
+  const root = /^<svg[^>]*>/.exec(svg)?.[0] ?? '', ff = /font-family="([^"]*)"/.exec(root)?.[1];
+  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  return ff ? `<g font-family="${ff}">${inner}</g>` : inner;
+}
 /** 3-PR: Master reja loyihasi ichida birinchi ochilganda — tahlil markazi va hududi shu loyihadan */
 async function fromProject(): Promise<void> {
   const p = ctxProject(); if (!p || !FRESH) return;
@@ -2817,6 +2843,7 @@ async function fromProject(): Promise<void> {
   }
   if (d.origin && Number.isFinite(d.origin[0])) pick([d.origin[0], d.origin[1]], true);
 }
+void loadProjB();
 void initMap().then(() => fromProject()).catch(e => { mapEl.append(h('div', { class: 'joy-maperr note warn' }, tr('Xarita yuklanmadi'), ': ', String((e as Error).message || e))); });
 ensure();
 if (mode === 'axo') void enterAxo();

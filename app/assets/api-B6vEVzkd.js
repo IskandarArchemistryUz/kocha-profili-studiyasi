@@ -1,0 +1,1 @@
+export{l as toUpload}from"./api-uDk1nxf2.js";
