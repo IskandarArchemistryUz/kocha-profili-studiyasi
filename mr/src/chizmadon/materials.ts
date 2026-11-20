@@ -176,6 +176,8 @@ export interface ProjectSrc {
   plan?: { svg: string; vb: [number, number, number, number]; w: number; h: number; scale?: number } | null;
   plans?: PlanSrc[];
   tik?: string[][];
+  /** 20.11: meʼyoriy tekshiruv reyestri — [talab, manba, meʼyor, loyihada, holat: pass|fail|review|na] */
+  normt?: string[][];
   scene?: string | null;
   inbox?: ChInbox[];
 }
@@ -260,6 +262,26 @@ function tableArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string,
   });
   return g;
 }
+/** 20.11: meʼyoriy tekshiruv jadvali — 5 ustun (talab · manba · meʼyor · loyihada · natija), natija rangli belgi bilan */
+const NST: Record<string, [string, string]> = { pass: ['mos', '#2f8f4e'], fail: ['mos emas', '#c23b30'], review: ['koʻrib chiqish', '#c98a12'], na: ['baholanmadi', '#8a8a8a'] };
+function normArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string, string> }, m: Material, bare?: boolean): string {
+  const u = ctx.u * m.scale, Q = DP(ctx.P); let g = bare ? '' : head(m, r.x, r.y, u, Q, null, false);
+  const cnt = (k: string) => rows.filter(q => q[4] === k).length;
+  const sum = `mos ${cnt('pass')} · mos emas ${cnt('fail')} · koʻrib chiqish ${cnt('review')}${cnt('na') ? ` · baholanmadi ${cnt('na')}` : ''}`;
+  const top = bare ? 0 : 8 * u, by = r.y + top + 5 * u, n = rows.length + 1, rh = Math.min((r.h - top - 5 * u) / Math.max(1, n), 7 * u);
+  const fs = Math.min(2.5 * u, rh * 0.52), X = [0, 0.37, 0.62, 0.75, 0.87].map(f => r.x + r.w * f);
+  g += T(r.x, r.y + top + 2.5 * u, sum, { s: 2.4 * u, c: Q.mut, w: 600 });
+  const cut = (t: string, w: number) => { const mx = Math.max(6, Math.floor(w / (fs * 0.5))); return t.length > mx ? t.slice(0, mx - 1) + '…' : t; };
+  const H = ['Talab', 'Manba', 'Meʼyor', 'Loyihada', 'Natija'];
+  [H, ...rows].forEach((q, i) => {
+    const yy = by + rh * (i + 0.7), hd = i === 0;
+    for (let c = 0; c < 4; c++) g += T(X[c], yy, cut(q[c] ?? '', (X[c + 1] - X[c]) - 2 * u), { s: hd ? 2.2 * u : (c === 0 ? fs : fs * 0.9), c: hd || c === 1 ? Q.mut : Q.ink, w: hd ? 600 : c === 3 ? 500 : 400, mono: !hd && c >= 2 ? 1 : 0 });
+    if (hd) g += T(X[4], yy, H[4], { s: 2.2 * u, c: Q.mut, w: 600 });
+    else { const st = NST[q[4]] ?? NST.na; g += R0(X[4], yy - fs * 0.85, fs * 0.9, fs * 0.9, st[1], '') + T(X[4] + fs * 1.4, yy, st[0], { s: fs * 0.95, c: st[1], w: 600 }); }
+    if (i < rows.length) g += L0(r.x, by + rh * (i + 1), r.x + r.w, by + rh * (i + 1), Q.grid, 0.2 * u);
+  });
+  return g;
+}
 /** seq — «Loyiha albomi» (ketma-ket) oilasi: aksonometriya va kesimlar sukut boʻyicha faqat unda yoqilgan (eski albomlar oʻzgarmaydi) */
 export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>, seq = false): Material[] {
   const out: Material[] = [];
@@ -295,6 +317,7 @@ export function projectMaterials(src: ProjectSrc, sets: Record<string, ChMatSet>
   }
   if (src.plan && !src.plans) { const p = src.plan; const m = add({ id: 'p:plan', role: 'plan' as MRole, name: 'Bosh reja', title: 'Bosh reja' }, (r) => fitMap('plan', p, r, 'Bosh reja', m.view)); }
   if (src.tik?.length) { const rows = [['Koʻrsatkich', 'Birlik', 'Qiymat'], ...src.tik]; const m = add({ id: 'p:tik', role: 'table', kind: 'tik', name: 'TIK jadvali', title: 'Texnik-iqtisodiy koʻrsatkichlar' }, (r, ctx, bare) => tableArt(rows, r, ctx, m, bare)); }
+  if (src.normt?.length) { const rows = src.normt; const m = add({ id: 'p:norm', role: 'table', kind: 'norm', name: 'Meʼyoriy tekshiruv', title: 'Meʼyoriy tekshiruv: mos va mos emas' } as Def, (r, ctx, bare) => normArt(rows, r, ctx, m, bare)); }
   if (src.scene) { const s = src.scene; const m = add({ id: 'p:scene', role: 'image', name: 'Sahna rasmi', title: 'Sahna rasmi' }, (r) => fitMap('scene', { src: s, w: r.w, h: r.h }, r, 'Sahna rasmi', m.view)); }
   for (const it of src.inbox ?? []) { const m = add({ id: `i:${it.id}`, role: (it.page ? 'page' : it.svg ? 'plan' : 'image') as MRole, name: it.name, title: it.name }, (r) => fitMap(it.id, it.page ? { ...it, contain: true } : it, r, it.name, m.view)); }
   return out;

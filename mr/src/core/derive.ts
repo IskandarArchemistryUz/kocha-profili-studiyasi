@@ -62,6 +62,10 @@ export interface Derived {
   apartments: number;
   /** kvartiralar soni qayerdan: 'sxema' yoki 'taxmin' */
   aptSource: 'sxema' | 'taxmin';
+  /** 20.11: sxemadagi kvartiralar xonalar soni boʻyicha (xonalar → kvartiralar, barcha turar qavatlar) */
+  aptByRooms: Record<number, number>;
+  /** 20.11: turar joy binolari qavatlar soni boʻyicha (qavat → binolar) */
+  resByFloors: Record<number, number>;
   /** 39-jadval: maktab va MTM binolari devoridan qizil chiziqqacha masofa, m (faqat loyiha koʻchalari) */
   redLineSocial: { bid: string; use: string; d: number }[];
   /** loyiha koʻchasi koridoriga (qizil chiziqlar orasiga) tushgan binolar: kesishma maydoni va koʻpburchaklari (mahalliy XY) — koʻcha siljitilganda (30.10) */
@@ -154,6 +158,9 @@ export function derive(doc: Project): Derived {
   const houses = doc.buildings.filter(b => (b.gen?.kind === 'uy' || b.gen?.kind === 'taunhaus') && useDef(b.use).res > 0).length;
   const fromPlan = plans.reduce((t, p) => t + p.layout.apts.length * (p.f1 - p.f0), 0) + houses;
   const aptSource: 'sxema' | 'taxmin' = fromPlan > 0 ? 'sxema' : 'taxmin';
+  const aptByRooms: Record<number, number> = {}, resByFloors: Record<number, number> = {};
+  for (const p of plans) for (const a of p.layout.apts) aptByRooms[a.rooms] = (aptByRooms[a.rooms] ?? 0) + (p.f1 - p.f0);
+  for (const b of doc.buildings) if (useDef(b.use).res > 0) resByFloors[b.floors] = (resByFloors[b.floors] ?? 0) + 1;
   const apartments = fromPlan > 0 ? fromPlan : s.aptNet > 0 ? resNet / s.aptNet : 0;
   // 39-jadval: maktab/MTM binosi → qizil chiziq (loyiha koʻchalari koridorlari)
   const redLineSocial: Derived['redLineSocial'] = [];
@@ -275,7 +282,7 @@ export function derive(doc: Project): Derived {
   const combs = yards.flatMap(y => y.social ? [] : y.play.filter(q => q.comb)), playComb = combs.length, playCombSmall = combs.filter(q => q.area < 150 - 0.5).length;   // maktab / MTM maydonchalari — 4-jadval talabiga kirmaydi
   return { antresol, umnBlocks, umn, housing82,
     resSections, westFacing, westIds, greenRoof, solarRoof, jobs, yardGreen: gb.yardGreen, yardPlay: gb.yardPlay, greenCounted: gb.counted, greenBase: gb.base, greenShareTotal: gb.share, yardTrees: gb.trees, playNeed, playGot, playNeed0, playRoof, playComb, playCombSmall, jobsRatio: population > 0 ? jobs / population : 0,
-    apartments, aptSource, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, mtmPlots, schoolPlots, socialPlots, parkingReq, parkingProv, parkingParts,
+    apartments, aptSource, aptByRooms, resByFloors, redLineSocial, schoolCap, mtmCap, mtmBuiltIn, mtmPlots, schoolPlots, socialPlots, parkingReq, parkingProv, parkingParts,
     streetArea: plan.corridorArea, blocks: plan.blocks.length, zoneArea, greenArea, streetOverlap,
     greenPerPerson: population > 0 ? greenArea / population : 0, greenShare: siteM2 > 0 ? greenArea / siteM2 : 0,
     siteHa, balance: doc.limits?.length ? landBalance(doc) : null, buildings: doc.buildings.length, footprint, gfa, resGfa, resNet, population,

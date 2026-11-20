@@ -5227,7 +5227,9 @@ export class Editor {
       project: doc.name, place: demoRow(doc.settings.district)?.name.replace(/\s+/g, ' ').trim() ?? '', origin: [doc.origin[0], doc.origin[1]], data: doc.chizmadon, incoming,
       save: d => this.run(() => this.store.dispatch({ type: 'setChizmadon', data: d as unknown as Record<string, unknown> }, 'chizmadon')),
       norms: () => normLine(this.store.doc, tr),
-      tik: () => this.tep().filter(r => r.v != null && r.v !== '').slice(0, 14).map(r => [r.name, r.unit, typeof r.v === 'number' ? fmt(r.v, Math.abs(r.v) < 10 ? 2 : 0) : String(r.v)]),
+      normt: () => this.allRules().filter(r => r.status !== 'na').map(r => [tr(r.title), `${r.source.doc}, ${r.source.clause}`, r.limit != null && r.limit !== '' ? String(r.limit) : '—', r.value != null ? `${fmt(r.value, Math.abs(r.value) < 10 ? 2 : 0)}${r.unit ? ' ' + r.unit : ''}` : '—', r.status]),
+      // 20.11: albom TIK i toʻliq (avval 14 qator); meʼyoriy tekshiruv — alohida jadval
+      tik: () => this.tep().filter(r => r.v != null && r.v !== '').slice(0, 60).map(r => [r.name, r.unit, typeof r.v === 'number' ? fmt(r.v, Math.abs(r.v) < 10 ? 2 : 0) : String(r.v)]),
       siteMap: () => {
         const d2 = this.store.doc; if (!d2.site && !d2.buildings.length) return undefined;
         const o: SheetOpts = { ...SHEET_DEFAULT, kind: 'zona', gstyle: this.chGs, show: { ...SHEET_DEFAULT.show, title: false, legend: false, plotTable: false, stamp: false, situation: false, frame: false, scaleBar: false, north: false } };

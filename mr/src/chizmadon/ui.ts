@@ -46,6 +46,8 @@ export interface ChHost {
   norms?: () => string;
   /** TIK jadvali: [koʻrsatkich, birlik, qiymat] */
   tik: () => string[][];
+  /** 20.11: meʼyoriy tekshiruv reyestri (albom jadvali) */
+  normt?: () => string[][];
   /** loyiha bosh rejasi (Varaqlar, xarita qismi, mm) */
   siteMap: () => TplCtx['map'] | undefined;
   /** 19-band: Master rejaning barcha rejalari (bosh reja, land use, funksional, qavatlilik, kvartirografiya…) — «Loyihadan» materiallari */
@@ -150,6 +152,8 @@ export function openChizmadon(host: ChHost): void {
   let PLAN: TplCtx['map'] | null | undefined, TIK: string[][] | undefined;
   const planOnce = () => { if (PLAN === undefined) { const m = host.siteMap(); PLAN = m ? { ...m, svg: trSvg(m.svg) } : null; } return PLAN; };
   const tikOnce = () => (TIK ??= host.tik());
+  let NORMT: string[][] | undefined;
+  const normtOnce = () => { try { return (NORMT ??= host.normt?.() ?? []); } catch { return []; } };
   let PLANS: PlanSrc[] | undefined, GSK = '';
   host.gstyle?.(undefined);
   const plansOnce = (): PlanSrc[] | undefined => {
@@ -203,7 +207,7 @@ export function openChizmadon(host: ChHost): void {
     const s = site(); R = resolve(s.lat, s.lon);
     // c74: shablon oʻzgargan boʻlsa — rejalar keshi yangilanadi
     if ((d.auto.gstyle ?? '') !== GSK) { GSK = d.auto.gstyle ?? ''; host.gstyle?.(d.auto.gstyle); PLANS = undefined; }
-    MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), scene: null, inbox: d.inbox }, d.auto.mats, !!fam().seq), ...siteMaterials(() => R!, d.auto.mats)];
+    MATS = [...projectMaterials({ plan: host.plans ? null : planOnce(), plans: plansOnce(), tik: tikOnce(), normt: normtOnce(), scene: null, inbox: d.inbox }, d.auto.mats, !!fam().seq), ...siteMaterials(() => R!, d.auto.mats)];
     setCustomPal(d.auto.custom); if (d.auto.pal === 'custom' && !d.auto.custom) d.auto.pal = 'arch';
     const f = fam(), fmt = fmtOf(f);
     taqdimotDefaults(f);
