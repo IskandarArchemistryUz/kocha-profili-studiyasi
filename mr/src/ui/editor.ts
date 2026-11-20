@@ -213,6 +213,8 @@ function mapOnly(svg: string, scale: number): { svg: string; vb: [number, number
 /** Loyiha nomi hali sukutdagi «Yangi loyiha» / «New project» (raqam bilan ham) — joy tanlanganda «joy, sana» ga almashadi */
 export const isDefaultName = (n: string): boolean => { const t = n.trim(); return !t || [tr('Yangi loyiha'), 'Yangi loyiha', 'New project', 'Новый проект'].some(d => t === d || (t.startsWith(`${d} `) && /^\d+$/.test(t.slice(d.length + 1)))); };
 
+/** 20.11: Chizmadon hisobni kutayotgan muharrirlar (takroriy chaqiruv qayta kutmasin) */
+const incomingWait = new WeakSet<object>();
 export class Editor {
   readonly store: Store;
   private scene!: Scene3D;
@@ -5221,6 +5223,13 @@ export class Editor {
   /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
   openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
     if (needsLogin()) { void ensureLogin(undefined, 'Chizmadonda ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.openCh(incoming); }); return; }
+    // 20.11: TIK va meʼyoriy tekshiruv Chizmadon ochilganda bir marta olinadi — hisob tayyor boʻlmasa (#/chizmadon havolasi, yuklanish
+    // paytida) albomda TIK jadvali umuman chiqmasdi. Endi hisob tugashi kutiladi (eng koʻpi 20 s, keyin baribir ochiladi).
+    if (!this.last && !incomingWait.has(this)) {
+      incomingWait.add(this); toast(tr('Loyiha hisoblanmoqda — Chizmadon tayyor boʻlgach ochiladi'));
+      const t0 = Date.now(), tick = () => { if (this.last || Date.now() - t0 > 20000) { incomingWait.delete(this); this.openCh(incoming); } else setTimeout(tick, 250); };
+      void this.recompute(); setTimeout(tick, 250); return;
+    }
     const doc = this.store.doc;
     openChizmadon({
       own: doc.svc === 'chz', projects: () => void openChzProjects(doc.id),

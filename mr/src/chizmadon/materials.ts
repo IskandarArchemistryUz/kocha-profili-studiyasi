@@ -267,7 +267,7 @@ const NST: Record<string, [string, string]> = { pass: ['mos', '#2f8f4e'], fail: 
 function normArt(rows: string[][], r: Rect, ctx: { u: number; P: Record<string, string> }, m: Material, bare?: boolean): string {
   const u = ctx.u * m.scale, Q = DP(ctx.P); let g = bare ? '' : head(m, r.x, r.y, u, Q, null, false);
   const cnt = (k: string) => rows.filter(q => q[4] === k).length;
-  const sum = `✓ ${cnt('pass')}   ✗ ${cnt('fail')}   ? ${cnt('review')}`;
+  const sum = `✓ ${cnt('pass')}  ·  ✗ ${cnt('fail')}  ·  ? ${cnt('review')}`;
   const top = bare ? 0 : 8 * u, by = r.y + top + 5 * u, n = rows.length + 1, rh = Math.min((r.h - top - 5 * u) / Math.max(1, n), 7 * u);
   const fs = Math.min(2.5 * u, rh * 0.52), X = [0, 0.37, 0.62, 0.75, 0.87].map(f => r.x + r.w * f);
   g += T(r.x, r.y + top + 2.5 * u, sum, { s: 2.4 * u, c: Q.mut, w: 600 });
