@@ -169,11 +169,15 @@ function cmpBox(before: string, after: string): HTMLElement {
   const fit = () => { const bi = b.querySelector<HTMLImageElement>('img')!; bi.style.width = `${im.clientWidth}px`; bi.style.height = `${im.clientHeight}px`; };
   im.onload = fit; requestAnimationFrame(fit);
   const set = (x: number) => { b.style.width = `${x * 100}%`; bar.style.left = `${x * 100}%`; };
+  /* 20.11 (egasi): sichqoncha bilan — ajratgich kursorga ergashadi (bosish shart emas); sensorli ekranda — barmoq bilan surish.
+     Avval ushlab surish ishlamasdi: brauzer <img> ni «sudrab olib ketish»ni boshlab, pointer hodisalarini toʻxtatardi */
+  box.querySelectorAll('img').forEach(i => { i.draggable = false; });
+  box.ondragstart = e => e.preventDefault();
   let drag = false;
-  box.onpointerdown = e => { drag = true; box.setPointerCapture(e.pointerId); move(e); };
-  box.onpointerup = () => { drag = false; };
-  const move = (e: PointerEvent) => { if (!drag) return; const r = box.getBoundingClientRect(); set(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); };
-  box.onpointermove = move;
+  const at = (e: PointerEvent) => { const r = box.getBoundingClientRect(); set(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); };
+  box.onpointerdown = e => { drag = true; if (e.pointerType !== 'mouse') box.setPointerCapture(e.pointerId); at(e); };
+  box.onpointerup = box.onpointercancel = () => { drag = false; };
+  box.onpointermove = e => { if (e.pointerType === 'mouse' || drag) at(e); };
   box.tabIndex = 0; box.setAttribute('role', 'slider'); box.setAttribute('aria-label', tr('Asl va natija ajratgichi'));
   box.onkeydown = e => { const cur = parseFloat(b.style.width || '50') / 100; if (e.key === 'ArrowLeft') set(Math.max(0, cur - 0.05)); if (e.key === 'ArrowRight') set(Math.min(1, cur + 0.05)); };
   set(0.5); return box;
