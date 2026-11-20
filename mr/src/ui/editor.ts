@@ -5221,14 +5221,15 @@ export class Editor {
   /** funksiya rangi sahna shabloni boʻyicha (ro'yxat va legendalar sahna bilan bir xil) */
   private zcol(u: string): number { const g = gstyleById(this.store.doc.gstyle); return g.id === 'joriy' ? ZONE_COL[u] ?? 0xcccccc : useColorOf(g, u); }
   /** Chizmadon (CH-Yagona): albom loyiha bilan saqlanadi; Varaqlardan kelgan xarita — «Loyihadan» */
-  openCh(incoming?: Omit<ChInbox, 'id' | 'at'>): void {
-    if (needsLogin()) { void ensureLogin(undefined, 'Chizmadonda ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.openCh(incoming); }); return; }
+  openCh(incoming?: Omit<ChInbox, 'id' | 'at'>, noWait = false): void {
+    if (needsLogin()) { void ensureLogin(undefined, 'Chizmadonda ishlash uchun kiring. Hisob bepul.').then(ok => { if (ok) this.openCh(incoming, noWait); }); return; }
     // 20.11: TIK va meʼyoriy tekshiruv Chizmadon ochilganda bir marta olinadi — hisob tayyor boʻlmasa (#/chizmadon havolasi, yuklanish
-    // paytida) albomda TIK jadvali umuman chiqmasdi. Endi hisob tugashi kutiladi (eng koʻpi 20 s, keyin baribir ochiladi).
-    if (!this.last && !incomingWait.has(this)) {
+    // paytida) albomda TIK jadvali umuman chiqmasdi. Endi hisob tugashi kutiladi (katta loyihada 1–2 daqiqa; eng koʻpi 3 daqiqa).
+    if (!this.last && !noWait) {
+      if (incomingWait.has(this)) return;
       incomingWait.add(this); toast(tr('Loyiha hisoblanmoqda — Chizmadon tayyor boʻlgach ochiladi'));
-      const t0 = Date.now(), tick = () => { if (this.last || Date.now() - t0 > 20000) { incomingWait.delete(this); this.openCh(incoming); } else setTimeout(tick, 250); };
-      void this.recompute(); setTimeout(tick, 250); return;
+      const t0 = Date.now(), tick = () => { if (this.last || Date.now() - t0 > 180000) { incomingWait.delete(this); this.openCh(incoming, true); } else setTimeout(tick, 500); };
+      setTimeout(tick, 500); return;
     }
     const doc = this.store.doc;
     openChizmadon({
