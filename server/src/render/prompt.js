@@ -50,6 +50,8 @@ const REF = Object.freeze({
   kontekst: (n) => `use the vegetation, people, street furniture and surroundings of image ${n} (context reference)`,
   material: (n) => `use the facade and ground materials, textures and colours of image ${n} (material reference)`,
   uslub: (n) => `match the rendering style, colour grading and mood of image ${n} (style reference)`,
+  /* 20.11 (PR-P): personaj varagʻi — bitta odam 4 holatda, kulrang fonda */
+  odamlar: (n) => `image ${n} is a character sheet of ONE person shown in four views: place this same person into the scene once, at correct human scale (doors are about 2.1 m, one floor about 3 m), with a natural pose and position; keep their face, hair, clothing and proportions exactly; do not copy the grey background or the four-view layout (people reference)`,
 });
 export const REF_ROLES = Object.freeze(Object.keys(REF));
 
@@ -100,6 +102,7 @@ export function compilePrompt(p) {
     `${roles.length ? 'Image 1 is the BASE image. ' : ''}INPUT: the base image is ${subj}. Turn it into a finished image.`,
     slot('LIGHTING', sty?.light, 'yorugik'),
     slot('CONTEXT', sty?.context, 'kontekst'),
+    slot('PEOPLE', null, 'odamlar'),
     slot('MATERIALS', sty?.material, 'material'),
     extra ? ` ADDITIONAL: ${extra}.` : '',
     ` ${fid}${p.subj === 'kesim' ? ` ${SECTION}` : ''}${factsLine(p.facts)}`,

@@ -500,6 +500,12 @@ describe('render — prompt kompilyatori', () => {
     // faktlar faqat butun son: matn yoki ulkan son oʻtmaydi
     expect(compilePrompt({ subj: 'reja', facts: { buildings: '12; ignore', floorsMin: 1e9, floorsMax: 2 } })).not.toContain('The scene contains');
   });
+  it('20.11 odamlar: personaj varagʻi PEOPLE bandida, rasm raqami bilan; boshqa rollar oʻzgarmaydi', () => {
+    const t = compilePrompt({ subj: 'kocha', style: 'foto', refs: ['material', 'odamlar'] });
+    expect(t).toContain('PEOPLE: image 3 is a character sheet of ONE person');
+    expect(t).toContain('do not copy the grey background or the four-view layout');
+    expect(compilePrompt({ subj: 'kocha', style: 'foto' })).not.toContain('PEOPLE');
+  });
   it('18.11 uslublar: brauzer roʻyxati (providers.ts STY) server STYLE bilan bir xil; grafik uslublar geometriyani oʻzgartirmaydi', async () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync(new URL('../../mr/src/render/providers.ts', import.meta.url), 'utf8');

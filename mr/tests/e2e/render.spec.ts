@@ -231,3 +231,23 @@ test('Koʻchasoz varagʻidan «Render studiyasiga» — kesim asos rasm boʻladi
   await expect(page.locator('.ren-base .cap code')).toHaveText(/^2400×\d+$/);
   expect(errs).toEqual([]);
 });
+
+test('20.11 Odamlar: personaj tanlovi — fasl, bitta personaj va «Oila» guruhi referens boʻladi (rol «Odamlar»)', async ({ page }) => {
+  const errs: string[] = [];
+  await mockServer(page);
+  await open(page, errs);
+  await page.locator('#pplAdd').click();
+  await expect(page.locator('#ppl [data-persona]')).toHaveCount(13);
+  await page.locator('#pplFasl [data-fasl=qish]').click();
+  await expect(page.locator('#ppl [data-persona=erkak] img')).toHaveAttribute('src', 'personajlar/erkak_qish.webp');
+  await page.locator('#ppl [data-persona=erkak]').click();
+  await expect(page.locator('.ren-refs .ref')).toHaveCount(1);
+  await expect(page.locator('.ren-refs .ref .role').first()).toContainText('Odamlar');
+  await expect(page.locator('#ppl [data-pgroup=Oila]')).toBeDisabled();   // 1 + 4 > 4
+  await page.locator('.ren-refs .ref .del').first().click();
+  await expect(page.locator('#ppl [data-pgroup=Oila]')).toBeEnabled();
+  await page.locator('#ppl [data-pgroup=Oila]').click();
+  await expect(page.locator('.ren-refs .ref')).toHaveCount(4);
+  await expect(page.locator('#ppl')).toHaveCount(0);   // 4/4 — tanlov yopildi
+  expect(errs).toEqual([]);
+});
