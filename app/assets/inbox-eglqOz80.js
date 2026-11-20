@@ -1,0 +1,1 @@
+export{l as sendToRender}from"./inbox-DZX_RCDf.js";
