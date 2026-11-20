@@ -24,7 +24,7 @@ import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
-import { STY, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
+import { STY, STY_GROUPS, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
 import { ENGINES, LAB, UP_MODES, UPS_BY, upOf, renderApi, toUpload, waitJob, type Engine, type UpMode, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
 import { apiBase } from '../account/config';
@@ -206,7 +206,9 @@ function renderRight(): void {
     h('div', { class: 'glabel' }, h('span', {}, tr('Nima tasvirlangan'))),
     h('div', { class: 'ren-chips', role: 'group', 'aria-label': tr('Nima tasvirlangan'), id: 'subj' }, ...SUBJECTS.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.subj === k, onclick: () => { A.subj = k as Subject; save(); renderRight(); } }, tr(n)))),
     h('div', { class: 'glabel' }, h('span', {}, tr('Uslub'))),
-    h('div', { class: 'tiles c2 ren-sty', id: 'sty' }, ...STY.map(([k, n]) => h('button', { type: 'button', class: 'tile', 'aria-pressed': A.sty === k, 'data-sty': k, onclick: () => { A.sty = A.sty === k && REFS.length ? '' : k; save(); renderRight(); } }, tr(n)))),
+    h('div', { class: 'ren-sty', id: 'sty' }, ...STY_GROUPS.map(([g, ids]) => h('div', { class: 'ren-styg', 'data-styg': g },
+      h('span', { class: 't-small' }, tr(g)),
+      h('div', { class: 'tiles c2' }, ...ids.map(k => [k, (STY.find(x => x[0] === k) ?? [k, k])[1]] as const).map(([k, n]) => h('button', { type: 'button', class: 'tile', 'aria-pressed': A.sty === k, 'data-sty': k, onclick: () => { A.sty = A.sty === k && REFS.length ? '' : k; save(); renderRight(); } }, tr(n))))))),
     h('div', { class: 'glabel' }, h('span', {}, tr('Asosga sodiqlik'))),
     h('div', { class: 'seg', role: 'group', 'aria-label': tr('Asosga sodiqlik'), id: 'fid' }, ...FIDELITY.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.fid === k, onclick: () => { A.fid = k as Fidelity; save(); renderRight(); } }, tr(n)))),
     h('p', { class: 't-small' }, tr(A.fid === 'qatiy' ? 'Binolar soni, qavatlar, joylashuv va kamera oʻzgarmaydi.' : A.fid === 'muvozanat' ? 'Hajm va kamera saqlanadi; fasad detallari, materiallar va obodonlashtirish qoʻshiladi.' : 'Asos — umumiy kompozitsiya; detallar va muhitni model erkin toʻldiradi.')),
