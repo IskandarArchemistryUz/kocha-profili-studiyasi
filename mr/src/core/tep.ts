@@ -26,11 +26,14 @@ export function tepRows(d: Derived, doc: Project, demo?: Demolition | null, extr
   add('Qurilish', 'UMN (66-band, turar joy uchastkalari)', '', d.umn, 'yer usti qavatlar maydoni / turar joy binosi uchastkasi; ≤ 4,5');
   add('Qurilish', 'FAR (brutto, butun uchastka)', '', d.far);
   add('Qurilish', 'Oʻrtacha qavatlar', 'qavat', d.avgFloors);
+  for (const [f, n] of Object.entries(d.resByFloors ?? {}).sort((a, b) => +a[0] - +b[0])) if (n > 0) add('Qurilish', `${f} qavatli turar joy binolari`, 'ta', n);
   add('Qurilish', 'Turar joy GFA', 'm²', d.resGfa);
   add('Qurilish', 'Noturar GFA', 'm²', d.gfa - d.resGfa);
   if (d.antresol > 0) add('Qurilish', 'Antresollar (GFA ga kiritilgan)', 'm²', d.antresol, 'ShNQ 2.08.02-23, 11-ilova, 1-band: antresollar binoning umumiy maydoniga kiradi; 1-qavat maydonining 40 % i (andoza)');
   add('Turar joy', 'Kvartiralar umumiy maydoni (netto)', 'm²', d.resNet, `GFA × ${s.netToGross}`);
   add('Turar joy', 'Kvartiralar soni', 'ta', Math.round(d.apartments), d.aptSource === 'sxema' ? `kvartira sxemasi (miks ${s.aptMix.join('/')} %)` : `oʻrtacha ${s.aptNet} m² boʻyicha taxmin`);
+  // 20.11 (Qamashi albomi): kvartiralar xonalar soni boʻyicha va turar joy binolari qavatlar boʻyicha — albom TIK ida toʻliq
+  for (const [k, n] of Object.entries(d.aptByRooms ?? {}).sort((a, b) => +a[0] - +b[0])) if (n > 0) add('Turar joy', `${k} xonali`, 'ta', n, d.apartments > 0 ? `${Math.round(n / d.apartments * 100)} %` : undefined);
   if (d.apartments > 0) add('Turar joy', 'Oʻrtacha kvartira (netto)', 'm²', d.resNet / d.apartments);
   if (extra?.aptOk != null && extra.apts) add('Turar joy', 'Insolyatsiya va yoʻnalish talabiga mos kvartiralar', '%', extra.aptOk / extra.apts * 100, 'SanQvaN 0102-25, 94, 95, 15');
   add('Turar joy', 'Aholi', 'kishi', Math.round(d.population), `${s.m2PerPerson} m²/kishi`);
