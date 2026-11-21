@@ -24,7 +24,7 @@ import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
-import { STY, STY_GROUPS, SUBJECTS, FIDELITY, ROLES, PERSONAS, PERSONA_GROUPS, FASLLAR, personaSrc, faslFor, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity, type Fasl } from './providers';
+import { STY, STY_GROUPS, SUBJECTS, PLUS_ENGINES, plusFor, FIDELITY, ROLES, PERSONAS, PERSONA_GROUPS, FASLLAR, personaSrc, faslFor, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity, type Fasl } from './providers';
 import { ENGINES, LAB, UP_MODES, UPS_BY, upOf, renderApi, toUpload, waitJob, type Engine, type UpMode, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
 import { apiBase } from '../account/config';
@@ -229,7 +229,7 @@ function renderStage(): void {
 /* ---------------- oʻng panel: render sozlamalari ---------------- */
 function renderRight(): void {
   const outs = allOuts ? OUT : OUT.filter(o => o.srcId === baseId), b = base(), own = !!CFG?.owner, off = !!CFG && !CFG.enabled;
-  const price = coinsOf(A.engine) * (A.n ?? 1);
+  const price = (coinsOf(A.engine) + (plusFor(A) ? coinsOf('ui2') : 0)) * (A.n ?? 1);
   right.replaceChildren(
     h('div', { class: 'hd' }, h('h2', { class: 'ttl' }, tr('Render')), h('span', { class: 'chip warn' }, 'beta')),
     h('div', { class: 'glabel' }, h('span', {}, tr('Nima tasvirlangan'))),
@@ -250,6 +250,8 @@ function renderRight(): void {
       h('div', { class: 'glabel' }, h('span', {}, tr('Sinov modellari (faqat egasi)'))),
       h('div', { class: 'ren-chips', role: 'group', 'aria-label': tr('Sinov modellari (faqat egasi)'), id: 'engLab' }, ...LAB.filter(([k]) => CFG?.engines?.[k]).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': A.engine === k, 'data-eng': k, onclick: () => { A.engine = k; save(); renderRight(); } }, n)))] : []),
     h('p', { class: 't-small' }, LAB.some(([k]) => k === A.engine) ? engName(A.engine) : tr(A.engine === 'fast' ? 'Tez — eskiz va variantlar uchun, taxminan 20 soniya.' : A.engine === 'pro' ? 'Pro 2K — geometriya va materiallar aniqroq, taxminan 40 soniya.' : 'Pro 4K — taqdimot va chop etish uchun, taxminan 1 daqiqa.')),
+    ...(PLUS_ENGINES.includes(A.engine) && (!A.sty || STY_GROUPS[0][1].includes(A.sty)) ? [h('button', { type: 'button', class: 'ren-plus', id: 'renPlus', 'aria-pressed': !!A.plus, title: tr('Render tayyor boʻlgach «Ijodiy» ×2 kattalashtirish avtomatik bajariladi: teksturalar, soyalar va mayda detallar qoʻshiladi, geometriya saqlanadi.'), onclick: () => { A.plus = !A.plus; save(); renderRight(); } },
+      h('b', {}, 'Foto+'), ' ', h('span', {}, tr('realizm · Ijodiy ×2')), own ? null : h('em', {}, `+${tf('${c} tanga', { c: coinsOf('ui2') })}`))] : []),
     h('div', { class: 'ren-row' }, h('span', { class: 'glabel' }, h('span', {}, tr('Variantlar'))),
       h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Variantlar soni'), id: 'nVar' }, ...[1, 2, 4].map(n => h('button', { type: 'button', 'aria-pressed': A.n === n, onclick: () => { A.n = n; save(); renderRight(); } }, String(n))))),
     ...(off ? [h('p', { class: 'note warn', id: 'renOff', role: 'status' }, tr('Render vaqtincha ishlamayapti'))] : []),
@@ -333,6 +335,7 @@ async function go(): Promise<void> {
     const orig = (await shrink(b.img, 512)).url;
     const styN = tr((STY.find(x => x[0] === A.sty) ?? ['', 'Referens boʻyicha'])[1]);
     const body: JobBody = { engine: LAB.some(([k]) => k === A.engine) && !CFG?.owner ? 'pro' : A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id, ...(b.facts && A.subj === b.subj ? { facts: b.facts } : {}) };
+    const plus = plusFor(A);
     const waits: Promise<void>[] = [];
     for (let i = 0; i < n; i++) {
       tick();
@@ -340,7 +343,18 @@ async function go(): Promise<void> {
       if (j.downgraded) toast(tr('Bugungi chegara: Pro oʻrniga Tez ishlatildi'));
       FOLLOW.add(j.id);
       waits.push(waitJob(j.id).then(async r => {
-        if (r.status === 'done' && await keep(r, b.id, `${b.name} · ${styN}`, orig)) { ok++; first ||= `j${r.id}`; OUT = await listOut(); view = 'natija'; }
+        if (r.status === 'done' && await keep(r, b.id, `${b.name} · ${styN}`, orig)) {
+          ok++; first ||= `j${r.id}`; OUT = await listOut(); view = 'natija';
+          if (plus) {   // Foto+: shu natijadan «Ijodiy» ×2 — alohida natija sifatida qoʻshiladi
+            prog = tr('Foto+ — realizm qoʻshilmoqda… (1–2 daqiqa)'); renderStage(); renderRight();
+            try {
+              const u = await createWithRoom({ engine: 'ui2', from: r.id }); FOLLOW.add(u.id);
+              const r2 = await waitJob(u.id).finally(() => FOLLOW.delete(u.id));
+              if (r2.status === 'done' && await keep(r2, b.id, `${b.name} · ${styN} · Foto+`, orig)) { first = `j${r2.id}`; OUT = await listOut(); }
+              else toast(tr('Foto+ bajarilmadi — tanga qaytarildi') + (r2.errDetail ? ` · ${r2.errDetail}` : ''));
+            } catch (e) { toast(errText(e)); }
+          }
+        }
         else { bad++; if (r.errDetail) why = r.errDetail; }
       }, () => { bad++; }).finally(() => { FOLLOW.delete(j.id); tick(); }));
     }

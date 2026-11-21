@@ -43,7 +43,7 @@ export const personaSrc = (id: string, f: Fasl): string => `personajlar/${id}${f
 /** Uslubga qarab standart fasl: «Qish» uslubi → qishki kiyim */
 export const faslFor = (sty: string): Fasl => (sty === 'qish' ? 'qish' : 'bahor');
 
-export interface RenState { sty: string; extra: string; fid: Fidelity; subj: Subject; n: number; engine: Engine }
+export interface RenState { sty: string; extra: string; fid: Fidelity; subj: Subject; n: number; engine: Engine; plus?: boolean }
 const KEY = 'ren-state';
 const ENG: Engine[] = ['fast', 'pro', 'pro4k', 'nbpro', 'qwen', 'kontext', 'seedream5', 'gptimg'];
 export function loadState(): RenState {
@@ -64,6 +64,10 @@ export function loadState(): RenState {
   if (s.sty && !STY.some(f => f[0] === s.sty)) s.sty = 'foto';
   return s;
 }
+/** 21.11 (realizm sinovi, egasi tasdiqladi): «Foto+» = Pro/Tez render + «Ijodiy» ×2 kattalashtirish ketma-ket.
+ *  Faqat foto uslublarida (grafik uslublarda Clarity rasmni fotoga tortadi) */
+export const PLUS_ENGINES: Engine[] = ['fast', 'pro'];
+export const plusFor = (s: RenState): boolean => !!s.plus && PLUS_ENGINES.includes(s.engine) && (!s.sty || (STY_GROUPS[0][1].includes(s.sty)));
 export function saveState(s: RenState): void { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* */ } }
 
 export interface Img { url: string; w: number; h: number }

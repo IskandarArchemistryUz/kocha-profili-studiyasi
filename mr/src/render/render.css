@@ -174,3 +174,10 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 .ren-pplg .pp:disabled{opacity:.4;cursor:default}
 .ren-pplg .pp:not(:disabled):hover{outline:2px solid var(--svc-ren,#c08a1e)}
 .ren-ppl .row{display:flex;flex-wrap:wrap;gap:6px}
+/* 21.11: Foto+ (render + «Ijodiy» ×2) */
+.ren-plus{display:flex;align-items:center;gap:6px;width:100%;padding:8px 10px;border:1px solid var(--hairline);border-radius:var(--r-tile);background:var(--surface);color:var(--ink);font:inherit;font-size:12px;cursor:pointer;text-align:left}
+.ren-plus b{font-weight:600}
+.ren-plus span{color:var(--faint);flex:1}
+.ren-plus em{font-style:normal;color:var(--faint);font-size:11px}
+.ren-plus[aria-pressed="true"]{border-color:var(--svc-ren,#c08a1e);box-shadow:inset 0 0 0 1px var(--svc-ren,#c08a1e)}
+.ren-plus[aria-pressed="true"] b::before{content:"✓ "}
