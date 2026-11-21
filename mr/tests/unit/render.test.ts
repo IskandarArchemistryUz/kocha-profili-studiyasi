@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderApi, setFetch, waitJob, type Job } from '../../src/render/api';
-import { loadState, STY, STY_GROUPS, PERSONAS, PERSONA_GROUPS, FASLLAR, personaSrc, faslFor } from '../../src/render/providers';
+import { loadState, STY, STY_GROUPS, PERSONAS, PERSONA_GROUPS, FASLLAR, personaSrc, faslFor, plusFor } from '../../src/render/providers';
 // @ts-expect-error — node turlari mr tsconfig da yoʻq (slits.test.ts dagi kabi)
 import * as fs from 'node:fs';
 
@@ -36,6 +36,17 @@ describe('Render studiyasi · personajlar', () => {
     for (const [id] of PERSONAS) for (const [f] of FASLLAR) expect(fs.existsSync(`public/${personaSrc(id, f)}`), `${id} ${f}`).toBe(true);
     for (const [, ids] of PERSONA_GROUPS) { expect(ids.length).toBeLessThanOrEqual(4); for (const id of ids) expect(PERSONAS.some(p => p[0] === id)).toBe(true); }
     expect(faslFor('qish')).toBe('qish'); expect(faslFor('foto')).toBe('bahor');
+  });
+});
+
+describe('Render studiyasi · Foto+', () => {
+  it('faqat Tez/Pro va foto uslublarida yoqiladi', () => {
+    const b = loadState();
+    expect(plusFor({ ...b, plus: true, engine: 'pro', sty: 'foto' })).toBe(true);
+    expect(plusFor({ ...b, plus: true, engine: 'fast', sty: 'yashil' })).toBe(true);
+    expect(plusFor({ ...b, plus: true, engine: 'pro4k', sty: 'foto' })).toBe(false);
+    expect(plusFor({ ...b, plus: true, engine: 'pro', sty: 'kollaj' })).toBe(false);
+    expect(plusFor({ ...b, plus: false, engine: 'pro', sty: 'foto' })).toBe(false);
   });
 });
 

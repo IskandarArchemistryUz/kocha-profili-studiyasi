@@ -251,3 +251,20 @@ test('20.11 Odamlar: personaj tanlovi — fasl, bitta personaj va «Oila» guruh
   await expect(page.locator('#ppl')).toHaveCount(0);   // 4/4 — tanlov yopildi
   expect(errs).toEqual([]);
 });
+
+test('21.11 Foto+: Pro + foto uslubida koʻrinadi, narxga Ijodiy ×2 qoʻshiladi; grafik uslubda yashirin', async ({ page }) => {
+  const errs: string[] = [];
+  await mockServer(page);
+  await open(page, errs);
+  await page.locator('#eng [data-eng=pro]').click();
+  await page.locator('#sty [data-sty=foto]').click();
+  const plus = page.locator('#renPlus');
+  await expect(plus).toBeVisible();
+  const before = await page.locator('#renGo .ren-price').textContent();
+  await plus.click();
+  await expect(plus).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#renGo .ren-price')).not.toHaveText(before ?? '');
+  await page.locator('#sty [data-sty=kollaj]').click();
+  await expect(page.locator('#renPlus')).toHaveCount(0);
+  expect(errs).toEqual([]);
+});
