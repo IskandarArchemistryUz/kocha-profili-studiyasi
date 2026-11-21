@@ -506,6 +506,13 @@ describe('render — prompt kompilyatori', () => {
     expect(t).toContain('do not copy the grey background or the four-view layout');
     expect(compilePrompt({ subj: 'kocha', style: 'foto' })).not.toContain('PEOPLE');
   });
+  it('21.11 koʻcha: ranglar kaliti faqat kocha da; 2+ odam — bitta guruh, rasm raqamlari bilan', () => {
+    expect(compilePrompt({ subj: 'kocha', style: 'foto' })).toContain('STREET KEY: dark grey asphalt is the carriageway');
+    expect(compilePrompt({ subj: 'bino', style: 'foto' })).not.toContain('STREET KEY');
+    const t = compilePrompt({ subj: 'kocha', style: 'foto', refs: ['uslub', 'odamlar', 'odamlar', 'odamlar'] });
+    expect(t).toContain('PEOPLE GROUP: the people from images 3–5 belong together');
+    expect(compilePrompt({ subj: 'kocha', style: 'foto', refs: ['odamlar'] })).not.toContain('PEOPLE GROUP');
+  });
   it('18.11 uslublar: brauzer roʻyxati (providers.ts STY) server STYLE bilan bir xil; grafik uslublar geometriyani oʻzgartirmaydi', async () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync(new URL('../../mr/src/render/providers.ts', import.meta.url), 'utf8');

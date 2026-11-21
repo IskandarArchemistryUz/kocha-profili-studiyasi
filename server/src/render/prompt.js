@@ -74,6 +74,12 @@ function factsLine(f) {
 }
 
 /** Foydalanuvchi matni: boshqaruv belgilari olib tashlanadi, qisqartiriladi */
+/* 21.11 (realizm sinovi): Koʻchasoz eksportida ranglar doim bir xil — model yoʻl va trotuarni farqlashi uchun.
+   Usiz mashinalar trotuarga, odamlar yoʻlga qoʻyilardi (20.11 sinovi); kalit bilan Pro, Pro 4K, Pro+Ijodiy da toʻgʻri */
+const STREET_KEY = 'STREET KEY: dark grey asphalt is the carriageway, for cars only, with lane markings; light grey or beige paving is sidewalks, plazas and pedestrian boulevards, for people only, never cars on it; green strips are lawns and tree pits. Cars drive or park only on the asphalt along the kerb.';
+/** Bir nechta «Odamlar» referensi — bitta guruh (oila, juftlik): birga yuradi */
+const PEOPLE_GROUP = (a, b) => ` PEOPLE GROUP: the people from images ${a}–${b} belong together (a family or a couple); place them close to each other, walking or standing together as one group.`;
+
 export function cleanExtra(s) {
   if (s == null) return '';
   if (typeof s !== 'string') throw new PromptError('soʻrov matni notoʻgʻri');
@@ -104,9 +110,10 @@ export function compilePrompt(p) {
     slot('LIGHTING', sty?.light, 'yorugik'),
     slot('CONTEXT', sty?.context, 'kontekst'),
     slot('PEOPLE', null, 'odamlar'),
+    (() => { const ix = roles.map((r, i) => (r === 'odamlar' ? i + 2 : 0)).filter(Boolean); return ix.length > 1 ? PEOPLE_GROUP(ix[0], ix[ix.length - 1]) : ''; })(),
     slot('MATERIALS', sty?.material, 'material'),
     extra ? ` ADDITIONAL: ${extra}.` : '',
-    ` ${fid}${p.subj === 'kesim' ? ` ${SECTION}` : ''}${factsLine(p.facts)}`,
+    ` ${fid}${p.subj === 'kesim' ? ` ${SECTION}` : ''}${p.subj === 'kocha' ? ` ${STREET_KEY}` : ''}${factsLine(p.facts)}`,
     ` QUALITY: ${[sty?.look ?? 'high-quality architectural visualization', ...by('uslub')].join('; ')}. ${QUALITY}`,
   ].join('');
 }
