@@ -32,7 +32,8 @@ export const STYLE = Object.freeze({
   maket: { light: 'soft studio lighting, shallow depth of field', context: 'no people, plain studio background', material: 'matte white card and light wood', look: 'photograph of a physical architectural scale model' },
   diagramma: { light: 'flat even lighting, minimal shading', context: 'no people, no cars', material: 'flat pastel colours with thin dark outlines', look: 'clean architectural diagram illustration' },
   /* 18.11 (PR-U, archiRender tahlili): grafik uslublar. Har birida «faqat tasvir tili oʻzgaradi» bandi — geometriya bandidan tashqari */
-  kollaj: { light: 'flat even light, sky as a single flat colour field', context: 'cut-out photo figures of people as paper silhouettes, layered cut-out trees and shrubs', material: 'flat photo textures cut out and pasted, muted pastel palette with a few accent colours', look: 'architectural presentation collage in a contemporary competition-board style; change only the rendering style, not the architecture' },
+  /* 20.11 sinov: avvalgi matn deyarli fotorealistik chiqdi — kollaj belgilari kuchaytirildi */
+  kollaj: { light: 'flat graphic light; sky replaced by a single flat pastel colour field with subtle paper grain', context: 'cut-out photographic people and trees pasted on top with crisp hard edges, slightly out of scale like a collage, a few flat colour shapes and shadows as simple dark blobs', material: 'building facades kept but simplified into flat photo textures, visible paper texture, limited muted palette with one bright accent colour', look: 'architectural competition-board photo collage, clearly a hand-assembled collage and NOT a photorealistic render; change only the rendering style, not the architecture' },
   ruchka: { light: 'shade expressed only with ink hatching', context: 'a few hand-drawn figures and trees in outline', material: 'black ink lines on white paper, no colour', look: 'black ink pen drawing on white paper with varied line weight and cross-hatching; change only the rendering style, not the architecture' },
   chiziq: { light: 'no shading, no shadows', context: 'no people, no cars; trees as simple outline symbols', material: 'thin uniform black lines on a pure white background, no textures, no fills', look: 'clean technical line drawing for an architectural presentation, every edge drawn as a crisp thin line; change only the rendering style, not the architecture' },
   qogoz: { light: 'warm desk lamp light, soft shadows, shallow depth of field', context: 'no people; tiny model trees made of sponge or wire', material: 'cardboard and kraft paper with visible cut edges, layered contour base', look: 'photograph of a handmade cardboard and kraft paper architectural model on a work desk' },
@@ -50,6 +51,8 @@ const REF = Object.freeze({
   kontekst: (n) => `use the vegetation, people, street furniture and surroundings of image ${n} (context reference)`,
   material: (n) => `use the facade and ground materials, textures and colours of image ${n} (material reference)`,
   uslub: (n) => `match the rendering style, colour grading and mood of image ${n} (style reference)`,
+  /* 20.11 (PR-P): personaj varagʻi — bitta odam 4 holatda, kulrang fonda */
+  odamlar: (n) => `image ${n} is a character sheet of ONE person shown in four views: place this same person into the scene once, at correct human scale (doors are about 2.1 m, one floor about 3 m), standing or walking on a sidewalk, path, crossing or plaza (never in the middle of the carriageway), in the mid-ground so they do not fill the frame, with a natural pose; keep their face, hair, clothing and proportions exactly; do not copy the grey background or the four-view layout (people reference)`,
 });
 export const REF_ROLES = Object.freeze(Object.keys(REF));
 
@@ -71,6 +74,12 @@ function factsLine(f) {
 }
 
 /** Foydalanuvchi matni: boshqaruv belgilari olib tashlanadi, qisqartiriladi */
+/* 21.11 (realizm sinovi): Koʻchasoz eksportida ranglar doim bir xil — model yoʻl va trotuarni farqlashi uchun.
+   Usiz mashinalar trotuarga, odamlar yoʻlga qoʻyilardi (20.11 sinovi); kalit bilan Pro, Pro 4K, Pro+Ijodiy da toʻgʻri */
+const STREET_KEY = 'STREET KEY: dark grey asphalt is the carriageway, for cars only, with lane markings; light grey or beige paving is sidewalks, plazas and pedestrian boulevards, for people only, never cars on it; green strips are lawns and tree pits. Cars drive or park only on the asphalt along the kerb.';
+/** Bir nechta «Odamlar» referensi — bitta guruh (oila, juftlik): birga yuradi */
+const PEOPLE_GROUP = (a, b) => ` PEOPLE GROUP: the people from images ${a}–${b} belong together (a family or a couple); place them close to each other, walking or standing together as one group.`;
+
 export function cleanExtra(s) {
   if (s == null) return '';
   if (typeof s !== 'string') throw new PromptError('soʻrov matni notoʻgʻri');
@@ -100,9 +109,11 @@ export function compilePrompt(p) {
     `${roles.length ? 'Image 1 is the BASE image. ' : ''}INPUT: the base image is ${subj}. Turn it into a finished image.`,
     slot('LIGHTING', sty?.light, 'yorugik'),
     slot('CONTEXT', sty?.context, 'kontekst'),
+    slot('PEOPLE', null, 'odamlar'),
+    (() => { const ix = roles.map((r, i) => (r === 'odamlar' ? i + 2 : 0)).filter(Boolean); return ix.length > 1 ? PEOPLE_GROUP(ix[0], ix[ix.length - 1]) : ''; })(),
     slot('MATERIALS', sty?.material, 'material'),
     extra ? ` ADDITIONAL: ${extra}.` : '',
-    ` ${fid}${p.subj === 'kesim' ? ` ${SECTION}` : ''}${factsLine(p.facts)}`,
+    ` ${fid}${p.subj === 'kesim' ? ` ${SECTION}` : ''}${p.subj === 'kocha' ? ` ${STREET_KEY}` : ''}${factsLine(p.facts)}`,
     ` QUALITY: ${[sty?.look ?? 'high-quality architectural visualization', ...by('uslub')].join('; ')}. ${QUALITY}`,
   ].join('');
 }

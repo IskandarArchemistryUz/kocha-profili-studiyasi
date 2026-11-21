@@ -166,3 +166,11 @@ body.ren-body-page{overflow:hidden;font-size:14px;line-height:1.45}
 /* 14.11 (egasi): fon (quyosh nurlari) butun sahifa orqasida — sahna yarim shaffof, nur xira va toʻqroq */
 #ren .ren-stage{background:color-mix(in srgb,var(--fill) 62%,transparent)}
 [data-theme="dark"] #ren .ren-stage{background:color-mix(in srgb,var(--fill) 55%,transparent)}
+/* 20.11 (PR-P): personajlar tanlovi */
+.ren-ppl{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:var(--r-tile);background:var(--grouped)}
+.ren-pplg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:300px;overflow-y:auto}
+.ren-pplg .pp{display:flex;flex-direction:column;gap:2px;padding:4px;border:0;border-radius:8px;background:var(--surface);cursor:pointer;font:inherit;font-size:11px;color:var(--ink);text-align:center}
+.ren-pplg .pp img{width:100%;aspect-ratio:2/1;object-fit:cover;border-radius:6px;background:#e9e9e9}
+.ren-pplg .pp:disabled{opacity:.4;cursor:default}
+.ren-pplg .pp:not(:disabled):hover{outline:2px solid var(--svc-ren,#c08a1e)}
+.ren-ppl .row{display:flex;flex-wrap:wrap;gap:6px}

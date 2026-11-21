@@ -24,7 +24,7 @@ import { logoSvg } from '../ui/logo';
 import { toggleTheme, isDark, onTheme } from '../ui/theme';
 import { tr, tf, getLang, setLang, onLang } from '../i18n';
 import { cacheGet, cachePut } from '../storage/db';
-import { STY, STY_GROUPS, SUBJECTS, FIDELITY, ROLES, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity } from './providers';
+import { STY, STY_GROUPS, SUBJECTS, FIDELITY, ROLES, PERSONAS, PERSONA_GROUPS, FASLLAR, personaSrc, faslFor, loadState, saveState, shrink, type RefRole, type Subject, type Fidelity, type Fasl } from './providers';
 import { ENGINES, LAB, UP_MODES, UPS_BY, upOf, renderApi, toUpload, waitJob, type Engine, type UpMode, type Job, type JobBody, type RenderCfg } from './api';
 import { ApiError, check } from '../account/session';
 import { apiBase } from '../account/config';
@@ -61,7 +61,7 @@ const A = loadState();
 interface Ref { id: string; img: string; name: string; role: RefRole }
 let SRC: RenderSrc[] = [], OUT: RenderOut[] = [], REFS: Ref[] = [];
 let baseId = (() => { try { return localStorage.getItem(scoped('render-base')) || ''; } catch { return ''; } })();
-let view: 'asos' | 'natija' | 'cmp' = 'asos', busy = false, prog = '', err = '', needBuy = false, pickOpen = false, roleOpen = -1, allOuts = false;
+let view: 'asos' | 'natija' | 'cmp' = 'asos', busy = false, prog = '', err = '', needBuy = false, pickOpen = false, roleOpen = -1, allOuts = false, pplOpen = false, pplFasl: Fasl | '' = '';
 /** Server sozlamasi (null — hali olinmagan yoki server javob bermadi) */
 let CFG: RenderCfg | null = null;
 const FULL = new Map<string, string>();   // ish → toʻliq rasm havolasi (1 soat amal qiladi)
@@ -121,6 +121,29 @@ function srcRow(s: RenderSrc, onPick: () => void, onDel?: () => void): HTMLEleme
       h('span', { class: 'tx' }, h('b', {}, s.name), h('span', {}, h('i', { style: `background:${fc}` }), tr(fn), s.w ? h('code', {}, `${s.w}×${s.h}`) : null))),
     onDel ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost icon-btn', 'aria-label': tr('Oʻchirish'), title: tr('Oʻchirish'), onclick: onDel }, ic(ICON.x)) : null);
 }
+/* 20.11 (PR-P): personajlar tanlovi — tizim personajlari referens sifatida («Odamlar» roli), fasl bilan */
+const curFasl = (): Fasl => pplFasl || faslFor(A.sty);
+async function addPersonas(ids: string[]): Promise<void> {
+  const f = curFasl();
+  for (const id of ids) {
+    if (REFS.length >= MAX_REFS) { toast(tf('Referens ${n} tadan koʻp emas', { n: MAX_REFS })); break; }
+    const rid = `p-${id}-${f}`; if (REFS.some(r => r.id === rid)) continue;
+    const im = await shrink(personaSrc(id, f), 1536).catch(() => null);
+    if (!im) { toast(tr('rasm ochilmadi')); continue; }
+    REFS.push({ id: rid, img: im.url, name: tr((PERSONAS.find(p => p[0] === id) ?? [id, id])[1]), role: 'odamlar' });
+  }
+  if (REFS.length >= MAX_REFS) pplOpen = false;   // joy qolmadi — tanlov yopiladi
+  saveRefs(); renderAll();
+}
+function pplPicker(): HTMLElement {
+  const f = curFasl(), free = MAX_REFS - REFS.length;
+  return h('div', { class: 'ren-ppl', id: 'ppl', role: 'dialog', 'aria-label': tr('Odamlar') },
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Fasl'), id: 'pplFasl' }, ...FASLLAR.map(([k, n]) => h('button', { type: 'button', 'aria-pressed': f === k, 'data-fasl': k, onclick: () => { pplFasl = k; renderLeft(); } }, tr(n)))),
+    h('div', { class: 'ren-pplg' }, ...PERSONAS.map(([id, n]) => h('button', { type: 'button', class: 'pp', 'data-persona': id, title: tr(n), disabled: free < 1, onclick: () => void addPersonas([id]) },
+      h('img', { src: personaSrc(id, f), alt: '', loading: 'lazy' }), h('span', {}, tr(n))))),
+    h('div', { class: 'row' }, ...PERSONA_GROUPS.map(([g, ids]) => h('button', { type: 'button', class: 'btn btn-sm', 'data-pgroup': g, disabled: free < ids.length, onclick: () => void addPersonas(ids) }, tr(g), ' · ', String(ids.length)))),
+    h('p', { class: 't-small' }, tr('AI bilan yasalgan personajlar, real shaxslar emas. Bir loyihada shu odamlarni tanlasangiz, barcha renderlarda ular takrorlanadi.')));
+}
 function renderLeft(): void {
   const b = base();
   const pick = pickOpen ? h('div', { class: 'ren-pickl', role: 'listbox', 'aria-label': tr('Yuborilganlar') },
@@ -142,8 +165,10 @@ function renderLeft(): void {
           h('div', { class: 'im' }, h('img', { src: r.img, alt: r.name }), h('button', { type: 'button', class: 'del', 'aria-label': tr('Referensni olib tashlash'), onclick: () => { REFS.splice(i, 1); saveRefs(); renderAll(); } }, ic(ICON.x))),
           h('button', { type: 'button', class: 'role', 'aria-haspopup': 'listbox', 'aria-expanded': roleOpen === i, onclick: () => { roleOpen = roleOpen === i ? -1 : i; renderLeft(); } }, tr((ROLES.find(x => x[0] === r.role) ?? ROLES[0])[1]), ic(ICON.chev)),
           roleOpen === i ? h('div', { class: 'ren-menu', role: 'listbox' }, ...ROLES.map(([k, n]) => h('button', { type: 'button', role: 'option', 'aria-selected': r.role === k, onclick: () => { r.role = k; roleOpen = -1; saveRefs(); renderLeft(); } }, tr(n)))) : null)),
-        ...(REFS.length < MAX_REFS ? [h('button', { type: 'button', class: 'add', id: 'refAdd', onclick: () => { fileFor = 'ref'; fileIn.click(); } }, '+ ', tr('Referens'))] : [])),
-      h('p', { class: 't-small' }, tr('Har referensga rol bering: Uslub · Material · Yorugʻlik · Kontekst. Referens — fayldan yoki natija oynasidan («Referens qilish»).'))),
+        ...(REFS.length < MAX_REFS ? [h('button', { type: 'button', class: 'add', id: 'refAdd', onclick: () => { fileFor = 'ref'; fileIn.click(); } }, '+ ', tr('Referens')),
+          h('button', { type: 'button', class: 'add', id: 'pplAdd', 'aria-expanded': pplOpen, onclick: () => { pplOpen = !pplOpen; renderLeft(); } }, '+ ', tr('Odamlar'))] : [])),
+      pplOpen ? pplPicker() : null,
+      h('p', { class: 't-small' }, tr('Har referensga rol bering: Uslub · Material · Yorugʻlik · Kontekst · Odamlar. Referens — fayldan yoki natija oynasidan («Referens qilish»).'))),
     h('span', { class: 'sp' }),
     /* avvalgi «Bino studiyasi» hozircha faqat egasiga (js/sinov.js) */
     isOwner() ? h('details', { class: 'ren-old' }, h('summary', {}, tr('Toʻliq asboblar (avvalgi koʻrinish)')),
@@ -304,7 +329,7 @@ async function go(): Promise<void> {
   try {
     const inp = await upKey(`b:${b.id}`, b.img, CFG!.maxSide || 2048);
     const refs: { key: string; role: string }[] = [];
-    for (const r of REFS) refs.push({ key: (await upKey(`r:${r.id}`, r.img, 1024)).key, role: r.role });
+    for (const r of REFS) refs.push({ key: (await upKey(`r:${r.id}`, r.img, r.role === 'odamlar' ? 1536 : 1024)).key, role: r.role });   // personaj varagʻi: 4 holat — kattaroq
     const orig = (await shrink(b.img, 512)).url;
     const styN = tr((STY.find(x => x[0] === A.sty) ?? ['', 'Referens boʻyicha'])[1]);
     const body: JobBody = { engine: LAB.some(([k]) => k === A.engine) && !CFG?.owner ? 'pro' : A.engine, input: inp, refs, subj: A.subj ?? 'reja', style: A.sty, fid: A.fid ?? 'qatiy', extra: A.extra.trim() || undefined, source: b.from, tag: b.id, ...(b.facts && A.subj === b.subj ? { facts: b.facts } : {}) };
@@ -445,7 +470,7 @@ async function toChizmadon(o: RenderOut): Promise<void> {
 
 /* ---------------- ishga tushirish ---------------- */
 function renderAll(): void { renderHeader(); renderLeft(); renderStage(); renderRight(); renderViewer(); document.title = `${tr('Render studiyasi')} · Archemistry Lab`; }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (viewer) closeViewer(); else if (pickOpen || roleOpen >= 0) { pickOpen = false; roleOpen = -1; renderAll(); } } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (viewer) closeViewer(); else if (pickOpen || roleOpen >= 0 || pplOpen) { pickOpen = false; roleOpen = -1; pplOpen = false; renderAll(); } } });
 onLang(() => { renderAll(); document.documentElement.lang = getLang(); });
 onTheme(() => renderHeader());
 async function boot(): Promise<void> {

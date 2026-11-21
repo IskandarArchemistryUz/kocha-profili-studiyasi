@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderApi, setFetch, waitJob, type Job } from '../../src/render/api';
-import { loadState, STY, STY_GROUPS } from '../../src/render/providers';
+import { loadState, STY, STY_GROUPS, PERSONAS, PERSONA_GROUPS, FASLLAR, personaSrc, faslFor } from '../../src/render/providers';
+// @ts-expect-error — node turlari mr tsconfig da yoʻq (slits.test.ts dagi kabi)
+import * as fs from 'node:fs';
 
 /** 13.11 (Render 1-bosqich): kalitsiz — hamma soʻrov serverga; provayder va kalit yoʻq */
 const store = new Map<string, string>();
@@ -26,6 +28,14 @@ describe('Render studiyasi · uslublar guruhi', () => {
     const all = STY_GROUPS.flatMap(([, ids]) => ids);
     expect(new Set(all).size).toBe(all.length);
     expect([...all].sort()).toEqual(STY.map(([k]) => k).sort());
+  });
+});
+
+describe('Render studiyasi · personajlar', () => {
+  it('har personajning 3 fasl varagʻi public/personajlar da bor; guruhlar mavjud personajlardan', () => {
+    for (const [id] of PERSONAS) for (const [f] of FASLLAR) expect(fs.existsSync(`public/${personaSrc(id, f)}`), `${id} ${f}`).toBe(true);
+    for (const [, ids] of PERSONA_GROUPS) { expect(ids.length).toBeLessThanOrEqual(4); for (const id of ids) expect(PERSONAS.some(p => p[0] === id)).toBe(true); }
+    expect(faslFor('qish')).toBe('qish'); expect(faslFor('foto')).toBe('bahor');
   });
 });
 

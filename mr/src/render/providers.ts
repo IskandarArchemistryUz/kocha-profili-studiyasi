@@ -25,8 +25,23 @@ export const SUBJECTS: [Subject, string][] = [['reja', 'Master reja'], ['bino', 
 export type Fidelity = 'qatiy' | 'muvozanat' | 'erkin';
 export const FIDELITY: [Fidelity, string][] = [['qatiy', 'Qatʼiy'], ['muvozanat', 'Muvozanat'], ['erkin', 'Erkin']];
 /** Referens rasm roli */
-export type RefRole = 'uslub' | 'material' | 'yorugik' | 'kontekst';
-export const ROLES: [RefRole, string][] = [['uslub', 'Uslub'], ['material', 'Material'], ['yorugik', 'Yorugʻlik'], ['kontekst', 'Kontekst']];
+export type RefRole = 'uslub' | 'material' | 'yorugik' | 'kontekst' | 'odamlar';
+export const ROLES: [RefRole, string][] = [['uslub', 'Uslub'], ['material', 'Material'], ['yorugik', 'Yorugʻlik'], ['kontekst', 'Kontekst'], ['odamlar', 'Odamlar']];
+
+/* 20.11 (PR-P): tizim personajlari — AI bilan yasalgan, real shaxs emas. Har biri 4 holatli varaq (old, yon, orqa, 3/4 yurish), 3 fasl.
+   Fayllar: mr/public/personajlar/<id>[_yoz|_qish].webp (1536×768) → app/personajlar/ */
+export type Fasl = 'bahor' | 'yoz' | 'qish';
+export const FASLLAR: [Fasl, string][] = [['bahor', 'Bahor–kuz'], ['yoz', 'Yoz'], ['qish', 'Qish']];
+export const PERSONAS: [string, string][] = [
+  ['erkak', 'Erkak'], ['ayol', 'Ayol'], ['bola-ogil', 'Oʻgʻil bola'], ['bola-qiz', 'Qiz bola'],
+  ['ota', 'Ota'], ['ona', 'Ona'], ['talaba-qiz', 'Talaba qiz'], ['talaba-yigit', 'Talaba yigit'],
+  ['otaxon', 'Otaxon'], ['kampir', 'Keksa ayol'], ['velosipedchi', 'Velosipedchi'], ['ofis', 'Ofis xodimi'], ['bozor', 'Bozorga ketayotgan ayol'],
+];
+/** Tayyor guruhlar — bir bosishda bir nechta personaj (referenslar chegarasi 4) */
+export const PERSONA_GROUPS: [string, string[]][] = [['Oila', ['ota', 'ona', 'bola-ogil', 'bola-qiz']], ['Keksa juftlik', ['otaxon', 'kampir']]];
+export const personaSrc = (id: string, f: Fasl): string => `personajlar/${id}${f === 'bahor' ? '' : `_${f}`}.webp`;
+/** Uslubga qarab standart fasl: «Qish» uslubi → qishki kiyim */
+export const faslFor = (sty: string): Fasl => (sty === 'qish' ? 'qish' : 'bahor');
 
 export interface RenState { sty: string; extra: string; fid: Fidelity; subj: Subject; n: number; engine: Engine }
 const KEY = 'ren-state';
