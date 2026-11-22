@@ -8,6 +8,7 @@ import type { LegendItem, SheetInner } from './sheet';
 import { cutGeom, type CutGeom, type CutSide } from './streetcut';
 import type { PartKind } from './profiles';
 import { STD_SCALES } from './aptsheet';
+import { ksStreetCached } from '../kochasoz/kssection';
 
 const n2 = (v: number) => (Math.round(v * 100) / 100).toString();
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -18,6 +19,9 @@ const f1 = (v: number) => (Math.round(v * 10) / 10).toString().replace('.', ',')
 export const CUT_COL: Record<PartKind, string> = { trotuar: '#ebe2cf', yashil: '#7fb0a8', velo: '#d98a78', parkovka: '#a3a6ad', qatnov: '#6b6e75', ajratuvchi: '#b9c4a6', avtobus: '#bf5a4d', tramvay: '#b8894f' };
 const RAISE: Record<PartKind, number> = { trotuar: 0.15, yashil: 0.15, velo: 0.1, parkovka: 0, qatnov: 0, ajratuvchi: 0.15, avtobus: 0, tramvay: 0 };
 export const CUT_NAME: Record<PartKind, string> = { trotuar: 'Trotuar', yashil: 'Yashil tasma', velo: 'Velo yoʻlak', parkovka: 'Avtoturargoh', qatnov: 'Harakat boʻlaklari', ajratuvchi: 'Ajratuvchi tasma', avtobus: 'Avtobus boʻlagi', tramvay: 'Tramvay' };
+
+/** MR qismi → Koʻchasoz zona qatlami (boards/b.ts ZLY) — legenda rangi chizma bilan bir xil boʻlsin */
+const KS_ZONE: Record<PartKind, string> = { trotuar: 'FOOTWAY', yashil: 'GREEN', velo: 'CYCLE', parkovka: 'PARKING', qatnov: 'LANE', ajratuvchi: 'MEDIAN', avtobus: 'BUS', tramvay: 'TRAM' };
 
 /** Bino koʻrsatiladigan chuqurlik, m (qolgani uzilish belgisi bilan) */
 const DEPTH_MAX = 10;
@@ -39,8 +43,12 @@ export function cutSheet(doc: Project, cutId: string | undefined, tr: (s: string
   if (!g) return { label: 'M —', name: 'Koʻcha profili', body: (vx, vy, vw, vh) => `<text x="${n2(vx + vw / 2)}" y="${n2(vy + vh / 2)}" font-size="5" text-anchor="middle" fill="#6b6965">${esc(tr('Kesim chizigʻi yoʻq: Koʻchalar → koʻchani tanlang → «Kesim chizigʻini qoʻyish»'))}</text>` };
   const N = cutScale(g, vw0, vh0), k = 1000 / N, L = g.cut.label, sn = doc.streets.findIndex(s => s.id === g.cut.street) + 1;
   const name = `${tr('Koʻcha profili')} ${L}–${L}`;
+  // 22.11 (egasi: «kesim grafikasi Koʻchasozdagidek chiroyli emas»): koʻcha qismi — Koʻchasoz kesimining oʻz qatlamlari
+  // (zonalar, daraxtlar, odamlar, mashinalar, mebel); masshtab, binolar, qizil chiziqlar va oʻlchamlar — varaqniki.
+  // Koʻchasoz hali chizilmagan boʻlsa (birinchi ochilish) — avvalgi sxema, tayyor boʻlgach varaq qayta chiziladi.
+  const ks = ksStreetCached(g.profile);
   const kinds = [...new Set(g.profile.parts.map(p => p.k))];
-  const legend: LegendItem[] = [...kinds.map(kd => ({ type: 'fill' as const, fill: CUT_COL[kd], label: tr(CUT_NAME[kd]) })), { type: 'dash', stroke: '#c0392b', label: tr('Qizil chiziq') }, { type: 'fill', fill: '#f4f3f0', stroke: '#1d1d1b', label: tr('Bino (Master reja)') }];
+  const legend: LegendItem[] = [...kinds.map(kd => ({ type: 'fill' as const, fill: (ks && ks.fill[KS_ZONE[kd]]) || CUT_COL[kd], label: tr(CUT_NAME[kd]) })), { type: 'dash', stroke: '#c0392b', label: tr('Qizil chiziq') }, { type: 'fill', fill: '#f4f3f0', stroke: '#1d1d1b', label: tr('Bino (Master reja)') }];
 
   const body = (vx: number, vy: number, vw: number, vh: number): string => {
     const e = extent(g), dw = (e.xr - e.xl) * k, ox = vx + (vw - dw) / 2 - e.xl * k;
@@ -63,7 +71,12 @@ export function cutSheet(doc: Project, cutId: string | undefined, tr: (s: string
     o.push(`<path d="M${n2(X(e.xl))} ${n2(gy)}H${n2(X(e.xr))}" stroke="#1d1d1b" stroke-width="0.5"/>`);
     // qismlar
     let x = -g.W / 2; const cuts: number[] = [x];
-    for (const p of g.profile.parts) {
+    if (ks && ks.g) {
+      const sc = k / ks.px, tx = X(-g.W / 2) - ks.x0 * sc, ty = gy - ks.G * sc, id = `kscut_${esc(g.cut.id)}`;
+      o.push(`<defs><clipPath id="${id}"><rect x="${n2(X(-g.W / 2) - 0.2)}" y="${n2(Y(e.top - 1))}" width="${n2(g.W * k + 0.4)}" height="${n2((e.top - 1) * k + 1.2 * k)}"/></clipPath></defs>`,
+        `<g data-cut-ks="1" clip-path="url(#${id})"><g transform="translate(${n2(tx)} ${n2(ty)}) scale(${sc.toFixed(5)})">${ks.g}</g></g>`);
+      for (const p of g.profile.parts) { x += p.w; cuts.push(x); }
+    } else for (const p of g.profile.parts) {
       const x0 = X(x), x1 = X(x + p.w), r = Math.max(0.6, (RAISE[p.k] + 0.25) * k);
       o.push(`<rect data-cut-part="${p.k}" x="${n2(x0)}" y="${n2(gy - r)}" width="${n2(x1 - x0)}" height="${n2(r)}" fill="${CUT_COL[p.k]}" stroke="#1d1d1b" stroke-width="0.15"/>`);
       const lanes = p.lanes ?? 1, lw = (x1 - x0) / lanes;
