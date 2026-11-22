@@ -23,6 +23,6 @@ test('Joyshunosga yuborish — Int32 atributli qatlam bilan ham model ochiladi',
   await page.waitForURL(/joyshunos\.html/);
   await expect.poll(() => page.evaluate(() => !!(window as any).joyAxo?.hasModel()), { timeout: 20000 }).toBe(true);
   await expect(page.locator('body')).not.toContainText('Model ochilmadi');
-  // model keshda qoldi (xato boʻlsa endi oʻchiriladi)
-  expect(await page.evaluate(() => new Promise(ok => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => { const t = r.result.transaction('cache', 'readonly').objectStore('cache').get('joy-model'); t.onsuccess = () => ok(!!t.result); }; }))).toBe(true);
+  // model keshda qoldi (xato boʻlsa endi oʻchiriladi); 22.11 — shu loyiha kalitida (joy-model@<id>)
+  expect(await page.evaluate(() => new Promise(ok => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => { const t = r.result.transaction('cache', 'readonly').objectStore('cache').get(`joy-model@${new URLSearchParams(location.search).get('p')}`); t.onsuccess = () => ok(!!t.result); }; }))).toBe(true);
 });
