@@ -36,6 +36,7 @@ const root = document.getElementById('tr')!;
 let cur: VehicleKind = (KINDS.includes(location.hash.slice(2) as VehicleKind) ? location.hash.slice(2) : 'avtobus12') as VehicleKind;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.debug.checkShaderErrors = false;   // 22.11: sheyder xatolari tekshiruvi oʻchiq — har dastur uchun sinxron getProgramInfoLog kutilmaydi (birinchi kadr tezroq; chizish oʻzgarmaydi)
 renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
@@ -45,6 +46,11 @@ scene.add(hemi, sun);
 const ground = new THREE.Mesh(new THREE.CircleGeometry(40, 48), new THREE.MeshStandardMaterial({ color: '#d9d6cf', roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const ctl = new OrbitControls(cam, renderer.domElement); ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * 0.49;
 let model: THREE.Group | null = null;
+// 22.11 (egasi: sahnani yengillashtirish): kadr faqat biror narsa oʻzgarganda chiziladi (kamera, model, tema, oʻlcham); soya xaritasi — faqat model
+// almashganda. Avval sahifa boʻsh turganda ham har kadrda (60 marta/s) sahna va soya oʻtishi chizilardi
+let dirty = true, sdirty = true;
+renderer.shadowMap.autoUpdate = false;
+ctl.addEventListener('change', () => { dirty = true; });
 
 function show(kind: VehicleKind): void {
   cur = kind; history.replaceState(null, '', `#/${kind}`);
@@ -52,9 +58,10 @@ function show(kind: VehicleKind): void {
   model = buildVehicle(kind); scene.add(model);
   const v = VEHICLES[kind], d = Math.max(v.L, 6) * 1.3 / Math.min(1, Math.max(0.6, cam.aspect / 1.6));
   cam.position.set(-d * 0.95, d * 0.42, d * 0.75); ctl.target.set(0, v.H * 0.42, 0); ctl.update();
+  dirty = sdirty = true;
   draw();
 }
-function theme(): void { const dk = isDark(); scene.background = new THREE.Color(dk ? '#1b1b1a' : '#f2f1ee'); (ground.material as THREE.MeshStandardMaterial).color.set(dk ? '#2a2a28' : '#dedbd3'); }
+function theme(): void { const dk = isDark(); scene.background = new THREE.Color(dk ? '#1b1b1a' : '#f2f1ee'); (ground.material as THREE.MeshStandardMaterial).color.set(dk ? '#2a2a28' : '#dedbd3'); dirty = true; }
 async function glb(): Promise<void> {
   if (!model) return;
   const ex = new GLTFExporter(), buf = await ex.parseAsync(model, { binary: true }) as ArrayBuffer;
@@ -81,9 +88,9 @@ function draw(): void {
       h('div', { class: 'tr-note' }, tr('Archemistry oʻzi yasagan modellar: brendsiz, haqiqiy oʻlchamda (metr), +Y — tepaga, old — +Z. Oʻlchamlar Koʻchasoz chorrahasidagi burilish izi avtomobillari bilan bir xil.')))));
   resize();
 }
-function resize(): void { const r = view.getBoundingClientRect(); if (!r.width) return; renderer.setSize(r.width, r.height, false); cam.aspect = r.width / r.height; cam.updateProjectionMatrix(); }
+function resize(): void { const r = view.getBoundingClientRect(); if (!r.width) return; renderer.setSize(r.width, r.height, false); cam.aspect = r.width / r.height; cam.updateProjectionMatrix(); dirty = true; }
 addEventListener('resize', resize); new ResizeObserver(resize).observe(view);
 onTheme(() => { theme(); draw(); }); onLang(() => draw());
 theme(); show(cur);
-renderer.setAnimationLoop(() => { ctl.update(); renderer.render(scene, cam); });
+renderer.setAnimationLoop(() => { ctl.update(); if (!dirty) return; dirty = false; if (sdirty) { sdirty = false; renderer.shadowMap.needsUpdate = true; } renderer.render(scene, cam); });
 (window as unknown as { __tr: unknown }).__tr = { show, triCount: () => (model ? triCount(model) : 0), KINDS, cam, ctl };
