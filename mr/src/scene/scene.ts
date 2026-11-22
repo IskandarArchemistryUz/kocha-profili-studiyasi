@@ -84,6 +84,8 @@ function facadeTex(kind: 'res' | 'shop' | 'glass', spec: WinSpec, fh: number, mo
 export const INSOL_BINS: [number, number, string][] = [[0, 0x2b3a67, '< 1 soat'], [1, 0x4a6fa5, '1–2'], [2, 0x7fb3c8, '2–3'], [3, 0xc9e4a5, '3–4'], [4, 0xf6e58d, '4–6'], [6, 0xf9b24e, '≥ 6']];
 export function insolColor(h: number): number { let c = INSOL_BINS[0][1]; for (const [t, col] of INSOL_BINS) if (h >= t) c = col; return c; }
 
+/** 22.11: uzoqdan koʻrinadigan asl toj — 20 uchburchak (toʻliq: 80). Umumiy, xotiradan boʻshatilmaydi (userData.cache) */
+const LOW_CROWN = new THREE.IcosahedronGeometry(1, 0); LOW_CROWN.userData.cache = true;
 function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] {
   const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color }), pts.length);
   const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.25, 1, 5), new THREE.MeshLambertMaterial({ color: 0x7a6650 }), pts.length);
@@ -94,6 +96,7 @@ function treeMeshes(pts: XY[], H: HeightFn, color = 0x6f9f4c): THREE.Object3D[] 
     m4.compose(new THREE.Vector3(p[0], y + h / 2 + 0.3, -p[1]), new THREE.Quaternion(), new THREE.Vector3(1, h + 0.6, 1)); trunk.setMatrixAt(i, m4);
   });
   crown.castShadow = true; crown.renderOrder = 12; trunk.renderOrder = 12; crown.userData.tree = 'crown'; trunk.userData.tree = 'trunk';
+  crown.userData.fullGeo = crown.geometry;   // 22.11: «Sodda»da juda uzoqdan LOW_CROWN bilan almashtiriladi
   return [crown, trunk];
 }
 
@@ -172,6 +175,7 @@ export class Scene3D {
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: !Scene3D.LOW, preserveDrawingBuffer: true });   // 18.11 (T3): telefonda silliqlashsiz (piksel zichligi ≥ 1,5 — sezilmaydi)
     this.renderer.setPixelRatio(this.basePR());
+    this.renderer.debug.checkShaderErrors = false;   // 22.11: sheyder xatolari tekshiruvi oʻchiq — har dastur uchun sinxron getProgramInfoLog kutilmaydi (birinchi kadr tezroq; chizish oʻzgarmaydi)
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // 02.11 (egasi: «sahna juda ogʻir»): soya xaritasi faqat sahna mazmuni yoki quyosh oʻzgarganda qayta chiziladi — kamera aylanganda emas
@@ -211,7 +215,7 @@ export class Scene3D {
         if (atCap && after <= before * 1.002 && before > 800) this.onZoomOutLimit?.();
       });
     }, { passive: true, capture: true });
-    new ResizeObserver(() => this.resize()).observe(host);
+    new ResizeObserver(() => this.resize(false)).observe(host);
     this.resize();
     const loop = () => { this.raf = requestAnimationFrame(loop); if (this.liteDirty) { this.liteDirty = false; this.applyLite(true); } if (this.dirty) { this.dirty = false; this.noteFrame(); if (this.shadowDirty) { this.shadowDirty = false; this.renderer.shadowMap.needsUpdate = true; } const c = this.rcam(); this.fitSprites(c); this.renderer.render(this.scene, c); } };
     loop();
@@ -229,13 +233,15 @@ export class Scene3D {
 
   dispose(): void { clearTimeout(this.lodT); this.facCache.forEach(G => { disposeGeoSet(G.res); disposeGeoSet(G.shop); }); this.facCache.clear(); this.facMats.forEach(m => m.dispose()); this.facMats.clear(); cancelAnimationFrame(this.raf); this.ctl.dispose(); this.renderer.dispose(); this.renderer.domElement.remove(); }
 
-  private resize(): void {
+  /** 22.11: soya xaritasi kanvas oʻlchamiga bogʻliq emas (soya kamerasi atrof qutisiga qotirilgan) — oʻlcham yoki piksel zichligi
+   *  oʻzgarganda (shadow = false) qayta chizilmaydi. Avval har kamera harakati boshida va oxirida (zichlik 1 ↔ asl) butun soya oʻtishi chizilardi */
+  private resize(shadow = true): void {
     const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
     this.renderer.setSize(w, h, false);
     this.persp.aspect = w / h; this.persp.updateProjectionMatrix();
     const s = (this.ortho.userData.s as number) || 200;
     Object.assign(this.ortho, { left: -s * w / h, right: s * w / h, top: s, bottom: -s }); this.ortho.updateProjectionMatrix();
-    this.invalidate();
+    this.invalidate(shadow);
   }
 
   get view(): ViewMode { return this.mode; }
@@ -689,9 +695,9 @@ export class Scene3D {
   private onCtl(): void {
     this.invalidate(false); this.onView?.(); this.lodSoon();
     this.moveOn = true;
-    if (this.renderer.getPixelRatio() > 1) { this.renderer.setPixelRatio(1); this.resize(); }
+    if (this.renderer.getPixelRatio() > 1) { this.renderer.setPixelRatio(1); this.resize(false); }
     clearTimeout(this.movT);
-    this.movT = window.setTimeout(() => { this.moveOn = false; this.frames = []; const pr = this.basePR(); if (this.renderer.getPixelRatio() !== pr) { this.renderer.setPixelRatio(pr); this.resize(); } }, 250);
+    this.movT = window.setTimeout(() => { this.moveOn = false; this.frames = []; const pr = this.basePR(); if (this.renderer.getPixelRatio() !== pr) { this.renderer.setPixelRatio(pr); this.resize(false); } }, 250);
   }
   private noteFrame(): void {
     if (!this.moveOn || this.slowSent) return;
@@ -705,7 +711,22 @@ export class Scene3D {
   setLiteOff(on: boolean): void { if (on === this.liteOff) return; this.liteOff = on; this.applyLite(true); this.refreshLod(); }
   private liteWanted(r = this.viewExtent().r): boolean { return this.lite === 'sodda' && !this.forceFull && !this.liteOff && r > Scene3D.LITE_VIEW; }
   /** «Sodda» holatini sahnaga qoʻllaydi (qayta qurmasdan: material va koʻrinish); force — joriy holat bilan bir xil boʻlsa ham */
+  /** 22.11: atrof (OSM) daraxtlari — juda uzoqdan (koʻrinish yarim kengligi > CTX_TREE_FAR m) asl toj kam uchburchakli */
+  static CTX_TREE_FAR = 300;
+  private syncCtxTreeLod(): void {
+    if (!this.ctx) return;
+    const r = this.viewExtent().r, lv = !this.liteWanted(r) ? 0 : r > Scene3D.CTX_TREE_FAR ? 2 : 1;
+    if (this.ctx.setTreeLod(lv)) this.invalidate(true);
+  }
+  /** 22.11: loyiha (asl uslub) daraxtlari ham juda uzoqdan kam uchburchakli toj — atrof daraxtlari bilan bir xil chegara */
+  private syncWorldTreeLod(): void {
+    const r = this.viewExtent().r, far = this.liteWanted(r) && r > Scene3D.CTX_TREE_FAR; let ch = false;
+    this.world.traverse(o => { const full = o.userData.fullGeo as THREE.BufferGeometry | undefined; if (!full) return;
+      const m = o as THREE.Mesh, geo = far ? LOW_CROWN : full; if (m.geometry !== geo) { m.geometry = geo; ch = true; } });
+    if (ch) this.invalidate(true);
+  }
   applyLite(force = false): void {
+    this.syncCtxTreeLod(); this.syncWorldTreeLod();
     const on = this.liteWanted();
     if (on === this.liteOn && !force) return;
     this.liteOn = on;
@@ -1769,7 +1790,7 @@ export class Scene3D {
     this.ctxSat = cs.base === 'sputnik' && !!tex;
     this.scene.add(this.ctx.group);
     this.setSatLayer(null, doc.origin);
-    this.syncCtxTrees();
+    this.syncCtxTrees(); this.liteDirty = true;   // 22.11: yangi atrof daraxtlariga «Sodda» holati keyingi kadrda qoʻllanadi
     if (this.album || this.gsc) this.applyStyle();
     if (this.iso || this.aptView) this.applyIsoCtx();
     this.grid.forEach(g => g.visible = false);
@@ -2614,6 +2635,7 @@ function disposeGroup(g: THREE.Group): void {
     o.traverse(x => {
       const m = x as THREE.Mesh;
       if (m.geometry && !m.geometry.userData.cache && !(x as THREE.Sprite).isSprite) m.geometry.dispose();
+      const fg = x.userData.fullGeo as THREE.BufferGeometry | undefined; if (fg && fg !== m.geometry) fg.dispose();   // 22.11: uzoq koʻrinishda toj almashtirilgan boʻlsa
       const mat = m.material as (THREE.Material & { map?: THREE.Texture | null }) | THREE.Material[] | undefined;
       for (const y of (Array.isArray(mat) ? mat : mat ? [mat] : []) as (THREE.Material & { map?: THREE.Texture | null })[]) {
         if (y.userData.cache) continue;

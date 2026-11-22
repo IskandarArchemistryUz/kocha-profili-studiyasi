@@ -71,8 +71,10 @@ const measure = (page: Page) => page.evaluate(() => {
   const t0 = performance.now(); for (let i = 0; i < 6; i++) { R.render(sc.scene, cam); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); }
   const ms = (performance.now() - t0) / 6;
   let meshes = 0, inst = 0, tris = 0, trees = 0;
+  // 22.11: daraxt geometriyasi toʻliq sifatda sanaladi («Sodda»da uzoqdan asl toj ham kam uchburchakli — sahna_yengil_atrof.spec)
+  const lite0 = sc.lite; sc.setLite('toliq');
   for (const o of sc.ctx.group.children) if (o.isInstancedMesh) { const g = o.geometry, t = (g.index ? g.index.count : g.attributes.position.count) / 3; meshes++; inst += o.count; tris += t * o.count; if (o.userData.tree !== 'trunk' && !/tana/.test(o.name) && (o.name === 'daraxtlar' || o.userData.ctxTree)) trees += o.count; }
-  sc.invalidate();
+  sc.setLite(lite0); sc.invalidate();
   return { full, steady, ms: Math.round(ms * 10) / 10, ctxTrees: { meshes, instances: inst, trees, tris } };
 });
 
@@ -197,7 +199,8 @@ for (const [w, dark] of SIZES) test(`sahna foni va shablon daraxtlari · ${w}px$
   await base(page, 'maket');
   await expect.poll(async () => (await st(page)).map).toBe(false);
   s = await st(page); expect(s.ground).toBe(asl0.ground); expect(s.bld).toBe(asl0.bld); expect(s.bg).toBe(asl0.bg);   // «Asl uslub» koʻrinishi oʻzgarmagan
-  const crowns = await page.evaluate(() => (window as any).__mr.scene.ctx.group.getObjectByName('daraxtlar').geometry.parameters.detail);
+  // 22.11: «Sodda»da juda uzoqdan asl toj kam uchburchakli (sahna_yengil_atrof.spec) — asl shakl toʻliq sifatda tekshiriladi
+  const crowns = await page.evaluate(() => { const sc = (window as any).__mr.scene; sc.setLite('toliq'); const d = sc.ctx.group.getObjectByName('daraxtlar').geometry.parameters.detail; sc.setLite('sodda'); return d; });
   expect(crowns).toBe(1);
 
   expect(s.kerb).toBe('yashirin');

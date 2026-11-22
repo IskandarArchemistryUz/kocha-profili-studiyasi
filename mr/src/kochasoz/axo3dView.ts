@@ -38,6 +38,7 @@ function ensure(card: HTMLElement): NonNullable<typeof ui> {
   wrap.append(cv, labels, cap, qb);
   card.append(wrap);
   const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+  r.debug.checkShaderErrors = false;   // 22.11: sheyder xatolari tekshiruvi oʻchiq — har dastur uchun sinxron getProgramInfoLog kutilmaydi (birinchi kadr tezroq; chizish oʻzgarmaydi)
   r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap; r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping;
   const ro = new ResizeObserver(() => { if (last) draw(last, true); }); ro.observe(wrap);
   ui = { wrap, cv, labels, cap, qb, r, ro };
@@ -111,7 +112,7 @@ export function axoSync(inp: AxoInput | null): void {
 export async function axoPng(scale = 2): Promise<{ url: string; w: number; h: number } | null> {
   if (!ui || !last) return null;
   const rc = ui.wrap.getBoundingClientRect(), W = Math.round(rc.width), H = Math.round(rc.height);
-  const off = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); off.shadowMap.enabled = true; off.shadowMap.type = THREE.PCFSoftShadowMap; off.outputColorSpace = THREE.SRGBColorSpace; off.toneMapping = THREE.ACESFilmicToneMapping;
+  const off = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); off.debug.checkShaderErrors = false; off.shadowMap.enabled = true; off.shadowMap.type = THREE.PCFSoftShadowMap; off.outputColorSpace = THREE.SRGBColorSpace; off.toneMapping = THREE.ACESFilmicToneMapping;
   const { scene } = render(off, last, W, H, scale);
   const c = document.createElement('canvas'); c.width = W * scale; c.height = H * scale;
   const g = c.getContext('2d')!; g.drawImage(off.domElement, 0, 0);
