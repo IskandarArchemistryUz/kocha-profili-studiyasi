@@ -4,7 +4,7 @@
  * id «s_…» — Master reja loyihasi («p_…») bilan aralashmaydi. «Asosiy loyiha» (id '') — manzilda ?p= yoʻq holat (avvalgi ish).
  */
 export type SvcKind = 'ks' | 'joy' | 'ren';
-export interface SvcProject { id: string; name: string; created: string; updated: string }
+export interface SvcProject { id: string; name: string; created: string; updated: string; /** 22.11: loyihasiz eski ishdan koʻchirilgan */ legacy?: true }
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 const ls = (): KV | null => { try { return localStorage; } catch { return null; } };
 const K = (s: SvcKind) => `svcp:${s}`;
@@ -32,4 +32,32 @@ export function removeSvc(s: SvcKind, id: string, store = ls()): void {
   const suf = `@${id}`, ks: string[] = [];
   for (let i = 0; i < store.length; i++) { const k = store.key(i); if (k?.endsWith(suf)) ks.push(k); }
   ks.forEach(k => store.removeItem(k));
+}
+
+/** 22.11: shu loyiha eski (loyihasiz) ishdan koʻchirilganmi */
+export function isLegacySvc(s: SvcKind, id: string | null, store = ls()): boolean { return !!id && !!listSvc(s, store).find(x => x.id === id)?.legacy; }
+
+/** Xizmat holati kalitlari (loyihaga ajratiladigan): localStorage va IndexedDB kesh */
+export const SVC_STATE: Record<SvcKind, { ls: string[]; idb: string[] }> = {
+  ks: { ls: ['ks-street', 'ks-a', 'ks-b', 'ks-c', 'ks-e', 'ks-grafika', 'ks-varaq'], idb: [] },
+  joy: { ls: ['joy-state', 'joy-proj', 'joy-axo', 'joy-street', 'kps_site'], idb: ['joy-model'] },
+  ren: { ls: ['render-base'], idb: ['render-src', 'render-out'] },
+};
+type Idb = { get: (k: string) => Promise<unknown>; put: (k: string, v: unknown) => Promise<void> };
+/**
+ * 22.11 (egasi: «eski sahnalar ochilaveradi»): loyihasiz (umumiy kalitlardagi) eski ish bir marta nomli loyihaga koʻchiriladi
+ * (nusxa — asl kalitlar oʻchirilmaydi, lekin endi hech qayerda oʻqilmaydi). Qayta koʻchirilmaydi (`svcmig:<xizmat>`).
+ */
+export async function migrateOld(s: SvcKind, name: string, idb: Idb, store = ls(), now = new Date()): Promise<SvcProject | null> {
+  if (!store || store.getItem(`svcmig:${s}`)) return null;
+  const st = SVC_STATE[s], lsv = st.ls.map(k => [k, store.getItem(k)] as const).filter(([, v]) => v != null && v !== '' && v !== 'null');
+  const idv: [string, unknown][] = [];
+  for (const k of st.idb) { const v = await idb.get(k).catch(() => null); if (v != null && !(Array.isArray(v) && !v.length)) idv.push([k, v]); }
+  try { store.setItem(`svcmig:${s}`, '1'); } catch { /* */ }
+  if (!lsv.length && !idv.length) return null;
+  const p = createSvc(s, name, store, now);
+  const a = listSvc(s, store); const q = a.find(x => x.id === p.id); if (q) { q.legacy = true; save(s, a, store); }
+  for (const [k, v] of lsv) try { store.setItem(`${k}@${p.id}`, v!); } catch { /* */ }
+  for (const [k, v] of idv) await idb.put(`${k}@${p.id}`, v).catch(() => {});
+  return { ...p, legacy: true };
 }

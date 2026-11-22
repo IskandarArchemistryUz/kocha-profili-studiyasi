@@ -1,0 +1,1 @@
+export{r as svgPdf}from"./pdf-DN48Cex8.js";

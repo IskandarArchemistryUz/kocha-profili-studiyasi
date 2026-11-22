@@ -12,6 +12,7 @@ async function open(page: Page, errs: string[]): Promise<void> {
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('renInit')) { sessionStorage.setItem('renInit', '1'); localStorage.removeItem('kps_air'); localStorage.removeItem('ren-state'); localStorage.removeItem('render-base'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
   await page.goto('./render.html?asosiy=1');
+  await page.waitForSelector('#renRight');   // 22.11: xizmat eshik orqali (dinamik) yuklanadi — baza ochilguncha kutamiz
 }
 
 /** 13.11 (Render 1-bosqich): soxta server — /render/* va R2. Kalit yoʻq, hamma render serverda, tanga bilan. */
@@ -208,7 +209,7 @@ test('Koʻchasoz B kesimidan «Render studiyasiga» — toza kesim, «Koʻcha ke
   expect(await page.evaluate(() => JSON.stringify(localStorage)).then(t => t.includes('noCap'))).toBe(false);
   const src = await page.evaluate(async () => {
     const db: IDBDatabase = await new Promise((ok, no) => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
-    const v: any = await new Promise((ok, no) => { const q = db.transaction('cache').objectStore('cache').get('render-src'); q.onsuccess = () => ok(q.result?.v); q.onerror = () => no(q.error); });
+    const v: any = await new Promise((ok, no) => { const q = db.transaction('cache').objectStore('cache').get(`render-src@${new URLSearchParams(location.search).get('p')}`); q.onsuccess = () => ok(q.result?.v); q.onerror = () => no(q.error); });
     const s = v[0], im = new Image(); im.src = s.img; await im.decode();
     return { subj: s.subj, facts: s.facts, w: im.naturalWidth, h: im.naturalHeight };
   });

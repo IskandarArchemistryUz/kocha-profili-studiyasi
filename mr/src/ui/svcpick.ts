@@ -6,7 +6,7 @@
 import { h, svgIcon } from './dom';
 import { tr } from '../i18n';
 import { ctxProject, svcHref } from '../core/projctx';
-import { listSvc, createSvc, removeSvc, touchSvc, type SvcKind } from '../storage/svcprojects';
+import { listSvc, createSvc, removeSvc, touchSvc, migrateOld, type SvcKind } from '../storage/svcprojects';
 import { openProjects } from './projwin';
 
 export type SvcId = 'joyshunos' | 'kochasoz' | 'render';
@@ -29,12 +29,6 @@ export function svcIn(id: string): string {
   const s = new URLSearchParams(location.search); s.delete('p'); s.set(OLD, '1');
   return `${page()}?${s.toString()}${location.hash}`;
 }
-/** Brauzerda loyihasiz (umumiy kalitlardagi) eski ish bormi */
-export function hasOldWork(svc: SvcId, store: Pick<Storage, 'key' | 'length'> | null = (() => { try { return localStorage; } catch { return null; } })()): boolean {
-  if (!store) return false;
-  for (let i = 0; i < store.length; i++) { const k = store.key(i); if (k && !k.includes('@') && SVC_KEYS[svc].some(pf => k.startsWith(pf))) return true; }
-  return false;
-}
 /** Xizmat ishlashi mumkinmi: loyiha (?p=) yoki eski ish tanlangan boʻlsa — ha; aks holda loyihalar paneli koʻrsatiladi */
 export function svcReady(search = location.search): boolean {
   const q = new URLSearchParams(search);
@@ -47,10 +41,8 @@ export function openSvcProjects(svc: SvcId, gate = false): Promise<void> {
   return openProjects({
     svc: k, name: NAME[svc], gate,
     lead: gate && /^#\/s\//.test(location.hash) ? 'Yuborilgan rasm qaysi loyihada ochilsin? Loyihani tanlang yoki yangisini oching.' : LEAD[svc],
-    list: () => [
-      ...listSvc(k).map(p => ({ id: p.id, name: p.name, updated: p.updated, cur: p.id === cur })),
-      ...(hasOldWork(svc) || cur === '' ? [{ id: '', name: tr('Avvalgi ish (loyihasiz)'), cur: cur === '' }] : []),
-    ],
+    // 22.11: «Avvalgi ish (loyihasiz)» kartasi yoʻq — eski ish nomli loyihaga koʻchirilgan (migrateOld)
+    list: () => listSvc(k).map(p => ({ id: p.id, name: p.name, updated: p.updated, cur: p.id === cur })),
     create: () => { const p = createSvc(k, `${tr('Yangi loyiha')} ${listSvc(k).length + 1}`); location.href = svcIn(p.id); },
     open: id => { location.href = svcIn(id); },
     remove: id => removeSvc(k, id),
@@ -62,7 +54,10 @@ export function svcGate(svc: SvcId, start: () => unknown): void {
   if (svcReady()) { void start(); return; }
   // asosiy uslub (ds2): ildizdagi tayyor nusxa (postbuild → css/ds2.css) — bundlerga import qilinsa Master reja CSS tartibi oʻzgarardi
   const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '../css/ds2.css?v=4';
-  const go = () => void openSvcProjects(svc, true);
+  const go = () => void (async () => {
+    try { const db = await import('../storage/db'); await migrateOld(KIND[svc], `${tr(NAME[svc])} — ${tr('eski ish')}`, { get: k => db.cacheGet(k), put: (k, v) => db.cachePut(k, v) }); } catch { /* koʻchirilmasa ham panel ochiladi */ }
+    await openSvcProjects(svc, true);
+  })();
   l.onload = go; l.onerror = go; document.head.append(l);
 }
 

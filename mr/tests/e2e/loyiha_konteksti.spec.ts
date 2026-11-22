@@ -29,27 +29,39 @@ test('loyiha ichidan Joyshunos: ?p= manzilda, «← Master reja» loyihaga qayta
   await expect(p2.locator('#svcPop')).toBeVisible({ timeout: 20_000 });
 });
 
-/** 3b-2 → 14.11 (egasi): alohida ochilgan xizmat — oʻz loyihalari (Master rejaga emas): «Loyihalar» oynasi, «Yangi loyiha» */
-test('alohida Koʻchasoz: «Loyihalar» → «Yangi loyiha» — xizmatning oʻz loyihasi (s_…), Master rejaga bogʻlanmaydi', async ({ page }) => {
-  test.setTimeout(90_000);
+/** 22.11 (egasi: «yangi loyiha — boʻsh sahna, eski sahnalar ochilmasin»): eski ish bir marta nomli loyihaga, yangi loyiha toza */
+test('Koʻchasoz: eski ish «… — eski ish» loyihasiga koʻchadi, yangi loyiha boʻsh; Render manbalari loyihalar orasida aralashmaydi', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto('./kochasoz.html?asosiy=1');
-  await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('#mrBack')).toHaveCount(0);
-  await page.click('#svcProj');
-  await expect(page.locator('#projWin')).toBeVisible();
-  await expect(page.locator('#projWin [data-pw=""]')).toContainText('Avvalgi ish');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
+  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  await page.evaluate(() => { localStorage.setItem('ks-b', JSON.stringify({ bL: 7 })); localStorage.removeItem('svcmig:ks'); localStorage.removeItem('svcp:ks'); });
+  await page.goto('./kochasoz.html');
+  await expect(page.locator('#projWin .pw-card')).toHaveCount(1);
+  await expect(page.locator('#projWin .pw-card')).toContainText('eski ish');
+  const reg = await page.evaluate(() => JSON.parse(localStorage.getItem('svcp:ks') || '[]'));
+  expect(await page.evaluate(id => localStorage.getItem(`ks-b@${id}`), reg[0].id)).toBe(JSON.stringify({ bL: 7 }));
+  // yangi loyiha — eski holat yoʻq
   await page.click('#pwNew');
   await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
-  await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('#mrBack')).toHaveCount(0);
-  const reg = await page.evaluate(() => JSON.parse(localStorage.getItem('svcp:ks') || '[]'));
-  expect(reg).toHaveLength(1);
-  // roʻyxatda: asosiy + yangi (ochiq), asosiyga qaytish — ?p siz
-  await page.click('#svcProj');
+  await page.waitForFunction(() => (window as any).__ks);
+  const pid = new URL(page.url()).searchParams.get('p')!;
+  expect(pid).not.toBe(reg[0].id);
+  expect(await page.evaluate(id => JSON.parse(localStorage.getItem(`ks-b@${id}`) || '{}').bL, pid)).not.toBe(7);
+  // qayta ochilganda — panel yana chiqadi (2 loyiha), eski sahna oʻzi ochilmaydi
+  await page.goto('./kochasoz.html');
   await expect(page.locator('#projWin .pw-card')).toHaveCount(2);
-  await page.click('#projWin [data-pw=""]');
-  await page.waitForURL(u => !/\?p=/.test(u.toString()) && /asosiy=1/.test(u.toString()));
+  await expect(page.locator('#svcProj')).toHaveCount(0);
+  // Render: bir loyihaga qoʻshilgan manba boshqasida koʻrinmaydi
+  await page.goto('./render.html'); await page.click('#pwNew'); await page.waitForURL(/render\.html\?p=s_/);
+  const r1 = new URL(page.url()).searchParams.get('p')!;
+  const n = (key: string) => page.evaluate(async k => { const db: IDBDatabase = await new Promise((ok, no) => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); return new Promise<number>(ok => { const q = db.transaction('cache').objectStore('cache').get(k); q.onsuccess = () => ok((q.result?.v ?? []).length); }); }, key);
+  await page.evaluate(async k => { const db: IDBDatabase = await new Promise((ok, no) => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); await new Promise<void>(ok => { const t = db.transaction('cache', 'readwrite'); t.objectStore('cache').put({ k, v: [{ id: 'sX', name: 'A', from: 'fayl', subj: 'reja', t: new Date().toISOString(), img: 'data:,' }], t: Date.now() }); t.oncomplete = () => ok(); }); }, `render-src@${r1}`);
+  await page.goto('./render.html'); await page.click('#pwNew'); await page.waitForURL(/render\.html\?p=s_/);
+  const r2 = new URL(page.url()).searchParams.get('p')!;
+  expect(r2).not.toBe(r1);
+  expect(await n(`render-src@${r2}`)).toBe(0);
+  expect(await n(`render-src@${r1}`)).toBe(1);
 });
 
 /** 22.11 (egasi): xizmat loyihasiz ochilsa — eski ish oʻzi ochilmaydi, avval oʻz loyihalari paneli */

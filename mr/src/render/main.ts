@@ -8,6 +8,7 @@
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
 import { scoped, svcHref, ctxProject, svcLinks } from '../core/projctx';
+import { isLegacySvc } from '../storage/svcprojects';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -29,7 +30,7 @@ import { ENGINES, LAB, UP_MODES, UPS_BY, upOf, renderApi, toUpload, waitJob, typ
 import { ApiError, check } from '../account/session';
 import { apiBase } from '../account/config';
 import { ensureLogin } from '../account/gate';
-import { listSrc, listOut, addSrc, delSrc, addOut, delOut, type RenderSrc, type RenderOut, type From } from './inbox';
+import { listSrc, listOut, addSrc, delSrc, addOut, delOut, takeInbox, type RenderSrc, type RenderOut, type From } from './inbox';
 import { initStats, track } from '../core/stats';
 initStats('ren');
 
@@ -395,6 +396,8 @@ async function syncHistory(): Promise<void> {
   for (const j of items) {
     if (hid.has(j.id)) continue;
     const srcId = j.tag && SRC.some(s => s.id === j.tag) ? j.tag : '';
+    // 22.11: boshqa loyihaning ishi bu loyihaga tortilmaydi (eski «loyihasiz» ishdan koʻchirilgan loyiha — hammasi)
+    if (!srcId && !LEGACY) continue;
     const name = `${tr((FROM[j.source as From] ?? FROM.fayl)[0])} · ${tr((STY.find(x => x[0] === j.params.style) ?? ['', 'Referens boʻyicha'])[1])}`;
     if (j.status === 'done' && !have.has(j.id)) { if (await keep(j, srcId, name, '')) added++; }
     else if ((j.status === 'queued' || j.status === 'running') && !FOLLOW.has(j.id)) {
@@ -488,10 +491,14 @@ function renderAll(): void { renderHeader(); renderLeft(); renderStage(); render
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (viewer) closeViewer(); else if (pickOpen || roleOpen >= 0 || pplOpen) { pickOpen = false; roleOpen = -1; pplOpen = false; renderAll(); } } });
 onLang(() => { renderAll(); document.documentElement.lang = getLang(); });
 onTheme(() => renderHeader());
+/** «Eski ish» loyihasi (svcprojects legacy) — teg yoʻq eski server ishlari shu yerda koʻrinadi */
+const LEGACY = isLegacySvc('ren', ctxProject());
 async function boot(): Promise<void> {
   try { [SRC, OUT, REFS] = await Promise.all([listSrc(), listOut(), cacheGet<Ref[]>('render-refs').then(r => r ?? [])]); } catch (e) { toast(`${tr('Saqlash ishlamayapti')}: ${(e as Error).message}`); }
   const m = /^#\/s\/([\w-]+)/.exec(location.hash);
-  if (m && SRC.some(s => s.id === m[1])) { setBase(m[1]); history.replaceState(null, '', location.pathname); }
+  if (m && await takeInbox(m[1]).catch(() => false)) SRC = await listSrc();
+  // 22.11: manzildagi ?p= (loyiha) saqlanadi — avval tushib qolardi va yangilashda boshqa loyiha ochilardi
+  if (m && SRC.some(s => s.id === m[1])) { setBase(m[1]); history.replaceState(null, '', location.pathname + location.search); }
   else if (!base() && SRC[0]) setBase(SRC[0].id);
   renderAll();
   if (await loadCfg()) { renderRight(); void syncHistory(); }
