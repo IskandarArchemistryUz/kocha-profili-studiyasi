@@ -14,7 +14,7 @@
   var d = document;
   if (typeof build !== 'function' || typeof DSL_REF !== 'string') return;
   var ls = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  var API = function () { return ls('kps_api') || 'https://api.archemistry.uz'; };
+  var API = function () { var h = location.hostname; return (h === 'localhost' || h === '127.0.0.1' ? ls('kps_api') : null) || 'https://api.archemistry.uz'; };   /* 22.11: kps_api faqat localhost da */
   var LANG = function () { var l = ls('mr-lang') || ls('kps_lang') || 'uz'; return /^(uz|en|ru|es|pt|fr|az|uk|tr|kk)$/.test(l) ? l : 'uz'; };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var m3 = function (v) { return Math.round(v) / 1000; };

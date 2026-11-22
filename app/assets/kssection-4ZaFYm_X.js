@@ -1,1 +1,0 @@
-export{t as ksSectionSvg}from"./kssection-mTURS2-n.js";

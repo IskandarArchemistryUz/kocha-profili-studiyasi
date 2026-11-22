@@ -4,7 +4,7 @@
 (function () {
   var h = location.hostname; if (h === 'localhost' || h === '127.0.0.1') return;
   var de = document.documentElement; de.style.visibility = 'hidden';
-  var api = 'https://api.archemistry.uz'; try { api = localStorage.getItem('kps_api') || api; } catch (e) {}
+  var api = 'https://api.archemistry.uz';   /* 22.11: kps_api faqat localhost da (yuqorida qaytadi) — saytda boshqa API berib boʻlmaydi */
   var out = function () { location.replace('../index.html'); };
   fetch(api + '/me', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; })
     .then(function (m) { if (m && m.owner) de.style.visibility = ''; else out(); }).catch(out);

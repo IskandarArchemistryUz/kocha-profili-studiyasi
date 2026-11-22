@@ -1311,7 +1311,7 @@ const windV = () => (D.wind.v && !D.wind.v.far ? D.wind.v : undefined);
 const memo = new Map<string, Comp[]>();
 async function reverse(c: LngLat): Promise<string> {
   const u = new URL('https://nominatim.openstreetmap.org/reverse');
-  u.search = new URLSearchParams({ lat: String(c[1]), lon: String(c[0]), format: 'jsonv2', zoom: '18', 'accept-language': 'uz,ru,en' }).toString();
+  u.search = new URLSearchParams({ lat: String(c[1]), lon: String(c[0]), format: 'jsonv2', zoom: '18', 'accept-language': getLang() === 'uz' ? 'uz,en,ru' : `${getLang()},en` }   /* 22.11: interfeys tili; oʻzbekchada nom yoʻq boʻlsa — lotin (en), kirill emas */).toString();
   const r = await fetch(u.toString()); if (!r.ok) throw new Error(String(r.status));
   const j = await r.json() as { name?: string; address?: Record<string, string>; display_name?: string };
   const a = j.address ?? {}, road = a.road || a.pedestrian || a.neighbourhood || a.suburb;
