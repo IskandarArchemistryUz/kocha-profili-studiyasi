@@ -10,6 +10,9 @@
    ===================================================================== */
 (function(){
 if(!document.body.classList.contains('kt'))return;
+/* 22.11: loyiha ichida (?p=) — orqaga havolalar SHU loyihaga (avval ?p= tushib qolib, Koʻchasoz boshqa loyiha holati bilan ochilardi) */
+const KP_ID=(()=>{try{const p=new URLSearchParams(location.search).get('p');return p&&/^[A-Za-z0-9_-]{4,64}$/.test(p)?p:null;}catch(e){return null;}})();
+const KP=h=>{if(!KP_ID)return h;const e=encodeURIComponent(KP_ID);if(h==='app/')return 'app/#/p/'+e;const [a,hs]=h.split('#');return a+'?p='+e+(hs?'#'+hs:'');};
 const SV=(d,w=22)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const IC={
   select:SV('<path d="M5 4l13 6-5.5 1.8L10.5 17z"/>'),
@@ -29,8 +32,8 @@ const JK=['x','sig','round'];
 
 /* --- DOM --- */
 const el=(h)=>{const d=document.createElement('div');d.innerHTML=h.trim();return d.firstElementChild;};
-const top=el(`<div class="kt-ui kt-pn kt-top"><a class="lg" href="app/" title="Archemistry Lab">${LOGO.replace('class="logo"','width="22" height="21"')}Archemistry Lab</a><span class="kt-badge"><i></i>Koʻchasoz</span>
-  <nav class="kt-seg" aria-label="Koʻchasoz rejimlari"><span class="on"><b class="kt-mono">A</b>Tarmoq<span class="kt-tag">beta</span></span><a href="app/kochasoz.html#/b"><b class="kt-mono">B</b>Kesim</a><a href="app/kochasoz.html#/c"><b class="kt-mono">C</b>Chorraha<span class="kt-tag">beta</span></a></nav></div>`);
+const top=el(`<div class="kt-ui kt-pn kt-top"><a class="lg" href="${KP('app/')}" title="Archemistry Lab">${LOGO.replace('class="logo"','width="22" height="21"')}Archemistry Lab</a><span class="kt-badge"><i></i>Koʻchasoz</span>
+  <nav class="kt-seg" aria-label="Koʻchasoz rejimlari"><span class="on"><b class="kt-mono">A</b>Tarmoq<span class="kt-tag">beta</span></span><a href="${KP('app/kochasoz.html#/b')}"><b class="kt-mono">B</b>Kesim</a><a href="${KP('app/kochasoz.html#/c')}"><b class="kt-mono">C</b>Chorraha<span class="kt-tag">beta</span></a></nav></div>`);
 const acts=el(`<div class="kt-ui kt-pn kt-acts"><span class="kt-q-slot"></span>
   <button class="kt-btn ic" data-a="undo" title="Orqaga (Ctrl+Z)" aria-label="Orqaga">${IC.undo}</button><button class="kt-btn ic" data-a="redo" title="Oldinga (Ctrl+Y)" aria-label="Oldinga">${IC.redo}</button>
   <button class="kt-btn" data-a="sat" title="Fon: sunʼiy yoʻldosh / xarita">Sunʼiy yoʻldosh</button>
@@ -213,7 +216,7 @@ card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)retur
   if(b.dataset.k==='del'){delSel();return;}
   if(b.dataset.k==='sim'){openSim(sel.id);return;}
   if(b.dataset.k==='cut'){if(window.KSALB)KSALB.pickCut(sel.id);return;}
-  if(b.dataset.k==='kesim'){location.href='app/kochasoz.html#/b';return;}
+  if(b.dataset.k==='kesim'){location.href=KP('app/kochasoz.html#/b');return;}
   if(b.dataset.k==='prir'){setPri(sel.id,null);return;}
   if(b.dataset.pk){setPri(sel.id,b.dataset.pk,b.dataset.pv);return;}
   if(b.dataset.ts){const sg=segById(sel.id),it=sg&&(sg.att||[])[sel.i];if(it){if(b.dataset.ts==='door')it.door=b.dataset.v;else if(b.dataset.ts==='fill')it.fill=b.dataset.v;else if(b.dataset.ts==='xsig')it.xsig=b.dataset.v==='1';else it.len=+b.dataset.v;afterDesign();}return;}

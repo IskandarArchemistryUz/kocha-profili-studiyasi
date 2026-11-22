@@ -63,9 +63,14 @@ function sample(){
   };
 }
 let S=sample();
-try{const s=JSON.parse(localStorage.getItem('kps_v1')||'null'); if(s&&s.prof){S=Object.assign(sample(),s); S.draw=[]; S.mode='pick';
+/* 22.11 (egasi: «loyihalar bir-biriga aralashmasin»): loyiha ichida (?p=) tarmoq holati shu loyihaga — kps_v1@<id>;
+   alohida ochilgan studiya avvalgidek umumiy kps_v1 (mr/src/core/projctx.ts scoped() bilan bir xil qoida) */
+const KPS_V1=(()=>{try{const p=new URLSearchParams(location.search).get('p');return p&&/^[A-Za-z0-9_-]{4,64}$/.test(p)?'kps_v1@'+p:'kps_v1';}catch(e){return 'kps_v1';}})();
+/* avvalgi (umumiy) holat shu loyihaniki boʻlsa (Master rejadan sinxronlangan: design.mrPid) — bir marta koʻchiriladi, ish yoʻqolmaydi */
+try{if(KPS_V1!=='kps_v1'&&!localStorage.getItem(KPS_V1)){const g=JSON.parse(localStorage.getItem('kps_v1')||'null');if(g&&g.design&&g.design.mrPid&&KPS_V1==='kps_v1@'+g.design.mrPid)localStorage.setItem(KPS_V1,JSON.stringify(g));}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KPS_V1)||'null'); if(s&&s.prof){S=Object.assign(sample(),s); S.draw=[]; S.mode='pick';
   _id=Math.max(0,...S.prof.ex.map(e=>e.id),...S.prof.pr.map(e=>e.id));}}catch(e){}
-function save(){try{localStorage.setItem('kps_v1',JSON.stringify(S))}catch(e){}}
+function save(){try{localStorage.setItem(KPS_V1,JSON.stringify(S))}catch(e){}}
 
 /* ---------- Metrikalar ---------- */
 function metrics(p){
