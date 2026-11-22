@@ -6,7 +6,7 @@
  * Manbasi hali ulanmagan qatlamlar «Tez orada» (Iskandar, 2026-10-18: «birlamchi maʼlumot ololsak — beta, ololmasak — ishlab chiqib qoʻshamiz»).
  * Eski toʻliq asboblar (gis, shamol, posadka, ai) — panel pastidagi havolalar orqali ochiq qoladi (0-qoida).
  */
-import { scoped, svcHref, ctxProject, seedSite } from '../core/projctx';
+import { scoped, svcHref, ctxProject, seedSite, svcLinks } from '../core/projctx';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -673,13 +673,14 @@ const ICON = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
 };
+const SL = svcLinks();   // 22.11: havolalar shu loyihaga (core/projctx)
 const SERVICES = [
-  { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
+  { id: 'mr', name: 'Master reja', href: SL.mr, color: 'var(--svc-mr)' },
   { id: 'ks', name: 'Koʻchasoz', href: svcHref('./kochasoz.html'), color: 'var(--svc-ks)' },
   { id: 'joy', name: 'Joyshunos', href: svcHref('./joyshunos.html'), color: 'var(--svc-joy)', cur: true },
   { id: 'ren', name: 'Render', href: svcHref('./render.html'), color: 'var(--svc-ren)', beta: true },
-  { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
-  { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
+  { id: 'dk', name: 'Dizayn-kod', href: SL.dk, color: 'var(--svc-dk)' },
+  { id: 'chz', name: 'Chizmadon', href: SL.chz, color: 'var(--svc-chz)' },
 ];
 const OLD = [['GIS tahlil', '../gis.html'], ['Shamol tahlili', '../shamol.html'], ['Joylashtirish', '../posadka.html'], ['Hudud bahosi va AI', '../ai.html']];
 
@@ -1310,7 +1311,7 @@ const windV = () => (D.wind.v && !D.wind.v.far ? D.wind.v : undefined);
 const memo = new Map<string, Comp[]>();
 async function reverse(c: LngLat): Promise<string> {
   const u = new URL('https://nominatim.openstreetmap.org/reverse');
-  u.search = new URLSearchParams({ lat: String(c[1]), lon: String(c[0]), format: 'jsonv2', zoom: '18', 'accept-language': 'uz,ru,en' }).toString();
+  u.search = new URLSearchParams({ lat: String(c[1]), lon: String(c[0]), format: 'jsonv2', zoom: '18', 'accept-language': getLang() === 'uz' ? 'uz,en,ru' : `${getLang()},en` }   /* 22.11: interfeys tili; oʻzbekchada nom yoʻq boʻlsa — lotin (en), kirill emas */).toString();
   const r = await fetch(u.toString()); if (!r.ok) throw new Error(String(r.status));
   const j = await r.json() as { name?: string; address?: Record<string, string>; display_name?: string };
   const a = j.address ?? {}, road = a.road || a.pedestrian || a.neighbourhood || a.suburb;

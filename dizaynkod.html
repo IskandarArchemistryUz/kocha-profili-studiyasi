@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dizayn-kod: peshlavha — Archemistry Lab</title>
-<script src="js/eko.js?v=20261122"></script>
+<script src="js/eko.js?v=20261122b"></script>
 <script src="js/fikr.js?v=1"></script>
 <link rel="stylesheet" href="css/ds2.css?v=4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -482,7 +482,7 @@ function draw(){
   sizeCanvas();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);ctx.imageSmoothingQuality="high";
   hint();
   if(S.step===1||S.step===2){
-    if(!S.src){ctx.fillStyle=css('--muted');ctx.font=`500 ${18*DPR()}px "IBM Plex Sans", sans-serif`;ctx.textAlign="center";ctx.fillText("Rasm yuklanmagan",cv.width/2,cv.height/2);ctx.textAlign="start";return;}
+    if(!S.src){ctx.fillStyle=css('--muted');ctx.font=`500 ${18*DPR()}px "IBM Plex Sans", sans-serif`;ctx.textAlign="center";ctx.fillText((window.kpsT?window.kpsT("Rasm yuklanmagan"):"Rasm yuklanmagan"),cv.width/2,cv.height/2);ctx.textAlign="start";return;}
     const sc=1;S.sc=1;fitWorld(S.src.width,S.src.height);
     clampPan();worldT();const K=k();
     ctx.drawImage(S.src,0,0);
@@ -492,7 +492,7 @@ function draw(){
       q.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],9*K,0,7);ctx.fillStyle="#FFFFFF";ctx.fill();ctx.lineWidth=3*K;ctx.strokeStyle="#FF9F0A";ctx.stroke();});
       const c=q.reduce((a,p)=>[a[0]+p[0]/4,a[1]+p[1]/4],[0,0]);
       ctx.font=font(600,14);ctx.fillStyle="#FFFFFF";ctx.strokeStyle="rgba(0,0,0,.6)";ctx.lineWidth=3*K;ctx.textAlign="center";
-      ctx.strokeText(`Eshik ${S.door.w}×${S.door.h} sm`,c[0],c[1]);ctx.fillText(`Eshik ${S.door.w}×${S.door.h} sm`,c[0],c[1]);ctx.textAlign="start";
+      ctx.strokeText(`Eshik ${S.door.w}×${S.door.h} sm`,c[0],c[1]);ctx.fillText((window.kpsT?window.kpsT(`Eshik ${S.door.w}×${S.door.h} sm`):`Eshik ${S.door.w}×${S.door.h} sm`),c[0],c[1]);ctx.textAlign="start";
     }
     ctx.setTransform(1,0,0,1,0,0);zoomLabel();
     return;
@@ -535,7 +535,8 @@ function vline(x,label,K,color,knob){const[X]=D2px(x,0);ctx.strokeStyle=color;ct
   const lx=knob==="L"?X+22*K:knob==="R"?X-22*K-(ctx.font=font(600,12),ctx.measureText(label).width+12*K):X+6*K;
   pill(label,lx,knob?ky-22*K:Math.max(v0,0)+30*K,K,color);}
 function hline(y,label,K,color){const[,Y]=D2px(0,y);ctx.strokeStyle=color;ctx.lineWidth=3*K;ctx.setLineDash([10*K,6*K]);ctx.beginPath();ctx.moveTo(0,Y);ctx.lineTo(FIT.W,Y);ctx.stroke();ctx.setLineDash([]);pill(label,12*K,Y-8*K,K,color);}
-function pill(t,x,y,K,color){ctx.font=font(600,12);const w=ctx.measureText(t).width+12*K,h=20*K;ctx.fillStyle=color;ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y-h+4*K,w,h,4*K):ctx.rect(x,y-h+4*K,w,h);ctx.fill();ctx.fillStyle="#FFFFFF";ctx.fillText(t,x+7*K,y-3*K);}
+const kT=t=>window.kpsT?window.kpsT(t):t;   /* 22.11: chizma va manba yozuvlari tanlangan tilda */
+function pill(t,x,y,K,color){t=window.kpsT?window.kpsT(t):t;ctx.font=font(600,12);const w=ctx.measureText(t).width+12*K,h=20*K;ctx.fillStyle=color;ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y-h+4*K,w,h,4*K):ctx.rect(x,y-h+4*K,w,h);ctx.fill();ctx.fillStyle="#FFFFFF";ctx.fillText(t,x+7*K,y-3*K);}
 function drawFacadeLines(K){
   const L=S.lines,dw=S.door.w,dh=S.door.h;
   const[a,b]=D2px(L.xL,L.yT),[c,d]=D2px(L.xR,dh);
@@ -544,10 +545,10 @@ function drawFacadeLines(K){
   if(S.show2&&L.y2!=null)hline(L.y2,"2-qavat tepasi",K,"#3F8F6B");
   ctx.globalAlpha=S.sub3===0?1:.55;hline(L.yT,"Doʻkon qavati shu yerda tugaydi",K,"#025E69");ctx.globalAlpha=1;
   if(S.sub3>0){vline(L.xL,"Chap chet",K,"#7A4FA0","L");vline(L.xR,"Oʻng chet",K,"#7A4FA0","R");}
-  if(S.bezak){const[bx,by]=D2px(-20,L.yB),[bx2,by2]=D2px(dw+20,-2);ctx.fillStyle="rgba(138,90,43,.35)";ctx.fillRect(bx,by,bx2-bx,by2-by);ctx.strokeStyle="#8A5A2B";ctx.lineWidth=2*K;ctx.strokeRect(bx,by,bx2-bx,by2-by);ctx.font=font(600,12);ctx.fillStyle="#FFFFFF";ctx.fillText("Bezak — yuqori qirrasini suring",bx+4*K,by-6*K);}
+  if(S.bezak){const[bx,by]=D2px(-20,L.yB),[bx2,by2]=D2px(dw+20,-2);ctx.fillStyle="rgba(138,90,43,.35)";ctx.fillRect(bx,by,bx2-bx,by2-by);ctx.strokeStyle="#8A5A2B";ctx.lineWidth=2*K;ctx.strokeRect(bx,by,bx2-bx,by2-by);ctx.font=font(600,12);ctx.fillStyle="#FFFFFF";ctx.fillText((window.kpsT?window.kpsT("Bezak — yuqori qirrasini suring"):"Bezak — yuqori qirrasini suring"),bx+4*K,by-6*K);}
   S.windows.forEach(w=>{const[x,y]=D2px(w.x,w.y);const W=w.w*S.Fb.s,H=w.h*S.Fb.s;ctx.strokeStyle="#4C7DB0";ctx.lineWidth=2.5*K;ctx.strokeRect(x,y,W,H);ctx.fillStyle="rgba(76,125,176,.15)";ctx.fillRect(x,y,W,H);ctx.fillStyle="#4C7DB0";ctx.fillRect(x+W-8*K,y+H-8*K,16*K,16*K);});
 }
-function dimLine(x1,y1,x2,y2,t,K,side){const M="#E0218A";ctx.save();ctx.strokeStyle=M;ctx.fillStyle=M;ctx.lineWidth=1.3*K;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+function dimLine(x1,y1,x2,y2,t,K,side){t=window.kpsT?window.kpsT(t):t;const M="#E0218A";ctx.save();ctx.strokeStyle=M;ctx.fillStyle=M;ctx.lineWidth=1.3*K;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
   const tk=5*K;if(x1===x2){ctx.beginPath();ctx.moveTo(x1-tk,y1);ctx.lineTo(x1+tk,y1);ctx.moveTo(x2-tk,y2);ctx.lineTo(x2+tk,y2);ctx.stroke();}else{ctx.beginPath();ctx.moveTo(x1,y1-tk);ctx.lineTo(x1,y1+tk);ctx.moveTo(x2,y2-tk);ctx.lineTo(x2,y2+tk);ctx.stroke();}
   ctx.font=font(600,11,'"IBM Plex Mono", monospace');const tw=ctx.measureText(t).width,mx=(x1+x2)/2,my=(y1+y2)/2;let tx=x1===x2?(side<0?mx-tw-8*K:mx+6*K):mx-tw/2,ty=x1===x2?my+4*K:my-5*K;
   ctx.fillStyle="rgba(255,255,255,.88)";ctx.fillRect(tx-3*K,ty-11*K,tw+6*K,15*K);ctx.fillStyle=M;ctx.fillText(t,tx,ty);ctx.restore();}
@@ -767,12 +768,12 @@ function renderVerdict(){
   document.getElementById('probs').innerHTML=bad.concat(warn.filter(i=>i.r.tekshiruv!=="subyektiv")).map((i,n)=>{const f=FIX[i.r.parametr];const adv=ADVICE[i.r.parametr];
     return`<div class="prob ${i.st==="warn"?"warn":""}"><span class="t">${esc(human(i.r.parametr))}: ${esc(i.val)}</span>
     <span class="m"><span>Talab:</span> <span>${esc(req(i.r)||i.r.manba.iqtibos)}</span>${adv?`. <span>${esc(adv)}</span>`:""}${i.msg&&i.msg!=="Komissiya koʻradi"?` <span>${esc(i.msg)}</span>`:""}</span>
-    <span class="src">${esc(i.r.manba.bolim)} · ${i.r.manba.bet}-bet${i.r.qaror?" · talqin "+i.r.qaror:""}</span>
+    <span class="src">${esc(i.r.manba.bolim)} · ${kT(i.r.manba.bet+"-bet")}${i.r.qaror?" · "+kT("talqin")+" "+i.r.qaror:""}</span>
     ${f&&(i.sid||i.r.parametr==="ozbek_matni_ulushi")?`<button data-fix="${n}">Tuzatish</button>`:""}</div>`;}).join("");
   S._probs=bad.concat(warn.filter(i=>i.r.tekshiruv!=="subyektiv"));
   const tag={ok:"mos",warn:"koʻrib chiqish",bad:"mos emas",pend:"tasdiq kerak"};
   document.getElementById('allList').innerHTML=["bad","warn","pend","ok"].flatMap(st=>it.filter(i=>i.st===st)).map(i=>
-    `<div class="mini"><span>${i.confirm?`<label><input type="checkbox" data-conf="${i.confirm}" data-rid="${i.r.id}" ${i.st==="ok"?"checked":""}>`:""}${esc(human(i.r.parametr))} <span style="color:var(--muted);font-family:var(--f-mono);font-size:11px">${i.r.manba.bet}-bet</span>${i.confirm?"</label>":""}</span><span class="s s-${i.st}">${tag[i.st]}</span></div>`).join("")+
+    `<div class="mini"><span>${i.confirm?`<label><input type="checkbox" data-conf="${i.confirm}" data-rid="${i.r.id}" ${i.st==="ok"?"checked":""}>`:""}${esc(human(i.r.parametr))} <span style="color:var(--muted);font-family:var(--f-mono);font-size:11px">${kT(i.r.manba.bet+"-bet")}</span>${i.confirm?"</label>":""}</span><span class="s s-${i.st}">${tag[i.st]}</span></div>`).join("")+
     (pend.length?`<p class="lead" style="font-size:12px">"Tasdiq kerak" bandlari rasmdan oʻlchanmaydi — belgi qoʻyib tasdiqlang.</p>`:"");
 }
 

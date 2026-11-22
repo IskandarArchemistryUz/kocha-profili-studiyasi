@@ -209,11 +209,15 @@ function hide(): void {
 }
 function schedule(e: HTMLElement, t: Tip, ms: number): void { clearTimeout(timer); timer = window.setTimeout(() => { if (e.isConnected) show(e, t); }, ms); }
 
+/* 22.11: bosilgandan keyin sichqoncha joyidan qoʻzgʻalmaguncha izoh qayta chiqmaydi — rail qayta chizilganda
+   (yangi tugma kursor ostida) qora izoh qadam sarlavhasini yopib turar edi */
+let quiet: { x: number; y: number } | null = null;
 let inited = false;
 export function initTips(): void {
   if (inited || typeof document === 'undefined') return; inited = true;
   document.addEventListener('pointerover', ev => {
     if (ev.pointerType === 'touch') return;
+    if (quiet) return;
     const m = find(ev.target); if (!m) return;
     stash(m.e);
     if (m.e === cur) return;
@@ -227,9 +231,12 @@ export function initTips(): void {
   }, true);
   document.addEventListener('pointerdown', ev => {
     hide();
-    if (ev.pointerType !== 'touch') return;
+    if (ev.pointerType !== 'touch') { quiet = { x: ev.clientX, y: ev.clientY }; return; }
     const m = find(ev.target); if (!m) return;
     stash(m.e); schedule(m.e, m.t, LONG);   // planshet: uzoq bosish
+  }, true);
+  document.addEventListener('pointermove', ev => {
+    if (quiet && Math.hypot(ev.clientX - quiet.x, ev.clientY - quiet.y) > 6) quiet = null;
   }, true);
   document.addEventListener('pointerup', ev => { if (ev.pointerType === 'touch' && !box) clearTimeout(timer); }, true);
   document.addEventListener('pointercancel', () => clearTimeout(timer), true);

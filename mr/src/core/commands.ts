@@ -3,6 +3,7 @@
  * Har bir buyruq sof funksiya: (hujjat, buyruq) → yangi hujjat. Eski hujjat oʻzgarmaydi —
  * shu sabab undo/redo oddiy: oldingi hujjatga qaytish kifoya.
  */
+import { tr, tf } from '../i18n';
 import { type Building, type ContextSettings, type LngLat, type Project, type Ring, type Garage, type Parcel, type Settings, type Street, type StreetCut, type SiteSection, type Round, type ZoneLabel, type ManualPoi, type SavedView, type SheetDoc, uid, CTX_R_MIN, CTX_R_MAX } from './doc';
 import { frame } from './geo';
 import type { UserLayerMeta } from './userlayers';
@@ -73,52 +74,52 @@ export type Command =
 /** Tarixda koʻrinadigan nom */
 export function label(c: Command): string {
   switch (c.type) {
-    case 'rename': return 'Nom oʻzgardi';
-    case 'setOrigin': return 'Hudud markazi';
-    case 'moveProject': return 'Hudud koʻchirildi';
-    case 'setContext': return 'Kontekst';
-    case 'setSite': return 'Uchastka chegarasi';
-    case 'clearSite': return 'Uchastka oʻchirildi';
-    case 'addBuilding': return 'Bino qoʻshildi';
-    case 'updateBuilding': return 'Bino oʻzgardi';
-    case 'removeBuilding': return 'Bino oʻchirildi';
-    case 'deleteSelection': return `Oʻchirildi: ${c.ids.length + c.ctx.length} ta obyekt`;
-    case 'setRemoved': return 'Atrof binolari qaytarildi';
-    case 'setRemovedRoads': return 'Atrofdagi yoʻl';
-    case 'setSettings': return 'Sozlamalar';
-    case 'addStreet': return 'Koʻcha qoʻshildi';
-    case 'updateStreet': return 'Koʻcha oʻzgardi';
-    case 'setRounds': return 'Chorraha aylanmalari';
-    case 'setRoadEdit': return 'Mavjud yoʻl tahriri';
-    case 'updateStreets': return 'Koʻchalar oʻzgardi';
-    case 'setCuts': return 'Kesim chizigʻi';
-    case 'setSections': return 'Kesim va fasad';
-    case 'applyProfile': return 'Koʻcha profili (Koʻchasoz)';
-    case 'setTreeInv': return 'Daraxtlar inventarizatsiyasi';
-    case 'removeStreet': return 'Koʻcha oʻchirildi';
-    case 'setGridStreets': return c.streets.length ? 'Koʻcha toʻri generatsiyasi' : 'Toʻr koʻchalari olib tashlandi';
-    case 'setZones': return 'Zona';
-    case 'setKeep': return 'Saqlanadigan binolar';
-    case 'addLimit': return 'Cheklov qoʻshildi';
-    case 'updateLimit': return 'Cheklov oʻzgardi';
-    case 'removeLimit': return 'Cheklov olib tashlandi';
-    case 'setSiteEdges': return 'Uchastka chetlari';
-    case 'setCtxUse': return 'Atrofdagi bino vazifasi';
-    case 'addPoi': return 'Xizmat obyekti qoʻshildi';
-    case 'removePoi': return 'Xizmat obyekti oʻchirildi';
-    case 'styleBuildings': return c.ayvon ? 'Ayvon' : c.roof ? 'Tom turi' : c.win ? 'Deraza turi' : c.bal ? 'Balkon turi' : c.parapet != null ? 'Parapet' : c.shade ? 'Quyosh himoyasi' : 'Fasad materiali';
-    case 'addView': return 'Koʻrinish saqlandi';
-    case 'setSheets': return 'Varaqlar';
-    case 'setGStyle': return 'Grafika shabloni';
-    case 'setChizmadon': return 'Chizmadon';
-    case 'addUserLayer': return `Qatlam qoʻshildi: ${c.meta.name}`;
-    case 'updateUserLayer': return 'overrides' in c.patch ? 'Obyekt rangi' : 'Qatlam sozlamasi';
-    case 'removeUserLayer': return 'Qatlam olib tashlandi';
-    case 'removeView': return 'Koʻrinish oʻchirildi';
-    case 'setParcels': return 'Parsellar';
-    case 'updateParcel': return 'Parsel funksiyasi';
-    case 'updateGarage': return 'Avtoturargoh kirish-chiqishi';
-    case 'replaceGroup': return c.sections.length ? 'Seksiyalar generatsiyasi' : 'Seksiyalar tozalandi';
+    case 'rename': return tr('Nom oʻzgardi');
+    case 'setOrigin': return tr('Hudud markazi');
+    case 'moveProject': return tr('Hudud koʻchirildi');
+    case 'setContext': return tr('Kontekst');
+    case 'setSite': return tr('Uchastka chegarasi');
+    case 'clearSite': return tr('Uchastka oʻchirildi');
+    case 'addBuilding': return tr('Bino qoʻshildi');
+    case 'updateBuilding': return tr('Bino oʻzgardi');
+    case 'removeBuilding': return tr('Bino oʻchirildi');
+    case 'deleteSelection': return tf('Oʻchirildi: ${c.ids.length + c.ctx.length} ta obyekt', { 'c.ids.length + c.ctx.length': c.ids.length + c.ctx.length });
+    case 'setRemoved': return tr('Atrof binolari qaytarildi');
+    case 'setRemovedRoads': return tr('Atrofdagi yoʻl');
+    case 'setSettings': return tr('Sozlamalar');
+    case 'addStreet': return tr('Koʻcha qoʻshildi');
+    case 'updateStreet': return tr('Koʻcha oʻzgardi');
+    case 'setRounds': return tr('Chorraha aylanmalari');
+    case 'setRoadEdit': return tr('Mavjud yoʻl tahriri');
+    case 'updateStreets': return tr('Koʻchalar oʻzgardi');
+    case 'setCuts': return tr('Kesim chizigʻi');
+    case 'setSections': return tr('Kesim va fasad');
+    case 'applyProfile': return tr('Koʻcha profili (Koʻchasoz)');
+    case 'setTreeInv': return tr('Daraxtlar inventarizatsiyasi');
+    case 'removeStreet': return tr('Koʻcha oʻchirildi');
+    case 'setGridStreets': return c.streets.length ? tr('Koʻcha toʻri generatsiyasi') : tr('Toʻr koʻchalari olib tashlandi');
+    case 'setZones': return tr('Zona');
+    case 'setKeep': return tr('Saqlanadigan binolar');
+    case 'addLimit': return tr('Cheklov qoʻshildi');
+    case 'updateLimit': return tr('Cheklov oʻzgardi');
+    case 'removeLimit': return tr('Cheklov olib tashlandi');
+    case 'setSiteEdges': return tr('Uchastka chetlari');
+    case 'setCtxUse': return tr('Atrofdagi bino vazifasi');
+    case 'addPoi': return tr('Xizmat obyekti qoʻshildi');
+    case 'removePoi': return tr('Xizmat obyekti oʻchirildi');
+    case 'styleBuildings': return c.ayvon ? tr('Ayvon') : c.roof ? tr('Tom turi') : c.win ? tr('Deraza turi') : c.bal ? tr('Balkon turi') : c.parapet != null ? tr('Parapet') : c.shade ? tr('Quyosh himoyasi') : tr('Fasad materiali');
+    case 'addView': return tr('Koʻrinish saqlandi');
+    case 'setSheets': return tr('Varaqlar');
+    case 'setGStyle': return tr('Grafika shabloni');
+    case 'setChizmadon': return tr('Chizmadon');
+    case 'addUserLayer': return tf('Qatlam qoʻshildi: ${c.meta.name}', { 'c.meta.name': c.meta.name });
+    case 'updateUserLayer': return 'overrides' in c.patch ? tr('Obyekt rangi') : tr('Qatlam sozlamasi');
+    case 'removeUserLayer': return tr('Qatlam olib tashlandi');
+    case 'removeView': return tr('Koʻrinish oʻchirildi');
+    case 'setParcels': return tr('Parsellar');
+    case 'updateParcel': return tr('Parsel funksiyasi');
+    case 'updateGarage': return tr('Avtoturargoh kirish-chiqishi');
+    case 'replaceGroup': return c.sections.length ? tr('Seksiyalar generatsiyasi') : tr('Seksiyalar tozalandi');
   }
 }
 

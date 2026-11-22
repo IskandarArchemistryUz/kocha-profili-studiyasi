@@ -586,7 +586,7 @@ export class Editor {
         ['svcRen', './render.html', 'Render', 'Shu loyiha kadrini AI bilan render qilish']] as const).map(([id, href, name, note]) =>
         h('button', { class: 'mi', id, onclick: (e: Event) => go(href, e.currentTarget as Element) }, h('b', {}, tr(name)), h('span', {}, tr(note)))),
       // 14.11 audit: Dizayn-kod ham (hozircha loyihaga bogʻlanmagan alohida sahifa)
-      h('button', { class: 'mi', id: 'svcDk', onclick: () => { this.closePop(); void this.saver.flush().finally(() => { location.href = '../dizaynkod.html'; }); } }, h('b', {}, tr('Dizayn-kod')), h('span', {}, tr('Peshlavha va koʻcha yozuvlari — Toshkent dizayn-kodi'))),
+      h('button', { class: 'mi', id: 'svcDk', onclick: () => { this.closePop(); void this.saver.flush().finally(() => { location.href = svcHref('../dizaynkod.html', this.store.doc.id); }); } }, h('b', {}, tr('Dizayn-kod')), h('span', {}, tr('Peshlavha va koʻcha yozuvlari — Toshkent dizayn-kodi'))),
       h('button', { class: 'mi', id: 'svcChz', onclick: (e: Event) => { const t = e.currentTarget as Element; this.closePop(); otishRun('chz', () => this.openCh(), t); } }, h('b', {}, tr('Chizmadon')), h('span', {}, tr('Taqdimot albomi va tahlil diagrammalari')))));
     b.className = 'svcbadge svcbtn';
     b.replaceChildren(h('i'), h('span', {}, tr('Master reja')), svgIcon(IC.chevDown));
@@ -5059,7 +5059,7 @@ export class Editor {
               location.href = svcHref('./joyshunos.html#/axo', doc.id);
             } finally { sc.setStyle(this.stylePref); sc.setDetail(prevD); }
           })().catch(e => toast(`Joyshunos: ${(e as Error).message}`))),
-          svc('exDk', 'Dizayn-kod', 'Peshlavha va koʻcha yozuvlari — Toshkent dizayn-kodi', () => void this.saver.flush().finally(() => { location.href = '../dizaynkod.html'; })),
+          svc('exDk', 'Dizayn-kod', 'Peshlavha va koʻcha yozuvlari — Toshkent dizayn-kodi', () => void this.saver.flush().finally(() => { location.href = svcHref('../dizaynkod.html', this.store.doc.id); })),
           svc('exRen', 'Render', 'Joriy 3D koʻrinish (kamera, uslub, quyosh) Render studiyasida asos rasm boʻladi — AI render, referenslar bilan', () => void (async () => {
             const img = this.scene.snapshot(); const { sendToRender } = await import('../render/inbox');
             await sendToRender({ name: doc.name, from: 'mr', subj: 'reja', img }, svcHref('./render.html', doc.id));
@@ -5645,7 +5645,7 @@ export class Editor {
         ...(set === 'UZ' ? [h('span', {}, h('span', { class: 'lvl m' }, tr('Majburiy')), 'ShNQ, QMQ, SanQvaN')] : [h('span', {}, h('span', { class: 'lvl s' }, tr('Tavsiya')), tr('xalqaro andoza')), h('span', {}, h('span', { class: 'lvl o' }, tr('Oʻchiq')), tr('mintaqaviy'))])),
       h('div', { class: 'group reg' }, ...rs.map(r => {
         const open = this.regOpen === r.id, st = tr(STATUS_TXT[r.status]);
-        const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
+        const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + tr(r.unit) : ''}` : ''   /* 22.11: birlik ham tarjima («ta» → pcs) */, dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
         const isOff = lvl(r.id) === 'ochiq', anOn = on.includes(r.id);
         return h('div', { class: 'rrow', 'data-rule': r.id },
           h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },

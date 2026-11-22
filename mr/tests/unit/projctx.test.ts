@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ctxProject, scoped, svcHref, projectHref, seedSite } from '../../src/core/projctx';
+import { ctxProject, scoped, svcHref, projectHref, seedSite, svcLinks } from '../../src/core/projctx';
 
 describe('loyiha konteksti (?p=)', () => {
   it('manzildan loyiha id; notoʻgʻri qiymat — yoʻq', () => {
@@ -27,4 +27,15 @@ describe('loyiha konteksti (?p=)', () => {
     expect(seedSite('p_1234', [[1, 1], [2, 2], [3, 3]], st)).toBe(false);   // foydalanuvchi oʻzgartirgani ustiga yozilmaydi
     expect(seedSite('p_9999', null, st)).toBe(false);
   });
+});
+
+describe('svcLinks — xizmatlar havolalari shu loyihaga (22.11)', () => {
+  it('loyiha ichida: Master reja va Chizmadon — shu loyiha, qolganlari ?p=', () => {
+    const L = svcLinks('p_abc123');
+    expect(L.mr).toBe('./#/p/p_abc123');
+    expect(L.chz).toBe('./#/p/p_abc123/chizmadon');
+    expect(L.ks).toBe('./kochasoz.html?p=p_abc123');
+    expect(L.dk).toBe('../dizaynkod.html?p=p_abc123');
+  });
+  it('loyihasiz — avvalgidek', () => { const L = svcLinks(null); expect(L.mr).toBe('./'); expect(L.chz).toBe('./#/chizmadon'); expect(L.dk).toBe('../dizaynkod.html'); });
 });
