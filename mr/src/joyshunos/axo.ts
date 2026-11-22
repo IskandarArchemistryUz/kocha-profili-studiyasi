@@ -139,7 +139,8 @@ export class Axo {
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(this.basePR());
+    this.renderer.debug.checkShaderErrors = false;   // 22.11: sheyder xatolari tekshiruvi oʻchiq — har dastur uchun sinxron getProgramInfoLog kutilmaydi (birinchi kadr tezroq; chizish oʻzgarmaydi)
     this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; this.renderer.shadowMap.autoUpdate = false;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.append(this.renderer.domElement);
@@ -151,7 +152,7 @@ export class Axo {
     for (const l of AX_LAYERS) { const g = new THREE.Group(); g.name = `L-${l.id}`; this.groups.set(l.id, g); this.scene.add(g); }
     this.ctl = new OrbitControls(this.ortho, this.renderer.domElement);
     this.ctl.enableDamping = false; this.ctl.screenSpacePanning = true; this.ctl.maxPolarAngle = Math.PI * 0.48;
-    this.ctl.addEventListener('change', () => { this.dirty = true; });   // kamera — soya xaritasi oʻzgarmaydi
+    this.ctl.addEventListener('change', () => this.onMove());   // kamera — soya xaritasi oʻzgarmaydi
     this.bindDrag();
     new ResizeObserver(() => this.resize()).observe(host);
     this.resize();
@@ -167,12 +168,26 @@ export class Axo {
 
   private cam(): THREE.Camera { return this.view === 'persp' ? this.persp : this.ortho; }
 
+  /**
+   * 22.11 (egasi: sahnani barcha xizmatlarda yengillashtirish) — Master reja sahnasidagi (18.11, T3) qoida bilan bir xil:
+   * kamera harakatlanayotganda piksel zichligi 1 ga tushadi (retina / 150 % masshtabda 2–4 baravar kam piksel), toʻxtagach 250 ms da qaytadi.
+   * Soya xaritasi kanvas oʻlchamiga bogʻliq emas (soya kamerasi atrof radiusiga qotirilgan) — oʻlcham oʻzgarganda qayta chizilmaydi
+   */
+  private basePR(): number { return Math.min(2, window.devicePixelRatio || 1); }
+  private movT = 0;
+  private onMove(): void {
+    this.dirty = true;
+    if (this.renderer.getPixelRatio() > 1) { this.renderer.setPixelRatio(1); this.resize(); }
+    clearTimeout(this.movT);
+    this.movT = window.setTimeout(() => { const pr = this.basePR(); if (this.renderer.getPixelRatio() !== pr) { this.renderer.setPixelRatio(pr); this.resize(); } }, 250);
+  }
+
   private resize(): void {
     const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight);
     this.renderer.setSize(w, h, false); this.renderer.domElement.style.width = `${w}px`; this.renderer.domElement.style.height = `${h}px`;
     this.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     this.persp.aspect = w / h; this.persp.updateProjectionMatrix();
-    this.fitOrtho(); this.dirty = this.sdirty = true;
+    this.fitOrtho(); this.dirty = true;
   }
   /** panellar egallagan joy (px): sahna oʻrtadagi boʻsh joyga sigʻdiriladi */
   insets = { l: 304, r: 296, t: 76, b: 84 };
@@ -814,7 +829,7 @@ export class Axo {
 
   /** PNG: WebGL kadri + HTML yorliqlar (kenglik W px) */
   async png(W = 3840): Promise<Blob> {
-    const w = this.host.clientWidth, h = this.host.clientHeight, k = W / w, pr = this.renderer.getPixelRatio();
+    const w = this.host.clientWidth, h = this.host.clientHeight, k = W / w, pr = this.basePR();   // 22.11: harakat paytidagi vaqtinchalik 1 emas — asl zichlik tiklanadi
     this.renderer.setPixelRatio(k); this.renderer.setSize(w, h, false);
     const cam = this.cam(); this.renderer.shadowMap.needsUpdate = true; this.renderer.render(this.scene, cam);
     const cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
@@ -849,7 +864,7 @@ export class Axo {
   }
 
   dispose(): void {
-    cancelAnimationFrame(this.raf); this.ctl.dispose();
+    cancelAnimationFrame(this.raf); clearTimeout(this.movT); this.ctl.dispose();
     this.scene.traverse(o => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); });
     this.renderer.dispose(); this.renderer.domElement.remove(); this.overlay.remove(); this.svg.remove();
   }

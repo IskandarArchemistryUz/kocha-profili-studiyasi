@@ -247,7 +247,13 @@ export interface ContextScene { group: THREE.Group; ground: THREE.Mesh; inSite: 
   /** 18.11 (T2a): faqat yoʻllar (set — olib tashlangan / loyihaga olingan OSM yoʻllari) yoki binolar (set — olib tashlangan binolar) qatlamini qayta qurish */
   rebuild(part: 'roads' | 'blds', set: Set<number>, src: ContextBundle): void;
   /** hozirgi daraxtlar: «asl» yoki «shablon» */
-  readonly treeStyle: 'asl' | 'shablon' | null }
+  readonly treeStyle: 'asl' | 'shablon' | null;
+  /**
+   * 22.11 (egasi: sahnani yanada yengillashtirish): atrof daraxtlari ham «Sodda» qoidasiga boʻysunadi (avval faqat loyiha daraxtlari).
+   * 0 — toʻliq; 1 — uzoqdan: tanalar chizilmaydi, tojlar soya tashlamaydi; 2 — juda uzoqdan: asl dumaloq toj 80 → 20 uchburchak
+   * (ekranda ≈ 10 px dan kichik — farqi koʻrinmaydi). Qaytaradi: biror narsa oʻzgardimi (sahna va soya qayta chiziladi)
+   */
+  setTreeLod(level: 0 | 1 | 2): boolean }
 
 /** Butun kontekst sahnasini qurish */
 export interface CtxBld { id: number; rings: XY[][]; h: number; kind?: string }
@@ -414,6 +420,16 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
   /** guruhdan olinganda izolyatsiya holati tiklanadi (scene.applyIsoCtx qayta qoʻllaydi) */
   const detach = (o: THREE.Object3D) => { const u = o.userData as { isoV?: boolean }; if (u.isoV != null) { o.visible = u.isoV; delete u.isoV; } g.remove(o); };
   const disposeStyled = () => { for (const m of styled) { g.remove(m); (m.material as THREE.Material).dispose(); m.dispose(); } styled = []; };   // geometriya umumiy (trees3d)
+  // 22.11: daraxt soddalashuvi. Tana `visible` bilan emas, qatlam (layers) bilan yashiriladi — izolyatsiya rejimi `visible` ni oʻzi saqlab-tiklaydi
+  let lod: 0 | 1 | 2 = 0, lowGeo: THREE.BufferGeometry | null = null;
+  const fullGeo = classic?.geometry ?? null;
+  const lodOne = (m: THREE.InstancedMesh): boolean => {
+    let ch = false;
+    if (m === classicSet[1] || m.userData.tree === 'trunk') { const want = lod ? 0 : 1; if (m.layers.mask !== want) { m.layers.mask = want; ch = true; } return ch; }
+    if (m.castShadow !== !lod) { m.castShadow = !lod; ch = true; }
+    if (m === classic && fullGeo) { const geo = lod === 2 ? (lowGeo ??= new THREE.IcosahedronGeometry(1, 0)) : fullGeo; if (m.geometry !== geo) { m.geometry = geo; ch = true; } }
+    return ch;
+  };
   return {
     group: g, ground, inSite, blds, roads: shownRoads,
     get treeStyle() { return classic ? (styled.length ? 'shablon' : 'asl') : null; },
@@ -427,14 +443,17 @@ export function buildContext(b: ContextBundle, fr: Frame, cs: ContextSettings, H
       if (!cols) { for (const m of classicSet) if (!m.parent) g.add(m); return; }
       classicSet.forEach(detach);
       styled = styledTreeMeshes(treePts, H, cols) as THREE.InstancedMesh[];
-      for (const m of styled) { m.name = m.userData.tree === 'trunk' ? 'shablon tanalari' : 'shablon daraxtlari'; m.userData.ctxTree = true; m.userData.m0 = Float32Array.from(m.instanceMatrix.array); maskOne(m); g.add(m); }
+      for (const m of styled) { m.name = m.userData.tree === 'trunk' ? 'shablon tanalari' : 'shablon daraxtlari'; m.userData.ctxTree = true; m.userData.m0 = Float32Array.from(m.instanceMatrix.array); maskOne(m); lodOne(m); g.add(m); }
     },
+    setTreeLod(level) { lod = level; let ch = false; for (const m of [...classicSet, ...styled]) if (lodOne(m) && m.parent) ch = true; return ch; },
     rebuild(part, set, src) {
       for (const o of [...g.children]) if (o.userData.part === part) { g.remove(o); o.traverse(x => { const m = x as THREE.Mesh; m.geometry?.dispose(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach(q => q.dispose()); }); }
       if (part === 'roads') { shownRoads.length = 0; addRoads(set, src); } else { inSite.length = 0; blds.length = 0; addBlds(set, src); }
     },
     dispose() {
       disposeStyled();
+      if (classic && fullGeo) classic.geometry = fullGeo;
+      lowGeo?.dispose(); lowGeo = null;
       for (const m of classicSet) if (!m.parent) g.add(m);
       g.traverse(o => { const m = o as THREE.Mesh; m.geometry?.dispose(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach(x => x.dispose()); });
     },
