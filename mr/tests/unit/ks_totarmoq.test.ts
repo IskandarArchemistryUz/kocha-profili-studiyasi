@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildMrDoc, profileStrips, osmPreset } from '../../src/kochasoz/totarmoq';
-import { joinNode, type OsmEl } from '../../src/kochasoz/node';
+import { buildMrDoc, profileStrips, osmPreset, innerEnds, outerEnds } from '../../src/kochasoz/totarmoq';
+import { joinNode, nodesQuery, type OsmEl } from '../../src/kochasoz/node';
 import type { Profile } from '../../src/core/profiles';
 
 const prof = { id: 'p15', name: 'Mahalla koʻchasi', cat: 'mahalliy', parts: [{ k: 'trotuar', w: 2.25 }, { k: 'yashil', w: 2 }, { k: 'qatnov', w: 6.5, lanes: 2 }, { k: 'yashil', w: 2 }, { k: 'trotuar', w: 2.25 }] } as unknown as Profile;
@@ -27,5 +27,23 @@ describe('Koʻchasoz → Tarmoq: loyiha koʻchalari va OSM tutashuvi (19.11)', (
     const c = M.nodes.find(n => n.id === proj.b)!;
     expect(Math.abs(c.ll[1] - lat0)).toBeLessThan(1e-6);   // uch yoʻl oʻqida
     const deg = M.edges.filter(e => e.a === c.id || e.b === c.id).length; expect(deg).toBe(3);
+  });
+});
+
+describe('Master reja → Tarmoq: koʻp koʻchali loyiha (22.11)', () => {
+  // + shaklidagi ikki koʻcha va L shaklidagi tutashuv: ichki uchlar OSM ga ulanmaydi
+  const P = (x: number, y: number): [number, number] => [lon0 + x * dLon, lat0 + y * dLat];
+  const s1 = { id: 'a', axis: [P(0, -200), P(0, -100)] }, s2 = { id: 'b', axis: [P(0, -100), P(120, -100)] }, s3 = { id: 'c', axis: [P(60, -160), P(60, -101)] };
+  it('ichki uchlar: tutashgan uchlar va boshqa koʻcha oʻrtasiga tushgan uch', () => {
+    const inn = innerEnds([s1, s2, s3]);
+    expect(inn.has(P(0, -100).join(','))).toBe(true);          // a ↔ b uchi
+    expect(inn.has(P(60, -101).join(','))).toBe(true);         // c — b ning oʻrtasiga (1 m)
+    expect(inn.has(P(0, -200).join(','))).toBe(false);
+    expect(outerEnds([s1, s2, s3]).length).toBe(3);            // a boshi, b oxiri, c boshi
+  });
+  it('bitta soʻrov: barcha uchlar bir Overpass soʻrovida', () => {
+    const q = nodesQuery(outerEnds([s1, s2, s3]), 50);
+    expect(q.match(/way\(around:50,/g)!.length).toBe(3);
+    expect(q.startsWith('[out:json]')).toBe(true);
   });
 });

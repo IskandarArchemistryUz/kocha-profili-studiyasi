@@ -57,6 +57,31 @@ function cutAround(line: LngLat[], i: number, at: LngLat, len: number): [LngLat[
 }
 
 export interface StreetIn { id: string; axis: LngLat[]; profile: Profile; name: string }
+
+/** nuqtadan kesmagacha masofa, m */
+function segDist(p: LngLat, a: LngLat, b: LngLat): number {
+  const k = Math.cos(p[1] * rad) * rad * R, ky = rad * R;
+  const ax = (a[0] - p[0]) * k, ay = (a[1] - p[1]) * ky, bx = (b[0] - p[0]) * k, by = (b[1] - p[1]) * ky, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+  return Math.hypot(ax + dx * t, ay + dy * t);
+}
+/**
+ * Ichki uchlar (kalit `lng,lat`): boshqa loyiha koʻchasiga ≤ 3 m tutashgan uch — loyiha ichidagi chorraha.
+ * Ular OSM ga ulanmaydi (soʻrov ham ketmaydi): avval uchastka ichidagi eski yoʻlga yopishib qolishi mumkin edi.
+ */
+export function innerEnds(streets: { id: string; axis: LngLat[] }[], tol = 3): Set<string> {
+  const out = new Set<string>();
+  for (const s of streets) for (const e of [s.axis[0], s.axis[s.axis.length - 1]]) {
+    if (streets.some(o => o !== s && o.axis.some((q, i) => i > 0 && segDist(e, o.axis[i - 1], q) <= tol))) out.add(e.join(','));
+  }
+  return out;
+}
+/** OSM ga ulanadigan (tashqi) uchlar — takrorsiz */
+export function outerEnds(streets: { id: string; axis: LngLat[] }[]): LngLat[] {
+  const inner = innerEnds(streets), seen = new Set<string>(), out: LngLat[] = [];
+  for (const s of streets) for (const e of [s.axis[0], s.axis[s.axis.length - 1]]) { const k = e.join(','); if (!inner.has(k) && !seen.has(k)) { seen.add(k); out.push(e); } }
+  return out;
+}
 /**
  * Loyiha koʻchalari + OSM (har uch atrofidagi Overpass javobi) → tarmoq hujjati.
  * Uchlar 2 m gacha yaqin boʻlsa bitta tugun (loyiha ichidagi chorrahalar); uch OSM yoʻliga ≤ 45 m boʻlsa —
@@ -91,28 +116,42 @@ export function buildMrDoc(pid: string, name: string, streets: StreetIn[], osmAt
   return { pid, name, nodes, edges, at: Date.now() };
 }
 
-/** Loyiha ichidan (?p=) Tarmoqni ochish; loyiha boʻlmasa — oddiy tarmoq.html */
+/** OSM uchun eng koʻp kutish (ms): javob boʻlmasa Tarmoq loyiha koʻchalari va hududi bilan baribir ochiladi */
+export const OSM_WAIT = 25_000;
+
+/**
+ * Loyiha ichidan (?p=) Tarmoqni ochish; loyiha boʻlmasa — oddiy tarmoq.html.
+ * 22.11: hudud va binolar koʻcha boʻlmasa ham uzatiladi; boshqa loyihadan qolgan `kps_mr_doc` ishlatilmaydi;
+ * OSM — bitta soʻrov, ≤ OSM_WAIT.
+ */
 export async function openTarmoq(pid: string | null, toastFn?: (m: string) => void): Promise<void> {
   const base = '../tarmoq.html';
   if (!pid) { location.href = base; return; }
+  try { localStorage.removeItem(MR_DOC); } catch { /* */ }
   try {
     toastFn?.(tr('Loyiha koʻchalari va atrofdagi OSM yoʻllari tayyorlanmoqda…'));
     const { getProject } = await import('../storage/db'), doc = await getProject(pid);
-    const st = ((doc && doc.streets) || []).filter(x => x.axis && x.axis.length >= 2);
-    if (!doc || !st.length) { location.href = `${base}?p=${encodeURIComponent(pid)}`; return; }
-    const P = await import('../core/profiles'); P.setUserProfiles(doc.profiles);
-    const N = await import('./node'), { overpass } = await import('../context/load');
-    const cache = new Map<string, OsmEl[] | null>();
-    for (const x of st) for (const e of [x.axis[0], x.axis[x.axis.length - 1]]) {
-      const k = e.join(','); if (cache.has(k)) continue;
-      try { const j = await overpass(N.nodeQuery(e, 50), fetch.bind(globalThis), () => {}) as { elements?: OsmEl[] }; cache.set(k, j.elements || []); } catch { cache.set(k, null); }
+    if (doc) {
+      const st = (doc.streets || []).filter(x => x.axis && x.axis.length >= 2);
+      let streets: StreetIn[] = [], els: OsmEl[] | null = null, inner = new Set<string>();
+      const N = await import('./node');
+      if (st.length) {
+        const P = await import('../core/profiles'); P.setUserProfiles(doc.profiles);
+        streets = st.map((x, i) => { const pr = P.profileById(x.profile); return { id: x.id, axis: x.axis, profile: pr, name: (x as { name?: string }).name || `${pr.name} ${i + 1}` }; });
+        inner = innerEnds(st);
+        const ends = outerEnds(st);
+        if (ends.length) {
+          const { overpass } = await import('../context/load');
+          const q = overpass(N.nodesQuery(ends, 50), fetch.bind(globalThis), () => {}).then(j => ((j as { elements?: OsmEl[] }).elements || []), () => null);
+          els = await Promise.race([q, new Promise<null>(r => setTimeout(() => r(null), OSM_WAIT))]);
+        }
+      }
+      const M = buildMrDoc(pid, doc.name, streets, e => (inner.has(e.join(',')) ? null : els), (x, end, inn) => N.joinNode(x, end, inn));
+      const LL = (r: LngLat[]) => r.map(p => [p[1], p[0]] as [number, number]);
+      M.site = (doc.site?.rings ?? []).filter(r => r.length >= 3).map(LL);
+      M.bld = doc.buildings.filter(b => b.footprint.length >= 3).map(b => ({ r: LL(b.footprint), f: b.floors }));
+      localStorage.setItem(MR_DOC, JSON.stringify(M));
     }
-    const streets: StreetIn[] = st.map((x, i) => { const pr = P.profileById(x.profile); return { id: x.id, axis: x.axis, profile: pr, name: (x as { name?: string }).name || `${pr.name} ${i + 1}` }; });
-    const M = buildMrDoc(pid, doc.name, streets, e => cache.get(e.join(',')) ?? null, (els, end, inn) => N.joinNode(els, end, inn));
-    const LL = (r: LngLat[]) => r.map(p => [p[1], p[0]] as [number, number]);
-    M.site = (doc.site?.rings ?? []).filter(r => r.length >= 3).map(LL);
-    M.bld = doc.buildings.filter(b => b.footprint.length >= 3).map(b => ({ r: LL(b.footprint), f: b.floors }));
-    localStorage.setItem(MR_DOC, JSON.stringify(M));
   } catch { /* tarmoq oʻz holati bilan ochiladi */ }
   location.href = `${base}?p=${encodeURIComponent(pid)}`;
 }
