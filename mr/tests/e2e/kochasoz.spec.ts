@@ -6,7 +6,7 @@ const errs: string[] = [];
 async function open(page: Page, hash: string, q = ''): Promise<void> {
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto(`./kochasoz.html${q}#/${hash}`);
+  await page.goto(`./kochasoz.html?asosiy=1${q.replace(/^\?/, "&")}#/${hash}`);
   await expect(page.locator('.ws')).toBeVisible();
 }
 const blk = (page: Page) => page.locator('.ws-b .blk');
@@ -100,7 +100,7 @@ test('beta: A tarmoq → B, C chorraha, E mikromodel, Grafika, Varaq', async ({ 
   await page.locator('#ksVaraq').click();
   await expect(page.locator('.ws-varaq svg[role=img]')).toBeVisible();
   // A: koʻchani tanlab, «Kesimini ochish (B)» — B mos tayyor kesim bilan ochiladi
-  await page.goto('./kochasoz.html#/a'); await expect(page.locator('.ws-a')).toBeVisible();
+  await page.goto('./kochasoz.html?asosiy=1#/a'); await expect(page.locator('.ws-a')).toBeVisible();
   await page.evaluate(() => { const k = (window as any).__ks; k.m.inst.setState({ sel: 0 }); });   // «Shahar magistrali A» (sh2 → Avtobus koridori)
   await page.locator('.ws-a a[href="#/b"]').click();
   await expect(page.locator('.ws-b aside').first()).toContainText('Avtobus koridori');
@@ -151,7 +151,7 @@ test('Master reja koʻchasi → Koʻchasoz oynasi → «Toʻliq oyna» → B kes
 
 /** B · kesim → DXF (Archicad/AutoCAD): metr 1:1, qizil chiziqlar orasi, zona enlari — DIMENSION, siluetlar — blok, UI yoʻq */
 test('kesim DXF eksporti: S3 (21,7 m) — oʻlchamlar, qatlamlar, bloklar', async ({ page }) => {
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
   await page.evaluate(() => { const E = [['front', 1.5, { orin: true }], ['piy', 3, {}], ['yash', 2, { daraxt: true }], ['park', 2.2, { mashina: true }], ['qat', 3.25, {}], ['qat', 3.25, {}], ['yash', 2, { daraxt: true }], ['piy', 3, {}], ['front', 1.5, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 21.7, tplName: 'S3', sel: 0, selU: -1 }); });
@@ -180,7 +180,7 @@ test('kesim DXF eksporti: S3 (21,7 m) — oʻlchamlar, qatlamlar, bloklar', asyn
 /** EN rejimida kesim va DXF faylida oʻzbekcha yozuv qolmaydi, oʻnlik ajratgich — nuqta */
 test('kesim DXF: EN — oʻzbekcha yozuvsiz, oʻnlik nuqta', async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('mr-lang', 'en'); localStorage.setItem('kps_lang', 'en'); });
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.locator('.ws-b main .seg').first().locator('button').first().click();
   await page.evaluate(() => { const E = [['front', 1.5, {}], ['piy', 3, {}], ['yash', 2, { daraxt: true }], ['qat', 3.25, {}], ['qat', 3.25, {}], ['med', 2, {}], ['bus', 3.5, {}], ['tram', 7, {}], ['velo', 2.5, {}], ['piy', 3, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 31, tplName: 'S7', sel: 0, selU: -1 }); });
@@ -198,7 +198,7 @@ test('kesim DXF: EN — oʻzbekcha yozuvsiz, oʻnlik nuqta', async ({ page }) =>
 
 /** Kesim chetlari: bino oʻrniga bogʻ / suv; tashqi chetni surish (chetdagi zona va qizil chiziqlar orasi); tor kesimda sigʻmagan tarmoq — ogohlantirish */
 test('kesim chetlari, tashqi chetni surish, sigʻmagan tarmoq', async ({ page }) => {
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
   await page.evaluate(() => { const E = [['front', 2, {}], ['piy', 3, {}], ['qat', 3.25, {}], ['qat', 3.25, {}], ['piy', 3, {}], ['yash', 3, { daraxt: true }]]; (window as any).__ks.m.inst.setState({ els: E, rl: 17.5, tplName: 'T', sel: 0, selU: -1, U: [] }); });
@@ -222,7 +222,7 @@ test('kesim chetlari, tashqi chetni surish, sigʻmagan tarmoq', async ({ page })
 /** Ariq / lotok — zona: qoʻshiladi, kesim/reja/varaqda xatosiz, DXF da KS_ZONE_WATER */
 test('ariq / lotok zonasi', async ({ page }) => {
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && /TypeError|ReferenceError/.test(m.text())) errs.push(m.text()); });
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
   await page.evaluate(() => { const E = [['piy', 3, {}], ['qat', 3.5, {}], ['qat', 3.5, {}], ['piy', 3, {}]]; (window as any).__ks.m.inst.setState({ els: E, rl: 13, tplName: 'A', sel: 1, selU: -1, U: [] }); });
@@ -234,14 +234,14 @@ test('ariq / lotok zonasi', async ({ page }) => {
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.ks-menu button:has-text("DXF")')]);
   expect(readFileSync(await dl.path(), 'utf8')).toContain('KS_ZONE_WATER');
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Reja' }).click();
-  await page.goto('./kochasoz.html#/varaq'); await page.waitForTimeout(800);
+  await page.goto('./kochasoz.html?asosiy=1#/varaq'); await page.waitForTimeout(800);
   expect(errs).toEqual([]);
 });
 
 /** Chet turlari varaqda ham: B da tanlangan bogʻ / suv — varaq kesimi va rejasida, bino oʻrniga */
 test('varaq — chet turlari', async ({ page }) => {
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ eL: 'suv', eR: 'bog' }));
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Reja' }).click();

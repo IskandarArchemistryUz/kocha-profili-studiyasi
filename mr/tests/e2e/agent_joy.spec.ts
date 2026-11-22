@@ -20,7 +20,7 @@ test('Joyshunos: Maslahatchi — qatlamlar va xizmatlar buyrugʻi', async ({ pag
     return json(404, {});
   });
   await page.addInitScript(a => { localStorage.setItem('kps_auth', '1'); localStorage.setItem('kps_api', a); localStorage.setItem('kps_owner', '0'); localStorage.setItem('mr-agent-intro', '1'); }, API);
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
   await expect(page.locator('#agentBtn')).toBeVisible();
   // xarita plitkalari yuklanayotganda sarlavha qayta chiziladi — bosish DOM orqali
   await page.locator('#agentBtn').evaluate(b => (b as HTMLButtonElement).click());
@@ -54,7 +54,7 @@ test('Joyshunos: namuna rasm → xarita uslubi → «Bekor qilish»', async ({ p
     return json(404, {});
   });
   await page.addInitScript(a => { localStorage.setItem('kps_auth', '1'); localStorage.setItem('kps_api', a); localStorage.setItem('kps_owner', '0'); localStorage.setItem('mr-agent-intro', '1'); localStorage.setItem('kps_base', JSON.stringify({ mode: 'stil', pal: 'arch' })); }, API);
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
   await expect(page.locator('#agentBtn')).toBeVisible();
   await page.locator('#agentBtn').evaluate(b => (b as HTMLButtonElement).click());
   await page.setInputFiles('#agFile', 'tests/e2e/fixtures/terrarium.png');

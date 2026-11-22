@@ -5,11 +5,11 @@ import { listProjects, putProject, deleteProject } from '../storage/db';
 import { openProjects } from './projwin';
 
 /** Chizmadon oynasi muharrir ustida ochiq — toza ochilishi uchun sahifa yangilanadi */
-const go = (id: string) => { location.hash = `#/p/${id}/chizmadon`; location.reload(); };
+const go = (id: string) => { const h = `#/p/${id}/chizmadon`; if (location.hash === h) location.reload(); else location.hash = h; };
 
-export function openChzProjects(cur?: string): Promise<void> {
+export function openChzProjects(cur?: string, gate = false): Promise<void> {
   return openProjects({
-    svc: 'chz', name: 'Chizmadon', lead: 'Taqdimot albomlari: har loyiha — oʻz varaqlari. Master reja albomi — Master reja loyihasining ichida.',
+    svc: 'chz', gate, name: 'Chizmadon', lead: 'Taqdimot albomlari: har loyiha — oʻz varaqlari. Master reja albomi — Master reja loyihasining ichida.',
     list: async () => (await listProjects()).filter(p => p.svc === 'chz').map(p => ({ id: p.id, name: p.name, updated: p.updated, cur: p.id === cur })),
     create: async () => { const p: Project = { ...blankProject(tr('Taqdimot albomi')), svc: 'chz' }; await putProject(p); go(p.id); },
     open: id => go(id),

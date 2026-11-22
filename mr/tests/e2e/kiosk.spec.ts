@@ -9,7 +9,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kiosk joyl
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: w, height: 860 });
   if (dark) await page.addInitScript(() => localStorage.setItem('mr-theme', 'dark'));
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   // U3 (periferik, transport kam): B3 fasad oldi 4 m, trotuar 3 m, yashil bufer, 2 harakat boʻlagi
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ uk: 'U3', sel: 0, selU: -1, PL: [], els: [['front', 4, {}], ['piy', 3, {}], ['yash', 2, { daraxt: true }], ['qat', 3.5, {}], ['qat', 3.5, {}], ['yash', 2, { daraxt: true }], ['piy', 3, {}], ['front', 4, {}]], rl: 25 }));

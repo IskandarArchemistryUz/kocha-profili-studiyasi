@@ -7,7 +7,7 @@ const tpl = (page: import('@playwright/test').Page, t: string, view = 2, gfx = 0
 test('B: aksonometriya — SVG uslub, transport modellari, eksport', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.locator('.ws-b main .seg button', { hasText: 'Aksonometriya' }).click();
   await tpl(page, 'Avtobus koridori');
@@ -34,7 +34,7 @@ test('B: aksonometriya — tungi rejim va ruscha', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => { localStorage.setItem('mr-theme', 'dark'); localStorage.setItem('mr-lang', 'ru'); });
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2 }));

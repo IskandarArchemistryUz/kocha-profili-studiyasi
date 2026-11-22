@@ -21,27 +21,51 @@ const LEAD: Record<SvcId, string> = {
 export const SVC_KEYS: Record<SvcId, string[]> = { joyshunos: ['joy-', 'kps_site'], kochasoz: ['ks-'], render: ['render-'] };
 
 const page = () => location.pathname.split('/').pop() || '';
-/** Joriy sahifa shu loyiha bilan ('' — asosiy, ?p siz) */
+/** 22.11: loyihasiz eski ish («Avvalgi ish») tanlanganini bildiruvchi belgi — busiz xizmat avval loyihalar panelini koʻrsatadi */
+const OLD = 'asosiy';
+/** Joriy sahifa shu loyiha bilan ('' — avvalgi umumiy ish, ?p siz) */
 export function svcIn(id: string): string {
-  if (id) return svcHref(page() + location.search + location.hash, id);
-  const s = new URLSearchParams(location.search); s.delete('p'); const q = s.toString();
-  return `${page()}${q ? `?${q}` : ''}${location.hash}`;
+  if (id) { const s = new URLSearchParams(location.search); s.delete(OLD); return svcHref(`${page()}${s.toString() ? `?${s}` : ''}${location.hash}`, id); }
+  const s = new URLSearchParams(location.search); s.delete('p'); s.set(OLD, '1');
+  return `${page()}?${s.toString()}${location.hash}`;
+}
+/** Brauzerda loyihasiz (umumiy kalitlardagi) eski ish bormi */
+export function hasOldWork(svc: SvcId, store: Pick<Storage, 'key' | 'length'> | null = (() => { try { return localStorage; } catch { return null; } })()): boolean {
+  if (!store) return false;
+  for (let i = 0; i < store.length; i++) { const k = store.key(i); if (k && !k.includes('@') && SVC_KEYS[svc].some(pf => k.startsWith(pf))) return true; }
+  return false;
+}
+/** Xizmat ishlashi mumkinmi: loyiha (?p=) yoki eski ish tanlangan boʻlsa — ha; aks holda loyihalar paneli koʻrsatiladi */
+export function svcReady(search = location.search): boolean {
+  const q = new URLSearchParams(search);
+  // embed — Master reja oynasi ichidagi ramka (ui/kswin): eshiksiz
+  return !!ctxProject(search) || q.get(OLD) === '1' || q.has('embed');
 }
 
-export function openSvcProjects(svc: SvcId): Promise<void> {
-  const k = KIND[svc], cur = ctxProject() ?? '';
+export function openSvcProjects(svc: SvcId, gate = false): Promise<void> {
+  const k = KIND[svc], cur = gate ? null : (ctxProject() ?? (new URLSearchParams(location.search).get(OLD) === '1' ? '' : null));
   return openProjects({
-    svc: k, name: NAME[svc], lead: LEAD[svc],
-    list: () => [{ id: '', name: tr('Asosiy loyiha'), cur: cur === '' }, ...listSvc(k).map(p => ({ id: p.id, name: p.name, updated: p.updated, cur: p.id === cur }))],
+    svc: k, name: NAME[svc], gate,
+    lead: gate && /^#\/s\//.test(location.hash) ? 'Yuborilgan rasm qaysi loyihada ochilsin? Loyihani tanlang yoki yangisini oching.' : LEAD[svc],
+    list: () => [
+      ...listSvc(k).map(p => ({ id: p.id, name: p.name, updated: p.updated, cur: p.id === cur })),
+      ...(hasOldWork(svc) || cur === '' ? [{ id: '', name: tr('Avvalgi ish (loyihasiz)'), cur: cur === '' }] : []),
+    ],
     create: () => { const p = createSvc(k, `${tr('Yangi loyiha')} ${listSvc(k).length + 1}`); location.href = svcIn(p.id); },
     open: id => { location.href = svcIn(id); },
     remove: id => removeSvc(k, id),
   });
 }
 
+/** Kirish eshigi (22.11, egasi): xizmat loyihasiz ochilsa — xizmat yuklanmaydi, avval oʻz loyihalari paneli */
+export function svcGate(svc: SvcId, start: () => unknown): void {
+  if (svcReady()) { void start(); return; }
+  void openSvcProjects(svc, true);
+}
+
 export function svcPickBtn(svc: SvcId): HTMLElement {
   const cur = ctxProject(); if (cur) touchSvc(KIND[svc], cur);
-  const nm = cur ? listSvc(KIND[svc]).find(p => p.id === cur)?.name : tr('Asosiy loyiha');
+  const nm = cur ? listSvc(KIND[svc]).find(p => p.id === cur)?.name : tr('Avvalgi ish (loyihasiz)');
   const b = h('button', { type: 'button', class: 'btn btn-sm btn-ghost svc-proj', id: 'svcProj', 'aria-haspopup': 'dialog', title: `${tr('Loyihalar')}${nm ? ` · ${nm}` : ''}`, 'aria-label': tr('Loyihalar'), onclick: () => void openSvcProjects(svc) },
     svgIcon('<path d="M3 7h6l2 2h10v10H3z"/>'), h('span', {}, tr('Loyihalar')));
   b.querySelector('svg')?.classList.add('ic', 'sm');

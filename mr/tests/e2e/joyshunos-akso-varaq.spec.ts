@@ -48,7 +48,7 @@ async function open(page: Page, errs: string[], hash = ''): Promise<void> {
     await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: el }) });
   });
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.removeItem('joy-state'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto(`./joyshunos.html${hash}`);
+  await page.goto(`./joyshunos.html?asosiy=1${hash}`);
 }
 
 

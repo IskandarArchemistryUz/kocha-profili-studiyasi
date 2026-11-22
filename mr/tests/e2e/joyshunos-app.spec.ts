@@ -49,7 +49,7 @@ async function open(page: Page, errs: string[], hash = ''): Promise<void> {
     await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: el }) });
   });
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.removeItem('joy-state'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto(`./joyshunos.html${hash}`);
+  await page.goto(`./joyshunos.html?asosiy=1${hash}`);
 }
 
 test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', async ({ page }) => {
@@ -172,7 +172,7 @@ test('aksonometriya: sahna, izohlar, vaqt, portlatish, qatlam tartibi, PNG', asy
   // xaritaga qaytish; holat saqlanadi
   await page.locator('#joyMode [data-mode=map]').click();
   await expect(page.locator('.joy-lp')).toBeVisible();
-  await page.goto('./joyshunos.html#/axo');
+  await page.goto('./joyshunos.html?asosiy=1#/axo');
   await expect(page.locator('.joy-axl .seg button', { hasText: 'Yoyilgan' })).toHaveAttribute('aria-pressed', 'true');
   expect(errs).toEqual([]);
 });
@@ -215,6 +215,7 @@ test('B2: lineyka, uchastka (1-qadamdan), aksonometriyada quyoshni sudrash, mode
   await page.locator('#axExp').click();
   await page.locator('#exRen').click();
   await expect(page).toHaveURL(/render\.html/, { timeout: 30_000 });
+  await page.click('#pwNew'); await expect(page).toHaveURL(/render\.html\?p=s_\w+#\/s\//, { timeout: 20_000 });   // 22.11: Render eshigi
   await expect(page.locator('.ren-base .fr')).toHaveText('Joyshunos');
   await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Aksonometriya');
   expect(errs).toEqual([]);

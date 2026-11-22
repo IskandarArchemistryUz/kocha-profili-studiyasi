@@ -11,7 +11,7 @@ async function open(page: Page, errs: string[]): Promise<void> {
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED|Failed to load|status of 40[12]/.test(m.text())) errs.push(`console: ${m.text().slice(0, 200)}`); });
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('renInit')) { sessionStorage.setItem('renInit', '1'); localStorage.removeItem('kps_air'); localStorage.removeItem('ren-state'); localStorage.removeItem('render-base'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto('./render.html');
+  await page.goto('./render.html?asosiy=1');
 }
 
 /** 13.11 (Render 1-bosqich): soxta server — /render/* va R2. Kalit yoʻq, hamma render serverda, tanga bilan. */
@@ -181,7 +181,7 @@ test('boshqa xizmatdan yuborilgan kadr asos rasm boʻlib ochiladi (#/s/<id>), in
     const db: IDBDatabase = await new Promise((ok, no) => { const r = indexedDB.open('archemistry-mr'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
     await new Promise<void>((ok, no) => { const t = db.transaction('cache', 'readwrite'); t.objectStore('cache').put({ k: 'render-src', v: [{ id: 'sMR1', name: 'Oliy Himmat · 3D', from: 'mr', subj: 'reja', t: new Date().toISOString(), img: `data:image/png;base64,${b64}`, w: 256, h: 256 }], t: Date.now() }); t.oncomplete = () => ok(); t.onerror = () => no(t.error); });
   }, B64);
-  await page.goto('./render.html#/s/sMR1');
+  await page.goto('./render.html?asosiy=1#/s/sMR1');
   await expect(page.locator('.ren-base .cap')).toContainText('Oliy Himmat · 3D');
   await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Master reja');
   await pickLang(page, 'en');
@@ -194,13 +194,14 @@ test('Koʻchasoz B kesimidan «Render studiyasiga» — toza kesim, «Koʻcha ke
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto('./kochasoz.html#/b');
+  await page.goto('./kochasoz.html?asosiy=1#/b');
   await page.waitForFunction(() => (window as any).__ks?.id === 'b');
   await page.locator('.ws-b main .seg').first().locator('button', { hasText: 'Kesim' }).click();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ bL: 4, bR: 30, eL: 'bino', eR: 'bino' }));
   await page.click('[data-ksexp]');
   await page.locator('.ks-menu [role=menuitem]', { hasText: 'Render studiyasiga' }).click();
   await expect(page).toHaveURL(/render\.html/, { timeout: 20_000 });
+  await page.click('#pwNew'); await expect(page).toHaveURL(/render\.html\?p=s_\w+#\/s\//, { timeout: 20_000 });   // 22.11: Render eshigi
   await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Koʻcha kesimi');
   await expect(page.locator('.ren-base .cap code')).toHaveText(/^2400×\d+$/);
   // Koʻchasoz ekrani avvalgi holatda qolgan (noCap saqlanmaydi)
@@ -222,10 +223,12 @@ test('Koʻchasoz varagʻidan «Render studiyasiga» — kesim asos rasm boʻladi
   const errs: string[] = [];
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto('./kochasoz.html#/varaq');
+  await page.goto('./kochasoz.html?asosiy=1#/varaq');
   await expect(page.locator('.ws-varaq svg[role=img]')).toBeVisible();
   await page.locator('.ws-varaq button[data-ren]').click();
   await expect(page).toHaveURL(/render\.html/, { timeout: 20_000 });
+  // 22.11: alohida Koʻchasozdan — Render eshigi: rasm qaysi loyihada ochilishi tanlanadi (manzildagi #/s/ saqlanadi)
+  await page.click('#pwNew'); await expect(page).toHaveURL(/render\.html\?p=s_\w+#\/s\//, { timeout: 20_000 });
   await expect(page.locator('.ren-base .fr')).toHaveText('Koʻchasoz');
   await expect(page.locator('#subj button[aria-pressed=true]')).toHaveText('Koʻcha');
   await expect(page.locator('.ren-base .cap code')).toHaveText(/^2400×\d+$/);

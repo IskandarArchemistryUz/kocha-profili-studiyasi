@@ -125,9 +125,12 @@ test('Chizmadon: Varaqlardan xarita — «Loyihadan» material', async ({ page }
   await expect(page.locator('#chMats [data-mat^="i:"]')).toHaveCount(1);
 });
 
-test('bosh sahifadan: #/chizmadon — oxirgi loyiha Chizmadon bilan ochiladi', async ({ page }) => {
+test('bosh sahifadan: #/chizmadon — avval Chizmadon loyihalari paneli (22.11), «Yangi loyiha» bilan albom ochiladi', async ({ page }) => {
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
   await page.goto('./#/chizmadon');
+  await expect(page.locator('#projWin')).toBeVisible();
+  await expect(page.locator('#pwClose')).toHaveCount(0);
+  await page.click('#pwNew');
   await expect(page.locator('.gx.ch')).toBeVisible();
   await expect(page).toHaveURL(/#\/p\/[\w-]+\/chizmadon$/);
 });

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 /** Bepul yuklash — setkasimon belgi; egasi rejimi — belgisiz. E1 (11.11): bepul — faqat rasm (PNG / rasm PDF, uzun tomoni 1600 px) */
 const pngSize = (b: Buffer): [number, number] => [b.readUInt32BE(16), b.readUInt32BE(20)];
 test('bepul SVG — belgili PNG 1600 px (vektor yoʻq), egasi rejimida — toza SVG', async ({ page }) => {
-  await page.goto('./kochasoz.html#/varaq');
+  await page.goto('./kochasoz.html?asosiy=1#/varaq');
   await page.evaluate(() => { sessionStorage.setItem('wm-test', '1'); localStorage.removeItem('kps_owner'); });
   await page.reload();
   const btn = page.locator('.ws-varaq button', { hasText: /^SVG$/ });
@@ -17,7 +17,7 @@ test('bepul SVG — belgili PNG 1600 px (vektor yoʻq), egasi rejimida — toza 
   expect(Math.max(...pngSize(free))).toBe(1600);
   expect(free.toString('latin1')).not.toMatch(/<svg|<text|99_Archemistry_belgi/);
   // notoʻgʻri kalit — egasi yoqilmaydi; ?egasi=off — oʻchiradi
-  await page.goto('./kochasoz.html?egasi=notogri#/varaq'); await page.waitForTimeout(500);
+  await page.goto('./kochasoz.html?asosiy=1&egasi=notogri#/varaq'); await page.waitForTimeout(500);
   expect(await page.evaluate(() => localStorage.getItem('kps_owner'))).toBeNull();
   expect(page.url()).not.toContain('egasi=');
   await page.evaluate(() => localStorage.setItem('kps_owner', '1'));
@@ -25,12 +25,12 @@ test('bepul SVG — belgili PNG 1600 px (vektor yoʻq), egasi rejimida — toza 
   dl = page.waitForEvent('download'); await btn.click();
   const own = readFileSync((await (await dl).path())!, 'utf8');
   expect(own).not.toContain('99_Archemistry_belgi');
-  await page.goto('./kochasoz.html?egasi=off#/varaq'); await page.waitForTimeout(500);
+  await page.goto('./kochasoz.html?asosiy=1&egasi=off#/varaq'); await page.waitForTimeout(500);
   expect(await page.evaluate(() => localStorage.getItem('kps_owner'))).toBeNull();
 });
 
 test('bepul PDF — rasm sahifa, matn va belgi qatlami yoʻq', async ({ page }) => {
-  await page.goto('./kochasoz.html#/varaq');
+  await page.goto('./kochasoz.html?asosiy=1#/varaq');
   await page.evaluate(() => { sessionStorage.setItem('wm-test', '1'); localStorage.removeItem('kps_owner'); });
   await page.reload();
   const btn = page.locator('.ws-varaq button', { hasText: /^PDF$/ });

@@ -35,7 +35,7 @@ async function open(page: Page): Promise<void> {
     await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: el }) });
   });
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('stInit')) { sessionStorage.setItem('stInit', '1'); localStorage.removeItem('joy-state'); localStorage.removeItem('joy-street'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 const clickAt = async (page: Page, x: number, y: number) => {
   const p = await page.evaluate(([lon, lat]) => { const m = (window as any).joyMap; const q = m.project([lon, lat]); const r = m.getCanvas().getBoundingClientRect(); return [r.left + q.x, r.top + q.y]; }, [ll(x, y).lon, ll(x, y).lat]);

@@ -26,7 +26,7 @@ async function open(page: Page): Promise<void> {
   await page.route(/fonts\.g|openfreemap|arcgis|gibs\.earthdata|elevation-tiles-prod|nominatim|landsat|usgs/, r => r.abort());
   await page.route(/overpass|kumi\.systems|mail\.ru|private\.coffee/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: osm() }) }));
   await page.addInitScript(([c]) => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.setItem('joy-state', JSON.stringify({ c, r: 300, on: ['izovist'], act: 'izovist', cat: 'cafe', base: 'stil' })); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } }, [C]);
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 async function clickAt(page: Page, x: number, y: number): Promise<void> {
   const p = await page.evaluate(([lon, lat]) => (window as unknown as { joyMap: { project: (c: [number, number]) => { x: number; y: number } } }).joyMap.project([lon, lat]), [ll(x, y).lon, ll(x, y).lat]);

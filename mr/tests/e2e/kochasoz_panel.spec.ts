@@ -6,7 +6,7 @@ const st = (page: import('@playwright/test').Page) => page.evaluate(() => (windo
 test('B: panellar yashiriladi, chizma kengayadi', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   const ws = page.locator('.ws-b'); await expect(ws).toBeVisible();
   const w0 = (await page.locator('.ws-b main').boundingBox())!.width;
   await page.click('[data-ptog=l]');
@@ -27,7 +27,7 @@ test('B: panellar yashiriladi, chizma kengayadi', async ({ page }) => {
 test('B: raqamni bosib, eni va qizil chiziqlar orasini kiritish', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.locator('.ks-strip .blk[data-ei="1"] .w').click();
   const ed = page.locator('.ks-numed'); await expect(ed).toBeVisible();
@@ -51,7 +51,7 @@ test('B: yaqinlashtirish — tugmalar, gʻildirak, surish, sigʻdirish; tungi re
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => localStorage.setItem('mr-theme', 'dark'));
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('.ws-b')).toBeVisible();
   const svg = page.locator('.ws-b main > .card svg[role=img]').first(), pct = page.locator('[data-zm=fit]');
