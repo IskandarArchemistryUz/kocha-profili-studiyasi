@@ -109,6 +109,8 @@ export function openChizmadon(host: ChHost): void {
   /** 4-bosqich: varaqning oʻzida tahrirlash (material sarlavhasi yoki matni) */
   let editing: { id: string; what: 'title' | 'text'; cancel: () => void } | null = null;
   let zoom = 0, panX = 0, panY = 0;
+  /** 22.11: foydalanuvchi oʻzi yaqinlashtirgan / surgan — oyna oʻlchami oʻzgarganda varaq qayta sigʻdirilmaydi */
+  let manual = false;
   let magnet = true, gridOn = false, gray = false;
   let float: 'left' | 'right' | null = null;
   let saved = true, saveT: ReturnType<typeof setTimeout> | undefined;
@@ -283,6 +285,8 @@ export function openChizmadon(host: ChHost): void {
   const syncSave = () => { saveChip.className = `chip ${saved ? 'ok' : 'warn'}`; saveChip.replaceChildren(h('i'), tr(saved ? 'Saqlandi' : 'Saqlanmoqda…')); };
   const famBtn = h('button', { class: 'btn ch-fam', id: 'chFam', 'aria-haspopup': 'menu', onclick: (e: Event) => { e.stopPropagation(); famMenu(famBtn); } });
   const fmtSeg = h('div', { class: 'seg hide-s', id: 'chFmt', role: 'group', 'aria-label': tr('Format') });
+  // 22.11: tor oynada (≤ 1240) segment oʻrniga «A3 ▾» menyusi — format tanlovi hech qachon yoʻqolmaydi
+  const fmtBtn = h('button', { class: 'btn ch-fmtb', id: 'chFmtBtn', 'aria-haspopup': 'menu', 'aria-label': tr('Format'), onclick: (e: Event) => { e.stopPropagation(); fmtMenu(fmtBtn); } });
   const viewSeg = h('div', { class: 'seg', id: 'chView', role: 'group', 'aria-label': tr('Koʻrinish') });
   const slotsBtn = h('button', { class: 'btn btn-ghost icon-btn tog', id: 'chSlots', title: tr('Kataklar'), 'aria-label': tr('Kataklarni koʻrsatish'), onclick: () => autoMut(() => { d.auto.slots = !d.auto.slots; }) }, svgIcon(I.slots));
   const tabBtn = h('button', { class: 'btn btn-ghost icon-btn', id: 'chTab', title: tr('Panellarni yashirish · Tab'), 'aria-label': tr('Panellarni yashirish'), onclick: () => togglePanels() }, svgIcon(I.panel));
@@ -294,13 +298,23 @@ export function openChizmadon(host: ChHost): void {
       : h('button', { class: 'btn btn-sm mr-back', id: 'chBack', title: tr('Master rejaga qaytish'), onclick: close }, svgIcon('<path d="M15 6l-6 6 6 6"/>'), h('span', {}, tr('Master reja'))),
     h('span', { class: 'brand', title: 'Archemistry Lab', 'aria-label': 'Archemistry Lab' }, logoSvg(18)), h('span', { class: 'svcbadge ch-badge' }, h('i'), tr('Chizmadon')),
     h('span', { class: 'sh-name' }, (() => { const i = h('input', { class: 'ch-title', id: 'chTitle', value: d.title, 'aria-label': tr('Albom nomi'), maxlength: 120 }) as HTMLInputElement; i.addEventListener('change', () => { d.title = i.value.trim() || d.title; dirty(); }); return i; })()),
-    saveChip, h('span', { class: 'spacer' }), famBtn, fmtSeg, viewSeg, slotsBtn, tabBtn, dlBtn);
+    saveChip, h('span', { class: 'spacer' }), famBtn, fmtSeg, fmtBtn, viewSeg, slotsBtn, tabBtn, dlBtn);
   function syncHead(): void {
     const f = fam(), fk = fmtOf(f);
     famBtn.replaceChildren(svgIcon(I.tpl), h('span', { class: 'fn' }, tr(f.name)), svgIcon(I.chev));
+    fmtBtn.replaceChildren(h('span', {}, tr(fmtName(fk))), svgIcon(I.chev)); fmtBtn.hidden = f.formats.length < 2;
     fmtSeg.replaceChildren(...f.formats.map(k => h('button', { 'data-fmt': k, 'aria-pressed': k === fk, onclick: () => autoMut(() => { d.auto.fmt[f.id] = k; }) }, tr(fmtName(k)))));
     viewSeg.replaceChildren(...([['one', I.one, 'Bitta varaq'], ['all', I.all, 'Hamma varaqlar']] as const).map(([k, ic, n]) => h('button', { 'data-view': k, 'aria-pressed': d.auto.view === k, title: tr(n), 'aria-label': tr(n), onclick: () => { d.auto.view = k; dirty(); zoom = 0; renderAll(); } }, svgIcon(ic))));
     slotsBtn.setAttribute('aria-pressed', String(d.auto.slots));
+  }
+  function fmtMenu(anchor: HTMLElement): void {
+    wrap.querySelector('.ch-menu')?.remove();
+    const f = fam(), fk = fmtOf(f);
+    const m = h('div', { class: 'menu ch-menu', role: 'menu', id: 'chFmtMenu' }, h('div', { class: 'mh' }, tr('Format')),
+      ...f.formats.map(k => h('button', { class: 'mi', 'data-fmt': k, role: 'menuitemradio', 'aria-checked': k === fk, onclick: () => { m.remove(); autoMut(() => { d.auto.fmt[f.id] = k; }); } }, h('span', {}, tr(fmtName(k))))));
+    m.addEventListener('click', e => e.stopPropagation()); wrap.append(m);
+    const r = anchor.getBoundingClientRect(); m.style.left = `${Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))}px`; m.style.top = `${r.bottom + 6}px`;
+    setTimeout(() => document.addEventListener('click', () => m.remove(), { once: true }), 0);
   }
   function famMenu(anchor: HTMLElement): void {
     wrap.querySelector('.ch-menu')?.remove();
@@ -971,7 +985,7 @@ export function openChizmadon(host: ChHost): void {
   /* ---------- varaq, koʻrinish ---------- */
   const PXMM = 96 / 25.4;
   function stageSize(): [number, number] { const [W, H] = pageSize(P()); return [W * PXMM * zoom, H * PXMM * zoom]; }
-  function fit(): void { const r = view.getBoundingClientRect(), [W, H] = pageSize(P()); if (!r.width) return; zoom = Math.min((r.width - 60) / (W * PXMM), (r.height - 130) / (H * PXMM)); const [sw2, sh2] = stageSize(); panX = (r.width - sw2) / 2; panY = (r.height - sh2) / 2 - 22; applyView(); }
+  function fit(): void { const r = view.getBoundingClientRect(), [W, H] = pageSize(P()); if (!r.width) return; manual = false; zoom = Math.min((r.width - 60) / (W * PXMM), (r.height - 130) / (H * PXMM)); const [sw2, sh2] = stageSize(); panX = (r.width - sw2) / 2; panY = (r.height - sh2) / 2 - 22; applyView(); }
   function applyView(): void {
     if (d.auto.view !== 'one') return;
     if (!zoom) { fit(); return; }
@@ -986,7 +1000,7 @@ export function openChizmadon(host: ChHost): void {
   }
   function zoomAt(f: number, cx?: number, cy?: number): void {
     const r = view.getBoundingClientRect(); cx ??= r.width / 2; cy ??= r.height / 2;
-    const nz = Math.max(0.05, Math.min(20, zoom * f)), k = nz / zoom;
+    const nz = Math.max(0.05, Math.min(20, zoom * f)), k = nz / zoom; manual = true;
     panX = cx - (cx - panX) * k; panY = cy - (cy - panY) * k; zoom = nz; applyView(); renderOverlay();
   }
   /** ekran → varaq (mm) */
@@ -1208,7 +1222,7 @@ export function openChizmadon(host: ChHost): void {
       const c = cellsOf(d.cur).find(x => x.el === crop), p = toMm(ev);
       if (c && p[0] >= c.r.x && p[0] <= c.r.x + c.r.w && p[1] >= c.r.y && p[1] <= c.r.y + c.r.h) { const id = crop; commit('cw'); setView(id, { ...viewOf(id), z: viewOf(id).z * (ev.deltaY < 0 ? 1.1 : 1 / 1.1) }); relayout(); dirty(); renderCanvas(); renderOverlay(); return; }
     }
-    const r = view.getBoundingClientRect(); if (ev.ctrlKey || ev.metaKey) zoomAt(ev.deltaY < 0 ? 1.1 : 1 / 1.1, ev.clientX - r.left, ev.clientY - r.top); else { panX -= ev.deltaX; panY -= ev.deltaY; applyView(); } }, { passive: false });
+    const r = view.getBoundingClientRect(); if (ev.ctrlKey || ev.metaKey) zoomAt(ev.deltaY < 0 ? 1.1 : 1 / 1.1, ev.clientX - r.left, ev.clientY - r.top); else { panX -= ev.deltaX; panY -= ev.deltaY; manual = true; applyView(); } }, { passive: false });
   view.addEventListener('pointerdown', ev => {
     if (float) { float = null; syncPanels(); }
     view.focus({ preventScroll: true });
@@ -1271,7 +1285,7 @@ export function openChizmadon(host: ChHost): void {
       if (!cropRaf) cropRaf = requestAnimationFrame(() => { cropRaf = 0; relayout(); renderCanvas(); });
       return;
     }
-    if (drag.kind === 'pan') { panX = drag.px + ev.clientX - drag.x; panY = drag.py + ev.clientY - drag.y; applyView(); return; }
+    if (drag.kind === 'pan') { panX = drag.px + ev.clientX - drag.x; panY = drag.py + ev.clientY - drag.y; manual = true; applyView(); return; }
     if (drag.kind === 'marquee') { marquee = [drag.start[0], drag.start[1], m[0], m[1]]; renderOverlay(); return; }
     if (drag.kind === 'draw' && draft) {
       const p = snapPt(m), s = drag.start;
@@ -1425,6 +1439,8 @@ export function openChizmadon(host: ChHost): void {
     tools.replaceChildren(...TOOLS.map(t => h('button', { class: 'rb', 'data-tool': t.id, title: `${tr(t.name)} (${t.key})`, 'aria-label': tr(t.name), 'aria-pressed': tool === t.id, onclick: () => setTool(t.id) }, svgIcon(`<path d="${t.d}"/>`))),
       h('span', { class: 'sepv' }),
       ...(narrow() ? [h('button', { class: 'rb', id: 'chMore', title: tr('Yana'), 'aria-label': tr('Yana'), onclick: (e: Event) => { e.stopPropagation(); moreMenu(e.currentTarget as HTMLElement); } }, svgIcon(I.more))] : extraTools()));
+    // 22.11: tor koʻrinishda (1280×630 da ~530 px) asboblar sigʻmay gorizontal skroll chiqardi — ixcham oʻlcham
+    tools.classList.remove('tight'); if (tools.scrollWidth > tools.clientWidth + 1) tools.classList.add('tight');
   }
   const narrow = () => (vwrap.getBoundingClientRect().width || innerWidth) < 760;
   function moreMenu(anchor: HTMLElement): void {
@@ -1624,7 +1640,7 @@ export function openChizmadon(host: ChHost): void {
   const onDoc = (e: MouseEvent) => { if (!float) return; const t = e.target as Node; if (!left.contains(t) && !right.contains(t) && !stripL.contains(t) && !stripR.contains(t) && !(t as Element).closest?.('.ch-menu,.cp')) { float = null; syncPanels(); } };
   document.addEventListener('pointerdown', onDoc, true);
   let RW = innerWidth;
-  const onResize = () => { const w = innerWidth; if (w < 900 && RW >= 900) { float = null; syncPanels(); renderLeft(); renderRight(); } else if (w < 1180 && d.ui.left && d.ui.right && !d.ui.lockR) { d.ui.right = false; syncPanels(); } RW = w; applyView(); renderTools(); };
+  const onResize = () => { const w = innerWidth; if (w < 900 && RW >= 900) { float = null; syncPanels(); renderLeft(); renderRight(); } else if (w < 1180 && d.ui.left && d.ui.right && !d.ui.lockR) { d.ui.right = false; syncPanels(); } RW = w; if (!manual && zoom && d.auto.view === 'one') fit(); else applyView(); renderTools(); };
   addEventListener('resize', onResize);
 
   function close(): void { flush(); removeEventListener('keydown', onKey, true); removeEventListener('keyup', onKeyUp, true); removeEventListener('resize', onResize); document.removeEventListener('pointerdown', onDoc, true); wrap.remove(); host.onClose?.(); }
