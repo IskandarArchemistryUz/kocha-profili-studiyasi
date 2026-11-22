@@ -32,6 +32,7 @@ import { openColor } from './colorpicker';
 import { svgPdf } from './pdf';
 import { AXO_LAYERS, AXO_LAYER_IDS, AXO_MATS, normAxoEdit, axoEditKey, axoEditCount, copyAxoEdit, hitPick, type AxoEdit, type AxoLayerId, type AxoMatId, type AxoPick } from '../core/axoedit';
 import { useDef } from '../core/uses';
+import { onKsReady } from '../kochasoz/kssection';
 
 export interface SheetsHost {
   doc: Project;
@@ -270,7 +271,10 @@ export function openGraphics(host: SheetsHost): void {
   const tools = h('div', { class: 'sh-tools glassbar', role: 'toolbar', 'aria-label': tr('Koʻrinish') });
   const lens = h('div', { class: 'sh-loupe', hidden: true });
   wrap.append(head, h('div', { class: 'sh-body' }, list, side, h('main', { class: 'gx-main sh-main' }, info, view, lens, tools)));
-  const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+  // 22.11: «Koʻcha profili» varagʻi Koʻchasoz grafikasini ishlatadi — u tayyor boʻlganda varaqlar qayta chiziladi
+  let rKs = 0;
+  const offKs = onKsReady(() => { if (rKs) return; rKs = requestAnimationFrame(() => { rKs = 0; memo.clear(); render(); }); });
+  const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); offKs(); };
   const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !(e.target as HTMLElement)?.closest?.('input,select')) { const m = wrap.querySelector('.sh-menu'); if (m) m.remove(); else close(); } };
 
   /* ---------- koʻrinish (zoom) ---------- */

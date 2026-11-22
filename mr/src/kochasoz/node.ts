@@ -42,6 +42,9 @@ export function parseLatLon(text: string): LL | null {
 }
 
 export const nodeQuery = (p: LL, r = 80) => `[out:json][timeout:25];way(around:${r},${p[1].toFixed(6)},${p[0].toFixed(6)})["highway"~"^(${Object.keys(DRIVE).join('|')}|.*_link)$"];(._;>;);out body;`;
+/** 22.11 (egasi: «Master rejadan Tarmoq umuman ochilmayapti»): bir nechta uch atrofidagi yoʻllar — bitta Overpass soʻrovi.
+ *  Avval har uch uchun alohida soʻrov ketma-ket ketardi: 40 koʻchali loyihada 80 soʻrov, serverlar band boʻlsa — daqiqalab kutish. */
+export const nodesQuery = (ps: LL[], r = 50) => `[out:json][timeout:60];(${ps.map(p => `way(around:${r},${p[1].toFixed(6)},${p[0].toFixed(6)})["highway"~"^(${Object.keys(DRIVE).join('|')}|.*_link)$"];`).join('')});(._;>;);out body;`;
 
 const R = 6371000, rad = Math.PI / 180;
 const dist = (a: LL, b: LL) => { const x = (b[0] - a[0]) * rad * Math.cos((a[1] + b[1]) / 2 * rad), y = (b[1] - a[1]) * rad; return Math.hypot(x, y) * R; };

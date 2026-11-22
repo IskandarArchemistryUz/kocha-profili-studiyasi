@@ -3464,12 +3464,21 @@ export class Editor {
     return this.planCache.plan;
   }
 
+  /**
+   * 22.11 (egasi: «kesim grafikasi Koʻchasozdagidek chiroyli emas»): koʻcha kesimi — Koʻchasoz B chizmasi bilan (kochasoz/kssection).
+   * Koʻchasoz bir marta yuklanguncha (va chizib boʻlmasa) — avvalgi sxema.
+   */
+  private secView(p: Profile, w: number): HTMLElement {
+    const el = h('div', { class: 'secsvg', html: sectionSvg(p.parts, w, 0, true, false) });
+    void import('../kochasoz/kssection').then(m => m.ksSectionSvg(p)).then(svg => { if (svg) { el.innerHTML = svg; el.classList.add('ks'); } }, () => { /* sxema qoladi */ });
+    return el;
+  }
   /** Koʻcha kesimi — katta koʻrinishda (pastdagi oyna) */
   private openSection(p: Profile): void {
     const d = this.el.drawer;
     d.replaceChildren(h('div', { class: 'dhead' }, h('h3', {}, `${p.name} · ${fmt(profileWidth(p), 1)} m`), h('button', { class: 'ib sm', 'aria-label': 'Yopish', onclick: () => { d.hidden = true; } }, svgIcon(IC.x))),
       h('p', { class: 'muted' }, `${CATS[p.cat].name} · ${p.note}`),
-      h('div', { class: 'secsvg', html: sectionSvg(p.parts, 900, 0, true, false) }),
+      this.secView(p, 900),
       h('div', { class: 'list' }, ...p.parts.map(x => h('div', { class: 'it' }, h('i', { class: 'sw', style: `background:${({ trotuar: '#ECE9E2', yashil: '#D9E6CC', ajratuvchi: '#D9E6CC', velo: '#CDE2D4', parkovka: '#DDDCD8', qatnov: '#DDDCD8', avtobus: '#E8DDD7', tramvay: '#E8DDD7' } as Record<string, string>)[x.k]}` }), h('span', { class: 'grow' }, `${PART_NAME[x.k]}${x.lanes && x.lanes > 1 ? ` · ${x.lanes} qator` : ''}`), h('b', { class: 'num' }, `${fmt(x.w, 2)} m`)))));
     d.hidden = false; d.dataset.kind = 'section';
   }
@@ -4192,7 +4201,7 @@ export class Editor {
     const stSel = doc.streets.find(x => x.id === this.selStreet), p0 = profileById(stSel?.profile ?? this.profile);
     body.append(h('button', { class: 'group secbig', id: 'secBig', title: tr('Kattalashtirish'), onclick: () => this.openSection(p0) },
       h('div', { class: 'row' }, h('b', { class: 'grow' }, `${tr(stSel ? 'Tanlangan koʻcha' : 'Yangi koʻcha')}: ${p0.name}`), h('span', { class: 't-small' }, `${fmt(profileWidth(p0), 1)} m ⤢`)),
-      h('div', { class: 'secsvg', html: sectionSvg(p0.parts, 300, 0, true, false) })));
+      this.secView(p0, 300)));
     if (stSel) {
       const iss = checkProfile(p0);
       body.append(h('div', { class: 'group' }, h('div', { class: 'li' }, h('span', { class: 'k' }, `${tr('Tanlangan')}: ${p0.name} · ${fmt(profileWidth(p0), 0)} m`, h('span', { class: 'sub' }, `${this.profSrc(CATS[p0.cat].clause)}${stSel.osm != null ? ' · OSM' : ''}`)), h('span', { class: iss.length ? 'chip bad' : 'chip ok' }, h('i'), iss.length ? `${iss.length} ${tr('chetlanish')}` : tr('mos')))),

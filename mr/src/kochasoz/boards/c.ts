@@ -37,15 +37,19 @@ export default class Component extends DCLogic {
       if (!st.length) { this.setState({ projSt: 'nost' }); return; }
       const P = await import('../../core/profiles'); P.setUserProfiles(doc.profiles);
       const { profileToKs } = await import('../fromMr');
-      const N = await import('../node'), { overpass } = await import('../../context/load');
-      let best = null;
+      const N = await import('../node'), { overpass } = await import('../../context/load'), { innerEnds } = await import('../totarmoq');
+      // 22.11: tashqi uchlar uchun bitta soʻrov (avval har uchga alohida, ketma-ket); ichki chorraha uchlari OSM ga ulanmaydi
+      const inner = innerEnds(st), cand = [];
       for (const x of st) {
         const L = x.axis.length;
-        for (const [e, inn] of [[x.axis[0], x.axis[1]], [x.axis[L - 1], x.axis[L - 2]]]) {
-          const j = await overpass(N.nodeQuery(e, 50), fetch.bind(globalThis), function () {});
-          const r = N.joinNode(j.elements || [], e, inn);
-          if (r && (!best || r.dist < best.r.dist)) best = { r: r, s: x };
-        }
+        for (const [e, inn] of [[x.axis[0], x.axis[1]], [x.axis[L - 1], x.axis[L - 2]]]) if (!inner.has(e.join(','))) cand.push([e, inn, x]);
+      }
+      if (!cand.length) { this.setState({ projSt: 'nojoin' }); return; }
+      const j = await overpass(N.nodesQuery(cand.map(function (c) { return c[0]; }), 50), fetch.bind(globalThis), function () {});
+      let best = null;
+      for (const [e, inn, x] of cand) {
+        const r = N.joinNode(j.elements || [], e, inn);
+        if (r && (!best || r.dist < best.r.dist)) best = { r: r, s: x };
       }
       if (!best) { this.setState({ projSt: 'nojoin' }); return; }
       const A = N.tplFromArm(best.r.main[0], best.r.main[1]);

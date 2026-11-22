@@ -34,6 +34,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻcha ke
   await page.click('[data-mode=kesim]');
   const v = page.locator('#gxView');
   await expect(v.locator('[data-cut-part]').first()).toBeAttached({ timeout: 20_000 });
+  // 22.11: koʻcha qismi — Koʻchasoz grafikasi (tayyor boʻlgach varaq qayta chiziladi)
+  await expect(v.locator('[data-cut-ks]').first()).toBeAttached({ timeout: 20_000 });
   await expect(v).toContainText('qizil chiziqlar orasi');
   await expect(v.locator('[data-cut-bld]').first()).toBeAttached();
   if (process.env.GX_SHOTS) { await page.waitForTimeout(800); await page.screenshot({ path: `${process.env.GX_SHOTS}/kesim_varaq_${w}${dark ? 'd' : 'l'}.png` }); }
