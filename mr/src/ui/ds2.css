@@ -1,12 +1,9 @@
 /* 04.11: kirill (ru, kk, uk) — Golos Text, ilova ichida (Archivo da kirill yoʻq; avval tizim shrifti — kompyuterga qarab har xil, qozoq harflari keng) */
-@import '@fontsource/golos-text/cyrillic-400.css';
-@import '@fontsource/golos-text/cyrillic-500.css';
-@import '@fontsource/golos-text/cyrillic-600.css';
-@import '@fontsource/golos-text/cyrillic-700.css';
-@import '@fontsource/golos-text/cyrillic-ext-400.css';
-@import '@fontsource/golos-text/cyrillic-ext-500.css';
-@import '@fontsource/golos-text/cyrillic-ext-600.css';
-@import '@fontsource/golos-text/cyrillic-ext-700.css';
+/* 22.11: toʻliq vazn fayllari — har subset unicode-range bilan (avvalgi cyrillic-NNN va cyrillic-ext-NNN fayllarida unicode-range yoʻq edi: keyingisi oldingisini bosib, ruscha harflar zaxira shriftda chiqardi) */
+@import '@fontsource/golos-text/400.css';
+@import '@fontsource/golos-text/500.css';
+@import '@fontsource/golos-text/600.css';
+@import '@fontsource/golos-text/700.css';
 /* Archemistry Lab — dizayn tizimi v2 (2026-10-17)
    Bitta manba: barcha xizmatlar (Master reja, Koʻchasoz, Joyshunos, Dizayn-kod, Chizmadon) shu fayldan oladi.
    Qoida: bitta qiymat — bitta joyda. Komponent ichida xom hex yozilmaydi, faqat token. */
