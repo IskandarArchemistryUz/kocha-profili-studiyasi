@@ -17,6 +17,16 @@
     ['dk', 'Dizayn-kod', 'dizaynkod.html', '--svc-dk'],
     ['chz', 'Chizmadon', 'app/#/chizmadon', '--svc-chz']
   ];
+  /* 22.11 (egasi: «boshqa servislarga oʻtganda boshqa loyihalar ochilib ketadi»): sahifa loyiha ichida ochilgan boʻlsa (?p=),
+     xizmat havolalari ham SHU loyihaga — Master reja → #/p/<id>, Chizmadon → #/p/<id>/chizmadon, qolganlari ?p= bilan */
+  var P = (function () { try { var p = new URLSearchParams(location.search).get('p'); return p && /^[A-Za-z0-9_-]{4,64}$/.test(p) ? p : null; } catch (e) { return null; } })();
+  function href(s) {
+    if (!P) return s[2];
+    var e = encodeURIComponent(P);
+    if (s[0] === 'mr') return 'app/#/p/' + e;
+    if (s[0] === 'chz') return 'app/#/p/' + e + '/chizmadon';
+    return s[2] + '?p=' + e;
+  }
   var IC = {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'
@@ -37,7 +47,7 @@
       '<a class="eko-brand" href="index.html" title="Bosh sahifa" aria-label="Archemistry Lab"><svg viewBox="0 0 103.45 100" width="21" height="20" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + LOGO + '"/></svg></a>' +
       '<span class="eko-vr"></span>' +
       '<nav class="eko-svc" aria-label="Xizmatlar">' + SVC.map(function (s) {
-        return '<a href="' + s[2] + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(nm(s[1])) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
+        return '<a href="' + href(s) + '"' + (s[0] === cur ? ' class="on" aria-current="page"' : '') + ' data-svc="' + s[0] + '"><i style="background:var(' + s[3] + ')"></i>' + esc(nm(s[1])) + (s[4] ? '<em class="beta">beta</em>' : '') + '</a>';
       }).join('') + '</nav>' +
       '<span class="eko-sp"></span>' + ex +
       '<div class="eko-lang" id="kpsLang" data-noi18n><button type="button" class="eko-lb" aria-haspopup="menu" aria-expanded="false" aria-label="Til / Language / Язык">' + L.toUpperCase() + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="eko-lm" role="menu" hidden>' + LANGS.map(function (k) {

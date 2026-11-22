@@ -28,6 +28,22 @@ export function svcHref(href: string, p: string | null = ctxProject()): string {
 export const projectHref = (id: string): string => `./#/p/${encodeURIComponent(id)}`;
 
 /**
+ * 22.11 (egasi: «Master rejadan boshqa servislarga oʻtganda boshqa loyihalar ochilib ketadi»): xizmatlar qatoridagi havolalar.
+ * Loyiha ichida (?p=) — har biri SHU loyihaga: Master reja → #/p/<id>, Chizmadon → #/p/<id>/chizmadon (avval «./» va
+ * «#/chizmadon» — oxirgi oʻzgartirilgan loyiha ochilardi), qolganlari ?p= bilan. Loyiha boʻlmasa — avvalgidek.
+ */
+export function svcLinks(p: string | null = ctxProject()): { mr: string; ks: string; joy: string; ren: string; dk: string; chz: string } {
+  return {
+    mr: p ? projectHref(p) : './',
+    ks: svcHref('./kochasoz.html', p),
+    joy: svcHref('./joyshunos.html', p),
+    ren: svcHref('./render.html', p),
+    dk: svcHref('../dizaynkod.html', p),
+    chz: p ? `./#/p/${encodeURIComponent(p)}/chizmadon` : './#/chizmadon',
+  };
+}
+
+/**
  * Loyiha ichida birinchi ochilganda: Joyshunos tahlil hududini loyiha uchastkasidan oladi
  * (faqat shu loyihaning kaliti hali boʻsh boʻlsa — foydalanuvchi oʻzgartirgani ustiga yozilmaydi).
  * ring — [uzunlik, kenglik] (Master reja hujjati tartibi).
