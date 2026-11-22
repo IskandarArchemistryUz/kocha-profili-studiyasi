@@ -56,5 +56,8 @@ test('chap paneldagi bino muharriri, deraza/balkon turlari, tomlar, xarita boshq
   await expect(page.locator('#secBig svg path').first()).toBeAttached();
   await page.click('#secBig');
   await expect(page.locator('.drawer .secsvg svg')).toBeVisible();
+  // 22.11: kesim — Koʻchasoz chizmasi (qizil chiziqlar, zonalar); tahrir boshqaruvlari va tanlov belgisi yoʻq
+  await expect(page.locator('.drawer .secsvg.ks svg')).toBeAttached({ timeout: 15000 });
+  await expect(page.locator('.drawer .secsvg.ks svg [data-ly="UI"]')).toHaveCount(0);
   if (shots) await page.screenshot({ path: `${shots}/iz_kesim.png` });
 });
