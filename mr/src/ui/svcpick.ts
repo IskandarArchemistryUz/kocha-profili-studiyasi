@@ -60,7 +60,10 @@ export function openSvcProjects(svc: SvcId, gate = false): Promise<void> {
 /** Kirish eshigi (22.11, egasi): xizmat loyihasiz ochilsa — xizmat yuklanmaydi, avval oʻz loyihalari paneli */
 export function svcGate(svc: SvcId, start: () => unknown): void {
   if (svcReady()) { void start(); return; }
-  void openSvcProjects(svc, true);
+  // asosiy uslub (ds2): ildizdagi tayyor nusxa (postbuild → css/ds2.css) — bundlerga import qilinsa Master reja CSS tartibi oʻzgarardi
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '../css/ds2.css?v=4';
+  const go = () => void openSvcProjects(svc, true);
+  l.onload = go; l.onerror = go; document.head.append(l);
 }
 
 export function svcPickBtn(svc: SvcId): HTMLElement {
