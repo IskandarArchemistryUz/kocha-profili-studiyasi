@@ -1,1 +1,0 @@
-export{l as sendToRender}from"./inbox-DLzGPiv3.js";
