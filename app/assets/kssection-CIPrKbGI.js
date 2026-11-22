@@ -1,1 +1,0 @@
-export{t as ksSectionSvg}from"./kssection-CzdNPBKR.js";
