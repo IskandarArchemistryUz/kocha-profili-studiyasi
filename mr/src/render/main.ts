@@ -7,7 +7,7 @@
  *   Natija: asl bilan solishtirish, PNG, Chizmadonga, asos yoki referens qilish.
  * Eski «Bino studiyasi» (bino.html: fasad, hajm, kvartiralar) va AI render oynasi — «Toʻliq asboblar»da qoladi (0-qoida).
  */
-import { scoped, svcHref, ctxProject } from '../core/projctx';
+import { scoped, svcHref, ctxProject, svcLinks } from '../core/projctx';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -45,13 +45,14 @@ const ICON = {
   ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
 };
 const ic = (d: string) => svgIcon(d);
+const SL = svcLinks();   // 22.11: havolalar shu loyihaga (core/projctx)
 export const SERVICES = [
-  { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
+  { id: 'mr', name: 'Master reja', href: SL.mr, color: 'var(--svc-mr)' },
   { id: 'ks', name: 'Koʻchasoz', href: svcHref('./kochasoz.html'), color: 'var(--svc-ks)' },
   { id: 'joy', name: 'Joyshunos', href: svcHref('./joyshunos.html'), color: 'var(--svc-joy)' },
   { id: 'ren', name: 'Render', href: svcHref('./render.html'), color: 'var(--svc-ren)', cur: true, beta: true },
-  { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
-  { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
+  { id: 'dk', name: 'Dizayn-kod', href: SL.dk, color: 'var(--svc-dk)' },
+  { id: 'chz', name: 'Chizmadon', href: SL.chz, color: 'var(--svc-chz)' },
 ];
 const FROM: Record<From, [string, string]> = { mr: ['Master reja', 'var(--svc-mr)'], ks: ['Koʻchasoz', 'var(--svc-ks)'], joy: ['Joyshunos', 'var(--svc-joy)'], chz: ['Chizmadon', 'var(--svc-chz)'], fayl: ['Fayldan', 'var(--faint)'], natija: ['Natijadan', 'var(--svc-ren)'] };
 const MAX_REFS = 4;

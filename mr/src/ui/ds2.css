@@ -1,12 +1,9 @@
 /* 04.11: kirill (ru, kk, uk) — Golos Text, ilova ichida (Archivo da kirill yoʻq; avval tizim shrifti — kompyuterga qarab har xil, qozoq harflari keng) */
-@import '@fontsource/golos-text/cyrillic-400.css';
-@import '@fontsource/golos-text/cyrillic-500.css';
-@import '@fontsource/golos-text/cyrillic-600.css';
-@import '@fontsource/golos-text/cyrillic-700.css';
-@import '@fontsource/golos-text/cyrillic-ext-400.css';
-@import '@fontsource/golos-text/cyrillic-ext-500.css';
-@import '@fontsource/golos-text/cyrillic-ext-600.css';
-@import '@fontsource/golos-text/cyrillic-ext-700.css';
+/* 22.11: toʻliq vazn fayllari — har subset unicode-range bilan (avvalgi cyrillic-NNN va cyrillic-ext-NNN fayllarida unicode-range yoʻq edi: keyingisi oldingisini bosib, ruscha harflar zaxira shriftda chiqardi) */
+@import '@fontsource/golos-text/400.css';
+@import '@fontsource/golos-text/500.css';
+@import '@fontsource/golos-text/600.css';
+@import '@fontsource/golos-text/700.css';
 /* Archemistry Lab — dizayn tizimi v2 (2026-10-17)
    Bitta manba: barcha xizmatlar (Master reja, Koʻchasoz, Joyshunos, Dizayn-kod, Chizmadon) shu fayldan oladi.
    Qoida: bitta qiymat — bitta joyda. Komponent ichida xom hex yozilmaydi, faqat token. */
@@ -45,6 +42,13 @@
   --r-ctl:10px;  --r-tile:12px; --r-card:16px; --r-panel:22px; --r-pill:999px;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
   --panel-w:340px; --rail-w:56px;
+  /* ——— Ekran sinflari (22.11): sahna ustidagi qobiq oʻlchamlari — @media bloklari quyida ——— */
+  --edge:12px;        /* ekran chetidan suzuvchi panellargacha */
+  --top-y:12px;       /* header yuqoridan */
+  --hdr-h:52px;       /* header balandligi */
+  --chrome-y:76px;    /* header ostidagi panellar boshlanishi = top-y + hdr-h + 12 */
+  --pl:80px;          /* qadam paneli chapdan = edge + rail-w + 12 */
+  --tap:36px;         /* barmoq/sichqoncha boshqaruvining eng kichik oʻlchami */
   /* ——— Soya ——— */
   --sh-card:0 0 0 .5px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
   --sh-float:0 0 0 .5px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.09);
@@ -56,6 +60,12 @@
   --sans:'Archivo','Golos Text',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
 }
+/* ——— Ekran sinflari (22.11) — barcha xizmatlar shu tokenlarni oʻqiydi ———
+   ixcham:   balandlik ≤ 720 (ThinkPad 1280×720 @150 %, proyektor) — qobiq ixchamlashadi
+   sensor:   pointer: coarse (planshet) — boshqaruv kamida 44 px
+   Qolgan sinflar (proyektor ≤ 1100, katta ≥ 2200) — keyingi bosqichlarda shu yerga qoʻshiladi */
+@media (max-height:720px){:root{--edge:8px;--top-y:8px;--hdr-h:44px;--chrome-y:60px;--rail-w:44px;--pl:60px}}
+@media (pointer:coarse){:root{--tap:44px}}
 [data-theme="dark"]{
   --bg:#121212; --surface:#1d1d1c; --grouped:#252523; --fill:#2c2c2a; --fill-2:#363633; --hairline:rgba(255,255,255,.1); --glass:rgba(29,29,28,.84);
   --ink:#f2f1ee; --ink-2:#d6d3cc; --muted:#a3a09a; --faint:#6b6965; --sel:#6fa4dc; --sel-soft:#1f2b38;
@@ -114,6 +124,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .seg.seg-wrap{grid-auto-flow:row;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:28px;height:auto;row-gap:2px}
 #shMode.seg-wrap{grid-template-columns:repeat(3,minmax(0,1fr))}
 .seg.sm{height:28px}.seg.sm button{font-size:12px}
+/* 22.11 (audit): uzun yorliq qoʻshni tugma ustiga chiqmasin — kesiladi (…); koʻp variantli segment — qatorlarga oʻtadi */
+.seg button{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.seg.seg-flex{display:flex;flex-wrap:wrap;height:auto;gap:2px}.seg.seg-flex button{flex:1 1 auto;height:24px;padding:0 8px}
 
 /* ——— Plitka (rasmli tanlov: tipologiya, modul, material) ——— */
 .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}

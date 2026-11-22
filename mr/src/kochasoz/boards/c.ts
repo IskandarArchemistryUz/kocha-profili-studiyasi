@@ -573,8 +573,8 @@ export default class Component extends DCLogic {
       }
     })();
     // legenda (Hammasi rejimi)
-    if (hasCore && s.turn && ALL && Ly.tr !== false) { var rows = VKEYS.length, bh = 30 + rows * 13; add('M548 54h222a8 8 0 0 1 8 8v' + (bh - 16) + 'a8 8 0 0 1-8 8h-222a8 8 0 0 1-8-8v-' + (bh - 16) + 'a8 8 0 0 1 8-8Z', '#ffffff', '#d6d3cc', 0.8, 0.96); tx(552, 70, 'Burilish izi · ' + ['oʻngga', 'chapga', 'oʻngga va chapga'][DIR] + ' · R ' + fm(R) + ' m', 9, INK, 700, 'start');
-      VKEYS.forEach(function (k, i) { var ly = 86 + i * 13, r = TRS[i], l = TLS[i], col = VC[k]; add('M554 ' + (ly - 3) + 'h22', null, col, 2, 1, VDA[k] || ''); var t = VH[k][0] + (DIR !== 1 && r ? ' · ↱ ' + (r.crossA || r.crossB ? 'qarshi' : r.lanesA + '+' + r.lanesB) : '') + (DIR !== 0 && l ? ' · ↰ R ' + fm(l.Rr) + (l.fit ? '' : ' (tor)') : ''); tx(582, ly, t, 8.5, col, 700, 'start'); }); }
+    if (hasCore && s.turn && ALL && Ly.tr !== false) { var rows = VKEYS.length, bh = 30 + rows * 13; add('M548 54h222a8 8 0 0 1 8 8v' + (bh - 16) + 'a8 8 0 0 1-8 8h-222a8 8 0 0 1-8-8v-' + (bh - 16) + 'a8 8 0 0 1 8-8Z', '#ffffff', '#d6d3cc', 0.8, 0.96); tx(552, 70, tr('Burilish izi') + ' · ' + tr(['oʻngga', 'chapga', 'oʻngga va chapga'][DIR]) + ' · R ' + fm(R) + ' m', 9, INK, 700, 'start');
+      VKEYS.forEach(function (k, i) { var ly = 86 + i * 13, r = TRS[i], l = TLS[i], col = VC[k]; add('M554 ' + (ly - 3) + 'h22', null, col, 2, 1, VDA[k] || ''); var t = tr(VH[k][0]) + (DIR !== 1 && r ? ' · ↱ ' + (r.crossA || r.crossB ? tr('qarshi') : r.lanesA + '+' + r.lanesB) : '') + (DIR !== 0 && l ? ' · ↰ R ' + fm(l.Rr) + (l.fit ? '' : ' (' + tr('tor') + ')') : ''); tx(582, ly, t, 8.5, col, 700, 'start'); }); }
 
     // 11) belgilar (sg)
     function sign(gx, gy, kind) { if (inMiss([gx, gy]) || (missG && inPolyG([gx, gy], missG))) return; var x = X(gx), y = Y(gy), r = 7; add('M' + x + ' ' + (y + r) + 'v8', null, INK, 1); if (kind === 'piy') { add('M' + (x - r) + ' ' + (y - r) + 'h' + 2 * r + 'v' + 2 * r + 'h' + (-2 * r) + 'Z', '#2a62b8', '#ffffff', 1); add('M' + x + ' ' + (y - r + 2) + 'L' + (x + r - 2) + ' ' + (y + r - 2) + 'H' + (x - r + 2) + 'Z', '#ffffff', null, 0); add(El(x, y - 0.5, 1, 1) + 'M' + (x - 1.5) + ' ' + (y + 4) + 'L' + x + ' ' + (y + 0.6) + 'L' + (x + 1.5) + ' ' + (y + 4), INK, INK, 0.8); }
@@ -597,32 +597,32 @@ export default class Component extends DCLogic {
     }
     if (hasCore && s.ctl === 2) { var rr = Math.max(2, Math.min(MA.cw, MB.cw) / 2 - 5); add(El(CX, CY, rr * px, rr * px), line ? '#fff' : '#d3e4c6', INK, 1.2); add(El(CX, CY, (rr + 1) * px, (rr + 1) * px), null, WM, 1, 1, '4 4'); }
     // yozuvlar
-    tx(16, 22, 'Chorraha · reja · ' + s.ang + '°', 12, '#141414', 700, 'start'); tx(16, 35, MA.n + ' × ' + MB.n, 9.5, LIGHT, 400, 'start');
+    tx(16, 22, tr('Chorraha') + ' · ' + tr('reja') + ' · ' + s.ang + '°', 12, '#141414', 700, 'start'); tx(16, 35, tr(MA.n) + ' × ' + tr(MB.n), 9.5, LIGHT, 400, 'start');
     if (hasCore) { var cc = crn(xc2, ym1); if (inMiss(cc.P)) cc = crn(xc1, ym2) || cc; tx(X(cc.C[0]) + 4, Y(cc.C[1]) + 4, 'R ' + fm(R), 9, '#4c5bd4', 700, 'start', 'IBM Plex Mono, monospace'); }
     var SY = 832; [0, 1, 2, 3, 4].forEach(function (q) { add('M' + (16 + q * 2 * px) + ' ' + SY + 'h' + (2 * px) + 'v4h' + (-2 * px) + 'Z', q % 2 ? '#ffffff' : INK, INK, 0.6); }); tx(16, SY - 4, '0', 7.5, INK, 400, 'start'); tx(16 + 10 * px, SY - 4, '10 m', 7.5, INK, 400, 'middle');
-    add('M0 800H784', null, '#d6d3cc', 0.8); add('M0 800H784V860H0Z', '#ffffff', null, 0); tx(16, 818, 'Koʻrinish uchburchagi: ' + dA + ' m × ' + dB + ' m (toʻxtash masofasi, ' + vAs + ' / ' + vBs + ' km/h)', 9, '#4c5bd4', 400, 'start'); tx(776, 838, 'Archemistry Lab · Koʻchasoz C', 7.5, LIGHT, 400, 'end');
+    add('M0 800H784', null, '#d6d3cc', 0.8); add('M0 800H784V860H0Z', '#ffffff', null, 0); tx(16, 818, tf('Koʻrinish uchburchagi: ${a} m × ${b} m (toʻxtash masofasi, ${va} / ${vb} km/h)', { a: dA, b: dB, va: vAs, vb: vBs }), 9, '#4c5bd4', 400, 'start'); tx(776, 838, 'Archemistry Lab · Koʻchasoz C', 7.5, LIGHT, 400, 'end');
     add('M16 828h' + (10 * px) + 'v4h' + (-10 * px) + 'Z', null, null, 0);
     [0, 1, 2, 3, 4].forEach(function (q) { add('M' + (16 + q * 2 * px) + ' ' + SY + 'h' + (2 * px) + 'v4h' + (-2 * px) + 'Z', q % 2 ? '#ffffff' : INK, INK, 0.6); });
     // ===== tekshiruv =====
     var R0 = [];
     function chk(st, n, src, v) { R0.push({ st: st, n: n, src: src, v: v, c: DC[st] }); }
     var Rmin2 = s.rek ? 5 : 15;
-    if (hasCore) chk(R >= Rmin2 ? 'ok' : 'bad', 'Burilish radiusi ≥ ' + Rmin2 + ' m' + (s.rek ? ' (rekonstruksiya)' : ' (yangi qurilish)'), 'ShNQ 2.07.06-24, 108-band', fm(R) + ' m');
+    if (hasCore) chk(R >= Rmin2 ? 'ok' : 'bad', tf('Burilish radiusi ≥ ${r} m', { r: Rmin2 }) + ' (' + tr(s.rek ? 'rekonstruksiya' : 'yangi qurilish') + ')', tr('ShNQ 2.07.06-24, 108-band'), fm(R) + ' m');
     if (hasCore && Math.abs(s.ang - 90) > 0.1) chk(Math.abs(s.ang - 90) <= 30 ? 'warn' : 'bad', 'Kesishish burchagi', 'andoza: 90° ga yaqin boʻlgani maʼqul; burilish izi qiyshiqda taxminiy', s.ang + '°');
-    if (DIR !== 1) TRS.forEach(function (t) { chk(t.st, t.n + ' oʻngga buriladi', 'Burilish izi · dizayn avtomobili (andoza)', t.crossA || t.crossB ? 'qarshi boʻlakka chiqadi' : t.lanesA + ' + ' + t.lanesB + ' boʻlak'); });
-    TLS.forEach(function (t) { chk(t.fit ? 'ok' : 'warn', t.n + ' chapga buriladi', t.fit ? 'chorraha ichida sigʻadi (andoza)' : 'min. radius ' + fm(t.Rr) + ' m > ' + fm(t.Rd) + ' m — toʻxtash chizigʻidan oldin burila boshlaydi', 'R ' + fm(t.Rr) + ' m'); });
-    if (TLS.length) { var op = TLS[0].opp; chk(op >= 2 && s.ctl === 0 ? 'warn' : (op >= 2 ? 'bad' : 'ok'), 'Chapga burilish qarshi oqimni kesadi', op >= 2 ? (s.ctl === 0 ? 'alohida chapga burilish fazasi tavsiya (andoza)' : 'belgilar bilan xavfli — svetofor kerak (andoza)') : 'bitta boʻlak — ruxsat etilgan faza yetarli', op + ' boʻlak'); }
+    if (DIR !== 1) TRS.forEach(function (t) { chk(t.st, tf('${n} oʻngga buriladi', { n: tr(t.n) }), tr('Burilish izi · dizayn avtomobili (andoza)'), t.crossA || t.crossB ? tr('qarshi boʻlakka chiqadi') : tf('${a} + ${b} boʻlak', { a: t.lanesA, b: t.lanesB })); });
+    TLS.forEach(function (t) { chk(t.fit ? 'ok' : 'warn', tf('${n} chapga buriladi', { n: tr(t.n) }), t.fit ? tr('chorraha ichida sigʻadi (andoza)') : tf('min. radius ${r} m > ${d} m — toʻxtash chizigʻidan oldin burila boshlaydi', { r: fm(t.Rr), d: fm(t.Rd) }), 'R ' + fm(t.Rr) + ' m'); });
+    if (TLS.length) { var op = TLS[0].opp; chk(op >= 2 && s.ctl === 0 ? 'warn' : (op >= 2 ? 'bad' : 'ok'), tr('Chapga burilish qarshi oqimni kesadi'), tr(op >= 2 ? (s.ctl === 0 ? 'alohida chapga burilish fazasi tavsiya (andoza)' : 'belgilar bilan xavfli — svetofor kerak (andoza)') : 'bitta boʻlak — ruxsat etilgan faza yetarli'), tf('${n} boʻlak', { n: op })); }
     if (CF.length) { var nP = CF.filter(function (c) { return c[1] === 'piy'; }).length, nV = CF.filter(function (c) { return c[1] === 'velo'; }).length; if (nP + nV) chk(s.ctl === 0 ? 'warn' : 'bad', 'Burilish × piyoda/velo toʻqnashuvi', s.ctl === 0 ? 'LPI — piyodaga 3–7 s oldin yashil (andoza)' : 'svetofor yoʻq — burchak radiusini kichraytirish', nP + ' + ' + nV); }
     var LA = MA.cw - (s.bulb ? MA.z.filter(function (q) { return q.t === 'park'; }).reduce(function (a2, q) { return a2 + q.w; }, 0) : 0), LB = MB.cw - (s.bulb ? MB.z.filter(function (q) { return q.t === 'park'; }).reduce(function (a2, q) { return a2 + q.w; }, 0) : 0);
     var islA = MA.med.some(function (q) { return q.w >= 1.5; }) && s.island, islB = MB.med.some(function (q) { return q.w >= 1.5; }) && s.island;
     if (hasCore) { chk(LA <= 14 || islA ? 'ok' : 'warn', 'Asosiy koʻchani kesib oʻtish', islA ? 'orolcha bor · ShNQ 2.07.06-24, 27-band' : '> 14 m — orolcha tavsiya (27-band)', fm(LA) + ' m'); chk(LB / Math.max(0.5, cs) <= 14 || islB ? 'ok' : 'warn', 'Kesishuvchi koʻchani kesib oʻtish', islB ? 'orolcha bor' : '> 14 m — orolcha tavsiya (27-band)', fm(LB) + ' m'); }
-    if (MA.park || MB.park) chk('ok', 'Toʻxtash: chorrahadan ≥ ' + dkA[0] + ' m, oʻtishdan ≥ ' + dkA[1] + ' m', 'Dizayn-kod ' + dkA[2] + ' · ' + MA.uk, '−' + removed + ' joy');
-    if (hasCore && s.sight) { chk(triBad ? 'warn' : 'ok', 'Koʻrinish uchburchagi ' + dA + ' × ' + dB + ' m', 'ShNQ 2.07.06-24, 118-band, 13-ilova 1-jadval', triBad ? triBad + ' burchakda bino' : 'ochiq'); if (triTree) chk('warn', 'Burchakka 20 m yaqin daraxtlar', 'koʻrinish uchburchagida · toj osti ochiq boʻlsin (andoza)', triTree + ' ta'); }
+    if (MA.park || MB.park) chk('ok', tf('Toʻxtash: chorrahadan ≥ ${a} m, oʻtishdan ≥ ${b} m', { a: dkA[0], b: dkA[1] }), tr('Dizayn-kod') + ' ' + dkA[2] + ' · ' + MA.uk, tf('−${n} joy', { n: removed }));
+    if (hasCore && s.sight) { chk(triBad ? 'warn' : 'ok', tf('Koʻrinish uchburchagi ${a} × ${b} m', { a: dA, b: dB }), tr('ShNQ 2.07.06-24, 118-band, 13-ilova 1-jadval'), triBad ? tf('${n} burchakda bino', { n: triBad }) : tr('ochiq')); if (triTree) chk('warn', 'Burchakka 20 m yaqin daraxtlar', 'koʻrinish uchburchagida · toj osti ochiq boʻlsin (andoza)', tf('${n} ta', { n: triTree })); }
     var magA = ['tz1', 'tz2', 'sh1', 'sh2', 'sh3'].indexOf(MA.sk) >= 0;
-    if (hasCore) chk(!magA || s.ctl === 0 ? 'ok' : 'bad', 'Magistralda svetofor bilan oʻtish', 'ShNQ 2.07.01-23, 19-jadval', s.ctl === 0 ? 'svetofor' : (s.ctl === 1 ? 'yoʻq' : 'aylanma'));
-    if (hasCore && s.ctl === 2) chk(magA ? 'warn' : 'ok', 'Kichik aylanma', 'ShNQ 2.07.06-24, 27-band — ruxsat etiladi', magA ? 'magistralda?' : 'mos');
+    if (hasCore) chk(!magA || s.ctl === 0 ? 'ok' : 'bad', 'Magistralda svetofor bilan oʻtish', tr('ShNQ 2.07.01-23, 19-jadval'), tr(s.ctl === 0 ? 'svetofor' : (s.ctl === 1 ? 'yoʻq' : 'aylanma')));
+    if (hasCore && s.ctl === 2) chk(magA ? 'warn' : 'ok', 'Kichik aylanma', 'ShNQ 2.07.06-24, 27-band — ruxsat etiladi', tr(magA ? 'magistralda?' : 'mos'));
     if ((vwA || vwB) && hasCore) chk(Ly.vb !== false ? 'ok' : 'warn', 'Velo yoʻl chorrahadan uzluksiz oʻtadi', 'Dizayn-kod 7.4.1 · chorrahada velo oʻtish joyi', Ly.vb !== false ? 'chizilgan' : 'yashirilgan');
-    if ((MA.bus.length || MB.bus.length) && hasCore) chk('ok', 'Avtobus boʻlagi chorrahada davom etadi', 'ShNQ 2.07.01-23, 20-jadval 4-izoh', 'punktir bilan');
+    if ((MA.bus.length || MB.bus.length) && hasCore) chk('ok', 'Avtobus boʻlagi chorrahada davom etadi', tr('ShNQ 2.07.01-23, 20-jadval 4-izoh'), tr('punktir bilan'));
     var nOk = R0.filter(function (r) { return r.st === 'ok'; }).length;
     function pickT(key) { return s.TPL.map(function (t, i) { return { n: t[0].split(' ')[0] === 'Magistral' ? 'Magistral' : t[0].replace(' koʻchasi', '').replace('Avtobus koridori', 'Avtobus'), p: s[key] === i ? 'true' : 'false', pick: function () { var o = {}; o[key] = i; o[key === 'a' ? 'vA' : 'vB'] = { tz1: 80, tz2: 60, sh1: 60, sh2: 60, sh3: 50, tm: 50, mh: 40, pd: 30 }[t[3]]; self.setState(o); } }; }); }
     function seg(key, vals, lab) { return vals.map(function (v, i) { return { n: lab ? lab[i] : String(v), p: s[key] === v ? 'true' : 'false', pick: function () { var o = {}; o[key] = v; self.setState(o); } }; }); }
@@ -640,10 +640,10 @@ export default class Component extends DCLogic {
         exits: OUT.map(function (q, i) { return { id: id + 'o' + i, mid: mid(q), bus: q.t === 'bus', pts: pout(mid(q)) }; }) }; };
       var sW = zW[0] - 1, sE = zE[1] + 1, sN = zN[0] - 1, sS = zS[1] + 1, dB = GG(0, 1);
       var A4 = [
-        arm('W', MA.n + ' · gʻarbdan', true, [1, 0], inA, outA, function (y) { return [[-Lm, y], [sW, y]]; }, function (y) { return [[zW[0], y], [-Lm, y]]; }, [[(zW[0] + zW[1]) / 2, ym1], [(zW[0] + zW[1]) / 2, ym2]]),
-        arm('E', MA.n + ' · sharqdan', true, [-1, 0], outA, inA, function (y) { return [[Lm, y], [sE, y]]; }, function (y) { return [[zE[1], y], [Lm, y]]; }, [[(zE[0] + zE[1]) / 2, ym2], [(zE[0] + zE[1]) / 2, ym1]]),
-        arm('N', MB.n + ' · shimoldan', false, dB, inB, outB, function (x) { return [GG(x, -Lm), GG(x, sN)]; }, function (x) { return [GG(x, zN[0]), GG(x, -Lm)]; }, [GG(xc1, (zN[0] + zN[1]) / 2), GG(xc2, (zN[0] + zN[1]) / 2)]),
-        arm('S', MB.n + ' · janubdan', false, [-dB[0], -dB[1]], outB, inB, function (x) { return [GG(x, Lm), GG(x, sS)]; }, function (x) { return [GG(x, zS[1]), GG(x, Lm)]; }, [GG(xc2, (zS[0] + zS[1]) / 2), GG(xc1, (zS[0] + zS[1]) / 2)])
+        arm('W', tr(MA.n) + ' · ' + tr('gʻarbdan'), true, [1, 0], inA, outA, function (y) { return [[-Lm, y], [sW, y]]; }, function (y) { return [[zW[0], y], [-Lm, y]]; }, [[(zW[0] + zW[1]) / 2, ym1], [(zW[0] + zW[1]) / 2, ym2]]),
+        arm('E', tr(MA.n) + ' · ' + tr('sharqdan'), true, [-1, 0], outA, inA, function (y) { return [[Lm, y], [sE, y]]; }, function (y) { return [[zE[1], y], [Lm, y]]; }, [[(zE[0] + zE[1]) / 2, ym2], [(zE[0] + zE[1]) / 2, ym1]]),
+        arm('N', tr(MB.n) + ' · ' + tr('shimoldan'), false, dB, inB, outB, function (x) { return [GG(x, -Lm), GG(x, sN)]; }, function (x) { return [GG(x, zN[0]), GG(x, -Lm)]; }, [GG(xc1, (zN[0] + zN[1]) / 2), GG(xc2, (zN[0] + zN[1]) / 2)]),
+        arm('S', tr(MB.n) + ' · ' + tr('janubdan'), false, [-dB[0], -dB[1]], outB, inB, function (x) { return [GG(x, Lm), GG(x, sS)]; }, function (x) { return [GG(x, zS[1]), GG(x, Lm)]; }, [GG(xc2, (zS[0] + zS[1]) / 2), GG(xc1, (zS[0] + zS[1]) / 2)])
       ].filter(function (a) { return a.id !== s.miss; });
       self._geo = { arms: A4, ctl: s.ctl, ringR: Math.max(2, Math.min(MA.cw, MB.cw) / 2 - 5) + 4, px: px, CX: CX, CY: CY, key: JSON.stringify([s.a, s.b, s.ang, s.miss || '', s.ctl, s.R, s.TPL[s.a][2], s.TPL[s.b][2], !!s.zebra]) };
     })();
@@ -651,14 +651,14 @@ export default class Component extends DCLogic {
     if (SR) { var thL = SR.sig ? [10, 20, 35, 55, 80] : [10, 15, 25, 35, 50], LC = { A: '#2b7449', B: '#2b7449', C: '#95620f', D: '#95620f', E: '#b23a2e', F: '#b23a2e' };
       var avg = function (f) { return SR.R.reduce(function (t, r) { return t + f(r); }, 0) / SR.R.length; };
       var row = function (nm, get) { var d = avg(function (r) { return get(r).delay; }), fl = avg(function (r) { return get(r).flow; }), F = SR.R.filter(function (r) { return get(r).los === 'F'; }).length >= 2;
-        var l = F ? 'F' : ('ABCDE'[thL.findIndex(function (x) { return d <= x; })] || 'F'); simRows.push({ n: nm, v: Math.round(fl) + ' / ' + Math.round(get(SR.R[0]).demand) + ' avt/soat · ' + d.toFixed(1) + ' s · ' + l, c: LC[l] }); };
+        var l = F ? 'F' : ('ABCDE'[thL.findIndex(function (x) { return d <= x; })] || 'F'); simRows.push({ n: nm, v: tf('${f} / ${q} avt/soat · ${d} s · ${l}', { f: Math.round(fl), q: Math.round(get(SR.R[0]).demand), d: d.toFixed(1), l: l }), c: LC[l] }); };
       SR.names.forEach(function (x) { row(x[1], function (r) { return r.arms[x[0]]; }); }); row(tr('Jami'), function (r) { return r.total; });
       var bf = avg(function (r) { return r.bus.flow; }); if (bf > 0) { simRows.push({ n: tr('Avtobuslar'), v: tf('${n} avt/soat · ${d} s', { n: Math.round(bf), d: avg(function (r) { return r.bus.delay; }).toFixed(1) }), c: '#2a5a9a' }); simRows.push({ n: tr('Odam boshiga kechikish'), v: avg(function (r) { return r.person; }).toFixed(1) + ' s', c: '#141414' }); }
       var pf = avg(function (r) { return r.ped.flow; }); if (pf > 0) simRows.push({ n: tr('Piyodalar'), v: tf('${n} kishi/soat · kutish ${w} s', { n: Math.round(pf), w: avg(function (r) { return r.ped.wait; }).toFixed(1) }), c: '#141414' }); }
     var ped = hasCore ? Math.max(LA, LB) / 1.2 : 0;
     return {
       modes: [['A', 'Tarmoq'], ['B', 'Kesim'], ['C', 'Chorraha'], ['D', 'Koʻcha muhiti'], ['E', 'Mikromodel']].map(function (m, i) { return { k: m[0], n: m[1], p: i === 2 ? 'true' : 'false' }; }),
-      title: MA.n + ' × ' + MB.n, sub: SKN[MA.sk] + ' / ' + SKN[MB.sk] + ' · ' + MA.uk + ' / ' + MB.uk,
+      title: tr(MA.n) + ' × ' + tr(MB.n), sub: SKN[MA.sk] + ' / ' + SKN[MB.sk] + ' · ' + MA.uk + ' / ' + MB.uk,
       projBtn: (typeof location !== 'undefined' && /[?&]p=/.test(location.search)) ? [{ go: function () { self.fromProject(); }, n: tr(s.projSt === 'ok' ? 'Qayta olish' : 'Loyiha koʻchasi tutashuvi'), m: (s.projSt === 'load' ? tr('Loyiha koʻchalari va OSM yoʻllari oʻqilmoqda…') : s.projSt === 'ok' ? tf('${n} — atrofdagi yoʻlga tutashuvi olindi', { n: s.projName || '' }) : s.projSt === 'nost' ? tr('Loyihada koʻcha chizilmagan — Master reja, 2-qadam') : s.projSt === 'nojoin' ? tr('Loyiha koʻchasi uchi mavjud yoʻlga yetmagan (≤ 45 m)') : s.projSt === 'err' ? tr('Loyiha oʻqilmadi') : '') }] : [],
       nodeQ: s.nodeQ || '', nodeIn: function (e) { self.state.nodeQ = e.target.value; }, nodeKey: function (e) { if (e.key === 'Enter') { self.state.nodeQ = e.target.value; self.findReal(); } },
       nodeGo: function () { var el = document.getElementById('ksNodeIn'); if (el) self.state.nodeQ = el.value; self.findReal(); },
@@ -678,11 +678,11 @@ export default class Component extends DCLogic {
       tdir: seg('tdir', [0, 1, 2], ['Oʻngga', 'Chapga', 'Ikkalasi']),
       cfl: CF.map(function (c) { return { n: c[2], c: { avto: '#b23a2e', piy: '#c98a12', velo: '#c0583f' }[c[1]] }; }),
       veh: [['yengil', 'Yengil'], ['avtobus', 'Avtobus'], ['ot', 'Oʻt oʻch.'], ['yuk', 'Yuk'], ['all', 'Hammasi']].map(function (v) { return { n: v[1], p: s.veh === v[0] ? 'true' : 'false', pick: function () { self.setState({ veh: v[0], turn: true }); } }; }),
-      vehNote: !TR0 ? 'Burilish izi oʻchirilgan.' : (ALL ? 'Toʻrt avtomobil bir burchakda, bir xil R = ' + fm(R) + ' m bilan. Rang — avtomobil, chiziq turi — avtomobil. Eng katta tashqi iz: ' + TRS.reduce(function (m, t) { return t.Ro > m.Ro ? t : m; }).n + '.' : tv[0] + ': baza ' + fm(tv[1]) + ' m, eni ' + fm(tv[3]) + ' m, min. radius ' + fm(tv[4]) + ' m. Ichki iz ' + fm(TR0.Ri) + ' m, tashqi ' + fm(TR0.Ro) + ' m. ' + (TR0.swing ? 'Oʻz minimal radiusida buriladi — chetki boʻlakdan chiqib ketadi.' : 'Radius yetarli — bordyur yonidan buriladi.')) + (Math.abs(s.ang - 90) > 0.1 ? ' Qiyshiq chorrahada iz taxminiy.' : ''),
+      vehNote: !TR0 ? tr('Burilish izi oʻchirilgan.') : (ALL ? tf('Toʻrt avtomobil bir burchakda, bir xil R = ${r} m bilan. Rang — avtomobil, chiziq turi — avtomobil. Eng katta tashqi iz: ${n}.', { r: fm(R), n: tr(TRS.reduce(function (m, t) { return t.Ro > m.Ro ? t : m; }).n) }) : tf('${v}: baza ${b} m, eni ${w} m, min. radius ${r} m. Ichki iz ${ri} m, tashqi ${ro} m.', { v: tr(tv[0]), b: fm(tv[1]), w: fm(tv[3]), r: fm(tv[4]), ri: fm(TR0.Ri), ro: fm(TR0.Ro) }) + ' ' + tr(TR0.swing ? 'Oʻz minimal radiusida buriladi — chetki boʻlakdan chiqib ketadi.' : 'Radius yetarli — bordyur yonidan buriladi.')) + (Math.abs(s.ang - 90) > 0.1 ? ' ' + tr('Qiyshiq chorrahada iz taxminiy.') : ''),
       cmp: TRS.map(function (t) { var v = VH[t.key]; return { n: t.n, c: ALL ? VC[t.key] : DC[t.st], ri: fm(t.Ri), ro: fm(t.Ro), ln: t.crossA || t.crossB ? 'qarshi' : t.lanesA + '+' + t.lanesB, sc: DC[t.st], rk: (function (r) { return r ? r + ' m' : '> 25'; })(rOk(t.key)) }; }),
       gfx: [['Rangli', 0], ['Chizma', 1]].map(function (v) { return { n: v[0], p: s.gfx === v[1] ? 'true' : 'false', pick: function () { self.setState({ gfx: v[1] }); } }; }),
-      alt: 'Chorraha rejasi: ' + MA.n + ' va ' + MB.n, draw: draw, txt: txt,
-      mets: [['Asosiy: qatnov qismi', fm(MA.cw) + ' m · ' + MA.lanes + ' boʻlak'], ['Kesishuvchi: qatnov qismi', fm(MB.cw) + ' m · ' + MB.lanes + ' boʻlak'], ['Kesishish burchagi', s.ang + '°'], ['Eng uzun oʻtish', hasCore ? fm(Math.max(LA, LB)) + ' m · ' + Math.round(ped) + ' s' : '—'], ['Toʻxtash masofasi', dA + ' / ' + dB + ' m'], ['Olib tashlangan joylar', removed + ' ta']].map(function (l) { return { n: l[0], v: l[1] }; }),
+      alt: tf('Chorraha rejasi: ${a} va ${b}', { a: tr(MA.n), b: tr(MB.n) }), draw: draw, txt: txt,
+      mets: [['Asosiy: qatnov qismi', tf('${w} m · ${n} boʻlak', { w: fm(MA.cw), n: MA.lanes })], ['Kesishuvchi: qatnov qismi', tf('${w} m · ${n} boʻlak', { w: fm(MB.cw), n: MB.lanes })], ['Kesishish burchagi', s.ang + '°'], ['Eng uzun oʻtish', hasCore ? fm(Math.max(LA, LB)) + ' m · ' + Math.round(ped) + ' s' : '—'], ['Toʻxtash masofasi', dA + ' / ' + dB + ' m'], ['Olib tashlangan joylar', tf('${n} ta', { n: removed })]].map(function (l) { return { n: l[0], v: l[1] }; }),
       checks: R0, okCount: nOk + ' / ' + R0.length,
       note: 'Piyoda oʻtish joyi burchak egri qismidan keyin, velo oʻtish joyi esa uning yadro tomonida joylashadi. Avtobus boʻlagi chorrahada koʻk punktir bilan davom etadi. Yangi qurilishda R ≥ 15 m (108-band), kichik radius esa piyoda uchun xavfsizroq — ziddiyat ochiq qoldirilgan.',
       signs: SG.map(function (k) { var g = SGN[k]; return { n: g[0], c: g[1], b: g[2], r: g[3] }; })
@@ -690,10 +690,10 @@ export default class Component extends DCLogic {
       simQa: s.simQa != null ? s.simQa : 600, simQb: s.simQb != null ? s.simQb : 400, simL: s.simL != null ? s.simL : 20, simS: s.simS != null ? s.simS : 65, simR: s.simR != null ? s.simR : 15, simC: s.simC != null ? s.simC : 90, simP: s.simP != null ? s.simP : 100, simB: s.simB != null ? s.simB : 20, simPed: !!s.zebra,
       simIn: function (e) { var k = e.target.dataset.k; if (k) self.state[k] = e.target.value; },
       simSig: s.ctl === 0, simOk: hasCore,
-      simRun: function () { self.simRun(); }, simPlay: function () { self.simPlay(); }, simPlayT: s.simOn ? '⏸ Toʻxtatish' : '▶ Koʻrsatish',
+      simRun: function () { self.simRun(); }, simPlay: function () { self.simPlay(); }, simPlayT: s.simOn ? '⏸ ' + tr('Toʻxtatish') : '▶ ' + tr('Koʻrsatish'),
       simMsg: !hasCore ? tr('Ikki koʻchaning qatnov qismi kerak.') : s.simBusy ? tr('Hisoblanmoqda…') : SR ? '' : tr('Talabni kiriting va «Hisoblash»ni bosing.'),
       simRows: simRows,
-      simNote: SR ? tf('3 takror × 15 daq. Qiymat: oʻtdi / talab · kechikish · LOS (HCM, ${t}). Natijalar taxminiy — loyiha qarori uchun tasdiqlangan model emas.', { t: SR.sig ? 'svetoforli 10/20/35/55/80 s' : 'svetoforsiz va aylanma 10/15/25/35/50 s' }) : tr('Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (chapga buriluvchi qarshidagiga; belgilar bilan — ikkinchi darajali yoʻl asosiyga; aylanmada — halqadagilarga, kritik interval 4 s), burilishda piyodaga yoʻl berish.')
+      simNote: SR ? tf('3 takror × 15 daq. Qiymat: oʻtdi / talab · kechikish · LOS (HCM, ${t}). Natijalar taxminiy — loyiha qarori uchun tasdiqlangan model emas.', { t: tr(SR.sig ? 'svetoforli 10/20/35/55/80 s' : 'svetoforsiz va aylanma 10/15/25/35/50 s') }) : tr('Model: IDM ergashish, svetofor fazalari, ulagichlar kesishuvida yoʻl berish (chapga buriluvchi qarshidagiga; belgilar bilan — ikkinchi darajali yoʻl asosiyga; aylanmada — halqadagilarga, kritik interval 4 s), burilishda piyodaga yoʻl berish.')
     };
     })();
     return __split(__r);

@@ -4,7 +4,7 @@
  * Qobiq: ekotizim sarlavhasi (5 xizmat), til (uz/en/ru), tungi rejim. Har rejim holati brauzerda saqlanadi;
  * B va Varaq bitta koʻcha maʼlumotini (kesim, rejadagi elementlar, tarmoqlar) birga ishlatadi.
  */
-import { scoped, svcHref, ctxProject } from '../core/projctx';
+import { scoped, svcHref, ctxProject, svcLinks } from '../core/projctx';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -93,13 +93,14 @@ const ICON = {
   save: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   open: '<path d="M4 7h6l2 2h8v10H4zM4 7V5h6"/>',
 };
+const SL = svcLinks();   // 22.11: havolalar shu loyihaga (core/projctx)
 const SERVICES: { id: string; name: string; href: string; color: string; cur?: boolean; beta?: boolean }[] = [
-  { id: 'mr', name: 'Master reja', href: './', color: 'var(--svc-mr)' },
+  { id: 'mr', name: 'Master reja', href: SL.mr, color: 'var(--svc-mr)' },
   { id: 'ks', name: 'Koʻchasoz', href: svcHref('./kochasoz.html'), color: 'var(--svc-ks)', cur: true },
   { id: 'joy', name: 'Joyshunos', href: svcHref('./joyshunos.html'), color: 'var(--svc-joy)' },
   { id: 'ren', name: 'Render', href: svcHref('./render.html'), color: 'var(--svc-ren)', beta: true },
-  { id: 'dk', name: 'Dizayn-kod', href: '../dizaynkod.html', color: 'var(--svc-dk)' },
-  { id: 'chz', name: 'Chizmadon', href: './#/chizmadon', color: 'var(--svc-chz)' },
+  { id: 'dk', name: 'Dizayn-kod', href: SL.dk, color: 'var(--svc-dk)' },
+  { id: 'chz', name: 'Chizmadon', href: SL.chz, color: 'var(--svc-chz)' },
 ];
 
 const app = document.getElementById('ks')!;
