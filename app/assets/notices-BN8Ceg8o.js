@@ -1,0 +1,15 @@
+import{o as e,s as t}from"./i18n-B8qosoPz.js";import{r as n}from"./dom-lqpUvFVN.js";var r=`.gift-note{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3100;width:min(340px,calc(100vw - 32px));
+background:var(--sf,#fff);color:var(--ink,#1f1e1d);border:1px solid var(--line,rgba(0,0,0,.08));border-radius:18px;padding:16px 16px 14px;
+box-shadow:var(--sh-pop,0 12px 32px rgba(0,0,0,.16));display:grid;grid-template-columns:40px 1fr;gap:4px 12px;font-size:13px;line-height:1.45;
+animation:gift-in .45s cubic-bezier(.2,.8,.2,1) both}
+.gift-note .gn-ic{grid-row:1/3;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft,#f3eee6);color:var(--accent,#b0742e)}
+.gift-note b{font-size:15px;font-weight:600}
+.gift-note p{margin:0;color:var(--mute,#6b6a68)}
+.gift-note .gn-row{grid-column:2;display:flex;gap:8px;margin-top:8px}
+.gift-note button{height:32px;padding:0 14px;border-radius:999px;border:0;font:inherit;font-weight:600;cursor:pointer;background:var(--ink,#1f1e1d);color:var(--sf,#fff)}
+[data-theme=dark] .gift-note{background:#232220;color:#f2f1ee;border-color:rgba(255,255,255,.08)}
+[data-theme=dark] .gift-note p{color:#a9a7a2}
+[data-theme=dark] .gift-note .gn-ic{background:rgba(232,176,110,.14);color:#e8b06e}
+[data-theme=dark] .gift-note button{background:#f2f1ee;color:#1f1e1d}
+@keyframes gift-in{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.gift-note{animation:none}}`,i=`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>`,a=!1;function o(r){let i=r.reduce((e,t)=>e+t.coins,0);return{title:e("Sizga ${n} tanga sovgʻa!",{n:n(i)}),body:r[0]?.kind===`signup`?t(`Archemistry Labdan foydalanganingiz uchun rahmat. Tangalarni toza fayl, DXF yoki quyosh hisobi uchun ishlating.`):t(`Archemistry Lab jamoasidan — sinab koʻrishingiz uchun. Tangalar balansingizga qoʻshildi.`)}}function s(e,n){if(a||!e.length||typeof document>`u`)return;if(a=!0,!document.getElementById(`giftNoteCss`)){let e=document.createElement(`style`);e.id=`giftNoteCss`,e.textContent=r,document.head.appendChild(e)}let{title:s,body:c}=o(e),l=document.createElement(`div`);l.className=`gift-note`,l.id=`giftNote`,l.setAttribute(`role`,`status`),l.innerHTML=`<div class="gn-ic">${i}</div>`;let u=document.createElement(`b`);u.textContent=s;let d=document.createElement(`p`);d.textContent=c;let f=document.createElement(`div`);f.className=`gn-row`;let p=document.createElement(`button`);p.type=`button`,p.id=`giftNoteOk`,p.textContent=t(`Rahmat`),f.appendChild(p),l.append(u,d,f);let m=Math.max(...e.map(e=>e.id));p.addEventListener(`click`,()=>{l.remove(),n(m).catch(()=>{})}),document.body.appendChild(l)}export{s as showNotices};
