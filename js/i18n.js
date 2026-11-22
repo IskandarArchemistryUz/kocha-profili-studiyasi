@@ -49,7 +49,7 @@ function run(){sw();walk(document.body);var t=tr(document.title);if(t)document.t
 function start(){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();}
 /* yangi tillar: lugʻat (js/i18n/<til>.json, «t») yuklanguncha sahifa yashirin (≤ 3 s); yoʻq satr — inglizcha */
 if(EXTL[L]){var de=document.documentElement;de.style.visibility='hidden';var showT=setTimeout(function(){de.style.visibility='';},3000);
-  window.kpsReady=fetch(BASE+'i18n/'+L+'.json?v=20261114').then(function(r){return r.json();}).catch(function(){return {t:{}};}).then(function(j){window.KPS_X=j;var t=j.t||{},k;D={};for(k in DICT.en)D[k]=DICT.en[k];for(k in t)D[k]=t[k];build();clearTimeout(showT);de.style.visibility='';start();});}
+  window.kpsReady=fetch(BASE+'i18n/'+L+'.json?v=20261122').then(function(r){return r.json();}).catch(function(){return {t:{}};}).then(function(j){window.KPS_X=j;var t=j.t||{},k;D={};for(k in DICT.en)D[k]=DICT.en[k];for(k in t)D[k]=t[k];build();clearTimeout(showT);de.style.visibility='';start();});}
 else{build();start();window.kpsReady=Promise.resolve();}
 window.kpsT=function(s){var r=tr(String(s));return r==null?s:r;};var A=window.alert,C=window.confirm,PR=window.prompt;window.alert=function(m){return A.call(window,window.kpsT(m));};window.confirm=function(m){return C.call(window,window.kpsT(m));};window.prompt=function(m,d){return PR.call(window,window.kpsT(m),d);};
 })();
