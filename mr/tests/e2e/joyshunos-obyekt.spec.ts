@@ -21,7 +21,7 @@ async function open(page: Page): Promise<void> {
   // OSM da bogʻcha (kindergarten) yoʻq — faqat maktab, dorixona, poliklinika va bekatlar
   await page.route(/overpass|kumi\.systems|mail\.ru|private\.coffee/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: [...ring(9, 1200, i => ({ amenity: ['school', 'pharmacy', 'clinic'][i % 3] })), ...ring(6, 900, () => ({ highway: 'bus_stop' })), ...roads()] }) }));
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.removeItem('joy-state'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qoʻshilgan obyekt va xizmatlar xulosasi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {

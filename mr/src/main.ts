@@ -22,6 +22,7 @@ import { loginDialog } from './account/login';
 import { ownerPage } from './account/owner';
 import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
+import { cleanThumb, thumbSvg, type ThumbData } from './core/projthumb';
 import { otishEnter, otishTo } from './ui/otish';
 import { kolbaOverlay } from './ui/kolba';
 // 14.11: boʻlimga oʻtish — boshqa xizmatdan kelinsa Master reja foni bir lahza; loyiha kartasi ekranga kengayib ochiladi
@@ -68,11 +69,10 @@ async function route(): Promise<void> {
       await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
     }
     if (t?.target) { let ok = null; try { ok = await getProject(t.target); } catch { /* */ } if (ok) { location.replace(`#/p/${encodeURIComponent(t.target)}/chizmadon`); return; } }
-    // 14.11 (egasi): alohida kirilgan Chizmadon — Master reja loyihasiga emas, oʻz loyihalariga (oxirgisi yoki yangi)
-    let list: ProjectMeta[] = []; try { list = (await listProjects()).filter(p => p.svc === 'chz'); } catch { /* */ }
-    const last = [...list].sort((a, b) => String(b.updated).localeCompare(String(a.updated)))[0];
-    if (last) { location.replace(`#/p/${last.id}/chizmadon`); return; }
-    const p: Project = { ...blankProject(tr('Taqdimot albomi')), svc: 'chz' }; await putProject(p); location.replace(`#/p/${p.id}/chizmadon`); return;
+    // 22.11 (egasi: «qaysi servisni ochsa ham — avval loyihalar oynasi, bir-biriga aralashmasin»): alohida kirilgan Chizmadon
+    // oxirgi albomni oʻzi ochmaydi — Chizmadonning oʻz loyihalari paneli (eshik); tanlangani yoki yangisi ochiladi
+    document.title = 'Archemistry Lab · Chizmadon'; root.replaceChildren();
+    const { openChzProjects } = await import('./ui/chzprojects'); await openChzProjects(undefined, true); return;
   }
   const m = location.hash.match(/^#\/p\/([\w-]+)(\/chizmadon)?$/);
   if (m) {
@@ -159,12 +159,15 @@ async function moveSelected(btn: HTMLButtonElement): Promise<void> {
   void home();
 }
 
-/** Kartaning eskizi: nuqtali toʻr, uchastka chizigʻi va binolar soniga qarab sxematik hajmlar (bezak) */
-function thumb(n: number, site: boolean, inCloud: boolean): HTMLElement {
-  const k = Math.min(n, 9), boxes: string[] = [];
-  for (let i = 0; i < k; i++) { const c = i % 3, r = Math.floor(i / 3); boxes.push(`<rect x="${62 + c * 34}" y="${16 + r * 22}" width="${22 + (i * 7) % 9}" height="${14 + (i * 5) % 6}" rx="2"/>`); }
-  const el = h('span', { class: 'thumb', 'aria-hidden': 'true' });
-  el.innerHTML = `<svg viewBox="0 0 240 92" preserveAspectRatio="xMidYMid slice">${site ? '<path class="st" d="M50 8L196 12L188 84L44 80Z"/>' : ''}<g class="bl">${boxes.join('')}</g></svg>`;
+/** Kartaning eskizi: loyihaning oʻz kichik rejasi (uchastka, koʻchalar, binolar — core/projthumb); hali chizilmagan boʻlsa — sxematik bezak */
+function thumb(n: number, site: boolean, inCloud: boolean, data?: ThumbData | null): HTMLElement {
+  const el = h('span', { class: `thumb${data ? ' real' : ''}`, 'aria-hidden': 'true' });
+  if (data) el.innerHTML = thumbSvg(data);
+  else {
+    const k = Math.min(n, 9), boxes: string[] = [];
+    for (let i = 0; i < k; i++) { const c = i % 3, r = Math.floor(i / 3); boxes.push(`<rect x="${62 + c * 34}" y="${16 + r * 22}" width="${22 + (i * 7) % 9}" height="${14 + (i * 5) % 6}" rx="2"/>`); }
+    el.innerHTML = `<svg viewBox="0 0 240 92" preserveAspectRatio="xMidYMid slice">${site ? '<path class="st" d="M50 8L196 12L188 84L44 80Z"/>' : ''}<g class="bl">${boxes.join('')}</g></svg>`;
+  }
   if (inCloud) el.append(h('em', { class: 'cl' }, tr('bulutda')));
   return el;
 }
@@ -224,7 +227,7 @@ async function home(): Promise<void> {
       list.some(p => !cs.links.has(p.id)) ? moveBtn : '') : '',
     list.length > 5 ? projTools(list, cs.on ? cs.links : null) : '',
     shown.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...shown.map((p, i) => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id, style: `--i:${Math.min(i, 12)}` },
-      thumb(p.buildings, p.hasSite, cs.links.has(p.id)),
+      thumb(p.buildings, p.hasSite, cs.links.has(p.id), p.thumb),
       h('b', {}, p.name),
       cs.links.has(p.id) ? h('span', { class: 't-small', 'data-cloud': 'on', style: 'color:var(--ok)' }, tr('bulutda'))
         : cs.on ? (() => {
@@ -253,7 +256,7 @@ async function home(): Promise<void> {
       : h('div', { class: 'empty', style: 'margin-top:16px' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.'))),
     cs.remote.length ? h('h2', { class: 't-title', style: 'margin-top:28px' }, tr('Bulutda, shu brauzerda yoʻq')) : '',
     cs.remote.length ? h('div', { class: 'row3 cards', id: 'cloudCards' }, ...cs.remote.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-cid': p.id },
-      thumb(Number(p.meta?.buildings ?? 0), !!p.meta?.hasSite, true),
+      thumb(Number(p.meta?.buildings ?? 0), !!p.meta?.hasSite, true, cleanThumb(p.meta?.thumb)),
       h('b', {}, p.name),
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr('bulutda')}`)))) : '',
     h('p', { class: 't-small', style: 'margin-top:24px' }, cs.on

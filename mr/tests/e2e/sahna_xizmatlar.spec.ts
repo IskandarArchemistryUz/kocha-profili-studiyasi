@@ -1,7 +1,7 @@
 import { test, expect } from './fx';
 
 /** 18.11 (T1): Koʻchasoz va Joyshunosda sahna rejimi (ui/sahna.ts) — P / Esc, tugma; panellar yashirinadi, koʻrinish kengayadi */
-for (const [u, hide, dark] of [['kochasoz.html#/b', '.ws aside.panel', false], ['joyshunos.html', '#joyLeft', true]] as const) test(`sahna rejimi · ${u}${dark ? ' · tungi' : ''}`, async ({ page }) => {
+for (const [u, hide, dark] of [['kochasoz.html?asosiy=1#/b', '.ws aside.panel', false], ['joyshunos.html?asosiy=1', '#joyLeft', true]] as const) test(`sahna rejimi · ${u}${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(90_000);
   await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1280, height: 600 });

@@ -37,7 +37,7 @@ async function mockApi(page: Page, o: { balance?: number; trials?: number } = {}
 
 test('toza yuklash: SVG — tanlov, toza fayl tanga bilan va belgisiz, belgili — bepul', async ({ page }) => {
   const st = await mockApi(page, { balance: 7 });
-  await page.goto('./kochasoz.html#/varaq');
+  await page.goto('./kochasoz.html?asosiy=1#/varaq');
   const svg = page.locator('.ws-varaq button', { hasText: /^SVG$/ });
   await expect(svg).toBeVisible({ timeout: 20_000 });
   await svg.click();
@@ -61,7 +61,7 @@ test('toza yuklash: SVG — tanlov, toza fayl tanga bilan va belgisiz, belgili �
 
 test('tanga yetmasa — xabar va «Tanga olish»; tarix oynasi', async ({ page }) => {
   await mockApi(page, { balance: 1 });
-  await page.goto('./kochasoz.html#/varaq');
+  await page.goto('./kochasoz.html?asosiy=1#/varaq');
   const svg = page.locator('.ws-varaq button', { hasText: /^SVG$/ });
   await expect(svg).toBeVisible({ timeout: 20_000 });
   await svg.click(); await page.click('#kdClean');

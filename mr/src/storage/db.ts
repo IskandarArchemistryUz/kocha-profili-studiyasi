@@ -3,12 +3,13 @@
  * Eski versiyadagi 73 localStorage kaliti va 7 baza oʻrniga. Keyinroq server (bulut) shu interfeys ortiga qoʻshiladi.
  */
 import { migrate, type Project } from '../core/doc';
+import { thumbData, type ThumbData } from '../core/projthumb';
 
 const DB_NAME = 'archemistry-mr';
 const VERSION = 1;
 export const STORES = { projects: 'projects', cache: 'cache', assets: 'assets' } as const;
 
-export interface ProjectMeta { id: string; name: string; updated: string; created: string; buildings: number; hasSite: boolean; svc?: 'chz' }
+export interface ProjectMeta { id: string; name: string; updated: string; created: string; buildings: number; hasSite: boolean; svc?: 'chz'; /** 22.11: kartadagi kichik reja (core/projthumb) */ thumb?: ThumbData | null }
 
 let dbp: Promise<IDBDatabase> | null = null;
 
@@ -53,9 +54,11 @@ export async function deleteProject(id: string): Promise<void> { await tx(STORES
 
 export async function listProjects(): Promise<ProjectMeta[]> {
   const all = await tx<any[]>(STORES.projects, 'readonly', s => s.getAll());
-  return (all || []).map(p => ({ id: p.id, name: p.name, updated: p.updated, created: p.created, buildings: (p.buildings || []).length, hasSite: !!p.site, ...(p.svc ? { svc: p.svc } : {}) }))
+  return (all || []).map(p => ({ id: p.id, name: p.name, updated: p.updated, created: p.created, buildings: (p.buildings || []).length, hasSite: !!p.site, ...(p.svc ? { svc: p.svc } : {}), thumb: safeThumb(p) }))
     .sort((a, b) => b.updated.localeCompare(a.updated));
 }
+
+function safeThumb(p: any): ThumbData | null { try { return thumbData(p); } catch { return null; } }
 
 /* ---------- kesh (kontekst, plitkalar) ---------- */
 export async function cacheGet<T>(k: string): Promise<T | null> {

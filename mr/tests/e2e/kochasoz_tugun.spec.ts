@@ -12,7 +12,7 @@ test('C: «Haqiqiy chorraha» — OSM dan koʻchalar, burchak va tezlik; manba k
   let q = '';
   await page.route(/overpass|interpreter/, async r => { q = r.request().postData() ?? r.request().url(); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(OSM) }); });
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta#/c');   // C hozircha beta (saytda «Tez orada»)
+  await page.goto('./kochasoz.html?asosiy=1&beta#/c');   // C hozircha beta (saytda «Tez orada»)
   await expect(page.locator('.ws-c')).toBeVisible();
   // notoʻgʻri kiritish
   await page.fill('#ksNodeIn', 'salom'); await page.click('#ksNodeGo');

@@ -22,7 +22,7 @@ async function open(page: Page, errs: string[]): Promise<void> {
     ? r.fulfill({ contentType: 'application/json', body: JSON.stringify(IX), headers: { 'access-control-allow-origin': '*' } })
     : r.fulfill({ contentType: 'application/octet-stream', body: BIN, headers: { 'access-control-allow-origin': '*' } }));
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.removeItem('joy-state'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 
 test('uylar va aholi: 50 m kadastr agregati, uch uslub, doira ichida', async ({ page }) => {

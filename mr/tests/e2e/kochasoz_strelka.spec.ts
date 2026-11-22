@@ -6,7 +6,7 @@ const st = (page: import('@playwright/test').Page) => page.evaluate(() => (windo
 test('B: strelka va joylashtirilgan elementlar zona bilan', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => { const I = (window as any).__ks.m.inst, T = I.state.TPL.find((x: any) => x[0] === 'Tuman koʻchasi'); I.setState({ els: T[2], rl: 35.2, tplName: T[0], view: 1, sel: 5, selU: -1, PL: T[5] }); });
   const before = (await st(page)).PL.find((p: any) => p.t === 'shpalera').z;   // ajratuvchi (6)
@@ -32,7 +32,7 @@ test('B: aksonometriyada oʻng bino shaffof (punktir), tungi rejim', async ({ pa
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => localStorage.setItem('mr-theme', 'dark'));
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2 }));
   await expect.poll(() => page.evaluate(() => Array.from(document.querySelectorAll('.ws-b svg[role=img] path')).filter(p => (p.getAttribute('stroke-dasharray') || '').trim() === '4 3').length)).toBeGreaterThanOrEqual(12);
@@ -41,7 +41,7 @@ test('B: aksonometriyada oʻng bino shaffof (punktir), tungi rejim', async ({ pa
 test('B: aksonometriya — mashinalar oʻtish joyiga chiqmaydi', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => { const I = (window as any).__ks.m.inst, T = I.state.TPL.find((x: any) => x[0] === 'Tuman koʻchasi'); I.setState({ els: T[2], rl: 35.2, view: 2 }); });
   // har bir mashina/avtobus boʻylama oraligʻi (data-bk = tur@boshi-oxiri) oʻtish joyi (2,5–6,5 m) bilan kesishmaydi
@@ -54,7 +54,7 @@ test('B: aksonometriya — mashinalar oʻtish joyiga chiqmaydi', async ({ page }
 test('B: aksonometriya — rejadagi elementlar (parklet, taksi, yuk…) chiziladi', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => { const I = (window as any).__ks.m.inst, T = I.state.TPL.find((x: any) => x[0] === 'Tuman koʻchasi'); I.setState({ els: T[2], rl: 35.2, view: 2, PL: T[5] }); });
   await expect(page.locator('.ws-b svg[role=img] text', { hasText: 'TAKSI' })).toHaveCount(1);
@@ -67,7 +67,7 @@ test('B: aksonometriya — rejadagi elementlar (parklet, taksi, yuk…) chizilad
 test('B: aksonometriya — chap/oʻng chet turi (bogʻ, suv, qiyalik, ochiq) chiziladi', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 2, eL: 'bino', eR: 'bino' }));
   const dashed = () => page.evaluate(() => Array.from(document.querySelectorAll('.ws-b svg[role=img] path')).filter(p => (p.getAttribute('stroke-dasharray') || '').trim() === '4 3').length);

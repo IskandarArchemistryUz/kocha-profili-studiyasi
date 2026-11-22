@@ -22,7 +22,8 @@ export function syncAcctOwner(owner: boolean): void {
 export async function initOwner(): Promise<void> {
   const m = /[?&]egasi=([^&#]+)/.exec(location.search); if (!m) return;
   const k = decodeURIComponent(m[1]);
-  const clean = () => history.replaceState(null, '', location.pathname + location.hash);
+  // 22.11: faqat «egasi» olib tashlanadi — ?p= (loyiha) va ?asosiy= saqlanadi
+  const clean = () => { const q = new URLSearchParams(location.search); q.delete('egasi'); const qs = q.toString(); history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash); };
   if (k === 'off') { try { localStorage.removeItem('kps_owner'); } catch { /* */ } clean(); return; }
   if (!crypto?.subtle) return;
   const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k)))].map(b => b.toString(16).padStart(2, '0')).join('');

@@ -7,7 +7,7 @@ const svgText = (page: import('@playwright/test').Page) => page.locator('.ws-b s
 test('B: kanal zonasi — qoʻshish, belgilar, uch koʻrinish', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ sel: 3, view: 0 }));
   await page.locator('.ws-b [data-pick=zone]').click(); await page.locator('.ws-b .ks-menu [role=menuitem]', { hasText: /^Kanal$/ }).click();
@@ -38,14 +38,14 @@ test('B: kanal zonasi — qoʻshish, belgilar, uch koʻrinish', async ({ page })
   await page.locator('[data-ed=zw]').click(); await page.locator('.ks-numed').fill('60'); await page.locator('.ks-numed').press('Enter');
   expect((await st(page)).els[4][1]).toBe(60);
   // albom varagʻi ham kanal bilan ochiladi
-  await page.goto('./kochasoz.html?beta=0#/varaq');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/varaq');
   await expect(page.locator('.ws-varaq svg[role=img]')).toBeVisible();
 });
 
 test('B: kanal — qirgʻoq polosasi ichidagi yoʻl tekshiruvda ogohlantiriladi', async ({ page }) => {
   await page.route(/fonts\.g/, r => r.abort());
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ view: 0, sel: 1, els: [['piy', 3, {}], ['kanal', 8, { dep: 3, panjara: true, bufer: true }], ['qat', 3.5, {}], ['qat', 3.5, {}], ['piy', 3, {}]], rl: 21, eL: 'bino', eR: 'bino' }));
   await expect(page.locator('.ws-b aside.panel').last()).toContainText('Qirgʻoq boʻyi tasmasi ≥ 6,5 m: Harakat');
@@ -58,7 +58,7 @@ test('B: oʻz kesimi — boʻsh kesim, nom, saqlash va oʻchirish; tungi rejim',
   await page.route(/fonts\.g/, r => r.abort());
   await page.addInitScript(() => localStorage.setItem('mr-theme', 'dark'));
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./kochasoz.html?beta=0#/b');
+  await page.goto('./kochasoz.html?asosiy=1&beta=0#/b');
   await expect(page.locator('.ws-b')).toBeVisible();
   await page.evaluate(() => (window as any).__ks.m.inst.setState({ tOpen: true, tg: 'my', MY: [] }));
   await expect(page.locator('.ws-b aside.panel').first()).toContainText('Hali saqlangan kesim yoʻq');

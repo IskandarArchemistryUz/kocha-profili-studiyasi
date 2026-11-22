@@ -33,12 +33,12 @@ test('loyiha ichidan Joyshunos: ?p= manzilda, «← Master reja» loyihaga qayta
 test('alohida Koʻchasoz: «Loyihalar» → «Yangi loyiha» — xizmatning oʻz loyihasi (s_…), Master rejaga bogʻlanmaydi', async ({ page }) => {
   test.setTimeout(90_000);
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto('./kochasoz.html');
+  await page.goto('./kochasoz.html?asosiy=1');
   await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('#mrBack')).toHaveCount(0);
   await page.click('#svcProj');
   await expect(page.locator('#projWin')).toBeVisible();
-  await expect(page.locator('#projWin [data-pw=""]')).toContainText('Asosiy loyiha');
+  await expect(page.locator('#projWin [data-pw=""]')).toContainText('Avvalgi ish');
   await page.click('#pwNew');
   await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
   await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
@@ -49,5 +49,23 @@ test('alohida Koʻchasoz: «Loyihalar» → «Yangi loyiha» — xizmatning oʻz
   await page.click('#svcProj');
   await expect(page.locator('#projWin .pw-card')).toHaveCount(2);
   await page.click('#projWin [data-pw=""]');
-  await page.waitForURL(u => !/\?p=/.test(u.toString()));
+  await page.waitForURL(u => !/\?p=/.test(u.toString()) && /asosiy=1/.test(u.toString()));
 });
+
+/** 22.11 (egasi): xizmat loyihasiz ochilsa — eski ish oʻzi ochilmaydi, avval oʻz loyihalari paneli */
+for (const svc of ['kochasoz', 'joyshunos', 'render']) {
+  test(`${svc}: loyihasiz ochilganda — loyihalar paneli (eshik), xizmat yuklanmaydi`, async ({ page }) => {
+    await page.route(/fonts\.g/, r => r.abort());
+    await page.goto(`./${svc}.html`);
+    await expect(page.locator('#projWin')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('#pwClose')).toHaveCount(0);
+    await expect(page.locator('#pwHome')).toBeVisible();
+    await expect(page.locator('#svcProj')).toHaveCount(0);   // xizmat sarlavhasi chizilmagan
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#projWin')).toBeVisible();
+    await page.click('#pwNew');
+    await page.waitForURL(new RegExp(`${svc}\\.html\\?p=s_\\w+`));
+    await expect(page.locator('#projWin')).toHaveCount(0);
+    await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
+  });
+}

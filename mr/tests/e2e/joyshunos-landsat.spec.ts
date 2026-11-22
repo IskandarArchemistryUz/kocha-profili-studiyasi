@@ -31,7 +31,7 @@ async function open(page: Page, errs: string[], landsat: boolean): Promise<void>
     : r.request().url().endsWith('_index.json') ? r.fulfill({ contentType: 'application/json', body: JSON.stringify(IX), headers: { 'access-control-allow-origin': '*' } })
       : r.fulfill({ contentType: 'application/octet-stream', body: bin(), headers: { 'access-control-allow-origin': '*' } }));
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.removeItem('joy-state'); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } });
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 
 test('issiqlik: Toshkentda Landsat 100 m', async ({ page }) => {
