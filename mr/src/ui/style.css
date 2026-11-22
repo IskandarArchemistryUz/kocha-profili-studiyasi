@@ -521,7 +521,7 @@ button.li.frow{min-height:48px}
 .rose{max-width:180px;align-self:center}
 [data-theme=dark] .fpv svg,[data-theme=dark] .rose{filter:none}
 details.manual{border-top:0;padding-top:0;display:block}
-.tile>span{max-width:100%;overflow-wrap:anywhere;hyphens:auto}
+.tile>span{max-width:100%;overflow-wrap:break-word;hyphens:auto}   /* 22.11 (audit): «anywhere» soʻzni oʻrtasidan uzardi (Undergroun|d) — endi boʻgʻin boʻyicha */
 .tiles.c4 .tile>span{font-size:10.5px}
 .li .k{overflow-wrap:anywhere}
 .range{margin:0 11px}

@@ -5521,7 +5521,7 @@ export class Editor {
       abroad ? this.seisPgaRow() : '',
       abroad ? '' : this.seisPlaceRow(),
       h('div', { class: 'li', style: 'flex-wrap:wrap;gap:8px' },
-        h('div', { class: 'seg sm', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim'), style: 'flex-wrap:wrap' }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
+        h('div', { class: 'seg sm seg-flex', role: 'group', id: 'seisSys', 'aria-label': tr('Yuk koʻtaruvchi tizim') }, ...CONSTRUCT_SYS.map(k => h('button', { 'aria-pressed': sys === k, 'data-sys': k, title: `${SYS[k].name} · ${SYS[k].row}`, onclick: () => set({ construct: k }) }, tr({ monolit: 'Monolit devor', karkas: 'Karkas', toldirgich: 'Toʻldiruvchili', gisht: 'Gʻisht' }[k])))),
         h('span', { class: 'chip', id: 'seisLim' }, lim == null ? tr('NSTT — cheklanmagan') : tf('boʻlma ≤ ${l} m · chiqish ≤ ${p} m', { l: lim, p: SYS[sys].proj }))));
   }
   /** 14.11 (egasi): xorijda PGA (g) → taxminiy ball (core/seismichint) va mamlakat izohi */
