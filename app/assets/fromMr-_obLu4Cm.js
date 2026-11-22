@@ -1,1 +1,0 @@
-export{i as profileToKs}from"./fromMr-tXv3Cgu6.js";
