@@ -144,17 +144,17 @@ export function uzTerms(s: string): string {
  * Natija keshlanadi (til boʻyicha).
  */
 /** Xizmat nomlari har tilda (sayt: js/site.js dagi BRAND bilan bir xil). Oʻzbekchada — asl nom. */
-const BR = (ks: string, jy: string, ch: string): [RegExp, string][] => [[/Koʻchasoz\p{L}*/gu, ks], [/Joyshunos\p{L}*/gu, jy], [/Chizmadon\p{L}*/gu, ch]];
+const BR = (ks: string, jy: string, ch: string, bg: string): [RegExp, string][] => [[/Koʻchasoz\p{L}*/gu, ks], [/Joyshunos\p{L}*/gu, jy], [/Chizmadon\p{L}*/gu, ch], [/Bogʻshunos\p{L}*/gu, bg]];
 export const BRAND: Record<Exclude<Lang, 'uz'>, [RegExp, string][]> = {
-  en: BR('Street Designer', 'Site Explorer', 'Sheet Studio'),
-  ru: BR('Конструктор улиц', 'Анализ места', 'Студия листов'),
-  es: BR('Diseñador de calles', 'Explorador del sitio', 'Estudio de láminas'),
-  pt: BR('Designer de Ruas', 'Explorador do Terreno', 'Estúdio de Pranchas'),
-  fr: BR('Concepteur de rues', 'Explorateur de site', 'Studio de planches'),
-  az: BR('Küçə konstruktoru', 'Ərazi təhlili', 'Vərəq studiyası'),
-  uk: BR('Конструктор вулиць', 'Аналіз місця', 'Студія аркушів'),
-  tr: BR('Sokak Tasarımcısı', 'Alan Analizi', 'Pafta Stüdyosu'),
-  kk: BR('Көше конструкторы', 'Орын талдауы', 'Парақтар студиясы'),
+  en: BR('Street Designer', 'Site Explorer', 'Sheet Studio', 'Landscape Designer'),
+  ru: BR('Конструктор улиц', 'Анализ места', 'Студия листов', 'Ландшафтный конструктор'),
+  es: BR('Diseñador de calles', 'Explorador del sitio', 'Estudio de láminas', 'Diseñador de paisaje'),
+  pt: BR('Designer de Ruas', 'Explorador do Terreno', 'Estúdio de Pranchas', 'Designer de Paisagem'),
+  fr: BR('Concepteur de rues', 'Explorateur de site', 'Studio de planches', 'Concepteur paysager'),
+  az: BR('Küçə konstruktoru', 'Ərazi təhlili', 'Vərəq studiyası', 'Landşaft konstruktoru'),
+  uk: BR('Конструктор вулиць', 'Аналіз місця', 'Студія аркушів', 'Ландшафтний конструктор'),
+  tr: BR('Sokak Tasarımcısı', 'Alan Analizi', 'Pafta Stüdyosu', 'Peyzaj Tasarımcısı'),
+  kk: BR('Көше конструкторы', 'Орын талдауы', 'Парақтар студиясы', 'Ландшафт конструкторы'),
 };
 export function brand(s: string, l: Lang = lang): string {
   if (l === 'uz' || !s) return s;

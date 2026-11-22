@@ -75,7 +75,8 @@ export function cutSheet(doc: Project, cutId: string | undefined, tr: (s: string
       const sc = k / ks.px, tx = X(-g.W / 2) - ks.x0 * sc, ty = gy - ks.G * sc, id = `kscut_${esc(g.cut.id)}`;
       o.push(`<defs><clipPath id="${id}"><rect x="${n2(X(-g.W / 2) - 0.2)}" y="${n2(Y(e.top - 1))}" width="${n2(g.W * k + 0.4)}" height="${n2((e.top - 1) * k + 1.2 * k)}"/></clipPath></defs>`,
         `<g data-cut-ks="1" clip-path="url(#${id})"><g transform="translate(${n2(tx)} ${n2(ty)}) scale(${sc.toFixed(5)})">${ks.g}</g></g>`);
-      for (const p of g.profile.parts) { x += p.w; cuts.push(x); }
+      // qism chegaralari (koʻrinmas): qism turi saqlanadi — tanlash, tekshiruv va Illustrator qatlamlari uchun
+      for (const p of g.profile.parts) { o.push(`<rect data-cut-part="${p.k}" x="${n2(X(x))}" y="${n2(gy - 0.6)}" width="${n2(p.w * k)}" height="0.6" fill="none" stroke="none"/>`); x += p.w; cuts.push(x); }
     } else for (const p of g.profile.parts) {
       const x0 = X(x), x1 = X(x + p.w), r = Math.max(0.6, (RAISE[p.k] + 0.25) * k);
       o.push(`<rect data-cut-part="${p.k}" x="${n2(x0)}" y="${n2(gy - r)}" width="${n2(x1 - x0)}" height="${n2(r)}" fill="${CUT_COL[p.k]}" stroke="#1d1d1b" stroke-width="0.15"/>`);

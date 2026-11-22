@@ -16,7 +16,7 @@ let busy=false;
 
 function sync(force){
   const M=J();if(!M||!Array.isArray(M.nodes)||!Array.isArray(M.edges))return 0;
-  const h=hash(JSON.stringify([M.nodes,M.edges.map(e=>[e.id,e.a,e.b,e.preset])]));
+  const h=hash(JSON.stringify([M.pid||'',M.nodes,M.edges.map(e=>[e.id,e.a,e.b,e.preset])]));
   const ds=DS();if(!force&&ds.mrH===h)return 0;
   /* 19.11: loyiha ichidan (Koʻchasoz → Tarmoq, ?p=) — boshqa loyihadan qolgan sinxron koʻchalar olib tashlanadi; qoʻlda chizilganlari qoladi */
   if(M.pid&&ds.mrPid!==M.pid){const old=new Set(ds.segs.filter(s=>s.mr!=null).map(s=>s.id));for(let i=ds.segs.length-1;i>=0;i--)if(old.has(ds.segs[i].id))ds.segs.splice(i,1);for(let i=ds.nodes.length-1;i>=0;i--){const n=ds.nodes[i];if(n.mr!=null&&!ds.segs.some(s=>s.a===n.id||s.b===n.id))ds.nodes.splice(i,1);}ds.mrPid=M.pid;if(M.name)ds.name=ds.name||M.name;ds.mrFit=1;}
@@ -36,7 +36,7 @@ function sync(force){
   byN.forEach(n=>{if(ds.segs.some(s=>s.a===n.id||s.b===n.id))delete n.mr;else{const i=ds.nodes.indexOf(n);if(i>=0)ds.nodes.splice(i,1);}});
   ds.mrH=h;
   busy=true;try{afterDesign();}finally{busy=false;}
-  if(ds.mrFit&&typeof map!=='undefined'){ds.mrFit=0;try{const ll=ds.nodes.filter(n=>n.mr!=null).map(n=>n.ll);if(ll.length)map.fitBounds(window.L.latLngBounds(ll).pad(.25),{maxZoom:19,animate:false});}catch(e){}}
+  if(ds.mrFit&&typeof map!=='undefined'){ds.mrFit=0;try{/* 22.11: hudud ham koʻrinsin (koʻchasiz loyihada — faqat hudud) */const ll=ds.nodes.filter(n=>n.mr!=null).map(n=>n.ll).concat(...(Array.isArray(M.site)?M.site:[]));if(ll.length)map.fitBounds(window.L.latLngBounds(ll).pad(.25),{maxZoom:19,animate:false});}catch(e){}}
   return added;
 }
 /* ← modul almashtirilsa asosiy oynaga */
@@ -45,7 +45,7 @@ function pushBack(){
   DS().segs.forEach(s=>{if(s.mr==null||s.st||s.p===s.mrP)return;const e=M.edges.find(x=>x.id===s.mr);if(!e)return;e.preset=s.p;s.mrP=s.p;ch=true;});
   if(!ch)return;
   try{localStorage.setItem(KEY,JSON.stringify(M));}catch(e){}
-  DS().mrH=hash(JSON.stringify([M.nodes,M.edges.map(e=>[e.id,e.a,e.b,e.preset])]));
+  DS().mrH=hash(JSON.stringify([M.pid||'',M.nodes,M.edges.map(e=>[e.id,e.a,e.b,e.preset])]));
 }
 const _ad=afterDesign;
 afterDesign=function(){_ad();pushBack();};
