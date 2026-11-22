@@ -138,6 +138,7 @@ test('sukut tili — inglizcha; xizmat nomlari tarjima qilinadi; nuqtali fon', a
   await expect(page.locator('html')).not.toHaveClass(/i18n/);
   const names = await page.locator('nav.dots a.d .nm').allTextContents();
   expect(names).toEqual(['Street Designer', 'Site Explorer', 'Sheet Studio', 'Design code', 'Render']);
+  await expect(page.locator('nav.dots span.d.bg .nm')).toHaveText('Landscape Designer');
   await expect(page.locator('.st.dotbg canvas.dotcv')).toHaveCount(1);
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   expect(await page.locator('nav.dots a.d .nm').first().textContent()).toBe('Конструктор улиц');

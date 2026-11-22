@@ -290,7 +290,7 @@ body.min{margin:0;background:#fff}
 /* planshet */
 @media (max-width:1100px){
   .st .mnav{padding:0 24px;gap:20px}
-  .st .dots{position:static;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:8px 22px;padding:0 24px 8px}
+  .st .dots{position:static;left:auto;top:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:8px 22px;padding:0 24px 8px}
   .st .dots .lbl,.st .dots .pv{display:none}
   .st .dots .nm{visibility:visible;opacity:1;transform:none;font-size:14px}
   .st .hero{padding-top:56px!important}
@@ -309,7 +309,7 @@ body.min{margin:0;background:#fff}
 .st.th.dotfx canvas.dotcv{position:absolute;left:0;top:0;pointer-events:none;z-index:0}
 .st.th.dotfx > section,.st.th.dotfx > header,.st.th.dotfx > footer,.st.th.dotfx > nav,.st.th.dotfx > p{position:relative;z-index:1}
 .st.th.dotfx > nav.dots{position:absolute;z-index:4}
-@media (max-width:1100px){.st.th.dotfx > nav.dots{position:relative}}
+@media (max-width:1100px){.st.th.dotfx > nav.dots{position:relative;left:auto;top:auto}}
 /* tarjima tugaguncha (inglizcha/ruscha) — oʻzbekcha matn koʻrinib qolmasin */
 html.i18n .st{visibility:hidden}
 .st.th.dotfx > header{z-index:10}
