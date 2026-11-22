@@ -5645,7 +5645,7 @@ export class Editor {
         ...(set === 'UZ' ? [h('span', {}, h('span', { class: 'lvl m' }, tr('Majburiy')), 'ShNQ, QMQ, SanQvaN')] : [h('span', {}, h('span', { class: 'lvl s' }, tr('Tavsiya')), tr('xalqaro andoza')), h('span', {}, h('span', { class: 'lvl o' }, tr('Oʻchiq')), tr('mintaqaviy'))])),
       h('div', { class: 'group reg' }, ...rs.map(r => {
         const open = this.regOpen === r.id, st = tr(STATUS_TXT[r.status]);
-        const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + r.unit : ''}` : '', dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
+        const lim = r.limit ? `${r.limit}${r.unit && !slash(r.unit) ? ' ' + tr(r.unit) : ''}` : ''   /* 22.11: birlik ham tarjima («ta» → pcs) */, dl = r.delta ? `${r.delta > 0 ? '+' : ''}${fmt(r.delta)} %` : '';
         const isOff = lvl(r.id) === 'ochiq', anOn = on.includes(r.id);
         return h('div', { class: 'rrow', 'data-rule': r.id },
           h('button', { class: 'li', 'aria-expanded': r.note ? open : null, onclick: () => { if (!r.note) return; this.regOpen = open ? null : r.id; this.renderKpi(); } },

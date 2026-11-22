@@ -810,7 +810,7 @@ export const RULES: Rule[] = [
     title: 'Birlashtirilgan maydoncha ≥ 150 m²',
     source: { doc: 'ShNQ 2.07.01-23', edition: '2023', clause: '91-band', verified: true },
     evaluate(d, doc) {
-      if (!doc.settings.yards || d.playComb === 0) return { status: 'na', unit: 'ta', limit: '≥ 150 m²' };
+      if (!doc.settings.yards || d.playComb === 0) return { status: 'na', unit: '', limit: '≥ 150 m²' };
       return { status: d.playCombSmall ? 'fail' : 'pass', value: d.playCombSmall, unit: `/ ${d.playComb} ta`, limit: '≥ 150 m²',
         note: [`Bolalar oʻyin va kattalar dam olish maydonchalari birlashtirilgan: ${d.playComb} ta.`, '91-band: «майдончаларнинг юзаси 150 m2 дан кам бўлмаслиги лозим».', ...(d.playCombSmall ? [`${d.playCombSmall} tasi kichik — alohida qiling yoki kattalashtiring.`] : [])].join(' ') };
     },
