@@ -60,10 +60,22 @@ export type Prog = Partial<Record<ElKey, number>>;
 export interface Block { id: string; el: ElKey; p: XY; a: number; rule: string }
 
 /** Sukut dastur: bogʻ turi, maydoni (ga), bir vaqtdagi tashrif (N1), mavjud sport (m²) va bolalar maydonlari soni */
+/** Dastur elementlari jami izi bogʻ maydonining 12 % idan oshmaydi (T: koʻkalamzor ≥ 70 % — 491-band — va yoʻllar uchun joy qoladi);
+ *  oshsa — avval ikkinchi darajalilari bittadan kamaytiriladi. Kirish, hojatxona va kichik bolalar maydoni saqlanadi. */
+const TRIM: ElKey[] = ['tadbir', 'it_maydon', 'suv_oyin', 'skeyt', 'ijara', 'kafe', 'tennis', 'futbol', 'voleybol', 'futbol_k', 'basket', 'streetbol', 'stol_tennis', 'piknik', 'gulzor', 'sokin_bog', 'bolalar_m', 'workout', 'kirish'];
+export function fitArea(P: Prog, ha: number, share = 0.12): string[] {
+  const cap = ha * 10000 * share, foot = () => (Object.keys(P) as ElKey[]).reduce((s, k) => s + (P[k] ?? 0) * ELEM[k].w * ELEM[k].d, 0), cut: string[] = [];
+  for (let guard = 0; foot() > cap && guard < 200; guard++) { const k = TRIM.find(x => (P[x] ?? 0) > (x === 'kirish' || x === 'sokin_bog' || x === 'gulzor' ? 1 : 0)); if (!k) break; P[k] = (P[k] ?? 0) - 1; if (!P[k]) delete P[k]; cut.push(ELEM[k].n); }
+  return cut;
+}
 export function suggest(kind: BgSite['kind'], ha: number, N1: number, has: { pitch: number; play: number; tarixiy: boolean }): { prog: Prog; sportNeed: number; why: string } {
+  const r = suggest0(kind, ha, N1, has), cut = fitArea(r.prog, ha);
+  return cut.length ? { ...r, why: `${r.why} Bogʻ kichik — elementlar izi maydonning 12 % idan oshmasligi uchun kamaytirildi: ${[...new Set(cut)].join(', ')} (T).` } : r;
+}
+function suggest0(kind: BgSite['kind'], ha: number, N1: number, has: { pitch: number; play: number; tarixiy: boolean }): { prog: Prog; sportNeed: number; why: string } {
   const P: Prog = {}; const add = (k: ElKey, n = 1) => { if (n > 0) P[k] = (P[k] ?? 0) + n; };
   // xizmat: kirish maydonchalari (bosh darvozalarda), hojatxona 1 / 500 kishi (T), kafe — 28 oʻrin / 1 000 kishi 20 oʻrindan oshsa, ijara — yirik bogʻda
-  add('kirish', ha >= 8 ? 3 : ha >= 2 ? 2 : 1); if (ha >= 1) add('wc', Math.max(1, Math.min(6, Math.ceil(N1 / 500))));
+  add('kirish', ha >= 8 ? 3 : ha >= 2 ? 2 : 1); if (ha >= 1) add('wc', Math.max(1, Math.min(6, Math.ceil(ha / 3), Math.ceil(N1 / 500))));   // kichik bogʻda koʻp hojatxona emas — har 3 ga ga bittadan oshmaydi (T)
   if (!has.tarixiy && kind !== 'xiyobon' && kind !== 'ormon') { if (28 * N1 / 1000 >= 20 || ha >= 6) add('kafe'); if (ha >= 8) add('ijara'); }
   const norm = Math.round(3800 * N1 / 1000), cap = Math.round(ha * 10000 * 0.04), need = Math.max(0, Math.min(norm, cap) - has.pitch);
   if (has.tarixiy || kind === 'xiyobon') {
@@ -99,6 +111,12 @@ export function varProg(id: 'A' | 'B' | 'C', P: Prog): Prog {
   return o;
 }
 
+/** Atrofdagi binolargacha eng kam masofa, m — ShNQ 2.07.01-23, 89-band, 4-jadval (turar joy hududi; bogʻga oʻxshashlik boʻyicha, P):
+ *  bolalar oʻyini 10 m, jismoniy tarbiya 10–40 m (shovqinli sport — 25 m, T oraliqdan), it sayr 40 m */
+export function bldNeed(el: ElKey): number { const E = ELEM[el]; return el === 'it_maydon' ? 40 : E.zone === 'sport_yangi' || el === 'skeyt' ? (E.noise === 2 ? 25 : 10) : E.grp === 'bolalar' ? 10 : 0; }
+/** bogʻdan tashqaridagi binolargacha masofa maydoni (bogʻ ichidagi pavilonlar hisobga olinmaydi) */
+export function bldDist(C: Ctx): Float32Array { const G = C.G, m = G.u8(); for (let k = 0; k < G.n; k++) m[k] = C.bld[k] && !C.site[k] ? 1 : 0; return distance(G, m); }
+
 /* ---------------- geometriya ---------------- */
 export const elSize = (b: Pick<Block, 'el'>): [number, number] => [ELEM[b.el].w, ELEM[b.el].d];
 /** Blok ichki koordinatasi (u — uzun oʻq boʻylab, v — koʻndalang) → hudud koordinatasi */
@@ -122,7 +140,7 @@ export interface Placed { blocks: Block[]; masks: Record<string, Uint8Array>; sp
 export function placeBlocks(C: Ctx, prog: Prog, env: PlaceEnv): Placed {
   const G = C.G, nx = G.nx, taken = env.occ.slice(), hard = env.hard.slice();
   const out = G.u8(); for (let k = 0; k < G.n; k++) out[k] = C.site[k] ? 0 : 1;
-  const dOut = distance(G, out), dWater = distance(G, C.water);
+  const dOut = distance(G, out), dWater = distance(G, C.water), dBld = bldDist(C);
   let dPath = distance(G, hard);
   const tc = new Uint8Array(G.n); for (const t of C.trees) { const k = G.idx(t.p[0], t.p[1]); if (k >= 0 && tc[k] < 250) tc[k]++; }
   const segs: [XY, XY][] = []; for (const p of env.paths) if (p.tier !== 'soqmoq') for (let i = 1; i < p.g.length; i++) segs.push([p.g[i - 1], p.g[i]]);
@@ -131,7 +149,8 @@ export function placeBlocks(C: Ctx, prog: Prog, env: PlaceEnv): Placed {
   let nS = 0, nG = 0; for (let k = 0; k < G.n; k++) if (C.site[k]) { nS++; if (C.grass[k] || C.crown[k]) nG++; }
   // keng ochiq qoplama (xiyobon, maydon) oʻzagi: yashil yuzadan > 4 m ichkaridagi qoplama — ustiga element qoʻyilmaydi (maysa maʼlumoti yetarli boʻlsa)
   const green = G.u8(); for (let k = 0; k < G.n; k++) green[k] = C.grass[k] || C.crown[k] || !C.site[k] ? 1 : 0;
-  const dGreen = distance(G, green), core = G.u8(); if (nG > nS * 0.15) for (let k = 0; k < G.n; k++) core[k] = C.site[k] && dGreen[k] > 4 ? 1 : 0;
+  const dGreen = distance(G, green), core = G.u8(); if (nG > nS * 0.15) for (let k = 0; k < G.n; k++) core[k] = C.site[k] && C.exPath[k] && dGreen[k] > 4 ? 1 : 0;   // faqat maʼlum qattiq qoplama (mavjud yoʻl va maydonlar); OSM da sirt belgilanmagan joy — tuproq/koʻkalam deb olinadi
+  const onBlk = env.occ.slice().fill(0);
   const blocks: Block[] = [], spurs: Variant['paths'] = [], miss: Placed['miss'] = [], masks: Record<string, Uint8Array> = {}; let earthAll = 0;
   const NS_ANG = [105, 90, 120, 75, 135, 150].map(d => d * Math.PI / 180);
   // darvoza langarlari: har darvozadan asosiy yoʻl boʻylab ichkariga d metr (oqimi katta darvoza birinchi)
@@ -147,11 +166,13 @@ export function placeBlocks(C: Ctx, prog: Prog, env: PlaceEnv): Placed {
     // langar: shu turdagi element hali qoʻyilmagan (gap dan uzoq) eng yirik darvoza nuqtasi
     const mine = blocks.filter(b => b.el === el), anc = E.anchor != null ? anchorsOf(E.anchor).filter(q => mine.every(b => Math.hypot(b.p[0] - q[0], b.p[1] - q[1]) >= (E.gap ?? 0))) : [];
     if (E.anchor != null && (env.gates?.length ?? 0) > 0 && !anc.length) { if (!mine.length) miss.push({ el, why: 'mos darvoza yoki asosiy yoʻl topilmadi' }); continue; }
-    const tgt = anc[0] ?? null;
     let best: { p: XY; a: number; s: number; e: number; t: number; sl: number } | null = null;
+    // darvoza yonida joy boʻlmasa (favvora, daraxtlar) — keyingi darvoza; hammasida boʻlmasa — kengroq radius
+    const tries: [XY | null, number][] = anc.length ? [...anc.map(q => [q, 35] as [XY, number]), ...anc.map(q => [q, 60] as [XY, number])] : [[null, 0]];
+    for (const [tgt, rad] of tries) { if (best) break;
     for (let j = 1; j < G.ny - 1; j += 2) for (let i = 1; i < nx - 1; i += 2) {
-      const k0 = j * nx + i; if (!C.site[k0] || taken[k0] || C.water[k0] || dOut[k0] < E.edge + E.d / 2 || dPath[k0] > 70) continue;
-      if (tgt && Math.hypot(G.cx(i) - tgt[0], G.cy(j) - tgt[1]) > 35) continue;
+      const k0 = j * nx + i; if (!C.site[k0] || taken[k0] || C.water[k0] || dOut[k0] < E.edge + E.d / 2 || dBld[k0] < bldNeed(el) + E.d / 2 || dPath[k0] > 70) continue;
+      if (tgt && Math.hypot(G.cx(i) - tgt[0], G.cy(j) - tgt[1]) > rad) continue;
       const p: XY = [G.cx(i), G.cy(j)], pa = dirAt(p);
       // burchaklar: sport — shimol–janub oraligʻi (klasterda — birinchi maydon burchagi); qolganlar — eng yaqin yoʻl yoki chegaraga parallel
       const angs = clusterA != null ? [clusterA, clusterA + Math.PI / 2].filter(a => !E.ns || nsOk(a)) : E.ns ? [...NS_ANG, pa, pa + Math.PI / 2].filter(nsOk) : [pa, pa + Math.PI / 2];
@@ -177,17 +198,25 @@ export function placeBlocks(C: Ctx, prog: Prog, env: PlaceEnv): Placed {
         const s = base + (hardEl ? e / 15 : 0) + pv / cs.length * 60 + (soft ? 0 : tr * 25) + (E.ns ? nsDev(a) * 0.15 : 0) + (clusterA != null && Math.abs(a - clusterA) > 0.01 ? 4 : 0);
         if (!best || s < best.s) best = { p, a, s, e: hardEl ? e : 0, t: tr, sl: sl / cs.length };
       }
-    }
+    } }
     if (!best) { miss.push({ el, why: soft ? 'boʻsh joy topilmadi' : `daraxtsiz ochiq joy topilmadi (eng koʻpi ${E.trees} daraxt koʻchirilishi mumkin)` }); continue; }
     const b: Block = { id: `b${seq++}`, el, p: best.p, a: best.a, rule: [E.ns ? `oʻq ${Math.round((360 + (bearing(best.a) > 90 ? bearing(best.a) - 180 : bearing(best.a))) % 360)}°` : clusterA != null ? 'sport guruhi bilan bir qatorda' : 'yoʻlga parallel', Number.isFinite(best.sl) ? `nishab ${best.sl.toFixed(1)} %` : '', best.e ? `yer ishlari ${Math.round(best.e)} m³` : '', best.t ? (soft ? `${best.t} daraxt saqlanadi (soyada)` : `${best.t} daraxt koʻchiriladi`) : 'daraxtga tegmaydi'].filter(Boolean).join(', ') };
     blocks.push(b); earthAll += best.e;
     fillPoly(G, taken, [blockRing(b, E.grp === 'sport' ? 1.5 : 3)]);
+    const own = G.u8(); fillPoly(G, own, [blockRing(b, 1)]);
     const m = masks[E.zone] ?? (masks[E.zone] = G.u8()); fillPoly(G, m, [blockRing(b)]);
+    fillPoly(G, onBlk, [blockRing(b, 1)]);   // ulash yoʻli boshqa element (va uning xavfsizlik zonasi) ustidan oʻtmaydi
     // yoʻlga ulash: markazdan eng yaqin yoʻlgacha masofa maydoni boʻylab pastga
     const k0 = G.idx(b.p[0], b.p[1]);
     if (k0 >= 0 && dPath[k0] > E.d / 2 + 2.5) {
-      const g: XY[] = []; let k = k0, guard = 0;
-      while (dPath[k] > 0 && guard++ < 400) { const i = k % nx, j = (k / nx) | 0; let nb = -1, bv = dPath[k]; for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const q = (j + dj) * nx + i + di; if (q >= 0 && q < G.n && dPath[q] < bv && !C.water[q]) { bv = dPath[q]; nb = q; } } if (nb < 0) break; k = nb; g.push([G.cx(k % nx), G.cy((k / nx) | 0)]); }
+      // eng qisqa ulanish (BFS): suv va boshqa elementlar ustidan emas; topilmasa — eski usul, pastga qarab
+      let g: XY[] = []; { const prv = new Int32Array(G.n).fill(-2), Q = [k0]; prv[k0] = -1; let hit = -1;
+        for (let h = 0; h < Q.length && hit < 0 && h < 40000; h++) { const u = Q[h], ui = u % nx, uj = (u / nx) | 0;
+          for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const vi = ui + di, vj = uj + dj; if (vi < 0 || vj < 0 || vi >= nx || vj >= G.ny) continue; const v = vj * nx + vi;
+            if (prv[v] !== -2 || C.water[v] || !C.site[v] || (onBlk[v] && !own[v])) continue; prv[v] = u; if (dPath[v] === 0) { hit = v; break; } Q.push(v); } }
+        if (hit >= 0) { const ks: number[] = []; for (let x = hit; x >= 0; x = prv[x]) ks.push(x); g = ks.reverse().slice(1).map(x => [G.cx(x % nx), G.cy((x / nx) | 0)] as XY); } }
+      let k = k0, guard = 0; const bfs = g.length > 0;
+      while (!bfs && dPath[k] > 0 && guard++ < 400) { const i = k % nx, j = (k / nx) | 0; let nb = -1, bv = dPath[k]; for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const q = (j + dj) * nx + i + di; if (q >= 0 && q < G.n && dPath[q] < bv && !C.water[q]) { bv = dPath[q]; nb = q; } } if (nb < 0) break; k = nb; g.push([G.cx(k % nx), G.cy((k / nx) | 0)]); }
       const ring = blockRing(b), inside = (q: XY) => { let c = false; for (let a2 = 0, l = 3; a2 < 4; l = a2++) { const [x1, y1] = ring[a2], [x2, y2] = ring[l]; if ((y1 > q[1]) !== (y2 > q[1]) && q[0] < x1 + (q[1] - y1) * (x2 - x1) / (y2 - y1)) c = !c; } return c; };
       const cut = g.filter(q => !inside(q));
       if (cut.length >= 2 && len(cut) > 2) { const sp = simplify(cut, 1.5); spurs.push({ g: sp, tier: 'ikkinchi', w: 2.5 }); for (const q of cut) { const kk = G.idx(q[0], q[1]); if (kk >= 0) { hard[kk] = 1; taken[kk] = 1; } } dPath = distance(G, hard); }

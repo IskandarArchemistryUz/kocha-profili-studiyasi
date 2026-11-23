@@ -111,12 +111,23 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
     for (const r of contour(G, m, 2)) { const segs = splitBy(r, q => { const k = G.idx(q[0], q[1]); return k >= 0 && dCanal[k] > 7 && C.site[k] === 1 && dW[k] > off - 3; }); for (const s of segs) if (len(s) > 15) paths.push({ g: s, tier: 'sohil', w: vd.id === 'B' ? 4 : 2.4 }); }
     void poly;
   }
+  // yoʻllar faqat loyiha chegarasi ichida (mavjud OSM yoʻllari bogʻdan tashqariga ham davom etadi); darvoza nuqtasi uchun 3 m bardosh
+  { const dSite = distance(G, C.site), inside = (q: XY) => { const k = G.idx(q[0], q[1]); return k >= 0 && dSite[k] <= 3; };
+    const clipped: Variant['paths'] = []; for (const p of paths) for (const g of splitBy(p.g, inside)) if (g.length > 1 && len(g) > 4) clipped.push({ ...p, g });
+    paths.splice(0, paths.length, ...clipped); }
+  // yirik daraxt (≥ 40 sm) yoʻl ustida qolsa — yoʻl tanadan chetga suriladi (480-band: daraxt saqlanadi; legenda «Yoʻl suriladi»)
+  const big = C.trees.filter(t => t.d >= 40);
+  for (const p of paths) if (p.tier !== 'sohil') p.g = dodge(p.g, big, p.w, G.step / 2);
   // ---- 6. qattiq yuza niqobi ----
   const hard = G.u8(); for (const p of paths) strokeLine(G, hard, p.g, p.w);
   const gateF = gates.map(g => ods.filter(o => Math.hypot(o.a[0] - g[0], o.a[1] - g[1]) < 1 || Math.hypot(o.b[0] - g[0], o.b[1] - g[1]) < 1).reduce((s, o) => s + o.f, 0));
   const gf = Math.max(1e-9, ...gateF);
-  gates.forEach((g, i) => strokeLine(G, hard, [g, g], 2 * (6 + 10 * gateF[i] / gf)));
+  const rPlaza = Math.max(3, 0.06 * Math.sqrt(area(G, C.site)));   // kirish maydonchasi bogʻ oʻlchamiga mos: 0,8 ga — ~5 m, 9 ga — ~16 m (T)
+  gates.forEach((g, i) => strokeLine(G, hard, [g, g], 2 * Math.min(6 + 10 * gateF[i] / gf, rPlaza)));
   for (let k = 0; k < G.n; k++) if (!C.site[k] || C.water[k]) hard[k] = 0;
+  // kirish maydonchasidagi yirik daraxt — daraxt tagi ochiq qoldiriladi (panjarali chuqurcha, T)
+  const pits = G.u8(); for (const t of big) strokeLine(G, pits, [t.p, t.p], 2 * Math.max(1.5, G.step * 0.75));
+  for (let k = 0; k < G.n; k++) if (pits[k]) hard[k] = 0;
   // ---- 7. dastur elementlari (qoidalar) ----
   const items: Variant['items'] = []; const prog: Record<string, Uint8Array> = {};
   const bigRpa = G.u8(); for (const t of C.trees) if (t.d >= 40) strokeLine(G, bigRpa, [t.p, t.p], 2 * t.rpa);
@@ -133,7 +144,8 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   for (let k = 0; k < G.n; k++) if (exSport[k] || play[k] || (prog.terrasa?.[k] ?? 0) || (prog.qushxona?.[k] ?? 0)) occ[k] = 1;
   // mavjud yoʻllar saqlanadigan variantda (A, tarixiy) ular ustiga element qoʻyilmaydi; boshqalarida — jarima bilan (yoʻl buziladi)
   const placed = placeBlocks(C, PR, { gates: gates.map((p, i) => ({ p, f: gateF[i], main: gateF[i] >= 0.5 * gf })), occ, bigRpa, hard, paths, keep: C.keep, keepPaths: vd.keepExist });
-  for (const sp of placed.spurs) { paths.push(sp); strokeLine(G, hard, sp.g, sp.w); }
+  for (const sp of placed.spurs) { sp.g = dodge(sp.g, big, sp.w, G.step / 2); paths.push(sp); strokeLine(G, hard, sp.g, sp.w); }
+  for (let k = 0; k < G.n; k++) if (pits[k]) hard[k] = 0;   // ulash yoʻli ham yirik daraxt tagini ochiq qoldiradi
   for (let k = 0; k < G.n; k++) if (!C.site[k] || C.water[k]) hard[k] = 0;
   const courts = { m: placed.masks.sport_yangi ?? G.u8(), earth: placed.earth };
   prog.sport_yangi = courts.m;
@@ -186,6 +198,28 @@ const pct = (a: number[], p: number) => { if (!a.length) return 0; const s = [..
 const countAnd = (a: Uint8Array, b: Uint8Array) => { let n = 0; for (let k = 0; k < a.length; k++) if (a[k] && b[k]) n++; return n; };
 function fillRing(G: Grid, m: Uint8Array, r: XY[]): void { // bitta halqa
   for (let j = 0; j < G.ny; j++) { const y = G.cy(j), xs: number[] = []; for (let k = 0, l = r.length - 1; k < r.length; l = k++) { const [x1, y1] = r[k], [x2, y2] = r[l]; if ((y1 > y) !== (y2 > y)) xs.push(x1 + (y - y1) * (x2 - x1) / (y2 - y1)); } xs.sort((a, b) => a - b); for (let q = 0; q + 1 < xs.length; q += 2) for (let i = Math.max(0, Math.ceil((xs[q] - G.x0) / G.step - 0.5)); i <= Math.min(G.nx - 1, Math.floor((xs[q + 1] - G.x0) / G.step - 0.5)); i++) m[j * G.nx + i] = 1; }
+}
+/** Yoʻlni yirik daraxt tanasidan chetga surish: daraxtdan (eni/2 + 1,2 m) ichidagi nuqtalar radial tashqariga, qoʻshnilari silliq ergashadi (T) */
+export function dodge(g: XY[], trees: { p: XY; d: number }[], w: number, m = 0): XY[] {
+  if (g.length < 2 || !trees.length) return g;
+  let r = g; for (let it = 0; it < 3; it++) { const n = dodge1(r, trees, w, m); if (n === r) break; r = n; } return r;
+}
+function dodge1(g: XY[], trees: { p: XY; d: number }[], w: number, m: number): XY[] {
+  const pts: XY[] = [g[0]]; for (let i = 1; i < g.length; i++) { const a = g[i - 1], b = g[i], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 1)); for (let j = 1; j <= n; j++) pts.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
+  let moved = false; const L = 6;
+  for (const t of trees) {
+    const R = w / 2 + 1.2 + t.d / 200 + m;
+    let ci = -1, cd = Infinity; for (let i = 0; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - t.p[0], pts[i][1] - t.p[1]); if (d < cd) { cd = d; ci = i; } }
+    if (cd >= R) continue;
+    // surish yoʻnalishi: eng yaqin nuqtadan daraxtga teskari; ustma-ust boʻlsa — yoʻlga perpendikulyar
+    const a = pts[Math.max(0, ci - 1)], b = pts[Math.min(pts.length - 1, ci + 1)];
+    let nx = pts[ci][0] - t.p[0], ny = pts[ci][1] - t.p[1]; const nl = Math.hypot(nx, ny);
+    if (nl < 0.05) { nx = -(b[1] - a[1]); ny = b[0] - a[0]; } const k = Math.hypot(nx, ny) || 1; nx /= k; ny /= k;
+    const push = R - Math.max(0, cd);
+    for (let i = 0; i < pts.length; i++) { const s = Math.abs(i - ci); if (s > L) continue; const f = 0.5 * (1 + Math.cos(Math.PI * s / (L + 1))); pts[i] = [pts[i][0] + nx * push * f, pts[i][1] + ny * push * f]; }
+    moved = true;
+  }
+  return moved ? simplify(pts, 0.3) : g;
 }
 function near(p: XY, l: XY[], d: number): boolean { for (let k = 1; k < l.length; k++) { const a = l[k - 1], b = l[k], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); if (Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy) < d) return true; } return false; }
 function segRing(a: XY, b: XY, R: XY[]): XY | null { for (let k = 0; k < R.length; k++) { const c = R[k], d = R[(k + 1) % R.length]; const x = segX(a, b, c, d); if (x) return x; } return null; }

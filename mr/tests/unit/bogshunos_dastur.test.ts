@@ -67,3 +67,19 @@ test('loyiha tekshiruvi: ustma-ust va chegaradan chiqqan elementlar xato; toza l
   expect(st(bad, 'Bir-birining')).toBe('xato'); expect(st(bad, 'Chegaradan')).toBe('xato'); expect(st(bad, 'Yoʻlga')).toBe('xato'); expect(st(bad, 'Saqlanadigan')).toBe('xato'); expect(st(bad, 'Hojatxonalar')).toBe('ogoh');
 });
 
+
+import { dodge } from '../../src/bogshunos/design';
+import { fitArea, type Prog } from '../../src/bogshunos/dastur';
+test('yoʻl yirik daraxt tanasidan chetga suriladi; uzoqdagi qismi joyida qoladi', () => {
+  const g: [number, number][] = [[-30, 0], [30, 0]], t = { p: [0, 0.5] as [number, number], d: 60 };
+  const r = dodge(g, [t], 3), dMin = Math.min(...r.map(q => Math.hypot(q[0] - t.p[0], q[1] - t.p[1])));
+  expect(dMin).toBeGreaterThanOrEqual(3 / 2 + 1.2);
+  expect(r[0]).toEqual([-30, 0]); expect(r[r.length - 1]).toEqual([30, 0]);
+  expect(dodge(g, [{ p: [0, 20], d: 60 }], 3)).toBe(g);
+});
+test('kichik bogʻda dastur izi maydonning 12 % idan oshmaydi; kirish saqlanadi', () => {
+  const P: Prog = { kirish: 1, workout: 1, bolalar_k: 1, bolalar_m: 1, piknik: 2, sokin_bog: 2, gulzor: 2 };
+  const cut = fitArea(P, 0.78), foot = (Object.keys(P) as ElKey[]).reduce((s, k) => s + (P[k] ?? 0) * ELEM[k].w * ELEM[k].d, 0);
+  expect(cut.length).toBeGreaterThan(0); expect(foot).toBeLessThanOrEqual(0.78 * 10000 * 0.12); expect(P.kirish).toBe(1);
+  expect(suggest('tuman', 15, 6000, { pitch: 0, play: 0, tarixiy: false }).prog.wc).toBe(5);
+});

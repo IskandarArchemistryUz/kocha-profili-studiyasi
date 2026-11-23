@@ -74,7 +74,7 @@ export function context(site: BgSite, data: BgData, step = 3): Ctx {
     if (!(hv != null || isF || isA) || f.kind === 'ln' || !inside(centroidOf(f), B)) continue;
     const t = hv != null ? (['memorial', 'monument', 'statue'].includes(hv) ? 'haykal' : 'tarixiy') : isF ? 'favvora' : 'sanat', r = t === 'haykal' ? 18 : t === 'sanat' ? 6 : 12, c = centroidOf(f);
     if (f.kind === 'pg') { const tm = G.u8(); fillMPoly(G, tm, f.g as MPoly); if (area(G, tm) > 1500) continue; for (let k = 0; k < G.n; k++) if (tm[k]) kp[k] = 1; nKeep++; }
-    else strokeLine(G, keep, [c, c], 2 * r);
+    strokeLine(G, keep, [c, c], 2 * r);   // kichik koʻpburchak (favvora kosasi) birorta katakni toʻldirmasligi mumkin — markaz atrofi doim band
     addFix(c, f.name ?? (t === 'favvora' ? 'Favvora' : t === 'sanat' ? 'Sanʼat obyekti' : 'Yodgorlik'), t, r);
   }
   for (const q of site.keepPts ?? []) { strokeLine(G, keep, [q.p, q.p], 36); addFix(q.p, q.name || 'Haykal', 'haykal', 18); }
