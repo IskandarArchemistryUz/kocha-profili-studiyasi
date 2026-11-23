@@ -77,6 +77,9 @@ export const FURN: Furn[] = [
   { id: 'trenajyor', cat: 'sport', n: 'Koʻcha trenajyori', w: 1.5, d: 1, h: 1.5, mat: 'metall', shape: 'rect', r: 1 },
   { id: 'tennis_stol', cat: 'sport', n: 'Stol tennisi', w: 2.74, d: 1.53, h: 0.76, mat: 'beton', shape: 'rect', r: 2, note: 'stol oʻlchami — ITTF qoidasi (A)' },
   { id: 'basket', cat: 'sport', n: 'Basketbol halqasi (3×3)', w: 1.8, d: 1.2, h: 3.05, mat: 'metall', shape: 'rect', note: 'halqa balandligi 3,05 m — FIBA (A)' },
+  { id: 'voleybol_tor', cat: 'sport', n: 'Voleybol toʻri (ustunlari bilan)', w: 10, d: 0.2, h: 2.43, mat: 'metall + toʻr', shape: 'line', src: 'A' },
+  { id: 'tennis_tor', cat: 'sport', n: 'Tennis toʻri (ustunlari bilan)', w: 12.8, d: 0.2, h: 1.07, mat: 'metall + toʻr', shape: 'line', src: 'A' },
+  { id: 'darvoza', cat: 'sport', n: 'Kichik futbol darvozasi', w: 3, d: 1, h: 2, mat: 'metall + toʻr', shape: 'rect', src: 'A' },
   // gul
   { id: 'tuvak_d', cat: 'gul', n: 'Gul tuvak (doira)', w: 1.2, d: 1.2, h: 0.6, mat: 'beton', shape: 'circle' },
   { id: 'tuvak_t', cat: 'gul', n: 'Gul qutisi (toʻrtburchak)', w: 2, d: 0.8, h: 0.6, mat: 'korten', shape: 'rect' },

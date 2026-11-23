@@ -19,6 +19,8 @@ export interface Ctx {
   G: Grid; site: Uint8Array; water: Uint8Array; canal: Uint8Array; bld: Uint8Array; grass: Uint8Array; exPath: Uint8Array;
   E: Float32Array; S: Float32Array; rpa: Uint8Array; crown: Uint8Array;
   lakes: MPoly[]; canals: XY[][]; blds: MPoly[]; paths: { g: XY[]; h: string }[]; pitches: MPoly[]; playgrounds: MPoly[]; island: Ring[]; boundary: XY[];
+  /** tegilmaydigan joylar (23.11): yodgorlik, haykal, favvora atrofi — dastur elementlari qoʻyilmaydi */
+  keep?: Uint8Array;
   trees: (BgData['trees'][number] & { rpa: number })[]; roads: { g: XY[]; h: string }[];
 }
 
@@ -58,7 +60,11 @@ export function context(site: BgSite, data: BgData, step = 3): Ctx {
   const trees = data.trees.filter(t => inside(t.p, B)).map(t => ({ ...t, rpa: Math.min(15, Math.max(2, 12 * t.d / 100)) }));
   const rpa = G.u8(), crown = G.u8();
   for (const t of trees) { if (t.d >= 20) strokeLine(G, rpa, [t.p, t.p], 2 * t.rpa); strokeLine(G, crown, [t.p, t.p], Math.max(1, t.c)); }
-  return { boundary: B, G, site: m, water, canal, bld, grass, exPath, E, S, rpa, crown, lakes, canals, blds, paths, pitches, playgrounds, island, trees, roads };
+  // yodgorlik va favvora atrofi: nuqta — 18 m doira, poligon — 12 m chet (T); butun bogʻni qamragan yirik poligon (> 1 500 m²) hisobga olinmaydi
+  const keep = G.u8(), kp = G.u8(); let nKeep = 0;
+  for (const f of data.osm) { const isM = f.k === 'historic' || f.k === 'tourism' || f.tags?.historic != null || f.tags?.amenity === 'fountain' || f.tags?.tourism === 'artwork'; if (!isM || !inside(centroidOf(f), B)) continue; nKeep++; if (f.kind === 'pg') { const t = G.u8(); fillMPoly(G, t, f.g as MPoly); if (area(G, t) > 1500) continue; for (let k = 0; k < G.n; k++) if (t[k]) kp[k] = 1; } else if (f.kind === 'pt') strokeLine(G, keep, [(f.g as XY[])[0], (f.g as XY[])[0]], 36); }
+  if (nKeep) { const d = distance(G, kp); for (let k = 0; k < G.n; k++) if (d[k] <= 12) keep[k] = 1; }
+  return { boundary: B, G, site: m, water, canal, bld, grass, exPath, E, S, rpa, crown, lakes, canals, blds, paths, pitches, playgrounds, island, trees, roads, keep };
 }
 function smoothField(G: Grid, E: Float32Array, it: number): void {
   for (let n = 0; n < it; n++) { const c = E.slice(); for (let j = 1; j < G.ny - 1; j++) for (let i = 1; i < G.nx - 1; i++) { const k = j * G.nx + i; let s = 0, w = 0; for (const d of [0, -1, 1, -G.nx, G.nx]) if (Number.isFinite(c[k + d])) { s += c[k + d]; w++; } if (w) E[k] = s / w; } }

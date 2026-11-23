@@ -42,6 +42,8 @@ export interface BgSite {
   /** bogʻ turi (501, 481/490-bandlar) */
   kind: 'shahar' | 'tuman' | 'turarjoy' | 'xiyobon' | 'ormon';
   rekonstruksiya: boolean;
+  /** tarixiy yoki rasmiy makon (23.11): mavjud kompozitsiya saqlanadi, sport va shovqinli elementlar sukut boʻyicha qoʻyilmaydi */
+  tarixiy?: boolean;
 }
 
 export type Tag = 'N' | 'P' | 'A' | 'T' | 'X' | '';
@@ -60,6 +62,12 @@ export interface Variant {
   earth?: { cut: number; fill: number };
   /** qoʻlda qoʻyilgan jihozlar (kutubxona id, markaz, burilish, rad) */
   furn?: { id: string; p: XY; a: number }[];
+  /** dastur bloklari (23.11): burilgan toʻgʻri toʻrtburchak elementlar — surish, burish, turini almashtirish mumkin */
+  blocks?: import('./dastur').Block[];
+  /** maydon belgilari (oq chiziqlar) */
+  marks?: XY[][];
+  /** joylanmay qolgan dastur elementlari va sababi */
+  miss?: { el: string; why: string }[];
 }
 
 export interface BgModel {

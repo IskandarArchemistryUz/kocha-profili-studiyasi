@@ -8,9 +8,10 @@ import type { XY, Variant, MPoly } from './types';
 import type { Ctx } from './analyze';
 import type { DesignOut } from './design';
 import type { Planting, NewTree } from './planting';
-import { strokeLine, fillPoly, area, contour, len } from './grid';
+import { strokeLine, fillPoly, area, len } from './grid';
 import { ASSORT, crownOf } from './assort';
 import { TIERS, ZONES, type Tier as CTier, type ZoneKind as CZone } from './catalog';
+import { ELEM, blockRing, progVec, fitoutAll, type Block, type ElKey } from './dastur';
 
 export type Tier = CTier;
 export type ZoneKind = CZone;
@@ -20,6 +21,8 @@ export type Edit =
   | { t: 'path-set'; ref: string; tier?: Tier; w?: number; light?: 'ustun' | 'past' | 'yoq'; style?: 'yaxlit' | 'punktir'; smooth?: boolean; pirog?: string }
   | { t: 'furn'; id: string; p: XY; a: number }
   | { t: 'zone'; kind: ZoneKind; ring: XY[]; h?: number }
+  | { t: 'blk'; id: string; p?: XY; a?: number; el?: ElKey; del?: boolean }   // dastur bloki: surish, burish, turini almashtirish, olib tashlash
+  | { t: 'blk-add'; el: ElKey; p: XY; a: number }
   | { t: 'move'; id: string; to: XY }       // dastur elementi (amfiteatr, terrasa, qushxona) yangi markazi
   | { t: 'tree'; p: XY; sp?: string }
   | { t: 'shrub'; p: XY; sp?: string }
@@ -55,7 +58,18 @@ export function applyEdits(C: Ctx, DO: DesignOut, E: Edit[]): DesignOut {
     for (let k = 0; k < G.n; k++) if (t[k] && C.site[k] && !C.water[k]) hard[k] = 1; else if (rebuild && !t[k] && hard[k] && !DO.masks.hard[k]) hard[k] = 0; }
   if (rebuild) for (let k = 0; k < G.n; k++) if (!C.site[k] || C.water[k]) hard[k] = 0;
   const masks: Record<string, Uint8Array> = {}; for (const [k, m] of Object.entries(DO.masks)) masks[k] = k === 'hard' ? hard : m.slice();
-  const items = V0.items.map(it => ({ ...it }));
+  let items = V0.items.map(it => ({ ...it }));
+  // dastur bloklari: tahrirlar ketma-ket qoʻllanadi; blok zonalari niqobi qayta chiziladi
+  let blocks: Block[] = (V0.blocks ?? []).map(b => ({ ...b })); const B0 = V0.blocks ?? [];
+  E.forEach((e, j) => {
+    if (e.t === 'blk') { const b = blocks.find(x => x.id === e.id); if (!b) return; if (e.del) { blocks = blocks.filter(x => x !== b); return; } if (e.p) b.p = e.p; if (e.a != null) b.a = e.a; if (e.el && ELEM[e.el]) b.el = e.el; b.rule = 'qoʻlda oʻzgartirilgan'; }
+    else if (e.t === 'blk-add' && ELEM[e.el]) blocks.push({ id: `u${j}`, el: e.el, p: e.p, a: e.a, rule: 'qoʻlda qoʻshilgan' });
+  });
+  if (E.some(e => e.t === 'blk' || e.t === 'blk-add')) {
+    for (const b of B0) { const m = masks[ELEM[b.el].zone]; if (m) fillPoly(G, m, [blockRing(b, G.step)], 0); }
+    for (const b of blocks) { const z = ELEM[b.el].zone, m = masks[z] ?? (masks[z] = G.u8()), t = G.u8(); fillPoly(G, t, [blockRing(b)]); for (let k = 0; k < G.n; k++) if (t[k] && C.site[k] && !C.water[k]) { m[k] = 1; for (const [k2, m2] of Object.entries(masks)) if (k2 !== z && k2 !== 'hard' && k2 !== 'sport_mavjud') m2[k] = 0; } }
+    items = [...items.filter(it => !B0.some(b => b.id === it.id)), ...blocks.map(b => ({ id: b.id, name: ELEM[b.el].n, p: b.p, rule: b.rule }))];
+  }
   // elementni surish: niqob siljiydi (toʻr qadamida)
   for (const e of E) if (e.t === 'move') {
     const it = items.find(x => x.id === e.id), m = masks[e.id]; if (!it || !m) continue;
@@ -87,9 +101,9 @@ export function applyEdits(C: Ctx, DO: DesignOut, E: Edit[]): DesignOut {
     wetland: Math.round(masks.botqoq ? area(G, masks.botqoq) : 0), rain: Math.round(masks.yomgir_bogi ? area(G, masks.yomgir_bogi) : 0),
     conflict: conflict.length, conflictBig: conflict.filter(t => t.d >= 40).length, mgnOver: Math.round(mgnOver), lawn: Math.round(lawn), other: Math.round(other),
     irrLo: Math.round((lawn * 15 + meadow * 3 + other * 3) / 1000), irrHi: Math.round((lawn * 20 + meadow * 4 + other * 4) / 1000), edits: E.length };
-  const prog: Record<string, MPoly> = {}; for (const [k, mk] of Object.entries(masks)) if (k !== 'hard') prog[k] = contour(G, mk, 2).map(r => [r]) as MPoly;
-  const furn = E.filter(e => e.t === 'furn').map(e => { const f = e as Extract<Edit, { t: 'furn' }>; return { id: f.id, p: f.p, a: f.a }; });
-  return { V: { ...V0, paths, items, prog, m, furn }, masks, ods: DO.ods };
+  const prog: Record<string, MPoly> = progVec(G, masks, blocks), fit = fitoutAll(blocks);
+  const furn = [...fit.furn, ...E.filter(e => e.t === 'furn').map(e => { const f = e as Extract<Edit, { t: 'furn' }>; return { id: f.id, p: f.p, a: f.a }; })];
+  return { V: { ...V0, paths, items, prog, m, furn, blocks, marks: fit.marks }, masks, ods: DO.ods };
 }
 
 /** Ekish kompozitsiyasi qoidalari (T — loyiha qoidasi, manba: landshaft amaliyoti; asbob panelida oʻzgartiriladi):

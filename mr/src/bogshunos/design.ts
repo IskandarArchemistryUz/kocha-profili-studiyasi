@@ -9,14 +9,14 @@
  *  · terrasa — suv boʻyidagi mavjud ovqatlanish binosi (amenity cafe/restaurant) yoki suvga eng yaqin bino oldida, tekis;
  *  · koʻpriklar — qirgʻoq ↔ orol, suv oraligʻi ≤ 30 m, bir-biridan ≥ 40 m, uchlari asosiy tarmoqqa ≤ 25 m;
  *  · qushxona — orolda koʻprik va yoʻllardan eng uzoq, suv chetidan ≤ 8 m;
- *  · sport maydoni — yer ishlari hajmi eng kam (tekislash), katta daraxtsiz;
+ *  · sport, bolalar, sokin dam olish va boshqa bloklar — dastur.ts (soni dasturdan; yoʻlga yaqin, daraxtga eng kam zarar, klaster, oʻq);
  *  · yomgʻir bogʻi — oqim toʻplanadigan past joylar (D8) yoʻl yonida;
  *  · oʻtloq — yoʻldan ichkari va avvalo > 8 % qiyaliklarda (oʻrish qiyin, eroziyaga qarshi — T).
  */
 import type { XY, Variant } from './types';
 import type { Ctx, Analysis } from './analyze';
 import { Grid, fillMPoly, strokeLine, distance, contour, chaikin, simplify, len, area, andNot, interp } from './grid';
-import type { MPoly } from './types';
+import { placeBlocks, progVec, fitoutAll, suggest, ELEM, type Prog } from './dastur';
 
 type Tier = Variant['paths'][number]['tier'];
 export interface VarDef { id: 'A' | 'B' | 'C'; name: string; desc: string; exist: number; tree: number; rpaK: number; beta: number; keepExist: boolean; meadow: number; promenade: boolean; bridges: number; wMain: number; wSec: number; wTrail: number }
@@ -35,14 +35,16 @@ const MOV: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -
 
 export interface DesignOut { V: Variant; masks: Record<string, Uint8Array>; ods: { a: XY; b: XY; f: number; path: XY[]; prd: number }[] }
 
-export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd: VarDef): DesignOut {
+/** opt.prog — dastur (boʻlmasa bogʻ turidan sukut taklif); opt.tarixiy — mavjud yoʻl tarmogʻi saqlanadi, yangi darvoza ochilmaydi */
+export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: VarDef, opt: { prog?: Prog; kind?: import('./types').BgSite['kind']; tarixiy?: boolean } = {}): DesignOut {
+  const vd: VarDef = opt.tarixiy ? { ...vd0, keepExist: true, exist: Math.min(vd0.exist, 0.12), bridges: 0, promenade: false } : vd0;
   const G = C.G, nx = G.nx;
   const dW = distance(G, C.water), dCanal = distance(G, C.canal);
   // ---- 1. darvozalar: mavjud yoʻllar chegarani kesgan joylar (+ B, C: turar joy tomonida yangi darvozalar) ----
   const B = [...C.boundary];
   const gatesRaw: XY[] = [];
   for (const p of C.paths) for (let k = 1; k < p.g.length; k++) { const a = p.g[k - 1], b = p.g[k]; const x = segRing(a, b, B); if (x) gatesRaw.push(x); }
-  if (vd.id !== 'A') for (const at of attr.filter(t => t.name.startsWith('Turar joy'))) { const q = nearestOnRing(at.p, B); if (!gatesRaw.some(g => Math.hypot(g[0] - q[0], g[1] - q[1]) < 60)) gatesRaw.push(q); }
+  if (vd.id !== 'A' && !opt.tarixiy) for (const at of attr.filter(t => t.name.startsWith('Turar joy'))) { const q = nearestOnRing(at.p, B); if (!gatesRaw.some(g => Math.hypot(g[0] - q[0], g[1] - q[1]) < 60)) gatesRaw.push(q); }
   const gates = clusterGates(gatesRaw, B, 18);
   // ---- 2. narx toʻri ----
   const ok = new Uint8Array(G.n), pen = new Float32Array(G.n).fill(1);
@@ -122,23 +124,31 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd: Var
   const occ = G.u8(); for (let k = 0; k < G.n; k++) occ[k] = hard[k] || C.bld[k] || (prog.amfiteatr?.[k] ?? 0) || C.water[k] ? 1 : 0;
   const exSport = G.u8(); for (const p of C.pitches) fillMPoly(G, exSport, p);
   prog.sport_mavjud = exSport;
-  const sportNeed = Math.max(0, 3400 - area(G, exSport));
-  const courts = sportCourts(C, occ, bigRpa, sportNeed); prog.sport_yangi = courts.m;
-  courts.list.forEach((c, i) => items.push({ id: `sport${i}`, name: 'Yangi sport maydoni', p: c.c, rule: `yer ishlari ${Math.round(c.earth)} m³ (tekislash), nishab ${c.slope.toFixed(1)} %` }));
   const play = G.u8(); for (const p of C.playgrounds) fillMPoly(G, play, p);
-  if (vd.id !== 'A') { const d = distance(G, play); for (let k = 0; k < G.n; k++) if (d[k] <= 12 && !occ[k] && !courts.m[k] && C.site[k] && !C.rpa[k]) play[k] = 1; }
+  // dastur bloklari (dastur.ts): soni dasturdan, joyi qoidalardan; mavjud sport va bolalar maydonlari band joy hisoblanadi
+  const PR: Prog = opt.prog ?? suggest(opt.kind ?? 'tuman', area(G, C.site) / 10000, A.visitors.N1, { pitch: area(G, exSport), play: C.playgrounds.length, tarixiy: !!opt.tarixiy }).prog;
+  for (let k = 0; k < G.n; k++) if (exSport[k] || play[k] || (prog.terrasa?.[k] ?? 0) || (prog.qushxona?.[k] ?? 0)) occ[k] = 1;
+  // mavjud yoʻllar saqlanadigan variantda (A, tarixiy) ular ustiga element qoʻyilmaydi; boshqalarida — jarima bilan (yoʻl buziladi)
+  const placed = placeBlocks(C, PR, { occ, bigRpa, hard, paths, keep: C.keep, keepPaths: vd.keepExist });
+  for (const sp of placed.spurs) { paths.push(sp); strokeLine(G, hard, sp.g, sp.w); }
+  for (let k = 0; k < G.n; k++) if (!C.site[k] || C.water[k]) hard[k] = 0;
+  const courts = { m: placed.masks.sport_yangi ?? G.u8(), earth: placed.earth };
+  prog.sport_yangi = courts.m;
+  for (const [z, m] of Object.entries(placed.masks)) if (z === 'bolalar') { for (let k = 0; k < G.n; k++) if (m[k]) play[k] = 1; } else if (z !== 'sport_yangi') prog[z] = m;
+  for (const b of placed.blocks) items.push({ id: b.id, name: ELEM[b.el].n, p: b.p, rule: b.rule });
+  for (let k = 0; k < G.n; k++) if (Object.values(placed.masks).some(m => m[k])) occ[k] = 1;
   prog.bolalar = play;
   if (vd.id === 'C') { const w = G.u8(); for (let k = 0; k < G.n; k++) w[k] = C.site[k] && !C.water[k] && dW[k] <= 5 && !hard[k] && dCanal[k] > 4 ? 1 : 0; prog.botqoq = w; }
   if (vd.id !== 'A') prog.yomgir_bogi = rainGardens(C, paths, dW, occ);
   // oʻtloq: maysa ichida, yoʻldan ≥ 8 m; avval qiya joylar
   const dHard = distance(G, hard), cand: number[] = [];
-  for (let k = 0; k < G.n; k++) if (C.grass[k] && C.site[k] && !C.water[k] && dHard[k] >= 8 && !occ[k] && !play[k] && !courts.m[k]) cand.push(k);
+  for (let k = 0; k < G.n; k++) if (C.grass[k] && C.site[k] && !C.water[k] && dHard[k] >= 8 && !occ[k] && !play[k] && !courts.m[k] && !(opt.tarixiy && C.rpa[k])) cand.push(k);
   cand.sort((a, b) => C.S[b] - C.S[a]);
   const grassA = area(G, C.grass), meadow = G.u8(); for (let i = 0; i < Math.min(cand.length, Math.floor(vd.meadow * grassA / G.cellA)); i++) meadow[cand[i]] = 1;
   prog.otloq = meadow;
   // ---- 8. metrikalar ----
   const cellA = G.cellA, siteA = area(G, C.site), waterA = countAnd(C.site, C.water) * cellA;
-  const hardAll = G.u8(); for (let k = 0; k < G.n; k++) hardAll[k] = hard[k] || C.bld[k] || courts.m[k] || (prog.amfiteatr?.[k] ?? 0) || (prog.terrasa?.[k] ?? 0) ? 1 : 0;
+  const hardAll = G.u8(); for (let k = 0; k < G.n; k++) hardAll[k] = hard[k] || C.bld[k] || courts.m[k] || (prog.amfiteatr?.[k] ?? 0) || (prog.terrasa?.[k] ?? 0) || (prog.workout?.[k] ?? 0) || (prog.skeyt?.[k] ?? 0) || (prog.suv_oyin?.[k] ?? 0) ? 1 : 0;
   const hardA = countAnd(C.site, hardAll) * cellA;
   const conflict = C.trees.filter(t => { const k = G.idx(t.p[0], t.p[1]); return k >= 0 && (hard[k] || courts.m[k] || (prog.amfiteatr?.[k] ?? 0)) && !C.exPath[k]; });
   const lawnLeft = area(G, andNot(C.grass, meadow)), other = siteA - waterA - hardA - grassA;
@@ -148,7 +158,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd: Var
   const V: Variant = {
     id: vd.id, name: vd.name, desc: vd.desc, paths, bridges, items,
     gates: gates.map((p, i) => ({ p, f: gateF[i], main: gateF[i] >= 0.5 * gf })),
-    prog: Object.fromEntries(Object.entries(prog).map(([k, m]) => [k, contour(G, m, 2).map(r => [r]) as MPoly])),
+    prog: progVec(G, prog, placed.blocks), blocks: placed.blocks, ...fitoutAll(placed.blocks), miss: placed.miss,
     m: { gates: gates.length, pathLen: Math.round(paths.reduce((s, p) => s + len(p.g), 0)), asosiy: Math.round(lenT('asosiy')), ikkinchi: Math.round(lenT('ikkinchi')), soqmoq: Math.round(lenT('soqmoq')), sohil: Math.round(lenT('sohil')), rampa: Math.round(lenT('rampa')), zina: Math.round(lenT('zina')),
       hard: Math.round(hardA), greenPct: Math.round((siteA - waterA - hardA) / siteA * 1000) / 10, prd: avg(prd), prdP90: pct(prd, 0.9), sport: Math.round(area(G, exSport) + area(G, courts.m)), meadow: Math.round(area(G, meadow)),
       wetland: Math.round(prog.botqoq ? area(G, prog.botqoq) : 0), rain: Math.round(prog.yomgir_bogi ? area(G, prog.yomgir_bogi) : 0), conflict: conflict.length, conflictBig: conflict.filter(t => t.d >= 40).length,
@@ -241,26 +251,6 @@ function birdHide(C: Ctx, br: Variant['bridges'], paths: Variant['paths']): { m:
   return { m, c: best, why: `orolda, koʻprik va yoʻllardan ${bd.toFixed(0)} m uzoqda` };
 }
 const minD = (p: XY, l: XY[]) => { let m = Infinity; for (const q of l) m = Math.min(m, Math.hypot(q[0] - p[0], q[1] - p[1])); return m; };
-/** Sport maydonlari: 28 × 15 m (keyin 20 × 12), yer ishlari eng kam joy; katta daraxt ostiga tushmaydi */
-function sportCourts(C: Ctx, occ: Uint8Array, bigRpa: Uint8Array, need: number): { m: Uint8Array; list: { c: XY; earth: number; slope: number }[]; earth: number } {
-  const G = C.G, nx = G.nx, m = G.u8(), list: { c: XY; earth: number; slope: number }[] = []; let tot = 0, earthAll = 0;
-  const taken = occ.slice();
-  while (tot < need) {
-    const [w, h] = need - tot > 300 ? [28, 15] : [20, 12], ci = Math.round(w / G.step), cj = Math.round(h / G.step);
-    let best: { i: number; j: number; e: number; s: number } | null = null;
-    for (let j = 0; j + cj < G.ny; j += 2) for (let i = 0; i + ci < nx; i += 2) {
-      let bad = false, sum = 0, n = 0, sl = 0;
-      for (let b = 0; b < cj && !bad; b++) for (let a = 0; a < ci; a++) { const k = (j + b) * nx + i + a; if (!C.site[k] || taken[k] || bigRpa[k] || C.water[k]) { bad = true; break; } sum += C.E[k]; sl += C.S[k]; n++; }
-      if (bad || !n) continue;
-      const mean = sum / n; let e = 0; for (let b = 0; b < cj; b++) for (let a = 0; a < ci; a++) e += Math.abs(C.E[(j + b) * nx + i + a] - mean) * G.cellA;
-      if (!best || e < best.e) best = { i, j, e, s: sl / n };
-    }
-    if (!best) break;
-    for (let b = -2; b < cj + 2; b++) for (let a = -2; a < ci + 2; a++) { const k = (best.j + b) * nx + best.i + a; if (k >= 0 && k < G.n) { taken[k] = 1; if (b >= 0 && a >= 0 && b < cj && a < ci) m[k] = 1; } }
-    list.push({ c: [G.cx(best.i + ci / 2), G.cy(best.j + cj / 2)], earth: best.e, slope: best.s }); tot += w * h; earthAll += best.e;
-  }
-  return { m, list, earth: earthAll };
-}
 /** Yomgʻir bogʻlari: D8 oqim toʻplanishi eng katta, suvdan ≤ 90 m, yoʻldan ≤ 10 m, band boʻlmagan kataklar → 5 m doiralar */
 function rainGardens(C: Ctx, paths: Variant['paths'], dW: Float32Array, occ: Uint8Array): Uint8Array {
   const G = C.G, nx = G.nx, acc = new Float32Array(G.n).fill(1), order = [...Array(G.n).keys()].filter(k => C.site[k] && Number.isFinite(C.E[k])).sort((a, b) => C.E[b] - C.E[a]);
