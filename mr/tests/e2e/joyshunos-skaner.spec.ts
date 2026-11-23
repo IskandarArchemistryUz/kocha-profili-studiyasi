@@ -33,7 +33,7 @@ async function open(page: Page, pre?: () => Promise<void>): Promise<void> {
   await page.route(/overpass|kumi\.systems|mail\.ru|private\.coffee/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: osm() }) }));
   await page.addInitScript(([c]) => { try { if (!sessionStorage.getItem('joyInit')) { sessionStorage.setItem('joyInit', '1'); localStorage.setItem('joy-state', JSON.stringify({ c, r: 300, on: ['skaner'], act: 'skaner', cat: 'cafe', base: 'stil' })); localStorage.setItem('mr-lang', 'uz'); } } catch { /* */ } }, [C]);
   if (pre) await pre();
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`ijtimoiy skaner: hudud va bino pasporti · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {

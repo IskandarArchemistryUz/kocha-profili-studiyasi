@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 async function openAt(page: import('@playwright/test').Page, c: [number, number], lang = 'uz', on: string[] = []) {
   await page.route(/fonts\.g|openfreemap|arcgis|gibs|nominatim|overpass|kumi\.systems|mail\.ru|private\.coffee|elevation-tiles/, r => r.abort());
   await page.addInitScript(([c, lang, on]) => { try { localStorage.setItem('joy-state', JSON.stringify({ c, r: 500, on })); localStorage.setItem('mr-lang', lang as string); } catch { /* */ } }, [c, lang, on] as const);
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
 }
 test('Joy: Toshkent — ShNQ, Parij — xalqaro andozalar va UTC+2, Melburn — janub', async ({ page }) => {
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
@@ -37,7 +37,7 @@ test('Koʻcha rejimi: joy belgisi xarita/koʻcha markaziga ergashadi; uslub alma
   await page.route(/fonts\.g|openfreemap|arcgis|gibs|nominatim|overpass|kumi\.systems|mail\.ru|private\.coffee|elevation-tiles|archemistry\.uz/, r => r.abort());
   await page.addInitScript(() => { try { localStorage.setItem('joy-state', JSON.stringify({ c: [69.2797, 41.3111], r: 500, on: [], an: 'kocha' })); localStorage.setItem('mr-lang', 'uz'); } catch { /* */ } });
   await page.setViewportSize({ width: 1024, height: 720 });
-  await page.goto('./joyshunos.html');
+  await page.goto('./joyshunos.html?asosiy=1');
   await page.waitForFunction(() => !!(window as any).joyMap?.getSource?.('joy-st-line'), null, { timeout: 30_000 });
   await expect(page.locator('#joyPlace')).toContainText('Asia/Tashkent');
   // xaritani Parijga surish — belgi ergashadi, nom lotinda

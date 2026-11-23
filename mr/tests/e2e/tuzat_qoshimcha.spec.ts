@@ -23,8 +23,8 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qoʻshimch
   await expect.poll(() => st(page, 'hovli-79-3'), { timeout: 20000 }).toBe('fail|hovli-floors');
   // UI: reyestrda qator ochiladi va tugma bosiladi
   await page.click('#kMore'); const row = page.locator('.drawer .rrow', { hasText: 'Yopiq ichki hovli' }).first();
-  await row.scrollIntoViewIfNeeded(); await row.click();
-  await expect(page.locator('#fix-hovli-79-3')).toBeVisible();
+  // 22.11: reyestr qayta chizilsa (qoidalar hisobi tugaganda) qator yangilanadi — bosish qayta uriniladi (main CI da ham flaky edi)
+  await expect(async () => { await row.scrollIntoViewIfNeeded({ timeout: 2000 }); await row.click({ timeout: 2000 }); await expect(page.locator('#fix-hovli-79-3')).toBeVisible({ timeout: 1000 }); }).toPass({ timeout: 20_000 });
   if (process.env.GX_SHOTS) await page.screenshot({ path: `${process.env.GX_SHOTS}/tuzat_hovli_oldin_${w}${dark ? 'd' : 'l'}.png` });
   await page.locator('#fix-hovli-79-3').click();
   await expect.poll(() => st(page, 'hovli-79-3'), { timeout: 20000 }).not.toMatch(/^fail/);

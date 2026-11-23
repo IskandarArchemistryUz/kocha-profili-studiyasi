@@ -27,7 +27,7 @@ test('9 til: oʻzbekcha matn qolmagan', async ({ page }) => {
     const out = new Map<string, string>();
     await page.addInitScript(l => { try { localStorage.setItem('mr-lang', l); } catch {} }, lang);
     for (const hsh of ['a', 'b', 'varaq']) {
-      await page.goto('./kochasoz.html#/' + hsh); await grab(page, 'ks-' + hsh, out);
+      await page.goto('./kochasoz.html?asosiy=1#/' + hsh); await grab(page, 'ks-' + hsh, out);
       if (hsh === 'b') { const b = page.locator('.ws-b main .seg').first().locator('button').nth(1); if (await b.count()) { await b.click(); await grab(page, 'ks-b-reja', out); const z = page.locator('.ws-b .blk'); if (await z.count()) { await z.nth(2).click().catch(() => {}); await grab(page, 'ks-b-reja-z', out); } } }
     }
     await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);

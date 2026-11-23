@@ -2583,7 +2583,7 @@ function renderAxo(): void {
     h('div', { class: 'row wrap' },
       h('button', { type: 'button', class: 'btn btn-sm', id: 'axModel', title: tr('OBJ yoki GLB (metr, Y — yuqoriga); markaz — tanlangan nuqta'), onclick: () => pickModel() }, tr('Model yuklash')),
       a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', title: tr('Modelni 15° burish'), onclick: () => { a.modelRot = (a.modelRot + 15) % 360; a.placeModel(); } }, '↻ 15°') : null,
-      a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { a.setModel(null); void cacheDel('joy-model'); renderAxo(); } }, tr('Olib tashlash')) : null),
+      a.hasModel() ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { a.setModel(null); void cacheDel(scoped('joy-model')); renderAxo(); } }, tr('Olib tashlash')) : null),
     S.site ? h('div', { class: 't-small' }, tf('Uchastka: ${a} ga — har qatlamda ajratib koʻrsatiladi', { a: fmt(ringArea(S.site) / 10000, 2) }))
       : h('div', { class: 'note', id: 'axNoSite' }, h('b', {}, tr('Uchastka chizilmagan')), h('br'), tr('Shuning uchun aksonometriyada uchastka koʻrinmaydi — faqat tahlil nuqtasi.'),
         h('div', { class: 'row', style: 'margin-top:8px;gap:6px;flex-wrap:wrap' },
@@ -2762,7 +2762,7 @@ async function axoSheets(which: 'one' | 'all'): Promise<void> {
 /** Model: OBJ yoki GLB (fayldan) — IndexedDB da saqlanadi va keyingi ochilishda tiklanadi */
 function pickModel(): void {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.obj,.glb,.gltf,model/gltf-binary';
-  inp.onchange = async () => { const f = inp.files?.[0]; if (!f) return; const buf = await f.arrayBuffer(); await loadModel(f.name, buf); void cachePut('joy-model', { name: f.name, buf: buf.slice(0), center: S.c }).catch(() => {}); };
+  inp.onchange = async () => { const f = inp.files?.[0]; if (!f) return; const buf = await f.arrayBuffer(); await loadModel(f.name, buf); void cachePut(scoped('joy-model'), { name: f.name, buf: buf.slice(0), center: S.c }).catch(() => {}); };
   inp.click();
 }
 async function loadModel(name: string, buf: ArrayBuffer, offset: [number, number] = [0, 0], colors = false): Promise<void> {
@@ -2775,19 +2775,19 @@ async function loadModel(name: string, buf: ArrayBuffer, offset: [number, number
   } catch (e) {
     // 02.11: alert sahifani toʻxtatib qoʻyardi va saqlangan buzuq model har ochilganda qaytardi — endi xabar va keshdan oʻchirish
     toast(`${tr('Model ochilmadi')}: ${(e as Error).message}`);
-    try { await cacheDel('joy-model'); } catch { /* */ }
+    try { await cacheDel(scoped('joy-model')); } catch { /* */ }
   }
 }
 /** Master rejadan yuborilgan model («joy-inbox»): markaz va model joyi */
 async function takeInbox(): Promise<void> {
   try {
     const box = await cacheGet<{ name: string; buf: ArrayBuffer; origin: LngLat; colors?: boolean }>('joy-inbox'); if (!box) return;
-    await cacheDel('joy-inbox'); await cachePut('joy-model', { name: box.name, buf: box.buf, center: box.origin, colors: !!box.colors });
+    await cacheDel('joy-inbox'); await cachePut(scoped('joy-model'), { name: box.name, buf: box.buf, center: box.origin, colors: !!box.colors });
     if (Math.abs(box.origin[0] - S.c[0]) > 1e-6 || Math.abs(box.origin[1] - S.c[1]) > 1e-6) pick(box.origin);
   } catch { /* */ }
 }
 async function restoreModel(): Promise<void> {
-  try { const m = await cacheGet<{ name: string; buf: ArrayBuffer; center: LngLat; colors?: boolean }>('joy-model'); if (!m || !axo) return;
+  try { const m = await cacheGet<{ name: string; buf: ArrayBuffer; center: LngLat; colors?: boolean }>(scoped('joy-model')); if (!m || !axo) return;
     const k = 111_320 * Math.cos(S.c[1] * Math.PI / 180), off: [number, number] = [(m.center[0] - S.c[0]) * k, (m.center[1] - S.c[1]) * 111_132];
     if (Math.hypot(off[0], off[1]) < S.r * 1.5) await loadModel(m.name, m.buf, off, !!m.colors); } catch { /* */ }
 }

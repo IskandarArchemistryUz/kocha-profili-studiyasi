@@ -6,6 +6,7 @@
  * Ikki qurilmada bir vaqtda oʻzgartirilsa — server 409 qaytaradi; foydalanuvchi qaysi nusxani qoldirishni tanlaydi.
  */
 import { apiBase } from '../account/config';
+import { thumbData } from '../core/projthumb';
 import { tr, tf } from '../i18n';
 import { migrate, type Project } from '../core/doc';
 import { collectSvc, restoreSvc, svcHash } from './svcstate';
@@ -59,7 +60,8 @@ export const remove = (id: string): Promise<{ ok: boolean; purge_days: number }>
 
 /** roʻyxatda koʻrinadigan qisqa maʼlumot */
 export function metaOf(doc: Project): Record<string, unknown> {
-  return { buildings: doc.buildings?.length ?? 0, hasSite: !!doc.site };
+  let thumb = null; try { thumb = thumbData(doc); } catch { /* eskizsiz */ }
+  return { buildings: doc.buildings?.length ?? 0, hasSite: !!doc.site, ...(thumb ? { thumb } : {}) };
 }
 
 /** hujjat + import qilingan qatlamlar obyektlari → fayl matni (Fayldan ochish bilan bir xil format) */

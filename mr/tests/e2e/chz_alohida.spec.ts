@@ -40,7 +40,7 @@ test('Koʻchasozdan yuborish: Master rejadan kelinganda tanlov oynasi — «Yang
   await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
   const A = await page.evaluate(() => (window as any).__mr.store.doc.id as string);
   // uchastkasiz yangi loyihadan (mr-return: hasSite false) Koʻchasozga
-  await page.goto('./kochasoz.html#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();
+  await page.goto('./kochasoz.html?asosiy=1#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();
   await page.evaluate(a => sessionStorage.setItem('mr-return', JSON.stringify({ id: a, name: 'Yangi loyiha', step: 'hudud', cam: null, at: Date.now(), origin: [69.2797, 41.3111], hasSite: false })), A);
   await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
   await page.locator('.ws-varaq .btn-primary').click();
@@ -58,7 +58,7 @@ test('Koʻchasozdan yuborish: Master rejadan kelinganda tanlov oynasi — «Yang
   await page.waitForFunction(() => (window as any).__mr?.store?.doc?.id === location.hash.split('/')[2]);
   expect(await page.evaluate(() => (window as any).__mr.store.doc.id)).not.toBe(A);
   // yana yuborish → «shu loyihaga» → A (mr-return Koʻchasoz ochilgach — Master reja sahifadan chiqishda oʻzinikini yozadi)
-  await page.goto('./kochasoz.html#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();
+  await page.goto('./kochasoz.html?asosiy=1#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();
   await page.evaluate(a => sessionStorage.setItem('mr-return', JSON.stringify({ id: a, name: 'Yangi loyiha', step: 'hudud', cam: null, at: Date.now(), origin: [69.2797, 41.3111], hasSite: false })), A);
   await page.locator('.ws-varaq .btn-primary').click();
   await page.locator('#chzSend [data-chz=same]').click();
