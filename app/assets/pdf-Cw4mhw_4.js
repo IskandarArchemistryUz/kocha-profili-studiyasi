@@ -1,0 +1,1 @@
+export{r as svgPdf}from"./pdf-DOW2Pk8B.js";

@@ -420,18 +420,19 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
       g += para(W.x + 110, yl + 26, 260, 'Mavjud tarkibdagi ustunlik (Juniperus virginiana va boshqalar) yangi ekish bilan qisman kamayadi; toʻliq muvozanat uchun almashtirish ekishi bosqichma-bosqich rejalashtiriladi (T). Fenologiya — umumiy dendrologik maʼlumot (P), mahalliy kuzatuv bilan aniqlanadi.', 2.2, 1.4, K.mut).g;
       push('fasl', 'Assortiment va fasllar', g);
     }
-    /* Kesimlar A–A, B–B */
-    {
-      const CE = S.CG?.C ?? C, lines = sectionLines(C, DO).filter(l => profile(CE, DO, PLT, site, l).pts.length > 10), KP = { x: W.x, y: W.y, w: 70, h: 110 }, Pk = proj(siteBB(S, 25), KP, undefined, true);
+    /* Kesimlar A–A, B–B (+ foydalanuvchi chiziqlari) — varaqqa koʻpi bilan 3 ta */
+    const CE0 = S.CG?.C ?? C, allLines = sectionLines(C, DO).filter(l => profile(CE0, DO, PLT, site, l).pts.length > 10);
+    for (let pg = 0; pg * 3 < Math.max(1, allLines.length); pg++) {
+      const CE = CE0, lines = allLines.slice(pg * 3, pg * 3 + 3), KP = { x: W.x, y: W.y, w: 70, h: 110 }, Pk = proj(siteBB(S, 25), KP, undefined, true);
       let g = clip(KP, plan(S, V, Pk, { gates: false })) + north(KP.x + KP.w - 5, KP.y + 1);
       lines.forEach(l => { const [ax, ay] = Pk.p(l.a), [bx, by] = Pk.p(l.b); g += L(ax, ay, bx, by, RED, 0.35, ' stroke-dasharray="2 .8 .4 .8"') + T(ax, ay - 1, l.name.split('–')[0], { s: 3, w: 700, c: RED, a: 'middle' }) + T(bx, by - 1, l.name.split('–')[1], { s: 3, w: 700, c: RED, a: 'middle' }); });
       g = clip(KP, g);
-      const rx = W.x + 78, rw = W.x + W.w - rx, hh = (W.h - 4) / Math.max(1, lines.length);
+      const rx = W.x + 78, rw = W.x + W.w - rx, hh = Math.min(85, (W.h - 4 * lines.length) / Math.max(1, lines.length));
       const Ns: number[] = [];
       lines.forEach((l, i) => { const d = drawSection(profile(CE, DO, PLT, site, l), { x: rx, y: W.y + i * (hh + 4), w: rw, h: hh }); Ns.push(d.N); g += d.g; });
       g += legend(W.x, KP.y + KP.h + 6, [{ t: 'fill', c: '#d8c7a4', l: 'Yoʻl' }, { t: 'fill', c: '#c99a55', l: 'Zina' }, { t: 'fill', c: '#e7b98e', l: 'Amfiteatr' }, { t: 'fill', c: '#b9d9cf', l: 'Botqoq qirgʻoq' }, { t: 'fill', c: '#e3ecc4', l: 'Oʻtloq' }, { t: 'fill', c: '#c9dcc0', l: 'Maysa' }, { t: 'fill', c: '#cbdde3', l: 'Suv' }, { t: 'line', c: '#2f5e33', l: 'Yangi daraxt' }, { t: 'line', c: '#5c5a55', l: 'Mavjud daraxt' }], 'Shartli belgilar', 2).g;
-      g += para(W.x, W.y + W.h - 34, 70, 'Kesim chiziqlari qoidadan: A–A amfiteatrdan koʻl markazi orqali, B–B unga perpendikulyar. Relyef — SRTM (P); daraxt balandligi: mavjud — reyestr, yangi — yetuk holat (P). Odam va oʻsimlik siluetlari — Koʻchasoz kutubxonasi, daraxtlar — AUTOCAD_Library.dwg.', 1.9, 1.35, K.mut).g;
-      push('kesim', 'Kesimlar ' + lines.map(l => l.name).join(', '), g, Ns.map(n => `1:${fmt(n)}`).join(', '));
+      g += para(W.x, W.y + W.h - 34, 70, 'Kesim chiziqlari: A–A va B–B — qoidadan (amfiteatrdan koʻl markazi orqali va unga perpendikulyar; koʻl yoʻq boʻlsa — hududning eng uzun oʻqi), qolganlari — loyihachi chizgan. Relyef — SRTM (P); daraxt balandligi: mavjud — reyestr, yangi — yetuk holat (P). Odam va oʻsimlik siluetlari — Koʻchasoz kutubxonasi, daraxtlar — AUTOCAD_Library.dwg.', 1.9, 1.35, K.mut).g;
+      push(pg ? `kesim-${pg + 1}` : 'kesim', 'Kesimlar ' + lines.map(l => l.name).join(', '), g, Ns.map(n => `1:${fmt(n)}`).join(', '));
     }
     /* Qirgʻoq tipologiyalari */
     if (mainLake(C)) {

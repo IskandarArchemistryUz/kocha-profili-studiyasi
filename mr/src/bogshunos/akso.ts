@@ -79,6 +79,15 @@ export function akso(C: Ctx, data: BgData, DO: DesignOut, PL: Planting | null, R
     return { c: C.grass[g] ? '#c4dca6' : '#d4e3b8' };
   };
   let ground = '', side = '';
+  const faceA: { u0: number; u1: number; za: number; zb: number; cc: { water?: boolean; key?: string } }[] = [], faceB: typeof faceA = [];
+  /** kesim yuzasi qatlamlari (landshaft kesimi uslubi, P): qoplama boʻlsa — qoplama + shagʻal asos, aks holda unumdor tuproq;
+   *  suv — havza (chuqurlik 1,4 m, P) va loy tubi; pastda grunt toʻldirilgan qoladi. Qalinliklar vertikal masshtab bilan. */
+  const cutLayers = (cc: { water?: boolean; key?: string }, Q: (u: number, z: number) => [number, number], za: number, zb: number, sh = 1): string => {
+    const band = (t0: number, t1: number, c: string) => `<polygon class="dec" points="${pts([Q(0, za - t0 * ex), Q(1, zb - t0 * ex), Q(1, zb - t1 * ex), Q(0, za - t1 * ex)])}" fill="${shade(c, sh)}" stroke="${shade(c, sh)}" stroke-width=".4"/>`;
+    if (cc.water) return band(0, 1.4, '#8fbfd4') + band(1.4, 1.7, '#5f4a38');
+    if (cc.key === 'hard' || cc.key === 'maydon') return band(0, 0.12, '#cfc6b6') + band(0.12, 0.45, '#9d9488') + band(0.45, 0.6, '#7d5c3e');
+    return band(0, 0.45, '#6f5036') + band(0.45, 0.5, '#8a6a4a');
+  };
   const hardPts: XY[] = [], keyCells: Record<string, [number, number][]> = {}, waterCells: [number, number][] = [];
   // orqadan oldinga (a + b oʻsishi boʻyicha)
   const cells: { i: number; j: number }[] = []; for (let j = 0; j < nb; j++) for (let i = 0; i < na; i++) cells.push({ i, j }); cells.sort((p, q) => p.i + p.j - (q.i + q.j));
@@ -93,10 +102,31 @@ export function akso(C: Ctx, data: BgData, DO: DesignOut, PL: Planting | null, R
     if (cc.key && cc.key !== 'hard') (keyCells[cc.key] ??= []).push([a + sa / 2, b + sb / 2]); if (cc.water) waterCells.push([a + sa / 2, b + sb / 2]);
     if (cc.key && cc.key !== 'hard') { const u = used.get(cc.key) ?? { n: (ZONES as Record<string, { n: string }>)[cc.key]?.n ?? ZN[cc.key] ?? cc.key, c: colOf(cc.key), sa: 0, sb: 0, cnt: 0 }; u.sa += a; u.sb += b; u.cnt++; used.set(cc.key, u); }
     // old tomonlar — tuproq kesimi
-    const base = -DEPTH;
-    if (i === na - 1) { const za = z(i + 1, j), zb = z(i + 1, j + 1); side += `<polygon class="s" style="--d:${dv(A, b, 0)}" points="${pts([P(A, b, za), P(A, b + sb, zb), P(A, b + sb, base), P(A, b, base)])}" fill="#b89470" stroke="#b89470" stroke-width=".6"/>`; side += `<polygon class="dec" points="${pts([P(A, b, za), P(A, b + sb, zb), P(A, b + sb, zb - 0.5 * ex), P(A, b, za - 0.5 * ex)])}" fill="${cc.water ? '#7fb3c9' : '#7d5c3e'}"/>`; }
-    if (j === nb - 1) { const za = z(i, j + 1), zb = z(i + 1, j + 1); side += `<polygon class="s" style="--d:${dv(a, B, 0)}" points="${pts([P(a, B, za), P(a + sa, B, zb), P(a + sa, B, base), P(a, B, base)])}" fill="#a9845f" stroke="#a9845f" stroke-width=".6"/>`; side += `<polygon class="dec" points="${pts([P(a, B, za), P(a + sa, B, zb), P(a + sa, B, zb - 0.5 * ex), P(a, B, za - 0.5 * ex)])}" fill="${cc.water ? '#6fa6bd' : '#6f5036'}"/>`; }
+        if (i === na - 1) faceA.push({ u0: b, u1: b + sb, za: z(i + 1, j), zb: z(i + 1, j + 1), cc });
+    if (j === nb - 1) faceB.push({ u0: a, u1: a + sa, za: z(i, j + 1), zb: z(i + 1, j + 1), cc });
   }
+  // ---- kesim yuzalari: bitta yaxlit grunt koʻpburchagi (choklarsiz), ustida qatlam tasmalari, −1 / −2 m qatlam chiziqlari ----
+  for (const [F, QF, sh, base0] of [[faceA, (u: number, zz: number) => P(A, u, zz), 1, '#b89470'], [faceB, (u: number, zz: number) => P(u, B, zz), 0.9, '#a9845f']] as const) {
+    if (!F.length) continue; F.sort((p, q) => p.u0 - q.u0);
+    const top: [number, number][] = F.flatMap(f => [QF(f.u0, f.za), QF(f.u1, f.zb)]);
+    side += `<polygon class="s" points="${pts([...top, QF(F[F.length - 1].u1, -DEPTH), QF(F[0].u0, -DEPTH)])}" fill="${shade(base0, sh)}"/>`;
+    for (const f of F) side += cutLayers(f.cc, (u, zz) => QF(f.u0 + u * (f.u1 - f.u0), zz), f.za, f.zb, sh);
+    for (const m of [1, 2]) side += `<polyline points="${pts(F.flatMap(f => [QF(f.u0, f.za - m * ex), QF(f.u1, f.zb - m * ex)]))}" fill="none" stroke="#7a5a3c" stroke-width=".6" stroke-dasharray="4 3" stroke-opacity=".55"/>`;
+  }
+  // ---- kesim yuzasidagi ildiz tuplari: kesim tekisligiga toj radiusidan yaqin daraxtlar (shakl — sxematik, P) ----
+  { const roots: { p: XY; c: number }[] = [];
+    C.trees.forEach((t, n) => { if (inside(t.p) && PL?.decisions[n] !== 'kesiladi' && PL?.decisions[n] !== 'kochiriladi') roots.push({ p: t.p, c: Math.max(3, t.c || 6) }); });
+    for (const t of PL?.trees ?? []) if (inside(t.p)) roots.push({ p: t.p, c: t.crown });
+    for (const t of roots) { const [ta, tb] = toAB(t.p), rw = t.c * 0.42, rd = Math.min(1.6, 0.35 + t.c * 0.12) * ex;
+      for (const face of [0, 1] as const) { const dist = face === 0 ? A - ta : B - tb; if (dist < 0 || dist > rw) continue;
+        const w = Math.sqrt(rw * rw - dist * dist), c0 = face === 0 ? tb : ta, lim = face === 0 ? B : A, poly: [number, number][] = [];
+        for (let q = 0; q <= 16; q++) { const u = Math.max(0, Math.min(lim, c0 - w + (2 * w * q) / 16)), f = Math.sin(Math.PI * q / 16), zs = face === 0 ? zAB(A, u) : zAB(u, B);
+          poly.push(face === 0 ? P(A, u, zs - 0.45 * ex - rd * f * (w / rw)) : P(u, B, zs - 0.45 * ex - rd * f * (w / rw))); }
+        const top = face === 0 ? [P(A, Math.min(B, c0 + w), zAB(A, Math.min(B, c0 + w)) - 0.45 * ex), P(A, Math.max(0, c0 - w), zAB(A, Math.max(0, c0 - w)) - 0.45 * ex)] : [P(Math.min(A, c0 + w), B, zAB(Math.min(A, c0 + w), B) - 0.45 * ex), P(Math.max(0, c0 - w), B, zAB(Math.max(0, c0 - w), B) - 0.45 * ex)];
+        side += `<polygon class="dec" points="${pts([...poly, ...top])}" fill="#5c4130" fill-opacity=".55"/>`;
+        const mid = poly[8]; for (const q of [3, 6, 10, 13]) side += `<line x1="${r1(top[0][0] + (top[1][0] - top[0][0]) * q / 16)}" y1="${r1(top[0][1] + (top[1][1] - top[0][1]) * q / 16)}" x2="${r1(poly[q][0] * 0.6 + mid[0] * 0.4)}" y2="${r1(poly[q][1] * 0.6 + mid[1] * 0.4)}" stroke="#3e2b1f" stroke-width=".5" stroke-opacity=".6"/>`; } } }
+  // chuqurlik shkalasi oldingi burchakda (0 … −3 m, haqiqiy metr)
+  { const z0 = zAB(A, B); for (let m = 0; m <= 3; m++) { const [x, y] = P(A, B, z0 - m * ex); side += `<line x1="${r1(x)}" y1="${r1(y)}" x2="${r1(x + 7)}" y2="${r1(y)}" stroke="#151413" stroke-width=".7"/><text x="${r1(x + 10)}" y="${r1(y + 4)}" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#151413">${m ? `−${m},0` : '0,0'}</text>`; } }
   // ---- vektor qatlamlar (blok ustki yuzasiga kesilgan): koʻl, dastur zonalari, yoʻllar, koʻpriklar ----
   const at0 = (p: XY): [number, number] => { const [a, b] = toAB(p); return P(a, b, zAB(Math.max(0, Math.min(A, a)), Math.max(0, Math.min(B, b)))); };
   const dens = (r: XY[], st = 2): XY[] => { const o: XY[] = []; for (let t = 0; t < r.length; t++) { const p1 = r[t], p2 = r[(t + 1) % r.length]; if (t === r.length - 1 && (p1[0] !== r[0][0] || p1[1] !== r[0][1]) && r.length > 0) { o.push(p1); continue; } const L = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), n = Math.max(1, Math.ceil(L / st)); for (let q = 0; q < n; q++) o.push([p1[0] + (p2[0] - p1[0]) * q / n, p1[1] + (p2[1] - p1[1]) * q / n]); } return o; };

@@ -1,1 +1,0 @@
-export{u as sendToRender}from"./inbox-Bra3E-fb.js";

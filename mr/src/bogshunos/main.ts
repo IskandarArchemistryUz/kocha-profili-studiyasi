@@ -45,7 +45,7 @@ type Mod = 'reja' | 'kesim' | 'ekish' | 'assort' | 'fauna' | 'tarmoq' | 'narx';
 /** Topshiriq (15.11): maqsad, byudjet chegarasi, asosiy foydalanuvchilar, saqlanishi shart obyektlar */
 interface Brief { goal: string; budget: number | null; users: string[]; keep: string }
 type Kind = BgSite['kind'];
-interface St { v: 2; prog?: Prog; assort?: UserAssort; akso?: (AksoReq & { title: string })[]; edits?: Edit[]; brief?: Brief; modBy?: Partial<Record<number, Mod>>; c: LngLat; z: number; step: Step; site: (BgSite & { src?: string }) | null; opt: AnOpt; chosen: 'A' | 'B' | 'C'; author: string; layer: 'cls' | 'slope' | 'trees'; dataKey: string | null; mod?: Mod; tu?: BgTu[]; prices?: Record<string, { p: number | null; src: string }> }
+interface St { v: 2; kl?: { name: string; a: XY; b: XY }[]; prog?: Prog; assort?: UserAssort; akso?: (AksoReq & { title: string })[]; edits?: Edit[]; brief?: Brief; modBy?: Partial<Record<number, Mod>>; c: LngLat; z: number; step: Step; site: (BgSite & { src?: string }) | null; opt: AnOpt; chosen: 'A' | 'B' | 'C'; author: string; layer: 'cls' | 'slope' | 'trees'; dataKey: string | null; mod?: Mod; tu?: BgTu[]; prices?: Record<string, { p: number | null; src: string }> }
 const KEY = scoped('bg:state');
 const DEF_OPT: AnOpt = { canalStrip: 12, shore: 10, noise: 40, s: [0.35, 0.45], k: 2 };
 let S: St = { v: 2, c: [69.2797, 41.3111], z: 14, step: 1, site: null, opt: { ...DEF_OPT }, chosen: 'C', author: '', layer: 'cls', dataKey: null };
@@ -355,7 +355,7 @@ async function runPlant(): Promise<void> {
 }
 async function runModul(): Promise<void> {
   if (!V || busy) return; await syncAssort(); busy = tr('Modullar hisoblanmoqda…'); render();
-  const m = await ask({ t: 'modul', chosen: S.chosen, tu: S.tu ?? [], prices: S.prices ?? {} }); busy = '';
+  const m = await ask({ t: 'modul', chosen: S.chosen, lines: S.kl ?? [], tu: S.tu ?? [], prices: S.prices ?? {} }); busy = '';
   if (m.t === 'modul') { MODR = m.M; modGeo = m.geo; } else if (m.t === 'error') toast(m.msg);
   render(); paint();
 }
@@ -434,7 +434,7 @@ function stepMods(): Node[] {
 
 /* ---------------- qoʻlda tahrir (15.11): pastki asboblar paneli ---------------- */
 let addEl: ElKey | '' = '';
-type Tool = 'sel' | 'olch' | 'yol' | 'zona' | 'daraxt' | 'jihoz' | 'akso' | 'ochir';
+type Tool = 'sel' | 'olch' | 'yol' | 'zona' | 'daraxt' | 'jihoz' | 'akso' | 'kesim' | 'ochir';
 type PMode = 'dona' | 'buta' | 'qator' | 'devor' | 'guruh' | 'doira';
 let pmode: PMode = 'dona', psp = '', toolW: number | null = null, selPath: string | null = null, fcat: FCat = 'orindiq', fid = 'skameyka';
 let tool: Tool = 'sel', draft: XY[] = [], selItem: string | null = null, redo: Edit[] = [], toolTier: Tier = 'ikkinchi', toolZone: ZoneKind = 'maydon', measure = '';
@@ -446,6 +446,7 @@ const TOOLS: [Tool, string, string, string][] = [
   ['daraxt', 'Koʻkalamzorlashtirish', 'M12 22v-6M12 16c-3.9 0-7-2.7-7-6.5C5 6 8 3 12 2c4 1 7 4 7 7.5 0 3.8-3.1 6.5-7 6.5z', 'Usulni tanlang: dona daraxt, buta, xiyobon qatori, tirik devor yoki guruh'],
   ['jihoz', 'Jihoz qoʻyish', 'M4 14h16M6 14v5M18 14v5M5 10h14v4H5zM7 10V7h10v3', 'Jihozni tanlang va joyini bosing — yoʻl yoʻnalishiga burilib qoʻyiladi'],
   ['akso', 'Aksonometriya', 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5', 'Hududning ikki qarama-qarshi burchagini bosing — shu qism aksonometriyasi chiziladi'],
+  ['kesim', 'Kesim chizigʻi', 'M4 20L20 4M4 20v-4M4 20h4M20 4v4M20 4h-4', 'Kesim boshi va oxirini bosing — kesim «Kesim» koʻrinishida, modul va albomda chiqadi'],
   ['olch', 'Oʻlchash', 'M3 17L17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2', 'Nuqtalarni bosing: uzunlik; yopiq shakl — maydon'],
   ['ochir', 'Oʻchirish', 'M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3', 'Yoʻl, zona yoki daraxtni bosing'],
 ];
@@ -479,6 +480,12 @@ function finishDraft(): void {
 }
 function toolClick(p: XY): void {
   const v = V?.[S.chosen]; if (!v) return;
+  if (tool === 'kesim') {
+    draft.push(p); if (draft.length < 2) { measure = tr('Endi kesim oxirini bosing'); renderTools(); paint(); return; }
+    const [a, b] = draft; draft = []; measure = ''; if (dist(a, b) < 10) { toast(tr('Kesim juda qisqa — kamida 10 m')); renderTools(); paint(); return; }
+    const used = new Set((S.kl ?? []).map(l => l.name)), L = 'CDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find(c => !used.has(`${c}–${c}`)) ?? 'Z';
+    S.kl = [...(S.kl ?? []), { name: `${L}–${L}`, a, b }]; MODR = null; sheets = []; save(); renderTools(); paint(); showView('kesim'); return;
+  }
   if (tool === 'akso') {
     draft.push(p); if (draft.length < 2) { measure = tr('Endi qarama-qarshi burchakni bosing'); renderTools(); paint(); return; }
     const [a, b] = draft; draft = []; measure = ''; const w = Math.abs(b[0] - a[0]), d = Math.abs(b[1] - a[1]);
@@ -525,7 +532,7 @@ function toolClick(p: XY): void {
 function renderTools(): void {
   toolsEl.hidden = !toolsOn() || !sheetsEl.hidden || !aksoEl.hidden;
   if (toolsEl.hidden) return;
-  const T = TOOLS.filter(t => S.step === 6 || t[0] === 'daraxt' || t[0] === 'ochir' || t[0] === 'olch' || t[0] === 'akso');
+  const T = TOOLS.filter(t => S.step === 6 || t[0] === 'daraxt' || t[0] === 'ochir' || t[0] === 'olch' || t[0] === 'akso' || t[0] === 'kesim');
   if (!T.some(t => t[0] === tool)) { tool = T[0][0]; draft = []; selItem = null; selPath = null; }
   const cur = TOOLS.find(t => t[0] === tool) ?? TOOLS[0];
   const spOpts = (f: (x: (typeof ASSORT)[number]) => boolean) => h('select', { class: 'input', id: 'bgSp', title: tr('Tur'), onchange: (e: Event) => { psp = (e.target as HTMLSelectElement).value; } }, h('option', { value: '' }, tr('Tur: avto')), ...ASSORT.filter(f).map(x => h('option', { value: x.lat, selected: psp === x.lat }, `${x.lat}${x.native ? ' *' : ''}`)));
@@ -602,7 +609,7 @@ function viewCtl(): Node[] {
 async function openKesim(): Promise<void> {
   if (!V) return; await syncAssort(); kesimEl.hidden = false; kesimItems = null; renderKesim();
   busy = tr('Kesimlar…'); renderStatus();
-  const m = await ask({ t: 'kesimlar', chosen: curVar() }); busy = ''; renderStatus();
+  const m = await ask({ t: 'kesimlar', chosen: curVar(), lines: S.kl ?? [] }); busy = ''; renderStatus();
   if (m.t === 'kesimlar') kesimItems = m.items; else if (m.t === 'error') toast(m.msg);
   renderKesim();
 }
@@ -616,7 +623,9 @@ function renderKesim(): void {
       : kesimItems.map(k => h('figure', { class: 'bg-kesim-it' }, h('img', { src: url(k.svg), alt: k.name }),
         h('figcaption', {}, h('b', {}, k.name), h('span', {}, `${fmt(k.len)} m · M 1:${k.N}`), h('span', { class: 'sp' }),
           h('button', { type: 'button', class: 'btn btn-sm', onclick: () => dl(`${k.name}.svg`, new Blob([k.svg], { type: 'image/svg+xml' })) }, 'SVG'),
-          h('button', { type: 'button', class: 'btn btn-sm', onclick: async () => { const r = await svgPng(k.svg, 4000); dl(`${k.name}.png`, await (await fetch(r.url)).blob()); } }, 'PNG')))))));
+          h('button', { type: 'button', class: 'btn btn-sm', onclick: async () => { const r = await svgPng(k.svg, 4000); dl(`${k.name}.png`, await (await fetch(r.url)).blob()); } }, 'PNG'),
+          (S.kl ?? []).some(l => l.name === k.name) ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { S.kl = (S.kl ?? []).filter(l => l.name !== k.name); MODR = null; sheets = []; save(); paint(); void openKesim(); } }, tr('Oʻchirish')) : ''))))),
+    h('p', { class: 'bg-note' }, tr('Oʻz kesimingiz: 6-qadamdagi asboblar panelida «Kesim chizigʻi» — boshi va oxirini bosing.')));
 }
 
 /* ---------- aksonometriya oynasi ---------- */
@@ -778,7 +787,7 @@ async function buildSheets(): Promise<boolean> {
   if (!V) { await runDesign(); if (!V) return false; }
   if (sheets.length) return true;
   await syncAssort(); busy = tr('Varaqlar yigʻilmoqda…'); render();
-  const m = await ask({ t: 'albom', chosen: S.chosen, author: S.author || undefined, brief: S.brief, akso: S.akso, tu: S.tu ?? [], prices: S.prices ?? {} }); busy = '';
+  const m = await ask({ t: 'albom', chosen: S.chosen, lines: S.kl ?? [], author: S.author || undefined, brief: S.brief, akso: S.akso, tu: S.tu ?? [], prices: S.prices ?? {} }); busy = '';
   if (m.t === 'albom') sheets = m.sheets; else if (m.t === 'error') toast(m.msg);
   render(); return sheets.length > 0;
 }
@@ -829,7 +838,7 @@ async function initMap(): Promise<void> {
 }
 function addLayers(): void {
   const m = map!; const add = (id: string) => m.addSource(id, { type: 'geojson', data: empty as never });
-  ['bg-cls', 'bg-slope', 'bg-trees', 'bg-vprog', 'bg-vpath', 'bg-vmark', 'bg-vfurn', 'bg-vpts', 'bg-new', 'bg-mod', 'bg-site', 'bg-draw'].forEach(add);
+  ['bg-cls', 'bg-slope', 'bg-trees', 'bg-vprog', 'bg-vpath', 'bg-vmark', 'bg-vfurn', 'bg-vpts', 'bg-new', 'bg-mod', 'bg-site', 'bg-draw', 'bg-kl'].forEach(add);
   m.addLayer({ id: 'bg-cls', type: 'fill', source: 'bg-cls', paint: { 'fill-color': ['match', ['get', 'c'], 0, CLS_COL[0], 1, CLS_COL[1], CLS_COL[2]], 'fill-opacity': 0.72 } } as never);
   m.addLayer({ id: 'bg-slope', type: 'fill', source: 'bg-slope', paint: { 'fill-color': ['match', ['get', 'c'], 0, SLOPE_COL[0], 1, SLOPE_COL[1], 2, SLOPE_COL[2], SLOPE_COL[3]], 'fill-opacity': 0.8 } } as never);
   m.addLayer({ id: 'bg-vprog', type: 'fill', source: 'bg-vprog', paint: { 'fill-color': ['match', ['get', 'k'], ...Object.entries(PROG_COL).flat(), '#ddd'], 'fill-opacity': 0.9, 'fill-outline-color': '#8c7f6e' } } as never);
@@ -846,6 +855,7 @@ function addLayers(): void {
   m.addLayer({ id: 'bg-mod-l', type: 'line', source: 'bg-mod', filter: ['==', ['geometry-type'], 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['coalesce', ['get', 'w'], 2] } } as never);
   m.addLayer({ id: 'bg-mod-p', type: 'circle', source: 'bg-mod', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': ['get', 'c'], 'circle-radius': ['coalesce', ['get', 'r'], 3], 'circle-stroke-color': '#151413', 'circle-stroke-width': 1 } } as never);
   m.addLayer({ id: 'bg-site', type: 'line', source: 'bg-site', paint: { 'line-color': '#d62828', 'line-width': 2.6 } } as never);
+  m.addLayer({ id: 'bg-kl', type: 'line', source: 'bg-kl', paint: { 'line-color': '#151413', 'line-width': 2, 'line-dasharray': [4, 1.5, 1, 1.5] } } as never);
   m.addLayer({ id: 'bg-draw', type: 'line', source: 'bg-draw', paint: { 'line-color': '#d62828', 'line-width': 2, 'line-dasharray': [2, 1.5] } } as never);
 }
 const setData = (id: string, d: unknown) => (map?.getSource(id) as GeoJSONSource | undefined)?.setData((d ?? empty) as never);
@@ -853,6 +863,7 @@ function paint(): void {
   if (!map?.getSource('bg-site')) return;
   const site = S.site, F = site ? frame(site.origin) : null;
   setData('bg-site', site && F ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [...site.boundary, site.boundary[0]].map(p => F.toGeo(p)) } }] } : empty);
+  setData('bg-kl', S.site && S.kl?.length ? { type: 'FeatureCollection', features: S.kl.map(l => ({ type: 'Feature', properties: { n: l.name }, geometry: { type: 'LineString', coordinates: [G2(l.a), G2(l.b)] } })) } : empty);
   setData('bg-draw', !drawing && draft.length && S.site ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: ((tool === 'zona' || (tool === 'daraxt' && pmode === 'guruh')) && draft.length > 2 ? [...draft, draft[0]] : draft.length > 1 ? draft : [draft[0], draft[0]]).map(G2) } }] } : drawing && drawing.length ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: drawing.length > 1 ? drawing : [drawing[0], drawing[0]] } }] } : empty);
   const st = S.step, an = st === 3, vv = st >= 5 && geo.v?.[showVar] as { paths: unknown; prog: unknown; pts: unknown } | undefined;
   setData('bg-cls', an && S.layer === 'cls' ? geo.classes : empty);
