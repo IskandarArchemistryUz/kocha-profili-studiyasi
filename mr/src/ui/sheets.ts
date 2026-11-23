@@ -8,7 +8,8 @@ import type { Project, SheetDoc } from '../core/doc';
 import { cutSheet } from '../core/streetcutsvg';
 import { silSheet, SIL_STYLES } from '../core/siluetsvg';
 import { stageSheet } from '../core/stagesheet';
-import { parseTrees } from '../core/trees';
+import { parseTrees, loadRegistry, inRegistry, REG_ATTR } from '../core/trees';
+import { apiBase } from '../account/config';
 import { bLevels, hasAntresol, ANTRESOL_SHARE } from '../core/levels';
 import { area as areaOf, frame as frameOf } from '../core/geo';
 import { uid } from '../core/doc';
@@ -169,6 +170,22 @@ export function openGraphics(host: SheetsHost): void {
   let cur = Math.max(0, Math.min(sheets.length - 1, host.start ?? 0));
   let open: string | null = null, zoom = 0, loupe = false, hand = false;
   const O = (): SheetOpts => norm(sheets[cur].opts);
+  /** 23.11: Toshkent daraxtlar reyestri — uchastka ichidagi daraxtlar inventarga (fayldan yuklanganlari saqlanadi, avvalgi reyestr qatori almashtiriladi) */
+  let regBusy = false;
+  const loadReg = async (): Promise<void> => {
+    const ring = doc.site?.rings?.[0]; if (!ring?.length || !host.treeInv || regBusy) return;
+    const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]), pad = 0.0003;
+    const bb: [number, number, number, number] = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad];
+    // server: boʻlak ≤ 0,02°, daqiqasiga ≤ 10 soʻrov (kesh boʻlmaganda) → 3 × 3 boʻlakdan oshmaydi
+    if (bb[2] - bb[0] > 0.059 || bb[3] - bb[1] > 0.059) { toast(tr('Uchastka reyestr uchun juda katta')); return; }
+    const inRing = (ll: [number, number]) => { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const a = ring[i], b = ring[j]; if ((a[1] > ll[1]) !== (b[1] > ll[1]) && ll[0] < (b[0] - a[0]) * (ll[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+    regBusy = true; toast(tr('Reyestr yuklanmoqda…'));
+    try {
+      const reg = await loadRegistry(bb, apiBase(), fetch.bind(globalThis), inRing);
+      doc = host.treeInv([...(doc.treeInv ?? []).filter(t => t.src !== 'reyestr'), ...reg]); memo.clear(); render();
+      toast(tf('${n} ta daraxt reyestrdan yuklandi', { n: reg.length }));
+    } catch { toast(tr('Reyestr javob bermadi')); } finally { regBusy = false; }
+  };
   const ha = doc.site ? (() => { const r = doc.site!.rings[0]; let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2 * 111320 * 111132 * Math.cos(r[0][1] * Math.PI / 180) / 1e4; })() : 0;
   const plans = planApartments(doc), houses = houseTypes(doc);
   const axoCache = new Map<string, { url: string; picks: AxoPick[] }>();
@@ -569,9 +586,11 @@ export function openGraphics(host: SheetsHost): void {
           ...(o.kind === 'daraxt' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Daraxtlar inventarizatsiyasi')), h('span', {}, (doc.treeInv?.length ?? 0) ? `${doc.treeInv!.length}` : tr('yoʻq'))),
             h('div', { class: 'row', style: 'gap:6px' },
               h('button', { class: 'btn btn-sm', id: 'trInvBtn', disabled: !host.treeInv, onclick: () => (document.getElementById('trInvFile') as HTMLInputElement | null)?.click() }, tr('Fayl yuklash')),
+              ...(inRegistry(doc.origin) ? [h('button', { class: 'btn btn-sm', id: 'trRegBtn', disabled: !host.treeInv || !doc.site?.rings?.[0]?.length, title: REG_ATTR, onclick: () => void loadReg() }, tr('Toshkent reyestridan'))] : []),
               ...(doc.treeInv?.length ? [h('button', { class: 'btn btn-sm btn-ghost', id: 'trInvDel', onclick: () => { if (host.treeInv) { doc = host.treeInv([]); memo.clear(); render(); } } }, tr('Tozalash'))] : []),
               h('input', { type: 'file', id: 'trInvFile', accept: '.csv,.txt,.geojson,.json,.dxf', hidden: true, onchange: (e: Event) => { const f = (e.target as HTMLInputElement).files?.[0]; if (!f || !host.treeInv) return; void f.text().then(t => { try { const r = parseTrees(f.name, t); if (!r.trees.length) { toast(tr('Fayldan daraxt topilmadi: ustunlar lon/lat yoki x/y (UTM 42N) boʻlishi kerak')); return; } doc = host.treeInv!(r.trees); memo.clear(); render(); toast(tf('${n} ta daraxt yuklandi', { n: r.trees.length }) + (r.skipped ? ` · ${tf('${n} ta qator oʻtkazildi', { n: r.skipped })}` : '')); } catch { toast(tr('Faylni oʻqib boʻlmadi')); } }); } })),
-            h('span', { class: 't-small' }, tr('CSV (lon, lat yoki x, y — UTM 42N; tur, diametr, holat), GeoJSON nuqtalar yoki DXF (POINT, CIRCLE, blok). DWG ni DXF ga saqlab yuklang. OSM daraxtlari bilan birlashtiriladi.'))] : []),
+            h('span', { class: 't-small' }, tr('CSV (lon, lat yoki x, y — UTM 42N; tur, diametr, holat), GeoJSON nuqtalar yoki DXF (POINT, CIRCLE, blok). DWG ni DXF ga saqlab yuklang. OSM daraxtlari bilan birlashtiriladi.')),
+            ...(inRegistry(doc.origin) ? [h('span', { class: 't-small' }, tr('Toshkent: daraxtlar reyestri (tur, diametr, toj). Bino yoki qatnov qismi ostidagi daraxtga huquqiy qaror — VMQ-464, VMQ-86 (15-ilova), VMQ-342 boʻyicha; yakuniy qaror — Ekologiya boshqarmasi.'))] : [])] : []),
           ...(o.kind === 'xizmat' ? [h('div', { class: 'glabel' }, h('span', {}, tr('Xizmat turi'))), h('div', { class: 'tiles c2', id: 'shSvc', role: 'group', 'aria-label': tr('Xizmat turi') }, ...SERVICES.map(sv => tile({ 'data-svc': sv.id, 'aria-pressed': (o.svc ?? 'mtm') === sv.id, title: tr(sv.note), onclick: () => set({ svc: sv.id }) }, tr(sv.name), `${sv.r} m`)))] : []),
         ] : []),
         // c74: grafika shabloni (ranglar, chiziq, atrof, daraxtlar) — varaq sozlamasi; «Barcha varaqlarga» — butun albomga

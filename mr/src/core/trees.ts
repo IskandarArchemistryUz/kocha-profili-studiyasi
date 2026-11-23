@@ -4,13 +4,14 @@
  * loyiha bilan solishtiriladi: bino ostida yoki qatnov qismida qolganlari — kesiladi / koʻchiriladi,
  * bino devoriga 5 m dan yaqin — ShNQ 2.07.01-23, 485-band, 35-jadval («bino devori — 5,0 m») boʻyicha ziddiyat; qolgani saqlanadi.
  * Toshkentda daraxt kesishga muddatsiz moratoriy bor — kesiladiganlar har biri alohida kelishiladi (izoh varaqda).
- * Toshkent «Daraxtlar reyestri» ochiq API siz — egasi soʻraydi; hozircha OSM + inventarizatsiya fayli.
+ * 23.11: Toshkent «Daraxtlar reyestri» (green.tashkent.uz, WFS) — Lab API proksisi /data/trees orqali (loadRegistry);
+ * huquqiy qaror (moratoriy, koʻchirish ≤ 15 sm, toʻlov, kompensatsiya) — core/treelaw.
  */
 import type { LngLat } from './doc';
 import { utmToLngLat } from './userlayers';
 
 type XY = [number, number];
-export interface InvTree { at: LngLat; sp?: string; d?: number; h?: number; st?: string }
+export interface InvTree { at: LngLat; sp?: string; d?: number; h?: number; st?: string; c?: number; src?: 'reyestr' }
 export type TreeSt = 'saqlanadi' | 'kesiladi' | 'yaqin';
 export const TREE_WALL = 5;   // 35-jadval: daraxt oʻqidan bino devorigacha, m
 
@@ -86,10 +87,10 @@ const pip = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 
 const segD = (p: XY, a: XY, b: XY) => { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0; return Math.hypot(a[0] + dx * t - p[0], a[1] + dy * t - p[1]); };
 const ringD = (p: XY, r: XY[]) => { let m = Infinity; for (let i = 0; i < r.length; i++) m = Math.min(m, segD(p, r[i], r[(i + 1) % r.length])); return m; };
 
-/** Mavjud daraxt holati: bino ostida yoki qatnov qismida — kesiladi; bino devoriga < 5 m — yaqin; aks holda saqlanadi */
-export function treeStatus(t: XY, blds: XY[][], carriage: XY[][][]): TreeSt {
+/** Mavjud daraxt holati: bino ostida yoki qatnov qismida — kesiladi; bino devoriga < 5 m (toj > 5 m boʻlsa — treelaw.minDist) — yaqin; aks holda saqlanadi */
+export function treeStatus(t: XY, blds: XY[][], carriage: XY[][][], wall = TREE_WALL): TreeSt {
   if (blds.some(r => pip(t, r)) || carriage.some(poly => pip(t, poly[0]) && !poly.slice(1).some(h => pip(t, h)))) return 'kesiladi';
-  if (blds.some(r => ringD(t, r) < TREE_WALL - 1e-6)) return 'yaqin';
+  if (blds.some(r => ringD(t, r) < wall - 1e-6)) return 'yaqin';
   return 'saqlanadi';
 }
 
@@ -97,4 +98,27 @@ export function treeStatus(t: XY, blds: XY[][], carriage: XY[][][]): TreeSt {
 export function mergeTrees(osm: XY[], inv: XY[]): XY[] {
   if (!inv.length) return osm;
   return [...inv, ...osm.filter(p => !inv.some(q => Math.hypot(p[0] - q[0], p[1] - q[1]) < 2))];
+}
+
+/* ---------- 23.11: Toshkent daraxtlar reyestri ---------- */
+/** WFS qatlami qamrovi (GetCapabilities, 23.11.2026) — server/src/data/routes.js bilan bir xil cheklov */
+export const REG_BBOX: [number, number, number, number] = [68.9, 41.1, 69.6, 41.5];
+export const REG_ATTR = 'Toshkent shahri daraxtlar reyestri — green.tashkent.uz (Zamin fondi, Ekologiya vazirligi, Toshkent shahar hokimligi)';
+export const inRegistry = (ll: LngLat): boolean => ll[0] >= REG_BBOX[0] && ll[0] <= REG_BBOX[2] && ll[1] >= REG_BBOX[1] && ll[1] <= REG_BBOX[3];
+type RegRow = [number, number, string, number, number, number, number];
+/** bbox (lon/lat) ≤ 0,02° boʻlaklarga boʻlinadi; har boʻlak — Lab API /data/trees (serverda 1 kun kesh, shaxsga oid maydonlarsiz) */
+export async function loadRegistry(bb: [number, number, number, number], base: string, f: typeof fetch = fetch, inside?: (ll: LngLat) => boolean): Promise<InvTree[]> {
+  const S = 0.0199, out: InvTree[] = [], seen = new Set<string>();
+  for (let x = bb[0]; x < bb[2]; x += S) for (let y = bb[1]; y < bb[3]; y += S) {
+    const b = [x, y, Math.min(bb[2], x + S), Math.min(bb[3], y + S)].map(v => +v.toFixed(6));
+    const r = await f(`${base}/data/trees?bbox=${b.join(',')}`);
+    if (!r.ok) throw new Error(`reyestr ${r.status}`);
+    const rows: RegRow[] = (await r.json()).trees ?? [];
+    for (const t of rows) {
+      const k = `${t[0].toFixed(6)},${t[1].toFixed(6)}`; if (seen.has(k)) continue; seen.add(k);
+      const at: LngLat = [t[0], t[1]]; if (inside && !inside(at)) continue;
+      out.push({ at, src: 'reyestr', ...(t[2] && t[2] !== '—' ? { sp: String(t[2]).slice(0, 60) } : {}), ...(+t[3] > 0 ? { d: +t[3] } : {}), ...(+t[4] > 0 ? { c: +t[4] } : {}), ...(+t[5] > 0 ? { h: +t[5] } : {}), ...(t[6] ? { st: 'tasdiqlangan' } : {}) });
+    }
+  }
+  return out;
 }

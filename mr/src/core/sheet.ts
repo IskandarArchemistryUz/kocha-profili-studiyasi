@@ -9,6 +9,7 @@ import { contourStep, contourSegs, windowOf, slopeAt, HYPSO, type ReliefGrid } f
 import type { Project } from './doc';
 import { frame, centroid, area, type XY } from './geo';
 import { treeStatus, mergeTrees } from './trees';
+import { decide, balance, minDist, type TreeOut, type Balance } from './treelaw';
 import { computePlan } from './plan';
 import { useDef, USES } from './uses';
 import { profileById, profileWidth, type PartKind, type Cat } from './profiles';
@@ -553,10 +554,15 @@ export function sheetSvg(doc: Project, ctx: SheetCtx | null, o: SheetOpts, date 
     g('Mavjud_saqlanadi', TREE.keep.map(t => cr(t, '#4f8a3a', '#1d1d1b')).join(''));
     g('Mavjud_yaqin', TREE.near.map(t => cr(t, '#e8a33d', '#1d1d1b')).join(''));
     const xx = (t: XY) => { const a = r0 * 0.7; return `<path d="M${n2(+X(t) - a)} ${n2(+Y(t) - a)}l${n2(2 * a)} ${n2(2 * a)}M${n2(+X(t) - a)} ${n2(+Y(t) + a)}l${n2(2 * a)} ${n2(-2 * a)}" stroke="#c0392b" stroke-width="${lw(0.3)}"/>`; };
-    g('Mavjud_kesiladi', TREE.cut.map(t => cr(t, '#ffffff', '#c0392b') + xx(t)).join(''));
+    const HOLD = new Set(TREE.hold), MOVE = new Set(TREE.move);
+    g('Mavjud_kesiladi', TREE.cut.filter(t => !HOLD.has(t) && !MOVE.has(t)).map(t => cr(t, '#ffffff', '#c0392b') + xx(t)).join(''));
+    if (TREE.move.length) g('Mavjud_kochiriladi', TREE.move.map(t => cr(t, '#ffffff', '#b5651d')).join(''));
+    if (TREE.hold.length) g('Mavjud_moratoriy', TREE.hold.map(t => cr(t, '#4f8a3a', '#7a3fa8') + `<circle cx="${X(t)}" cy="${Y(t)}" r="${n2(r0 * 1.45)}" fill="none" stroke="#7a3fa8" stroke-width="${lw(0.35)}"/>`).join(''));
     legend.push({ type: 'tree', fill: '#4f8a3a', stroke: '#1d1d1b', label: `${tr('Mavjud — saqlanadi')} (${TREE.keep.length})` },
       { type: 'tree', fill: '#e8a33d', stroke: '#1d1d1b', label: `${tr('Mavjud — binoga 5 m dan yaqin (35-jadval)')} (${TREE.near.length})` },
-      { type: 'tree', fill: '#ffffff', stroke: '#c0392b', label: `${tr('Mavjud — bino yoki qatnov qismi ostida')} (${TREE.cut.length})` },
+      { type: 'tree', fill: '#ffffff', stroke: '#c0392b', label: `${tr('Mavjud — bino yoki qatnov qismi ostida')} (${TREE.cut.length - TREE.hold.length - TREE.move.length})` },
+      ...(TREE.move.length ? [{ type: 'tree' as const, fill: '#ffffff', stroke: '#b5651d', label: `${tr('Mavjud — koʻchiriladi')} (${TREE.move.length})` }] : []),
+      ...(TREE.hold.length ? [{ type: 'tree' as const, fill: '#4f8a3a', stroke: '#7a3fa8', label: `${tr('Mavjud — saqlanadi, loyiha oʻzgaradi (moratoriy)')} (${TREE.hold.length})` }] : []),
       { type: 'tree', fill: '#b9dca0', stroke: '#4f8a3a', label: `${tr('Yangi ekiladi')} (${NEWT.length})` });
   }
   if (K === 'navbat') { const used = [...new Set(doc.buildings.map(stageOf))].sort(); for (const st of used) legend.push({ type: 'fill', fill: STAGE_COL[st - 1], stroke: '#1d1d1b', label: tf2(tr('${n}-navbat'), { n: st }) }); }
@@ -1149,25 +1155,57 @@ export function sheetChecks(r: SheetResult, o: SheetOpts, tr: (s: string) => str
   ];
 }
 
-/** 12.11: daraxtlar xaritasi — uchastka ichidagi mavjud daraxtlar holati (core/trees) va yangi ekiladiganlar */
-export interface TreeSum { keep: XY[]; near: XY[]; cut: XY[]; inv: number; osm: number; newT: number }
+/** 12.11: daraxtlar xaritasi — uchastka ichidagi mavjud daraxtlar holati (core/trees) va yangi ekiladiganlar.
+ *  23.11: tur va diametri maʼlum daraxt (Toshkent reyestri yoki inventar fayli) bino/qatnov ostida qolsa — huquqiy qaror (core/treelaw):
+ *  qimmatbaho tur kesilmaydi (moratoriy) → «loyiha oʻzgaradi»; d ≤ 15 sm → koʻchiriladi; kam qimmatli → kesiladi + toʻlov + 10 koʻchat.
+ *  35-jadval masofasi toji > 5 m daraxtga oshiriladi (1-izoh; qiymat — T, treelaw.minDist). */
+export interface TreeSum { keep: XY[]; near: XY[]; cut: XY[]; inv: number; osm: number; newT: number;
+  /** reyestrdan kelgan daraxtlar soni */ reg: number;
+  /** kesilish zonasidagi turi/diametri maʼlum daraxtlar boʻyicha huquqiy qarorlar */ law: TreeOut[]; lawBal: Balance | null;
+  /** cut ichidan: saqlanishi shart (loyiha oʻzgaradi / Prezident hujjati) va koʻchiriladiganlar */ hold: XY[]; move: XY[] }
 export function treeSum(doc: Project, ctx: SheetCtx | null, blds: XY[][], site0: XY[] | null, newT: XY[]): TreeSum {
   const fr = frame(doc.origin), inS = (p: XY) => !site0 || pipT(p, site0);
-  const inv = (doc.treeInv ?? []).map(t => fr.toLocal(t.at) as XY).filter(inS), osm = (ctx?.trees ?? []).filter(inS);
+  const invT = (doc.treeInv ?? []).map(t => ({ p: fr.toLocal(t.at) as XY, t })).filter(x => inS(x.p));
+  const inv = invT.map(x => x.p), osm = (ctx?.trees ?? []).filter(inS);
   const all = mergeTrees(osm, inv), car = docCarriage(doc);
-  const out: TreeSum = { keep: [], near: [], cut: [], inv: inv.length, osm: all.length - inv.length, newT: newT.length };
-  for (const t of all) { const st = treeStatus(t, blds, car); (st === 'kesiladi' ? out.cut : st === 'yaqin' ? out.near : out.keep).push(t); }
+  const out: TreeSum = { keep: [], near: [], cut: [], inv: inv.length, osm: all.length - inv.length, newT: newT.length,
+    reg: invT.filter(x => x.t.src === 'reyestr').length, law: [], lawBal: null, hold: [], move: [] };
+  const attr = new Map<XY, (typeof invT)[number]['t']>(invT.map(x => [x.p, x.t]));
+  for (const t of all) {
+    const a = attr.get(t), wall = a?.c ? minDist('bino', a.c).m : undefined;
+    const st = treeStatus(t, blds, car, wall); (st === 'kesiladi' ? out.cut : st === 'yaqin' ? out.near : out.keep).push(t);
+    if (st !== 'kesiladi' || !a?.sp) continue;
+    const r = decide({ name: a.sp, dbh: a.d ?? 0, crown: a.c, conflict: 'dog' });
+    out.law.push(r);
+    if (r.decision === 'loyiha_ozgaradi' || r.decision === 'prezident_hujjati') out.hold.push(t); else if (r.decision === 'kochiriladi') out.move.push(t);
+  }
+  if (out.law.length) out.lawBal = balance(out.law);
   return out;
 }
 const pipT = (p: XY, r: XY[]) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const a = r[i], b = r[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+/** 23.11: kesilish zonasi boʻyicha huquqiy balans (core/treelaw; manbalar — docs/daraxt-normalar-toshkent.md) */
+function lawRows(t: TreeSum, tr: (s: string) => string): BalanceRow[] {
+  const B = t.lawBal!, sp = (v: number) => Math.round(v).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
+  const hold = B.by.loyiha_ozgaradi + B.by.prezident_hujjati, unk = t.cut.length - t.law.length + B.byClass.nomalum;
+  return [
+    { t: tr('— loyiha oʻzgaradi: qimmatbaho tur, kesish taqiqlangan'), v: hold, vt: String(hold), c: '#7a3fa8', ok: hold === 0, p: 'VMQ-464, 5' },
+    { t: tr('— koʻchiriladi (d ≤ 15 sm)'), v: B.by.kochiriladi, vt: String(B.by.kochiriladi), c: '#b5651d', p: 'VMQ-342, 2' },
+    { t: tr('— kesiladi (kam qimmatli tur)'), v: B.by.kesiladi, vt: String(B.by.kesiladi), c: '#c0392b', p: 'VMQ-464, 31' },
+    ...(unk ? [{ t: tr('— tur yoki diametr nomaʼlum'), v: unk, vt: String(unk), ok: false, p: 'REVIEW' }] : []),
+    { t: tr('Ruxsatnoma toʻlovi'), vt: `${sp(B.feeSom)} soʻm`, p: `${String(B.feeBhm).replace('.', ',')} BHM` },
+    { t: tr('Kompensatsiya koʻchatlari (5 yillik)'), v: B.compSaplings, vt: String(B.compSaplings), p: 'VMQ-86, 15-ilova' },
+  ];
+}
 export function treeRows(t: TreeSum, tr: (s: string) => string = s => s): BalanceRow[] {
   const ex = t.keep.length + t.near.length + t.cut.length, after = t.keep.length + t.near.length + t.newT;
   return [
     { t: tr('Mavjud daraxtlar (uchastka ichida)'), v: ex, vt: String(ex), b: true },
-    { t: tr('inventarizatsiyadan'), v: t.inv, vt: String(t.inv) }, { t: tr('OSM dan'), v: t.osm, vt: String(t.osm) },
+    ...(t.reg ? [{ t: tr('reyestrdan'), v: t.reg, vt: String(t.reg) }] : []),
+    { t: tr('inventarizatsiyadan'), v: t.inv - t.reg, vt: String(t.inv - t.reg) }, { t: tr('OSM dan'), v: t.osm, vt: String(t.osm) },
     { t: tr('Saqlanadi'), v: t.keep.length, vt: String(t.keep.length), sep: true, c: '#4f8a3a' },
     { t: tr('Binoga 5 m dan yaqin — koʻrib chiqish'), v: t.near.length, vt: String(t.near.length), c: '#e8a33d', ok: t.near.length === 0, p: tr('35-jadval') },
     { t: tr('Kesiladi yoki koʻchiriladi'), v: t.cut.length, vt: String(t.cut.length), ok: t.cut.length === 0, p: tr('moratoriy') },
+    ...(t.lawBal ? lawRows(t, tr) : []),
     { t: tr('Yangi ekiladi (koʻcha, hovli)'), v: t.newT, vt: String(t.newT), sep: true, c: '#b9dca0' },
     { t: tr('Loyihadan keyin jami'), v: after, vt: String(after), b: true, sep: true, ok: after >= ex, p: after >= ex ? `+${after - ex}` : `−${ex - after}` },
   ];
