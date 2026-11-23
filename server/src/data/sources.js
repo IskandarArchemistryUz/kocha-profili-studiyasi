@@ -34,5 +34,9 @@ export const SOURCES = {
     name: 'TMYx (climate.onebuilding.org)', licence: 'Derived statistics — written permission of the authors (D. Crawley, 27.10.2026): commercial use and other countries allowed', url: 'https://climate.onebuilding.org',
     attribution: 'Lawrie, Linda K, Drury B Crawley. 2026. Development of Global Typical Meteorological Years (TMYx). https://climate.onebuilding.org', odbl: false, ttlDays: 3650,
   },
+  trees: {
+    name: 'Toshkent shahri daraxtlar reyestri (green.tashkent.uz)', licence: 'Ochiq maʼlumot — manba koʻrsatilishi shart', url: 'https://green.tashkent.uz',
+    attribution: 'Toshkent shahri daraxtlar reyestri — green.tashkent.uz (Zamin fondi, Ekologiya vazirligi, Toshkent shahar hokimligi)', odbl: false, ttlDays: 1,
+  },
 };
 export const sourceInfo = (id) => (SOURCES[id] ? { id, ...SOURCES[id] } : null);
