@@ -1,1 +1,0 @@
-export{l as toUpload}from"./api-DArl8V5Y.js";

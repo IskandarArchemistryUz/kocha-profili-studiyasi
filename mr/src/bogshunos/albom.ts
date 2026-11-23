@@ -185,6 +185,7 @@ function plan(S: AlbomSrc, V: Variant, P: Pj, o: { trees?: 'full' | 'faint'; gat
   for (const l of V.marks ?? []) g += strokeD(P.ln(l), '#ffffff', 0.12);
   for (const fu of V.furn ?? []) { const f = furnById(fu.id); if (!f) continue; const [x, y] = P.p(fu.p), w = Math.max(0.5, f.w * P.k), d = Math.max(0.35, f.d * P.k), c = FCATS[f.cat].c;
     g += f.shape === 'circle' ? `<circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(Math.max(0.35, f.w / 2 * P.k))}" fill="${c}" stroke="${K.ink}" stroke-width=".08"/>` : `<rect x="${f2(-w / 2)}" y="${f2(-d / 2)}" width="${f2(w)}" height="${f2(d)}" rx=".08" fill="${c}" stroke="${K.ink}" stroke-width=".08" transform="translate(${f2(x)} ${f2(y)}) rotate(${f2(-fu.a * 180 / Math.PI)})"/>`; }
+  for (const fx of V.fixed ?? []) if (fx.t === 'haykal' || fx.t === 'tarixiy') { const [x, y] = P.p(fx.p); g += `<path d="M${f2(x)} ${f2(y - 1.5)}L${f2(x + 1.2)} ${f2(y)}L${f2(x)} ${f2(y + 1.5)}L${f2(x - 1.2)} ${f2(y)}Z" fill="${K.ink}" stroke="#fff" stroke-width=".25"/>` + T(x + 1.8, y + 0.7, fx.name, { s: 2, w: 700 }); }
   if (o.gates !== false) for (const gt of V.gates) { const [x, y] = P.p(gt.p); g += `<circle cx="${f2(x)}" cy="${f2(y)}" r="${gt.main ? 1.5 : 1}" fill="#fff" stroke="${K.ink}" stroke-width=".3"/>`; }
   if (o.items) V.items.forEach((it, i) => { const [x, y] = P.p(it.p); g += `<circle cx="${f2(x)}" cy="${f2(y)}" r="2" fill="${K.ink}"/>` + T(x, y + 0.95, i + 1, { s: 2.5, c: '#fff', a: 'middle', w: 700 }); });
   return g + border(S, P);

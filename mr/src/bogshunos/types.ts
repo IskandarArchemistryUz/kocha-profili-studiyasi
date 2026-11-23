@@ -44,6 +44,8 @@ export interface BgSite {
   rekonstruksiya: boolean;
   /** tarixiy yoki rasmiy makon (23.11): mavjud kompozitsiya saqlanadi, sport va shovqinli elementlar sukut boʻyicha qoʻyilmaydi */
   tarixiy?: boolean;
+  /** qoʻlda belgilangan saqlanadigan obyektlar (haykal, yodgorlik): siljimaydi, demontaj qilinmaydi */
+  keepPts?: { p: XY; name: string }[];
 }
 
 export type Tag = 'N' | 'P' | 'A' | 'T' | 'X' | '';
@@ -68,6 +70,8 @@ export interface Variant {
   marks?: XY[][];
   /** joylanmay qolgan dastur elementlari va sababi */
   miss?: { el: string; why: string }[];
+  /** saqlanadigan obyektlar (haykal, yodgorlik, favvora): joyi oʻzgarmaydi, ustidan yoʻl ham, element ham oʻtmaydi */
+  fixed?: { p: XY; name: string; r: number; t: string }[];
 }
 
 export interface BgModel {
