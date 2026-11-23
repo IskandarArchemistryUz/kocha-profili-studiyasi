@@ -7,7 +7,8 @@
 import type { XY, Variant, MPoly } from './types';
 import type { Ctx } from './analyze';
 import type { DesignOut } from './design';
-import type { Planting, NewTree } from './planting';
+import { lawBalOf, type Planting, type NewTree } from './planting';
+import { decide, mustKeep } from '../core/treelaw';
 import { strokeLine, fillPoly, area, len } from './grid';
 import { ASSORT, crownOf } from './assort';
 import { TIERS, ZONES, type Tier as CTier, type ZoneKind as CZone } from './catalog';
@@ -99,7 +100,7 @@ export function applyEdits(C: Ctx, DO: DesignOut, E: Edit[]): DesignOut {
     pathLen: Math.round(paths.reduce((s, p) => s + len(p.g), 0)), asosiy: lenT('asosiy'), ikkinchi: lenT('ikkinchi'), soqmoq: lenT('soqmoq'), sohil: lenT('sohil'), rampa: lenT('rampa'), zina: lenT('zina'),
     hard: Math.round(hardA), greenPct: Math.round((siteA - waterA - hardA) / siteA * 1000) / 10, meadow: Math.round(meadow),
     wetland: Math.round(masks.botqoq ? area(G, masks.botqoq) : 0), rain: Math.round(masks.yomgir_bogi ? area(G, masks.yomgir_bogi) : 0),
-    conflict: conflict.length, conflictBig: conflict.filter(t => t.d >= 40).length, mgnOver: Math.round(mgnOver), lawn: Math.round(lawn), other: Math.round(other),
+    conflict: conflict.length, conflictBig: conflict.filter(t => mustKeep(t.sp, t.d)).length, mgnOver: Math.round(mgnOver), lawn: Math.round(lawn), other: Math.round(other),
     irrLo: Math.round((lawn * 15 + meadow * 3 + other * 3) / 1000), irrHi: Math.round((lawn * 20 + meadow * 4 + other * 4) / 1000), edits: E.length };
   const prog: Record<string, MPoly> = progVec(G, masks, blocks), fit = fitoutAll(blocks);
   const furn = [...fit.furn, ...E.filter(e => e.t === 'furn').map(e => { const f = e as Extract<Edit, { t: 'furn' }>; return { id: f.id, p: f.p, a: f.a }; })];
@@ -143,11 +144,16 @@ export function applyTreeEdits(C: Ctx, PL: Planting, E: Edit[], DO?: DesignOut):
   if (!add.length && !rm.length && !comp.trees.length && !comp.shrubs.length) return PL;
   const free = (p: XY) => { const k = C.G.idx(p[0], p[1]); return k >= 0 && !!C.site[k] && !C.water[k] && !C.bld[k] && !(DO?.masks.hard?.[k]); };
   const siteA = area(C.G, C.site), d2 = (a: XY, b: XY) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-  let trees = PL.trees.slice(); const shrubs = PL.shrubs.slice(); const decisions = PL.decisions.slice(); let dCan = 0;
+  let trees = PL.trees.slice(); const shrubs = PL.shrubs.slice(); const decisions = PL.decisions.slice(), law = PL.law.slice(); let dCan = 0;
   for (const r of rm) {
     const i = trees.findIndex(t => d2(t.p, r.p) < 3);
     if (i >= 0) { dCan -= Math.PI * (trees[i].crown / 2) ** 2; trees = trees.filter((_, j) => j !== i); continue; }
-    const j = C.trees.findIndex(t => d2(t.p, r.p) < 3); if (j >= 0 && decisions[j] !== 'kesiladi') { dCan -= Math.PI * Math.max(1.5, C.trees[j].c / 2) ** 2; decisions[j] = 'kesiladi'; }
+    const j = C.trees.findIndex(t => d2(t.p, r.p) < 3);
+    if (j >= 0 && decisions[j] !== 'kesiladi') {
+      dCan -= Math.PI * Math.max(1.5, C.trees[j].c / 2) ** 2; decisions[j] = 'kesiladi';
+      // 23.11: foydalanuvchi olib tashladi — huquqiy qaror qayta (qimmatbaho boʻlsa «loyiha oʻzgaradi» qoladi → albomda «qonunga zid» qatori)
+      const t = C.trees[j]; law[j] = decide({ name: t.sp, dbh: t.d, crown: t.c, conflict: 'dog', preferCut: true });
+    }
   }
   for (const a of add) {
     const near = [...trees].sort((x, y) => d2(x.p, a.p) - d2(y.p, a.p))[0];
@@ -157,5 +163,5 @@ export function applyTreeEdits(C: Ctx, PL: Planting, E: Edit[], DO?: DesignOut):
   for (const t of comp.trees) { if (!free(t.p)) continue; const sp = ASSORT.find(s => s.lat === t.lat); if (!sp) continue; const crown = crownOf(sp.size); trees.push({ p: t.p, sp, crown, zone: 'ochiq' } as NewTree); dCan += Math.PI * (crown / 2) ** 2; }
   for (const b of comp.shrubs) { if (!free(b.p)) continue; const sp = ASSORT.find(s => s.lat === b.lat); if (!sp) continue; shrubs.push({ p: b.p, sp, n: b.n }); }
   const counts = { ...PL.counts }; (Object.keys(counts) as (keyof typeof counts)[]).forEach(k => { counts[k] = decisions.filter(d => d === k).length; });
-  return { ...PL, trees, shrubs, decisions, counts, canopy1: Math.max(0, PL.canopy1 + dCan / siteA * 100) };
+  return { ...PL, trees, shrubs, decisions, counts, law, lawBal: lawBalOf(law), canopy1: Math.max(0, PL.canopy1 + dCan / siteA * 100) };
 }

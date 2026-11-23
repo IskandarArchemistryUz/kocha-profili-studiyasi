@@ -44,7 +44,7 @@ export type WOut =
   | { t: 'analyzed'; A: Analysis; geo: { trees: unknown; classes: unknown; slope: unknown }; sug?: { prog: Prog; sportNeed: number; why: string } }
   | { t: 'designed'; V: Record<string, Variant>; geo: Record<string, unknown>; why: string[] }
   | { t: 'albom'; sheets: { id: string; title: string; svg: string; w: number; h: number }[] }
-  | { t: 'planted'; P: Omit<Planting, 'decisions' | 'trees' | 'shrubs'> & { nTrees: number; nShrubs: number }; geo: unknown }
+  | { t: 'planted'; P: Omit<Planting, 'decisions' | 'trees' | 'shrubs' | 'law'> & { nTrees: number; nShrubs: number }; geo: unknown }
   | { t: 'modul'; M: ModOut; geo: { kesim: unknown; fauna: unknown; tarmoq: unknown } }
   | { t: 'edited'; V: Variant; geo: unknown; vert: VSum }
   | { t: 'assorted'; warn: string[] }
@@ -86,7 +86,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
     } else if (m.t === 'plant') {
       const DO = ed(m.chosen); if (!site || !C || !A || !cls || !DO) throw new Error('Avval variantlar');
       const P = plantE(DO), F = frame(site.origin);
-      const { decisions, trees, shrubs, ...rest } = P; void decisions;
+      const { decisions, trees, shrubs, law, ...rest } = P; void decisions; void law;
       out({ t: 'planted', P: { ...rest, nTrees: trees.length, nShrubs: shrubs.length }, geo: { type: 'FeatureCollection', features: [...trees.map(t => ({ type: 'Feature', properties: { c: t.crown, lat: t.sp.lat, g: t.sp.g, z: t.zone, col: TPAL[symOf(t.sp)][0], ed: TPAL[symOf(t.sp)][1], fc: PHEN[t.sp.lat]?.fc ?? '' }, geometry: { type: 'Point', coordinates: F.toGeo(t.p) } })), ...shrubs.map(s => ({ type: 'Feature', properties: { c: 6, lat: s.sp.lat, g: 'buta', z: 'buta', col: TPAL.butaGuruh[0], ed: TPAL.butaGuruh[1], fc: PHEN[s.sp.lat]?.fc ?? '' }, geometry: { type: 'Point', coordinates: F.toGeo(s.p) } }))] } });
     } else if (m.t === 'edits') {
       if (!site || !C || !D[m.chosen]) throw new Error('Avval variantlar');

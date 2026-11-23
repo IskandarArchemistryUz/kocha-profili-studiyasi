@@ -10,6 +10,7 @@ import type { DesignOut } from './design';
 import { Grid, bbox, fillPoly, threshold, contour, distLine, area, len } from './grid';
 import { REGISTRY_CITE } from './load';
 import { plant } from './planting';
+import { BHM_DEFAULT } from '../core/treelaw';
 import { ASSORT, ASSORT_CITE, PHEN } from './assort';
 import { PLAN, TPAL, csym, symOf, type PlanKey } from './symbols';
 import { furnById, FCATS } from './library';
@@ -272,7 +273,7 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
       const c = cells[4], top = A.trees.top.slice(0, 10), mx = top[0]?.[1] || 1, rh = 6;
       let s = T(c.x, c.y + 3.6, '5. Asosiy turlar', { s: 3.2, w: 700 }) + T(c.x, c.y + 7.4, `${A.trees.species} tur; birinchi 10 tasi, ulush %`, { s: 2.3, c: K.mut });
       top.forEach(([k, v], i) => { const y = c.y + 11 + i * rh; s += T(c.x, y + 3.8, k, { s: 2.5 }) + R(c.x + 48, y + 1.2, (c.w - 62) * v / mx, 3.4, k === 'Yuksak aylant' ? RED : K.green2, 'none', 0) + T(c.x + c.w, y + 3.8, `${fmt(v, 1)} %`, { s: 2.4, a: 'end', c: K.mut }); });
-      s += T(c.x, c.y + c.h - 2, 'Qizil — Ailanthus altissima (invaziv, olib tashlanadi)', { s: 2.1, c: RED });
+      s += T(c.x, c.y + c.h - 2, 'Qizil — Ailanthus altissima (invaziv — ekologik baho, T; huquqan kam qimmatli, VMQ-86 15-ilova)', { s: 2.1, c: RED });
       g += s;
     }
     { // 6. pasport
@@ -327,7 +328,7 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
     });
     g += scaleBar(W.x + W.w - 40, W.y + ph - 6, proj(bb, { x: 0, y: 0, w: cw, h: ph - 22 }, Pn));
     const M = (k: string, f: (v: Variant) => string) => [k, ...ids.map(i => f(S.D[i]!.V))], cwT = (W.w - 70) / n;
-    g += table(W.x, W.y + ph + 2, [['Koʻrsatkich', 70], ...ids.map(i => [i, cwT, 'r'] as [string, number, 'r'])], [M('Darvozalar / yoʻllar, m', v => `${v.m.gates} / ${fmt(v.m.pathLen)}`), M('Qattiq yuza, m² / yashil, %', v => `${fmt(v.m.hard)} / ${fmt(v.m.greenPct, 1)}`), M('Zina / rampa, m', v => `${fmt(v.m.zina)} / ${fmt(v.m.rampa)}`), M('Koʻpriklar / daraxt ziddiyati (≥ 40 sm)', v => `${v.bridges.length} / ${v.m.conflict} (${v.m.conflictBig})`), M('Sugʻorish, m³/sut (P)', v => `${fmt(v.m.irrLo)}–${fmt(v.m.irrHi)}`)], { rh: 5.4 }).g;
+    g += table(W.x, W.y + ph + 2, [['Koʻrsatkich', 70], ...ids.map(i => [i, cwT, 'r'] as [string, number, 'r'])], [M('Darvozalar / yoʻllar, m', v => `${v.m.gates} / ${fmt(v.m.pathLen)}`), M('Qattiq yuza, m² / yashil, %', v => `${fmt(v.m.hard)} / ${fmt(v.m.greenPct, 1)}`), M('Zina / rampa, m', v => `${fmt(v.m.zina)} / ${fmt(v.m.rampa)}`), M('Koʻpriklar / daraxt ziddiyati (kesish taqiqlangan)', v => `${v.bridges.length} / ${v.m.conflict} (${v.m.conflictBig})`), M('Sugʻorish, m³/sut (P)', v => `${fmt(v.m.irrLo)}–${fmt(v.m.irrHi)}`)], { rh: 5.4 }).g;
     push('variant', 'Konsepsiya: uch variant', g, `1:${fmt(Pn)}`);
   }
 
@@ -368,9 +369,20 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
         else m += `<circle cx="${f2(x)}" cy="${f2(y)}" r="${f2(rr)}" fill="none" stroke="${COL[c]}" stroke-width=".3"/>` + L(x - rr * 0.7, y - rr * 0.7, x + rr * 0.7, y + rr * 0.7, COL[c], 0.3) + L(x - rr * 0.7, y + rr * 0.7, x + rr * 0.7, y - rr * 0.7, COL[c], 0.3); });
       let g = clip(r, m) + north(r.x + r.w - 6, r.y + 2) + scaleBar(r.x + 4, r.y + r.h - 8, P);
       const x2 = X2, w2 = W2;
-      const t = table(x2, W.y, [['Qaror', w2 - 26], ['Soni', 26, 'r']], [['Saqlanadi', fmt(CC.saqlanadi)], ['Koʻchiriladi (dbh < 40 sm, T)', fmt(CC.kochiriladi)], ['Saqlanadi, yoʻl suriladi (≥ 40 sm, 480-band)', fmt(CC.yol_suriladi)], ['Kesiladi — Ailanthus (invaziv, T)', fmt(CC.kesiladi)], ['Jami (reyestr)', fmt(C.trees.length)]]);
-      g += T(x2, W.y - 2, 'Daraxtlar balansi', { s: 3, w: 700 }) + t.g + legend(x2, W.y + t.h + 6, [{ t: 'dot', c: K.green2, s: '#4f7a45', l: 'Saqlanadi' }, { t: 'dot', c: K.green2, s: COL.yol_suriladi, l: 'Saqlanadi — yoʻl suriladi' }, { t: 'x', c: COL.kochiriladi, l: 'Koʻchiriladi' }, { t: 'x', c: RED, l: 'Kesiladi (Ailanthus)' }, { t: 'line', c: RED, l: 'Loyiha chegarasi' }]).g;
-      g += para(x2, W.y + t.h + 40, w2, `Ziddiyat — daraxt yangi qattiq qoplama, sport maydoni yoki amfiteatr ostida va mavjud yoʻlda emas. Kesish va koʻchirish rasmiy tartibi (moratoriy, kompensatsion ekish) alohida rasmiylashtiriladi. Ildiz zonasi 12 × dbh, 2–15 m (A, BS 5837:2012).`, 2.3, 1.4, K.mut).g + para(x2, W.y + W.h - 10, w2, REGISTRY_CITE, 1.9, 1.3, K.mut).g;
+      // 23.11: qarorlar — core/treelaw (docs/daraxt-normalar-toshkent.md); ziddiyatdagi qimmatbaho tur — moratoriy, kesilmaydi
+      const LB = PLT.lawBal, LW = PLT.law, illegal = LW.filter((r, i) => r && D[i] === 'kesiladi' && (r.decision === 'loyiha_ozgaradi' || r.decision === 'prezident_hujjati')).length;
+      const inv = LW.filter((r, i) => r && D[i] === 'kesiladi' && /Ailanthus|aylant/i.test(C.trees[i].sp)).length;
+      const t = table(x2, W.y, [['Qaror', w2 - 26], ['Soni', 26, 'r']], [
+        ['Saqlanadi', fmt(CC.saqlanadi)],
+        ['Saqlanadi, yoʻl suriladi — qimmatbaho tur, moratoriy (VMQ-464, 5)', fmt(CC.yol_suriladi)],
+        ['Koʻchiriladi — d ≤ 15 sm (VMQ-342, 2), 3 yil parvarish', fmt(CC.kochiriladi)],
+        [`Kesiladi — kam qimmatli (VMQ-464, 31)${inv ? `, shundan Ailanthus ${fmt(inv)}` : ''}`, fmt(CC.kesiladi)],
+        ...(illegal ? [['Qoʻlda olib tashlangan, lekin kesish taqiqlangan', fmt(illegal)]] : []),
+        ...(LB?.review ? [['Tur roʻyxatda yoʻq yoki diametr nomaʼlum — REVIEW', fmt(LB.review)]] : []),
+        ...(LB ? [[`Ruxsatnoma toʻlovi, soʻm (${fmt(LB.feeBhm, 1)} BHM × ${fmt(BHM_DEFAULT.som)})`, fmt(LB.feeSom)], ['Kompensatsiya koʻchatlari, 5 yillik (VMQ-86, 15-ilova, 9)', fmt(LB.compSaplings)]] : []),
+        ['Jami (reyestr)', fmt(C.trees.length)]]);
+      g += T(x2, W.y - 2, 'Daraxtlar balansi', { s: 3, w: 700 }) + t.g + legend(x2, W.y + t.h + 6, [{ t: 'dot', c: K.green2, s: '#4f7a45', l: 'Saqlanadi' }, { t: 'dot', c: K.green2, s: COL.yol_suriladi, l: 'Saqlanadi — yoʻl suriladi (moratoriy)' }, { t: 'x', c: COL.kochiriladi, l: 'Koʻchiriladi' }, { t: 'x', c: RED, l: 'Kesiladi (ruxsatnoma bilan)' }, { t: 'line', c: RED, l: 'Loyiha chegarasi' }]).g;
+      g += para(x2, W.y + t.h + 40, w2, `Ziddiyat — daraxt yangi qattiq qoplama, sport maydoni yoki amfiteatr ostida va mavjud yoʻlda emas. Qimmatbaho va Qizil kitob turlarini kesishga muddatsiz moratoriy (PF-46, 2-band; VMQ-464, 5 va 31-bandlar). Kam qimmatli daraxt — ruxsatnoma, toʻlov (VMQ-86, 15-ilova) va har biriga 10 koʻchat. Yakuniy qaror — Ekologiya boshqarmasi (VMQ-464, 32-band). Ildiz zonasi 12 × dbh, 2–15 m (A, BS 5837:2012).`, 2.3, 1.4, K.mut).g + para(x2, W.y + W.h - 10, w2, REGISTRY_CITE, 1.9, 1.3, K.mut).g;
       push('saqlash', 'Daraxtlarni saqlash rejasi', g, `1:${fmt(P.N)}`);
     }
     /* 11. Ekish rejasi va vedomost */
@@ -584,7 +596,8 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
       ['ShNQ 2.07.01-23, 501', 'Bir vaqtdagi tashrifchilar', `${Vs.q} kishi/ga`, `${fmt(Vs.perHa)} kishi/ga`, 'N', Vs.perHa <= Vs.q ? '✓' : '✗'],
       ['ShNQ 2.07.01-23, 34-jadval', 'Tashrif ulushi s', `${fmt(Vs.s[0], 2)}–${fmt(Vs.s[1], 2)}`, fmt(Vs.s[0], 2), 'N', '—'],
       ['ShNQ 2.07.01-23, 33-jadval', 'Xizmatlar dasturi (1 000 kishiga)', 'jadval', `${A.program.length} band`, 'N', '—'],
-      ['ShNQ 2.07.01-23, 480', 'Mavjud daraxt va suv saqlanadi', 'saqlash', V ? `${V.m.conflict} ziddiyat (${V.m.conflictBig} ≥ 40 sm)` : '—', 'N', V && V.m.conflictBig === 0 ? '✓' : '!'],
+      ['ShNQ 2.07.01-23, 480', 'Mavjud daraxt va suv saqlanadi', 'saqlash', V ? `${V.m.conflict} ziddiyat` : '—', 'N', V && V.m.conflictBig === 0 ? '✓' : '!'],
+      ['PF-46, 2; VMQ-464, 5, 31', 'Qimmatbaho turlarni kesishga moratoriy', 'kesilmaydi', V ? `${V.m.conflictBig} ta qimmatbaho daraxt ziddiyatda` : '—', 'N', V && V.m.conflictBig === 0 ? '✓' : '!'],
       ['ShNQ 2.07.02-24', 'MGN yoʻllari nishabi', '≤ 5 %', V ? `> 5 % (zina/rampasiz): ${fmt(V.m.mgnOver)} m` : '—', 'N', V && V.m.mgnOver === 0 ? '✓' : '!'],
       ['ShNQ 2.07.01-23, 494', 'Yoʻl nishabi (‰ — matn tekshirilsin)', '—', '—', 'P', '?'],
       ['BS 5837:2012', 'Daraxt ildiz zonasi radiusi', '12 × dbh', '2–15 m', 'A', '—'],

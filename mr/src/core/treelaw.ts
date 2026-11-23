@@ -262,7 +262,9 @@ export interface TreeIn { id?: string | number; name: string; dbh: number; crown
   /** loyiha bilan toʻqnashuv: 'dog' — bino/yoʻl/qoplama dogʻi ostida; 'masofa' — 35-jadval masofasidan yaqin; null — yoʻq */
   conflict: 'dog' | 'masofa' | null; obstacle?: Obstacle; distM?: number;
   /** loyiha davlat dasturi / transport infratuzilmasi / yirik investitsiya / davlat ahamiyatidagi loyihami */
-  stateProject?: boolean }
+  stateProject?: boolean;
+  /** kam qimmatli daraxtni koʻchirish oʻrniga kesish (masalan, invaziv tur — loyiha qarori; toʻlov va kompensatsiya baribir) */
+  preferCut?: boolean }
 export type Decision = 'saqlanadi' | 'kochiriladi' | 'kesiladi' | 'loyiha_ozgaradi' | 'prezident_hujjati' | 'review';
 export interface TreeOut { id?: string | number; law: SpeciesLaw; decision: Decision; tag: 'N' | 'T' | 'REVIEW';
   feeBhm: number; compSaplings: number; careYears: number; why: string; cite: Cite[] }
@@ -293,7 +295,7 @@ export function decide(t: TreeIn): TreeOut {
   }
   // kam qimmatli yoki nomaʼlum
   const tg: TreeOut['tag'] = law.cls === 'nomalum' ? 'REVIEW' : 'N';
-  if (small) return out('kochiriladi', tg, `${law.cls === 'nomalum' ? 'Tur roʻyxatda yoʻq' : 'Kam qimmatli'}, d = ${t.dbh} sm ≤ ${lim} — avval koʻchirish koʻriladi (pasport 12-izoh V)`,
+  if (small && !t.preferCut) return out('kochiriladi', tg, `${law.cls === 'nomalum' ? 'Tur roʻyxatda yoʻq' : 'Kam qimmatli'}, d = ${t.dbh} sm ≤ ${lim} — avval koʻchirish koʻriladi (pasport 12-izoh V)`,
     [C('VMQ-86', '15-ilova, 7, 12-izoh V'), C('VMQ-342', '2')], feeCoef(t.dbh, false), 0, CARE_TRANSPLANT_Y);
   return out('kesiladi', tg, `${law.cls === 'nomalum' ? 'Tur roʻyxatda yoʻq (kam qimmatli deb olindi — T)' : 'Kam qimmatli'}, d = ${t.dbh} sm — ruxsatnoma, toʻlov va ${COMP_PER_CUT} ta 5 yillik koʻchat (≥ 2 yil parvarish)`,
     [C('VMQ-464', '31, 32 «b»'), C('VMQ-86', '15-ilova, 7, 9 «b»')], feeCoef(t.dbh, false), COMP_PER_CUT, 2);
@@ -313,3 +315,6 @@ export function balance(rows: TreeOut[], bhmSom = BHM_DEFAULT.som, applications 
 
 /** 100 yoshdan oshgan daraxtlar — tabiat yodgorligi reyestri (VMQ-464, 23-band). Reyestrda yosh yoʻq → faqat ogohlantirish. */
 export const AGE_NOTE = 'Yuz yoshdan oshgan daraxtlar tabiat yodgorligi sifatida alohida reyestrga olinadi (VMQ-464, 23-band); yosh reyestrda yoʻq — dendrolog baholaydi.';
+
+/** Kesish taqiqlanganmi (Qizil kitob yoki qimmatbaho tur, koʻchirib boʻlmaydigan oʻlcham) — toʻqnashuvda loyiha oʻzgarishi kerak */
+export const mustKeep = (name: string, dbh: number): boolean => { const d = decide({ name, dbh, conflict: 'dog' }).decision; return d === 'loyiha_ozgaradi' || d === 'prezident_hujjati'; };
