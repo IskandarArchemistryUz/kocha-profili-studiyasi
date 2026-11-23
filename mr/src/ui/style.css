@@ -1230,3 +1230,6 @@ body:has(.home2){background-color:var(--bg);background-image:radial-gradient(col
 .home2 .card .thumb.svc svg{stroke:var(--svc);fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
 .home2 .card .thumb.svc{background:color-mix(in srgb,var(--svc) 6%,transparent)}
 .home2 .card .svcbadge{font-size:11.5px}
+.home2 .card .thumb.svc.pic{background:#fff}
+.home2 .card .thumb.svc.pic img{display:block;width:100%;height:100%;object-fit:contain}
+[data-theme=dark] .home2 .card .thumb.svc.pic img{filter:brightness(.92)}

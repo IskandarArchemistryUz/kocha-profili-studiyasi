@@ -111,3 +111,17 @@ test('Loyihalarim: yangi loyiha servis tanlab ochiladi, kartalar servis belgisi 
   await page.click(`#cards [data-sid="${ks}"]`);
   await page.waitForURL(new RegExp(`kochasoz\\.html\\?p=${ks}`));
 });
+
+/** 23.11: servis kartasida loyihaning oʻz kichik rasmi (Koʻchasoz — joriy chizma) */
+test('Loyihalarim: Koʻchasoz loyihasi kartasida chizmaning kichik rasmi', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.goto('./#/'); await page.click('#newP'); await page.click('#newP-ks');
+  await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
+  const id = new URL(page.url()).searchParams.get('p')!;
+  await page.waitForFunction(() => (window as any).__ks);
+  await page.evaluate(() => { const k = (window as any).__ks; k.m.inst.setState({ ...k.m.inst.state }); });
+  await expect.poll(() => page.evaluate(k => (localStorage.getItem(`svcthumb@${k}`) || '').slice(0, 15), id), { timeout: 20_000 }).toBe('data:image/jpeg');
+  await page.goto('./#/');
+  await expect(page.locator(`#cards [data-sid="${id}"] .thumb.pic img`)).toHaveCount(1);
+});
