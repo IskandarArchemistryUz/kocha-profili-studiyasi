@@ -74,6 +74,8 @@ export interface Variant {
   miss?: { el: string; why: string }[];
   /** saqlanadigan obyektlar (haykal, yodgorlik, favvora): joyi oʻzgarmaydi, ustidan yoʻl ham, element ham oʻtmaydi */
   fixed?: { p: XY; name: string; r: number; t: string }[];
+  /** loyiha tekshiruvi (nazorat.ts) */
+  qc?: import('./nazorat').QcRow[];
 }
 
 export interface BgModel {

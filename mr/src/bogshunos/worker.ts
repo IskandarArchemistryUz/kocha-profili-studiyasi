@@ -18,6 +18,7 @@ import { nets, NET } from './nets';
 import { smeta, PRICE0, type Price, type Smeta } from './cost';
 import { area, fillMPoly } from './grid';
 import { suggest, type Prog } from './dastur';
+import { qc } from './nazorat';
 import type { BgTu } from './types';
 import { applyEdits, applyTreeEdits, type Edit } from './edits';
 import { akso, type AksoReq } from './akso';
@@ -58,7 +59,7 @@ let site: BgSite | null = null, data: BgData | null = null, C: Ctx | null = null
 const D: Partial<Record<'A' | 'B' | 'C', DesignOut>> = {};
 /** qoʻlda tahrirlar (tanlangan variant uchun) — har hisobda asl variantga qayta qoʻllanadi */
 let EDITS: Edit[] = [];
-const ed = (k: 'A' | 'B' | 'C'): DesignOut | undefined => (D[k] && C ? applyEdits(C, D[k]!, EDITS) : D[k]);
+const ed = (k: 'A' | 'B' | 'C'): DesignOut | undefined => { const DO = D[k] && C ? applyEdits(C, D[k]!, EDITS) : D[k]; if (DO && C && A) DO.V.qc = qc(C, A, DO); return DO; };
 const plantE = (DO: DesignOut) => applyTreeEdits(C!, plant(C!, A!, DO, cls!), EDITS, DO);
 /** vertikal rejalash: tepalik va pogʻona zonalari (qoʻlda chizilgan) → yangi relyef; Ctx nusxasi E2 bilan */
 const vert = (): VOut | null => { if (!C) return null; const ins = EDITS.flatMap((e, i) => (e.t === 'zone' && (e.kind === 'tepalik' || e.kind === 'sohil_pogona') ? [{ kind: e.kind as VKind, ring: e.ring, h: e.h, i }] : [])); return ins.length ? grade(C, ins) : null; };
@@ -81,7 +82,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
     } else if (m.t === 'design') {
       if (!site || !data || !C || !A) throw new Error('Avval tahlil');
       const T = targets(C, data), G = toGeo(site), V: Record<string, Variant> = {}, geo: Record<string, unknown> = {};
-      for (const vd of VARS) { out({ t: 'progress', msg: `${vd.name}…` }); const R = design(C, A, T.attr, T.inner, vd, { prog: m.prog, progUser: !!m.prog, kind: site.kind, tarixiy: !!site.tarixiy }); D[vd.id] = R; V[vd.id] = R.V; geo[vd.id] = G.variant(R.V); }
+      for (const vd of VARS) { out({ t: 'progress', msg: `${vd.name}…` }); const R = design(C, A, T.attr, T.inner, vd, { prog: m.prog, progUser: !!m.prog, kind: site.kind, tarixiy: !!site.tarixiy }); R.V.qc = qc(C, A, R); D[vd.id] = R; V[vd.id] = R.V; geo[vd.id] = G.variant(R.V); }
       out({ t: 'designed', V, geo, why: T.why });
     } else if (m.t === 'plant') {
       const DO = ed(m.chosen); if (!site || !C || !A || !cls || !DO) throw new Error('Avval variantlar');

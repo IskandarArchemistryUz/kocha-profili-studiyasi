@@ -50,3 +50,20 @@ test('bolalar maydoni: xavfsizlik zonalari bir-birini kesmaydi va blokdan chiqma
   const x = suggest('xiyobon', 6.3, 600, { pitch: 0, play: 0, tarixiy: true }).prog;
   expect(x.wc).toBe(2); expect(x.kafe ?? 0).toBe(0);
 });
+
+import { qc } from '../../src/bogshunos/nazorat';
+import { Grid } from '../../src/bogshunos/grid';
+test('loyiha tekshiruvi: ustma-ust va chegaradan chiqqan elementlar xato; toza loyihada xato yoʻq', () => {
+  const G = new Grid(-60, -60, 2, 60, 60), C: any = { G, site: G.u8().fill(1), water: G.u8(), bld: G.u8() };
+  for (let k = 0; k < G.n; k++) { const x = -60 + (k % 60) * 2 + 1; if (x > 50) C.site[k] = 0; }
+  const A: any = { areaHa: 1.2, minOk: true, minHa: 0.5, toilets: 1, visitors: { N1: 800, perHa: 40, q: 100 } };
+  const hard = G.u8(); for (let k = 0; k < G.n; k++) { const y = -60 + Math.floor(k / 60) * 2 + 1; if (Math.abs(y) < 2) hard[k] = 1; }
+  const m = { greenPct: 80, conflict: 0, conflictBig: 0, mgnOver: 0, zina: 0, rampa: 0 };
+  const mk = (blocks: Block[], fixed: any[] = []): any => ({ V: { m, blocks, miss: [], fixed }, masks: { hard } });
+  const st = (r: ReturnType<typeof qc>, k: string) => r.find(x => x.k.startsWith(k))?.s;
+  const ok = qc(C, A, mk([{ id: 'b1', el: 'wc', p: [0, 8], a: 0, rule: '' }, { id: 'b2', el: 'gulzor', p: [-30, 12], a: 0, rule: '' }]));
+  expect(ok.filter(r => r.s === 'xato')).toEqual([]);
+  const bad = qc(C, A, mk([{ id: 'b1', el: 'basket', p: [0, 20], a: 0, rule: '' }, { id: 'b2', el: 'basket', p: [4, 22], a: 0, rule: '' }, { id: 'b3', el: 'gulzor', p: [52, 10], a: 0, rule: '' }, { id: 'b4', el: 'piknik', p: [-30, 50], a: 0, rule: '' }], [{ p: [0, 20], name: 'Haykal', r: 18, t: 'haykal' }]));
+  expect(st(bad, 'Bir-birining')).toBe('xato'); expect(st(bad, 'Chegaradan')).toBe('xato'); expect(st(bad, 'Yoʻlga')).toBe('xato'); expect(st(bad, 'Saqlanadigan')).toBe('xato'); expect(st(bad, 'Hojatxonalar')).toBe('ogoh');
+});
+
