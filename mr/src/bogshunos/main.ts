@@ -290,6 +290,15 @@ function stepDastur(): Node[] {
   ] as Node[];
 }
 
+/** Loyiha tekshiruvi: avval tuzatish kerak boʻlganlar, keyin ogohlantirishlar; toza qatorlar yigʻilgan holda */
+function qcPanel(q?: Variant['qc']): Node[] {
+  if (!q?.length) return [];
+  const bad = q.filter(r => r.s === 'xato'), warn = q.filter(r => r.s === 'ogoh'), ok = q.filter(r => r.s === 'ok');
+  const line = (r: NonNullable<Variant['qc']>[number]) => h('div', { class: `bg-qc ${r.s}`, title: r.n ? tr(r.n) : '' }, h('i', {}), h('span', {}, tr(r.k)), h('b', {}, r.v));
+  return [sec('Tekshiruv'), h('div', { class: 'bg-qcs', id: 'bgQc' }, h('span', { class: 'chip' + (bad.length ? ' bad' : ' ok') }, `${bad.length} ${tr('tuzatish kerak')}`), h('span', { class: 'chip' }, `${warn.length} ${tr('eʼtibor')}`), h('span', { class: 'chip ok' }, `${ok.length} ${tr('joyida')}`)),
+    ...bad.map(line), ...warn.map(line), h('details', { class: 'bg-qcd' }, h('summary', {}, tr('Joyida boʻlganlarini koʻrsatish')), ...ok.map(line))];
+}
+
 /** Dastur elementlari: nima va nechta — taklifdan boshlanadi, foydalanuvchi oʻzgartiradi; joyini generator qoidalar bilan topadi */
 function progEditor(): Node[] {
   const P: Prog = S.prog ?? SUG?.prog ?? {};
@@ -324,7 +333,7 @@ function stepVariant(): Node[] {
     note(tr('Uch xarakter: Saqlovchi, Faol, Tabiiy. Yoʻllar manba–manzil oqimidan, nishab va daraxtlarni hisobga olib quriladi; dastur elementlari qoidalar bilan joylanadi.')),
     ...VARS.filter(vd => V![vd.id]).map(vd => { const v = V![vd.id]; return h('div', { class: `bg-var${showVar === vd.id ? ' on' : ''}${S.chosen === vd.id ? ' chosen' : ''}`, 'data-var': vd.id },
       h('button', { type: 'button', class: 'hd', onclick: () => { showVar = vd.id; render(); paint(); } }, h('b', {}, v.name), S.chosen === vd.id ? h('span', { class: 'chip ok' }, tr('tanlangan')) : ''),
-      h('div', { class: 'mx' }, h('span', {}, `${tr('Yashil')} ${fmt(v.m.greenPct, 1)} %`), h('span', {}, `${tr('Qattiq')} ${fmt(v.m.hard)} m²`), h('span', {}, `${v.m.gates} ${tr('darvoza')}`), h('span', {}, `${tr('Zina/rampa')} ${fmt(v.m.zina)}/${fmt(v.m.rampa)} m`), h('span', {}, `${tr('Ziddiyat')} ${v.m.conflict} (${v.m.conflictBig})`)),
+      h('div', { class: 'mx' }, h('span', {}, `${tr('Yashil')} ${fmt(v.m.greenPct, 1)} %`), h('span', {}, `${tr('Qattiq')} ${fmt(v.m.hard)} m²`), h('span', {}, `${v.m.gates} ${tr('darvoza')}`), h('span', {}, `${tr('Zina/rampa')} ${fmt(v.m.zina)}/${fmt(v.m.rampa)} m`), h('span', {}, `${tr('Ziddiyat')} ${v.m.conflict} (${v.m.conflictBig})`), v.qc ? h('span', {}, `${tr('Tekshiruv')}: ${v.qc.filter(r => r.s === 'xato').length} ✗ · ${v.qc.filter(r => r.s === 'ogoh').length} !`) : ''),
       showVar === vd.id ? h('ol', { class: 'bg-items' }, ...v.items.map(it => h('li', {}, h('b', {}, tr(it.name)), h('span', {}, it.rule)))) : '',
       showVar === vd.id && v.miss?.length ? note(`${tr('Joylanmadi')}: ${[...new Set(v.miss.map(x => tr(ELEM[x.el as ElKey]?.n ?? x.el)))].join(', ')} — ${tr(v.miss[0].why)}`) : '',
       S.chosen !== vd.id ? h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { if (S.edits?.length && !confirm(tr('Boshqa variant tanlansa, qoʻlda kiritilgan tahrirlar oʻchadi. Davom etilsinmi?'))) return; S.edits = []; redo = []; S.chosen = vd.id; showVar = vd.id; sheets = []; PLT = null; MODR = null; geo.plant = undefined; save(); render(); paint(); } }, tr('Shu variantni tanlash')) : ''); }),
@@ -687,6 +696,7 @@ function stepReja(): Node[] {
   const E = S.edits ?? [], cnt = (t: Edit['t']) => E.filter(e => e.t === t).length;
   return [
     note(tr('Pastdagi asboblar bilan rejani tahrirlang: yoʻl va zona chizish, elementni surish, daraxt qoʻyish, oʻchirish. Har oʻzgarish ekish, tarmoqlar, smeta va albomga oʻtadi.')),
+    ...qcPanel(v.qc),
     sec('Tahrirlar'), row(tr('Yoʻl qoʻshildi / oʻchirildi'), `${cnt('path')} / ${cnt('path-del')}`), row(tr('Zona chizildi'), String(cnt('zone'))), row(tr('Element surildi'), String(cnt('move'))), row(tr('Daraxt qoʻyildi / olib tashlandi'), `${cnt('tree')} / ${cnt('tree-del')}`), row(tr('Jihozlar qoʻyildi'), String(cnt('furn'))), row(tr('Yoʻl sozlamalari oʻzgartirildi'), String(cnt('path-set'))), row(tr('Buta, qator, tirik devor, guruh'), `${cnt('shrub')} · ${cnt('row')} · ${cnt('hedge')} · ${cnt('mass')}`),
     ...(E.length ? [h('button', { type: 'button', class: 'btn btn-sm', id: 'bgEditsClear', onclick: () => { if (!confirm(tr('Barcha qoʻlda tahrirlar oʻchirilsinmi?'))) return; redo = [...E].reverse(); S.edits = []; save(); void sendEdits(); } }, tr('Avtomat variantga qaytish'))] : []),
     sec('Koʻrsatkichlar'), row(tr('Yoʻllar jami'), `${fmt(v.m.pathLen)} m`), row(tr('Qattiq yuza'), `${fmt(v.m.hard)} m²`), row(tr('Koʻkalamzor'), `${fmt(v.m.greenPct, 1)} %`, v.m.greenPct >= 70 ? '✓' : '✗'), row(tr('Daraxt bilan ziddiyat (≥ 40 sm)'), `${v.m.conflict} (${v.m.conflictBig})`, v.m.conflictBig ? '✗' : '✓'),

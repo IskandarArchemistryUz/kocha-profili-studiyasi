@@ -596,6 +596,10 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
     const g = table(W.x, W.y, [['Manba', 60], ['Talab', 112], ['Norma', 42, 'r'], ['Loyiha', 82, 'r'], ['Teg', 16, 'c'], ['Holat', 18, 'c']], rows, { rh: 7, fs: 2.6 }).g
       + para(W.x, W.y + 7 * (rows.length + 1) + 6, 300, 'Teglar: N — norma (asl matndan), P — taxmin yoki tekshirilishi kerak, A — xorijiy orientir, T — talqin. «!» — loyihada tuzatish kerak; «?» — manba aniqlanmagan.', 2.5, 1.4, K.mut).g;
     push('norma', 'Normalar reyestri', g);
+    if (V?.qc?.length) { const SY = { ok: '✓', ogoh: '!', xato: '✗' } as const, q = V.qc, nb = q.filter(r => r.s === 'xato').length, nw = q.filter(r => r.s === 'ogoh').length;
+      const g2 = table(W.x, W.y, [['Tekshiruv', 96], ['Natija', 110], ['Qoida / manba', 130], ['Teg', 14, 'c'], ['Holat', 16, 'c']], q.map(r => [r.k, r.v, r.n ?? '—', r.t || '—', SY[r.s]]), { rh: 6.2, fs: 2.3 }).g
+        + para(W.x, W.y + 6.2 * (q.length + 1) + 6, 300, `Jami: ${q.length} tekshiruv — ${nb} ta tuzatish kerak (✗), ${nw} ta eʼtibor talab qiladi (!). Tekshiruv avtomatik: joyida oʻlchash va ekspertiza oʻrnini bosmaydi.`, 2.5, 1.4, K.mut).g;
+      push('nazorat', 'Loyiha tekshiruvi', g2); }
   }
   /* 2. Umumiy maʼlumotlar (varaqlar roʻyxati bilan) */
   {
