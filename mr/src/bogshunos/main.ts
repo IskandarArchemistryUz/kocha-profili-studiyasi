@@ -294,7 +294,7 @@ function stepDastur(): Node[] {
 function qcPanel(q?: Variant['qc']): Node[] {
   if (!q?.length) return [];
   const bad = q.filter(r => r.s === 'xato'), warn = q.filter(r => r.s === 'ogoh'), ok = q.filter(r => r.s === 'ok');
-  const line = (r: NonNullable<Variant['qc']>[number]) => h('div', { class: `bg-qc ${r.s}`, title: r.n ? tr(r.n) : '' }, h('i', {}), h('span', {}, tr(r.k)), h('b', {}, r.v));
+  const line = (r: NonNullable<Variant['qc']>[number]) => h('div', { class: `bg-qc ${r.s}`, title: r.n ? tr(r.n) : '' }, h('i', {}), h('span', {}, tr(r.k)), h('b', {}, tr(r.v)));
   return [sec('Tekshiruv'), h('div', { class: 'bg-qcs', id: 'bgQc' }, h('span', { class: 'chip' + (bad.length ? ' bad' : ' ok') }, `${bad.length} ${tr('tuzatish kerak')}`), h('span', { class: 'chip' }, `${warn.length} ${tr('eʼtibor')}`), h('span', { class: 'chip ok' }, `${ok.length} ${tr('joyida')}`)),
     ...bad.map(line), ...warn.map(line), h('details', { class: 'bg-qcd' }, h('summary', {}, tr('Joyida boʻlganlarini koʻrsatish')), ...ok.map(line))];
 }

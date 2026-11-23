@@ -77,9 +77,12 @@ function table(x: number, y: number, cols: [string, number, ('l' | 'r' | 'c')?][
   return { g: g + R(x, y, W, rh * (rows.length + 1), 'none', K.ink, 0.3), h: rh * (rows.length + 1) };
 }
 interface LegIt { t: 'fill' | 'line' | 'dash' | 'dot' | 'x'; c: string; s?: string; l: string }
-function legend(x: number, y: number, items: LegIt[], title = 'Shartli belgilar', fs = 2.3): { g: string; h: number } {
+function legend(x: number, y: number, items: LegIt[], title = 'Shartli belgilar', fs = 2.3, fit?: { maxY: number; colW: number }): { g: string; h: number } {
   const lh = fs * 1.45; let g = T(x, y + fs, title, { s: fs * 1.05, w: 700 });
-  items.forEach((it, k) => {
+  // joy yetmasa — shtampga tushmasligi uchun bir necha ustunga oqadi
+  const per = fit ? Math.max(1, Math.floor((fit.maxY - y - fs * 2.4) / lh) + 1) : items.length;
+  items.forEach((it, k0) => {
+    const col = Math.floor(k0 / per), k = k0 % per; x += col && k === 0 ? fit!.colW : 0;
     const cy = y + fs * 2.4 + k * lh;
     if (it.t === 'line' || it.t === 'dash') g += L(x, cy, x + 7, cy, it.c, 0.7, it.t === 'dash' ? ' stroke-dasharray="1.2 0.8"' : '');
     else if (it.t === 'dot') g += `<circle cx="${f2(x + 3.5)}" cy="${f2(cy)}" r="1.2" fill="${it.c}" stroke="${it.s ?? 'none'}" stroke-width=".15"/>`;
@@ -87,7 +90,7 @@ function legend(x: number, y: number, items: LegIt[], title = 'Shartli belgilar'
     else g += R(x, cy - 1.3, 7, 2.6, it.c, it.s ?? K.mut, 0.12);
     g += T(x + 9, cy + fs * 0.35, it.l, { s: fs });
   });
-  return { g, h: fs * 2.4 + items.length * lh };
+  return { g, h: fs * 2.4 + Math.min(per, items.length) * lh };
 }
 
 /* ---------- proyeksiya (shimol tepada) ---------- */
@@ -354,8 +357,8 @@ export function buildAlbom(S: AlbomSrc): AlbomSheet[] {
       let g = clip(r, plan(S, V, P, { trees: 'full', items: true })) + north(r.x + r.w - 6, r.y + 2) + scaleBar(r.x + 4, r.y + r.h - 8, P);
       const x2 = X2, w2 = W2;
       const t = table(x2, W.y, [['№  Element', w2 * 0.42], ['Qoida / miqdor', w2 * 0.58, 'r']], [...V.items.map((it, i) => [`${i + 1}  ${it.name.replace(' (suvga qaragan)', '')}`, dec(it.rule.replace(' (tekislash)', ''))]),
-        ['Asosiy / ikkinchi yoʻl', `${fmt(V.m.asosiy)} / ${fmt(V.m.ikkinchi)} m`], ['Soʻqmoq / sohil yoʻli', `${fmt(V.m.soqmoq)} / ${fmt(V.m.sohil)} m`], ['Rampa / zina', `${fmt(V.m.rampa)} / ${fmt(V.m.zina)} m`], ['Koʻpriklar', `${V.bridges.length} ta`], ['Oʻtloq', `${fmt(V.m.meadow)} m²`], ['Botqoq qirgʻoq', `${fmt(V.m.wetland)} m²`], ['Yomgʻir bogʻlari', `${fmt(V.m.rain)} m²`]], { fs: 2.15, rh: 5 });
-      g += T(x2, W.y - 2, 'Eksplikatsiya', { s: 3, w: 700 }) + t.g + legend(x2, W.y + t.h + 6, planLeg(V), 'Shartli belgilar', 2.1).g;
+        ['Asosiy / ikkinchi yoʻl', `${fmt(V.m.asosiy)} / ${fmt(V.m.ikkinchi)} m`], ['Soʻqmoq / sohil yoʻli', `${fmt(V.m.soqmoq)} / ${fmt(V.m.sohil)} m`], ['Rampa / zina', `${fmt(V.m.rampa)} / ${fmt(V.m.zina)} m`], ['Koʻpriklar', `${V.bridges.length} ta`], ['Oʻtloq', `${fmt(V.m.meadow)} m²`], ['Botqoq qirgʻoq', `${fmt(V.m.wetland)} m²`], ['Yomgʻir bogʻlari', `${fmt(V.m.rain)} m²`]], (() => { const rh = Math.min(5, (FR.y + FR.h - STH - 4 - W.y) * 0.6 / (V.items.length + 8)); return { fs: Math.min(2.15, rh * 0.62), rh }; })());
+      g += T(x2, W.y - 2, 'Eksplikatsiya', { s: 3, w: 700 }) + t.g + legend(x2, W.y + t.h + 6, planLeg(V), 'Shartli belgilar', 2.1, { maxY: FR.y + FR.h - STH - 4, colW: w2 / 2 }).g;
       push('bosh', `Bosh reja — ${V.name}`, g, `1:${fmt(P.N)}`);
     }
     /* 10. Daraxtlarni saqlash rejasi — ekish moduli qarorlari bilan */
