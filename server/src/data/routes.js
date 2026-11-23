@@ -17,6 +17,11 @@ export const OVERPASS_SERVERS = [
 ];
 const MAX_Q = 8000;
 
+export const TREES_WFS = 'https://maps.tashkent.uz/greentashkent/geoserver/greentashkent_db/wfs';
+export const TREES_SPAN = 0.02;
+// shaxsga oid maydonlar (volunteer_id, dendrologist_id) soʻralmaydi (14.11.2026)
+const TREE_FIELDS = ['dbh_cm', 'crowndiameter_m', 'height_m', 'name_oz', 'name_ru', 'is_verified', 'geom'];
+
 export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 25_000, overture = makeOverture({ fetchImpl }), era5 = null, power = null, powerWaitMs = 20_000 }) {
   app.get('/data/sources', async () => ({ sources: Object.keys(SOURCES).map(sourceInfo) }));
 
@@ -86,6 +91,42 @@ export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS
       const body = await job;
       return reply.header('content-type', 'application/json').header('x-cache', 'miss').header('x-source', 'overture').send(body);
     } catch (e) { req.log.warn(e); return reply.code(502).send({ error: 'upstream', message: 'Overture ma’lumoti olinmadi' }); }
+  });
+
+  /* ---------- daraxtlar reyestri (green.tashkent.uz WFS) — Bogʻshunos, 23.11.2026 ---------- */
+  const trInflight = new Map();
+  app.get('/data/trees', async (req, reply) => {
+    const raw = String(req.query?.bbox ?? '').split(',').map(Number);
+    if (raw.length !== 4 || !raw.every(Number.isFinite)) return reply.code(400).send({ error: 'bad_request', message: 'bbox=g‘arb,janub,sharq,shimol' });
+    const bb = [Math.floor(raw[0] * 1e4) / 1e4, Math.floor(raw[1] * 1e4) / 1e4, Math.ceil(raw[2] * 1e4) / 1e4, Math.ceil(raw[3] * 1e4) / 1e4];
+    if (!(bb[0] < bb[2] && bb[1] < bb[3]) || bb[2] - bb[0] > TREES_SPAN || bb[3] - bb[1] > TREES_SPAN || bb[0] < 68.9 || bb[2] > 69.6 || bb[1] < 41.1 || bb[3] > 41.5)
+      return reply.code(400).send({ error: 'bad_request', message: `bbox Toshkent ichida va ${TREES_SPAN}° dan oshmasin` });
+    const src = SOURCES.trees, key = `trees:${bb.join(',')}`;
+    const hit = await cache.get(key, src.ttlDays);
+    if (hit) return reply.header('content-type', 'application/json').header('x-cache', 'hit').header('x-source', 'trees').send(hit.body);
+    if (limited?.(req.ip, 10)) return reply.code(429).send({ error: 'rate', message: 'Juda ko‘p so‘rov — birozdan keyin' });
+    let job = trInflight.get(key);
+    if (!job) {
+      job = (async () => {
+        const u = `${TREES_WFS}?service=WFS&version=1.1.0&request=GetFeature&typeName=greentashkent_db:vw_tree_locations&outputFormat=application/json&srsName=EPSG:4326&bbox=${bb.join(',')},EPSG:4326&propertyName=${TREE_FIELDS.join(',')}`;
+        const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), timeoutMs);
+        try {
+          const r = await fetchImpl(u, { signal: ctl.signal });
+          if (!r.ok) throw new Error(`wfs ${r.status}`);
+          const j = await r.json();
+          // faqat ruxsat etilgan maydonlar: [lon, lat, tur, dbh, toj, h, tasdiq]
+          const trees = (j.features ?? []).filter((f) => f?.geometry?.coordinates).map((f) => { const p = f.properties ?? {}; return [+f.geometry.coordinates[0].toFixed(6), +f.geometry.coordinates[1].toFixed(6), p.name_oz ?? p.name_ru ?? '—', +p.dbh_cm || 0, +p.crowndiameter_m || 0, +p.height_m || 0, p.is_verified ? 1 : 0]; });
+          const body = JSON.stringify({ source: 'trees', attribution: src.attribution, licence: src.licence, bbox: bb, fetched: new Date().toISOString(), trees });
+          await cache.put(key, body, { source: 'trees', licence: src.licence, attribution: src.attribution, odbl: false });
+          return body;
+        } finally { clearTimeout(t); }
+      })().finally(() => trInflight.delete(key));
+      trInflight.set(key, job);
+    }
+    try {
+      const body = await job;
+      return reply.header('content-type', 'application/json').header('x-cache', 'miss').header('x-source', 'trees').send(body);
+    } catch (e) { req.log.warn(e); return reply.code(502).send({ error: 'upstream', message: 'Daraxtlar reyestri javob bermadi' }); }
   });
 
   /* ---------- shamol: ERA5 → NASA POWER ---------- */
