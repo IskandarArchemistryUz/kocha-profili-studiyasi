@@ -29,3 +29,12 @@ test('blok geometriyasi va jihozlash: basketbolda 2 halqa, belgilar bor; burilga
   for (const x of f.furn) { const du = (x.p[0] - b.p[0]) * Math.cos(b.a) + (x.p[1] - b.p[1]) * Math.sin(b.a), dv = -(x.p[0] - b.p[0]) * Math.sin(b.a) + (x.p[1] - b.p[1]) * Math.cos(b.a); expect(Math.abs(du)).toBeLessThanOrEqual(ELEM.basket.w / 2 + 1); expect(Math.abs(dv)).toBeLessThanOrEqual(ELEM.basket.d / 2 + 1); }
   for (const k of Object.keys(ELEM) as ElKey[]) expect(() => fitout({ ...b, el: k })).not.toThrow();
 });
+
+import { varProg } from '../../src/bogshunos/dastur';
+test('variant xarakteri: Saqlovchi — shovqinli elementsiz, Faol — toʻliq, Tabiiy — qattiq sport oʻrniga sokin', () => {
+  const P = suggest('tuman', 12, 1200, { pitch: 0, play: 0, tarixiy: false }).prog;
+  expect(varProg('B', P)).toEqual(P);
+  const A = varProg('A', P), C = varProg('C', P);
+  expect(sportA(A)).toBe(0); expect(A.it_maydon ?? 0).toBe(0); expect(A.workout).toBe(1); expect(A.bolalar_m).toBe(P.bolalar_m);
+  expect(sportA(C)).toBe(0); expect(C.skeyt ?? 0).toBe(0); expect(C.piknik).toBe((P.piknik ?? 0) + 1); expect(C.gulzor).toBe((P.gulzor ?? 0) + 1);
+});
