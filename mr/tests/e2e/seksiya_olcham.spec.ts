@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 test('seksiya oʻlchamlari: aniq rejim, yer uchastkasi xotirasi, korpus eni', async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');
   await page.click('[data-step=parsel]');
   await page.locator('[data-block="0"]').click(); await page.locator('#pSize').fill('1'); await page.click('[data-grid=ns]'); await page.click('#pSplit');

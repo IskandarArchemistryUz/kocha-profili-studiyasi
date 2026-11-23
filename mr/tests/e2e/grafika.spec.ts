@@ -25,7 +25,7 @@ test('grafika: varaqlar (bosh reja, zonalash, figure-ground), SVG yuklab olish',
   test.setTimeout(120_000);
   await page.route(/overpass|interpreter/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture()) }));
   await page.route(/arcgisonline|terrain|amazonaws|elevation/, r => r.abort());
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('#ctxLoad'); await page.waitForSelector('#ctxSt', { timeout: 60000 });
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');

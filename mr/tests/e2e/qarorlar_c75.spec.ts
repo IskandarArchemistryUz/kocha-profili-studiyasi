@@ -13,7 +13,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`c75 qarorl
   const shots = process.env.GX_SHOTS, tag = `${w}${dark ? 'd' : 'l'}`;
   await page.route(block, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '300'); await page.fill('#rh', '240'); await page.click('#rectSite');
   // 1) AYoQSh: sukut 414 — izoh va 491 / 492 qatorlari koʻrinadi
@@ -52,7 +52,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`c75 qarorl
   if (shots) await page.screenshot({ path: `${shots}/c75_qab_meyor_${tag}.png` });
   await page.keyboard.press('Escape');
   // 3) maktab: binosiz parsel — 0; joylashtirilgach — bino sigʻimi / uchastka sigʻimi
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '180'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.evaluate(() => { const ed = (window as any).__mr; ed.store.dispatch({ type: 'setZones', zones: [{ id: 'z0', at: ed.store.doc.origin, use: 'maktab' }] }); });

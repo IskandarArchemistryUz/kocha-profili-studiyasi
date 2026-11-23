@@ -11,7 +11,7 @@ const STYLES = ['joriy', 'pastel', 'kontrast', 'mono', 'yorqin', 'tuproq'];
 async function setup(page: Page, w: number, dark: boolean) {
   await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|interpreter|arcgisonline|terrain|amazonaws|elevation|openfreemap|tile|cartocdn|openstreetmap\.org))/, r => r.abort());
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '220'); await page.fill('#rh', '170'); await page.click('#rectSite');
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];

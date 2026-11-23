@@ -4,7 +4,7 @@ import { test, expect, pickLang } from './fx';
 test('izolyatsiya: bitta daha toʻliq, qolgani arvoh toʻr; chiqish — asl holat', async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '420'); await page.fill('#rh', '330'); await page.click('#rectSite');
   await page.click('[data-step=kocha]'); await page.click('[data-gpre=portlend]'); await page.click('#gridApply');

@@ -5,7 +5,7 @@ test('qoʻlda bino: erkin shakl panel orqali 40 × 30 m, klaviaturadan toʻrtbur
   test.setTimeout(120_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1024, height: 768 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.click('[data-step=hajm]');
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!, cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;

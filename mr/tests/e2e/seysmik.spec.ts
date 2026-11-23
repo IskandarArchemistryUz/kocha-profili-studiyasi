@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`seysmik boʻlmalar tekshiruvi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForFunction(() => !!(window as any).__mr?.store?.doc?.origin);
   // 48 × 15 toʻrtburchak (8 ball monolit: 45 m dan uzun) va L 48 × 36 (chiqish 21 m)
@@ -36,7 +36,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`seysmik bo
 test('generatsiyada seksiya uzunligi seysmik chegaradan oshmaydi (8 ball, monolit — 45 m)', async ({ page }) => {
   test.setTimeout(120_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '220'); await page.fill('#rh', '120'); await page.click('#rectSite');
   await page.click('[data-step=hajm]');
   await page.evaluate(() => { const m = (window as any).__mr; m.gen.secLen = 60; m.renderPanel(); });

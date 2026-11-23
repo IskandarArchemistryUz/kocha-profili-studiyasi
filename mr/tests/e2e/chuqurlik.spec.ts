@@ -8,7 +8,7 @@ import { test, expect, rectSite } from './fx';
 for (const view of ['plan', 'axo'] as const) test(`piyoda tarmogʻi binolar ortida · ${view}`, async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await rectSite(page, 300, 300);
   const c = await page.evaluate(() => {

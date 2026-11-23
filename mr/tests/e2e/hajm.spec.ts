@@ -1,7 +1,7 @@
 import { test, expect, rectSite } from './fx';
 
 test('seksiya generatori: kvartal → seksiyalar, qavatni tahrirlash, undo, reyestr', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]');
   await page.selectOption('#genBlock', '0');
@@ -22,7 +22,7 @@ test('seksiya generatori: kvartal → seksiyalar, qavatni tahrirlash, undo, reye
 });
 
 test('quyosh: vaqt surgichi va insolyatsiya xaritasi', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.click('[data-step=quyosh]');
@@ -42,7 +42,7 @@ test('quyosh: vaqt surgichi va insolyatsiya xaritasi', async ({ page }) => {
 });
 
 test('tipologiyalar: minoralar va stilobat + yer osti parkovka → reyestrda taʼminot', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '220'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
   await page.click('[data-typ=blok_minora]');
@@ -58,7 +58,7 @@ test('tipologiyalar: minoralar va stilobat + yer osti parkovka → reyestrda ta�
 });
 
 test('avtoturargoh meʼyor boʻyicha: yer usti, 60° modul — joylar sahnada, talab va yetishmovchilik izohda', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
@@ -84,7 +84,7 @@ test('avtoturargoh meʼyor boʻyicha: yer usti, 60° modul — joylar sahnada, t
 
 test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.click('[data-step=quyosh]');
@@ -98,7 +98,7 @@ test('shamol: shamol guli (EPW) va piyoda sathidagi oqim', async ({ page }) => {
 /** 6-band: qiya mavjud koʻcha kesgan oʻtkir burchakli kvartallarda ham ofis, savdo, maktab generatsiya qilinadi */
 test('oʻtkir burchakli kvartallar: ofis, savdo, maktab joylashadi', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await rectSite(page, 300, 220);
   await page.evaluate(() => {
     const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
@@ -122,7 +122,7 @@ test('oʻtkir burchakli kvartallar: ofis, savdo, maktab joylashadi', async ({ pa
 test('shamol: Parijda — ERA5 (34-band), Toshkent stansiyasi emas', async ({ page }) => {
   const rose = Array.from({ length: 16 }, (_, k) => [k === 10 ? 0.3 : 0.04, 0.01, 0, 0, 0, 0]);
   await page.route(/\/data\/wind\?/, r => r.fulfill({ json: { source: 'era5', station: { name: 'ERA5 48.75, 2.25', file: 'ERA5 2015–2024', lat: 48.75, lon: 2.25, elev: null, hours: 87600, calm: 0.05, rose, mean: 3.4, p95: 7.1, monthT: Array(12).fill(12), monthV: Array(12).fill(3.4) } } }));
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.evaluate(() => (window as any).__mr.store.dispatch({ type: 'moveProject', origin: [2.3522, 48.8566], carry: false }));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
   await page.click('[data-step=quyosh]');
@@ -138,7 +138,7 @@ test('shamol: Parijda — ERA5 (34-band), Toshkent stansiyasi emas', async ({ pa
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`tijorat variantlari · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '120'); await page.click('#rectSite');
@@ -158,7 +158,7 @@ test('shamol: ERA5 kaliti yoʻq — NASA POWER manba satri va iqtibosi (12.11)',
   const rose = Array.from({ length: 16 }, (_, k) => [k === 10 ? 0.3 : 0.04, 0.01, 0, 0, 0, 0]);
   await page.route(/\/data\/wind\?/, r => r.fulfill({ json: { source: 'power', station: { name: 'NASA POWER 48.50, 2.50', file: 'NASA POWER 2015–2024', lat: 48.5, lon: 2.5, elev: null, hours: 87600, calm: 0.05, rose, mean: 3.4, p95: 7.1, monthT: Array(12).fill(12), monthV: Array(12).fill(3.4) } } }));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.evaluate(() => (window as any).__mr.store.dispatch({ type: 'moveProject', origin: [2.3522, 48.8566], carry: false }));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
   await page.click('[data-step=quyosh]');

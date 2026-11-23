@@ -3,7 +3,7 @@ import { test, expect, rectSite } from './fx';
 /** 04.11 (audit): aholi — 1-jadval taʼminoti tanlanadi (61-band ≥ 16); UMN — 66-band, turar joy uchastkasi boʻyicha */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`aholi taʼminoti va UMN · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await rectSite(page, 160, 140);
   await page.click('[data-step=hajm]');

@@ -1,7 +1,7 @@
 import { test, expect } from './fx';
 
 test('koʻcha tahriri: tutqichni sudrash, oraliqdan nuqta qoʻshish, ikki marta bosib oʻchirish; boshqa qadamdan bosib tanlash', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); ed.store.dispatch({ type: 'addStreet', axis: [[o[0] - 60 / mx, o[1]], [o[0] + 60 / mx, o[1]]], profile: 'mahalla-15' }); });
   // boshqa qadamda (Hajmlar) koʻchani bosish → «Koʻchalar» qadami, koʻcha tanlangan
@@ -26,7 +26,7 @@ test('koʻcha tahriri: tutqichni sudrash, oraliqdan nuqta qoʻshish, ikki marta 
 });
 
 test('atrofdagi (OSM) yoʻlni olib tashlash va qaytarish', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]'); await page.click('#rectSite');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]'); await page.click('#rectSite');
   await page.click('[data-step=kocha]');
   await page.evaluate(() => { const ed = (window as any).__mr; ed.osmPick = { id: 77, cls: 'service', w: 5, pts: ed.store.doc.site.rings[0].slice(0, 2) }; ed.renderPanel(); });
   await page.click('#rmOsmRoad');
@@ -36,7 +36,7 @@ test('atrofdagi (OSM) yoʻlni olib tashlash va qaytarish', async ({ page }) => {
 });
 
 test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal sudrash)', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   // 01.11 (beqaror test): panel qayta chizilsa kiritilgan qiymat yoʻqolardi — qiymat oʻrnatilganini kutib, keyin bosiladi
   const siteW = () => page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), xs = (ed.store.doc.site?.rings[0] ?? []).map((p: number[]) => (p[0] - o[0]) * mx); return xs.length ? Math.round(Math.max(...xs) - Math.min(...xs)) : 0; });
   for (let k = 0; k < 6 && (await siteW()) !== 200; k++) {
@@ -78,7 +78,7 @@ test('tutqichlar: uchastka burchagi, bino burchagi va qavat tutqichi (vertikal s
 });
 
 test('parsel burchagi tutqichdan suriladi', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');
   await page.click('[data-step=parsel]'); await page.locator('[data-block="0"]').click();
   await page.locator('#pSize').fill('1'); await page.click('[data-grid=ns]'); await page.click('#pSplit');

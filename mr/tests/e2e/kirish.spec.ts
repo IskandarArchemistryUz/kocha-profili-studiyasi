@@ -21,7 +21,7 @@ async function mockApi(page: Page, opts: { google?: string | null; owner?: boole
 
 test('kirish: 6-qadamdan pochta kodi bilan, chiqish, Chizmadon ham yopiq', async ({ page }) => {
   const st = await mockApi(page);
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page.locator('#acctIn')).toBeVisible();
   // 1–5-qadamlar — kirishsiz
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
@@ -54,7 +54,7 @@ test('kirish: tungi rejim va 1024 px, server javob bermasa — tushunarli xabar'
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.addInitScript(() => { localStorage.setItem('kps_auth', '1'); localStorage.setItem('kps_api', 'https://api.yoq.test'); localStorage.setItem('kps_owner', '0'); });
   await page.route('https://api.yoq.test/**', r => r.abort());
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[aria-label="Tungi rejim"]');
   await page.click('[data-step=uchastka]'); await page.click('#rectSite');
   await page.click('[data-step=quyosh]');
@@ -67,7 +67,7 @@ test('kirish: tungi rejim va 1024 px, server javob bermasa — tushunarli xabar'
 test('kirish oʻchirilsa (kps_auth=0) — hamma qadam ochiq, «Kirish» tugmasi yoʻq', async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('kps_owner', '0'); localStorage.setItem('kps_auth', '0'); });
   await page.goto('./'); await expect(page.locator('#homeAcct')).toBeHidden();
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page.locator('#acctBox')).toBeHidden();
   await page.click('[data-step=uchastka]'); await page.click('#rectSite'); await page.click('[data-step=kocha]');
   await expect(page.locator('.panel h2')).toHaveText('Koʻchalar');
@@ -100,7 +100,7 @@ test('kirish: sukut boʻyicha yoqilgan, egasi rejimida loyihalar sahifasida hiso
 /** Egalik akkauntga bogʻlangan: server /me → owner: true — kirgach suv belgisisiz (havolasiz), chiqqanda — yana belgili */
 test('egasi akkaunti: kirganda belgisiz, chiqqanda belgili', async ({ page }) => {
   await mockApi(page, { owner: true });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]'); await page.click('#rectSite'); await page.click('[data-step=quyosh]');
   await page.fill('#kdEmail', 'boss@mail.uz'); await page.click('#kdGo');
   await page.fill('#kdCode', '123456'); await page.click('#kdGo');

@@ -5,7 +5,7 @@ test('Master rejaga qaytish: Joyshunos va Koʻchasoz sarlavhasida tugma, qadam v
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   const id = await page.evaluate(() => (window as any).__mr.store.doc.id);

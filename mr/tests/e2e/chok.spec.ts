@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 test('qismiy chok: torets devor uzun devor oʻrtasida — yopilgan qismda deraza va balkon yoʻq', async ({ page }) => {
   test.setTimeout(120_000);
   const shots = process.env.GX_SHOTS;
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]');
   // ikki bino qoʻlda: uzun (sharq–gʻarb) va unga oʻrtasidan tegib turgan torets

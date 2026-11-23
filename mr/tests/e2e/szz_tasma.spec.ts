@@ -5,7 +5,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`SMZ daraxt
   test.setTimeout(150_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '300'); await page.fill('#rh', '300'); await page.click('#rectSite');
   // qabriston uchastkaning gʻarbiy chetida (IV sinf, SMZ 100 m → tasma ≥ 20 m), qolgan uchastka — turar joy

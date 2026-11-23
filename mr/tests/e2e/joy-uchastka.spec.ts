@@ -7,7 +7,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     const shots = process.env.GX_SHOTS;
     await page.setViewportSize({ width: w, height: 860 });
     if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
-    await page.goto('./'); await page.click('#newP'); await expect(page).toHaveURL(/#\/p\/p_/);
+    await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await expect(page).toHaveURL(/#\/p\/p_/);
     if (dark) await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
     await expect(page.locator('#secJoy')).toBeVisible(); await expect(page.locator('#secSite')).toBeVisible();

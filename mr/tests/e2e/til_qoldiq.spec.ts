@@ -30,7 +30,7 @@ test('9 til: oʻzbekcha matn qolmagan', async ({ page }) => {
       await page.goto('./kochasoz.html?asosiy=1#/' + hsh); await grab(page, 'ks-' + hsh, out);
       if (hsh === 'b') { const b = page.locator('.ws-b main .seg').first().locator('button').nth(1); if (await b.count()) { await b.click(); await grab(page, 'ks-b-reja', out); const z = page.locator('.ws-b .blk'); if (await z.count()) { await z.nth(2).click().catch(() => {}); await grab(page, 'ks-b-reja-z', out); } } }
     }
-    await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+    await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
     await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
     for (const st of ['uchastka', 'kocha', 'parsel', 'yashil', 'hajm', 'quyosh', 'fasad', 'kvartira', 'xizmat', 'tekshiruv', 'eksport']) {
       const s = page.locator(`[data-step=${st}]`).first(); if (!(await s.count())) continue;

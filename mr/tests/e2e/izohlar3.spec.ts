@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 test('erkin shakl bino, yopishish va kesma yorliqlari, toza terrasa, qavat devorini sudrash', async ({ page }) => {
   test.setTimeout(150_000);
   const shots = process.env.GX_SHOTS;
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]');
   const c = page.locator('#scene canvas'), bb = (await c.boundingBox())!, cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;

@@ -10,7 +10,7 @@ const fixRule = async (page: Page, id: string) => {
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`meʼyorlarni tuzatish (2) · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
   // koʻcha (y = 0) va berk koʻcha (x = 0, y 0 → 50); qoʻlda bino koridorda

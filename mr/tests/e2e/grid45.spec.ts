@@ -8,7 +8,7 @@ test('45° koʻcha toʻri loyihani buzmaydi', async ({ page }) => {
   test.setTimeout(120_000);
   const errs: string[] = []; page.on('pageerror', e => errs.push(String(e))); page.on('console', m => { if (m.type() === 'error' && /TypeError|sahna xatosi/.test(m.text())) errs.push(m.text()); });
   await page.setViewportSize({ width: 1440, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '420'); await page.fill('#rh', '300'); await page.click('#rectSite');
   await page.click('[data-step=kocha]'); await page.click('[data-gpre=barselona]'); await page.click('#gridApply');

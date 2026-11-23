@@ -22,7 +22,7 @@ async function mockApi(page: Page, opts: { payme?: boolean; click?: boolean; mul
 
 test('tanga: toʻplam va Click tanlanadi → toʻlov sahifasi → qaytishda balans', async ({ page }) => {
   const st = await mockApi(page);
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('#acctPop'); await page.click('#acctBuy');
   await expect(page.locator('#tanga')).toBeVisible();
   await expect(page.locator('#tanga .tb-pack')).toHaveCount(4);
@@ -40,7 +40,7 @@ test('tanga: toʻplam va Click tanlanadi → toʻlov sahifasi → qaytishda bala
 
 test('tanga: faqat Multicard ulangan — bitta tugma «Karta, Payme yoki Click»', async ({ page }) => {
   await mockApi(page, { payme: false, click: false });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('#acctPop'); await page.click('#acctBuy');
   await expect(page.locator('#tanga .tb-prov')).toHaveCount(1);
   await expect(page.locator('[data-prov=multicard]')).toContainText('Karta, Payme yoki Click');
@@ -50,7 +50,7 @@ test('tanga: faqat Multicard ulangan — bitta tugma «Karta, Payme yoki Click»
 
 test('tanga: xorijiy karta (Multicard) tanlanadi', async ({ page }) => {
   const st = await mockApi(page);
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('#acctPop'); await page.click('#acctBuy');
   await page.click('[data-prov=multicard]'); await page.click('#tbGo');
   await expect(page.locator('.toast').last()).toContainText('tanga qoʻshildi');
@@ -60,7 +60,7 @@ test('tanga: xorijiy karta (Multicard) tanlanadi', async ({ page }) => {
 test('tanga: 1024 px, tungi rejim; toʻlov ulanmagan boʻlsa — xabar, tugma oʻchiq', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await mockApi(page, { payme: false, click: false, multicard: false });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[aria-label="Tungi rejim"]');
   await page.click('#acctPop'); await page.click('#acctBuy');
   await expect(page.locator('#tanga .kd-msg')).toContainText('tez orada');

@@ -4,7 +4,7 @@ import { test, expect } from './fx';
  *  yuza qizishi, suv bosish xavfi (HAND), namlik (TWI) — Varaqlar namunasi va Chizmadon materiali; relyef yoʻq holat ham */
 const setup = async (page: import('@playwright/test').Page, w: number, dark: boolean, terrain: boolean) => {
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');

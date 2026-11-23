@@ -4,7 +4,7 @@ import { test, expect, pickLang } from './fx';
 // 04.11: kirill (ru, kk, uk) — Golos Text (Archivo da kirill yoʻq; avval tizim shrifti — kompyuterga qarab har xil, CI da qozoq harflari juda keng)
 for (const lang of ['uz', 'ru', 'kk'] as const) for (const w of [1024, 1280, 1366, 1440, 1600]) test(`yuqori panel sigʻadi · ${lang} · ${w}px`, async ({ page }) => {
   await page.setViewportSize({ width: w, height: 800 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForTimeout(300);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForTimeout(300);
   if (lang !== 'uz') { await pickLang(page, lang); await page.waitForTimeout(500); }
   await page.evaluate(() => document.fonts.ready);
   if (lang !== 'uz') expect(await page.evaluate(() => [...document.fonts].some(f => f.family.replace(/"/g, '') === 'Golos Text' && f.status === 'loaded'))).toBe(true);

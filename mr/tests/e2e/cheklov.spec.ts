@@ -7,7 +7,7 @@ import { test, expect, rectSite } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklov chizish va tahrirlash · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await rectSite(page, 300, 300);
@@ -61,7 +61,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`cheklov ch
 /** 3-bosqich (02.11); 06.11 (c61): reyestrda — issiqxona SMZ ichidagi turar joy (SanQvaN 0103-25, 12-band) va ELU zonasidagi bino (VMQ № 1050, 14) */
 test('cheklovlar reyestrda: SMZ ichida turar joy, ELU zonasida bino', async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await rectSite(page, 400, 400);
   await page.evaluate(() => {
@@ -86,7 +86,7 @@ test('cheklovlar reyestrda: SMZ ichida turar joy, ELU zonasida bino', async ({ p
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`SMZ: generator va koʻkalamzorlik · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await rectSite(page, 300, 300);
