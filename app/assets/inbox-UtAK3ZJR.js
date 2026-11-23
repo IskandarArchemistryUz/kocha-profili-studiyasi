@@ -1,0 +1,1 @@
+export{u as sendToRender}from"./inbox-DLJwdRCS.js";

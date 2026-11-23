@@ -3,7 +3,7 @@
  * oʻz loyihalar roʻyxatiga. Roʻyxat brauzerda (`svcp:<xizmat>`), har loyiha holati `kalit@<id>` (core/projctx.scoped).
  * id «s_…» — Master reja loyihasi («p_…») bilan aralashmaydi. «Asosiy loyiha» (id '') — manzilda ?p= yoʻq holat (avvalgi ish).
  */
-export type SvcKind = 'ks' | 'joy' | 'ren';
+export type SvcKind = 'ks' | 'joy' | 'ren' | 'dk';   // 23.11: dk — Dizayn-kod peshlavhalari (holat — ildizdagi js/dk-loyiha.js, IndexedDB «archemistry-dk»)
 export interface SvcProject { id: string; name: string; created: string; updated: string; /** 22.11: loyihasiz eski ishdan koʻchirilgan */ legacy?: true }
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 const ls = (): KV | null => { try { return localStorage; } catch { return null; } };
@@ -42,6 +42,7 @@ export const SVC_STATE: Record<SvcKind, { ls: string[]; idb: string[] }> = {
   ks: { ls: ['ks-street', 'ks-a', 'ks-b', 'ks-c', 'ks-e', 'ks-grafika', 'ks-varaq'], idb: [] },
   joy: { ls: ['joy-state', 'joy-proj', 'joy-axo', 'joy-street', 'kps_site'], idb: ['joy-model'] },
   ren: { ls: ['render-base'], idb: ['render-src', 'render-out'] },
+  dk: { ls: [], idb: [] },
 };
 type Idb = { get: (k: string) => Promise<unknown>; put: (k: string, v: unknown) => Promise<void> };
 /**

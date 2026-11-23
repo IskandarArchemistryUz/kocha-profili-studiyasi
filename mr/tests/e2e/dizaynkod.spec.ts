@@ -22,7 +22,7 @@ test.afterAll(() => { srv?.close(); });
 test('peshlavha studiyasi: sarlavha, qadamlar, tungi rejim, til', async ({ page }) => {
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
   await page.route(/fonts\.g|cdnjs|jsdelivr|unpkg|openstreetmap|arcgis|overpass/, r => r.abort());
-  await page.goto(`http://127.0.0.1:${PORT}/dizaynkod.html`);
+  await page.goto(`http://127.0.0.1:${PORT}/dizaynkod.html?asosiy=1`);   // 23.11: namuna rejimi (loyihasiz)
   await expect(page.locator('header.eko .eko-svc a.on')).toHaveText(/Dizayn-kod/);
   await expect(page.locator('header.eko .eko-svc a')).toHaveCount(6);
   await expect(page.locator('#kpsLang [data-lang]')).toHaveCount(10);   // 10 til menyusi
@@ -57,5 +57,30 @@ test('joy tipi: sarlavha va qadamlar, Peshlavhaga oʻtish', async ({ page }) => 
   await expect(page.locator('.dkj-top .steps [aria-current=step]')).toContainText('Joy tipi');
   await page.locator('.dkj-top .steps a', { hasText: 'Peshlavha' }).click();
   await expect(page).toHaveURL(/dizaynkod\.html$/);
+  expect(errs).toEqual([]);
+});
+
+/** 23.11 (egasi: «har bir peshlavha alohida loyiha»): loyihalar paneli, yangi peshlavha boʻsh, holat saqlanadi */
+test('peshlavha loyihalari: panel, yangi loyiha boʻsh, rasm va qadam saqlanadi, roʻyxatda koʻrinadi', async ({ page }) => {
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g|cdnjs|jsdelivr|unpkg|openstreetmap|arcgis|overpass/, r => r.abort());
+  await page.goto(`http://127.0.0.1:${PORT}/dizaynkod.html`);
+  await expect(page.locator('#dkWin')).toBeVisible();
+  await expect(page.locator('#dkWin .dkw-card')).toHaveCount(0);
+  await page.click('#dkNew');
+  await page.waitForURL(/dizaynkod\.html\?p=s_\w+/);
+  const id = new URL(page.url()).searchParams.get('p')!;
+  await expect(page.locator('#dkWin')).toHaveCount(0);
+  await expect(page.locator('#file')).toHaveCount(1);   // 1-qadam: rasm yuklash, namuna yoʻq
+  expect(await page.evaluate(() => (window as any).eval('S.sample'))).toBe(false);
+  await page.evaluate(() => { const C = document.createElement('canvas'); C.width = 900; C.height = 600; const g = C.getContext('2d')!; g.fillStyle = '#b9a98f'; g.fillRect(0, 0, 900, 600); g.fillStyle = '#334'; g.fillRect(380, 260, 140, 300); (window as any).eval('newPhoto')(C); (window as any).eval('S').uz = 1; });
+  await page.evaluate(() => (window as any).__dk.save());
+  await page.waitForTimeout(400);
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => !!(window as any).eval('S.src')), { timeout: 10_000 }).toBe(true);
+  expect(await page.evaluate(() => (window as any).eval('S.src.width'))).toBe(900);
+  await page.goto(`http://127.0.0.1:${PORT}/dizaynkod.html`);
+  await expect(page.locator(`#dkWin [data-dk="${id}"]`)).toHaveCount(1);
+  await expect(page.locator(`#dkWin [data-dk="${id}"] img`)).toHaveCount(1);
   expect(errs).toEqual([]);
 });
