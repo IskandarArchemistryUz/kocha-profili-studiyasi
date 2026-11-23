@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 /** 02.11 (egasi: «sahna juda ogʻir»): soya xaritasi kamera aylanganda qayta chizilmaydi — faqat sahna mazmuni oʻzgarganda */
 test('soya xaritasi faqat mazmun oʻzgarganda yangilanadi', async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.waitForFunction(() => (window as any).__mr.store.doc.buildings.length > 1, null, { timeout: 30_000 });   // 18.11: generatsiya bitta amal — binolar paket oxirida

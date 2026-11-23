@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 /** Koʻcha siljitilganda binolar yoʻlga moslab qayta generatsiya qilinadi (egasi, 30.10): avtomatik binolar oyoq izi oʻzgaradi, qoʻlda chizilgan bino qoladi */
 test('koʻcha tutqichi sudralganda avtomatik binolar qayta generatsiya boʻladi', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
   // oʻrtadan oʻtuvchi koʻcha — ikki kvartal
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); ed.store.dispatch({ type: 'addStreet', axis: [[o[0] - 100 / mx, o[1]], [o[0] + 100 / mx, o[1]]], profile: 'mahalla-15' }); });

@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`chekinish funksiyaga qarab va yer osti chegarasi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');

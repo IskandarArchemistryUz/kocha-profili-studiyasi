@@ -15,7 +15,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`yongʻin y
   await page.route(/overpass|interpreter/, (r: any) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture()) }));
   await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:arcgisonline|terrain|amazonaws|elevation|openfreemap|tile|cartocdn|openstreetmap\.org))/, (r: any) => r.abort());
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad'); await page.waitForSelector('#ctxSt', { timeout: 60000 });
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];

@@ -36,7 +36,7 @@ async function search(page: Page, q: string) {
   await expect.poll(async () => { if (await page.locator('.res .it').count()) return true; await page.fill('#q', q); await page.press('#q', 'Enter'); await page.waitForTimeout(400); return (await page.locator('.res .it').count()) > 0; }, { timeout: 20_000 }).toBe(true);
 }
 async function newProject(page: Page) {
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
 }
 

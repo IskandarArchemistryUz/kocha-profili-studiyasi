@@ -3,7 +3,7 @@ import { test, expect, type Page } from './fx';
 /** 06.11 (c58): «Tuzat» tugmalari — hovli-79-3, seismic-height, spacing-79, redline-79: oldin «mos emas» → tuzatish → «mos emas» emas */
 async function proj(page: Page, w: number, h: number) {
   await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', String(w)); await page.fill('#rh', String(h)); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.waitForFunction(() => (window as any).__mr.store.doc.buildings.length > 0, null, { timeout: 60000 });

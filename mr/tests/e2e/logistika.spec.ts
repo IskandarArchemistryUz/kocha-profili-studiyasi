@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`logistika zonasi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '400'); await page.fill('#rh', '200'); await page.click('#rectSite');
@@ -34,7 +34,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`logistika 
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`logistika generatori · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '360'); await page.fill('#rh', '240'); await page.click('#rectSite');
@@ -63,7 +63,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`logistika 
 /** yuk terminali: temir yoʻl tomonda shoxobcha (sahnada rels va shpallar), doklar avtomobil tomonda */
 test('yuk terminali — temir yoʻl shoxobchasi', async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '360'); await page.fill('#rh', '240'); await page.click('#rectSite');
   await page.click('[data-step=parsel]'); await page.locator('[data-block="0"]').click();

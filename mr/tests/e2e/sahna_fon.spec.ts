@@ -97,7 +97,7 @@ for (const [w, dark] of SIZES) test(`sahna foni va shablon daraxtlari · ${w}px$
   const tag = `${w}${dark ? 'd' : 'l'}`;
   await mockNet(context);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('bino', { timeout: 30000 });
@@ -229,7 +229,7 @@ test('yer uchastkalari rejasi: och kulrang, namunalar va HEX, legend va yozuvlar
     const tag = `${w}${dark ? 'd' : 'l'}`;
     await page.setViewportSize({ width: w, height: 900 });
     await page.goto('./'); await page.evaluate(() => localStorage.clear()); await page.reload();   // oldingi varaq sozlamalari eslab qolinmasin
-    await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+    await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
     await page.evaluate(d => d ? document.documentElement.setAttribute('data-theme', 'dark') : document.documentElement.removeAttribute('data-theme'), dark);
     await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
       ed.store.dispatch({ type: 'setSite', rings: [[[-110, -85], [110, -85], [110, 85], [-110, 85]].map(G)] });

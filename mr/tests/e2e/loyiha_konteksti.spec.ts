@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 test('loyiha ichidan Joyshunos: ?p= manzilda, «← Master reja» loyihaga qaytaradi, holat loyihaga ajratilgan', async ({ page, context }) => {
   test.setTimeout(120_000);
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.waitForURL(/#\/p\/p_/);
   const pid = page.url().split('#/p/')[1];
   await page.locator('#svcPop').click();
@@ -81,3 +81,33 @@ for (const svc of ['kochasoz', 'joyshunos', 'render']) {
     await expect(page.locator('#svcProj')).toBeVisible({ timeout: 20_000 });
   });
 }
+
+/** 23.11 (egasi): «Loyihalarim» — barcha servis loyihalari bitta panelda; «Yangi loyiha» → servis tanlanadi, boʻsh sahna */
+test('Loyihalarim: yangi loyiha servis tanlab ochiladi, kartalar servis belgisi va filtri bilan', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.route(/fonts\.g/, r => r.abort());
+  await page.goto('./#/');
+  await expect(page.locator('h1')).toContainText('Loyihalarim');
+  await expect(page.locator('#newMenu')).toBeHidden();
+  await page.click('#newP');
+  await expect(page.locator('#newMenu')).toBeVisible();
+  await expect(page.locator('#newMenu button')).toHaveCount(5);
+  await page.click('#newP-ks');
+  await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
+  await expect(page.locator('#projWin')).toHaveCount(0);
+  const ks = new URL(page.url()).searchParams.get('p')!;
+  await page.goto('./#/'); await page.click('#newP'); await page.click('#newP-mr');
+  await page.waitForURL(/#\/p\/p_/);
+  await page.goto('./#/');
+  await expect(page.locator(`#cards [data-sid="${ks}"] .svcbadge`)).toContainText('Koʻchasoz');
+  await expect(page.locator('#svcF [data-s=ks]')).toBeVisible();
+  await page.click('#svcF [data-s=ks]');
+  await expect(page.locator('#cards [data-pid]')).toHaveCount(0);
+  await expect(page.locator('#cards [data-sid]')).toHaveCount(1);
+  await page.click('#svcF [data-s=mr]');
+  await expect(page.locator('#cards [data-sid]')).toHaveCount(0);
+  await expect(page.locator('#cards [data-pid]')).toHaveCount(1);
+  await page.click('#svcF [data-s=all]');
+  await page.click(`#cards [data-sid="${ks}"]`);
+  await page.waitForURL(new RegExp(`kochasoz\\.html\\?p=${ks}`));
+});

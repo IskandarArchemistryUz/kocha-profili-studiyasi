@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`1-qavatda MTM va qogʻoz · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await expect(page.locator('#scene')).toHaveAttribute('data-paper', '');
   await page.click('[data-step=uchastka]');

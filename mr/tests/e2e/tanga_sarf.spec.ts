@@ -79,7 +79,7 @@ test('tanga yetmasa — xabar va «Tanga olish»; tarix oynasi', async ({ page }
 
 test('uchastka: istalgan maydon bepul chiziladi; 3 ga dan kattasida 7-qadamga oʻtishda «Loyihani ochish» (bekor — oʻtmaydi; toʻlov — bir marta)', async ({ page }) => {
   const st = await mockApi(page, { balance: 30 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');   // 2,24 ga
   await expect(page.locator('#kSite b')).toHaveText(/^2,2/);
@@ -117,7 +117,7 @@ test('ogʻir hisob: haftalik 1 ta bepul, keyin narx bilan soʻraladi; «soʻrama
   test.setTimeout(120_000);
   const st = await mockApi(page, { balance: 30 });
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tiles?\./, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
   await expect(page.locator('#genGo .ptag')).toHaveText('bepul');

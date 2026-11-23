@@ -6,7 +6,7 @@ const item = (extra: object) => JSON.stringify({ name: 'Joyshunos · Parij', kin
 test('Chizmadon: boshqa joy tahlili — yangi alohida loyiha; Master rejadan kelinganda — shu loyiha', async ({ page }) => {
   test.setTimeout(90_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   const A = await page.evaluate(() => (window as any).__mr.store.doc.id as string);
 
   // 1) Master rejadan kelinmagan, Parij tahlili → yangi loyiha (avval oxirgi loyiha — A ga qoʻshilardi)
@@ -37,7 +37,7 @@ test('Koʻchasozdan yuborish: Master rejadan kelinganda tanlov oynasi — «Yang
   test.setTimeout(90_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1024, height: 720 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   const A = await page.evaluate(() => (window as any).__mr.store.doc.id as string);
   // uchastkasiz yangi loyihadan (mr-return: hasSite false) Koʻchasozga
   await page.goto('./kochasoz.html?asosiy=1#/varaq'); await expect(page.locator('.ws-varaq')).toBeVisible();

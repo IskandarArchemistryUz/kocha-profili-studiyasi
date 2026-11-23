@@ -5,7 +5,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`albom suku
   test.setTimeout(150_000);
   await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '100'); await page.click('#rectSite');
   await page.click('[data-step=parsel]'); await page.locator('[data-block="0"]').click(); await page.click('[data-use=yakka]');

@@ -23,6 +23,7 @@ import { ownerPage } from './account/owner';
 import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
 import { cleanThumb, thumbSvg, type ThumbData } from './core/projthumb';
+import { listSvc, createSvc, removeSvc, type SvcKind } from './storage/svcprojects';
 import { otishEnter, otishTo } from './ui/otish';
 import { kolbaOverlay } from './ui/kolba';
 // 14.11: boʻlimga oʻtish — boshqa xizmatdan kelinsa Master reja foni bir lahza; loyiha kartasi ekranga kengayib ochiladi
@@ -172,6 +173,54 @@ function thumb(n: number, site: boolean, inCloud: boolean, data?: ThumbData | nu
   return el;
 }
 
+/**
+ * 23.11 (egasi: «bosh sahifadan ish boshlaganda doim loyihalar paneli; yangi loyiha — xohlagan servis, boʻsh sahna»):
+ * «Loyihalarim» — barcha xizmatlar loyihalari bitta roʻyxatda (servis belgisi va filtri); «Yangi loyiha» → servis tanlanadi.
+ */
+type SvcF = 'all' | 'mr' | SvcKind | 'chz';
+const SVC: { k: Exclude<SvcF, 'all'>; name: string; c: string; ic: string }[] = [
+  { k: 'mr', name: 'Master reja', c: 'var(--ink)', ic: '<path d="M10 22h50l-6 34H4z" class="st"/><path d="M18 30h10v8H18zM32 30h12v8H32zM16 42h12v8H16zM32 42h10v8H32z"/>' },
+  { k: 'ks', name: 'Koʻchasoz', c: '#4c5bd4', ic: '<path d="M2 50h60M2 46h12v4M62 46H50v4M32 50v-4M32 42v-4M10 46V28M10 28c-6 0-6-10 0-11c6 1 6 11 0 11M54 46V28M54 28c-6 0-6-10 0-11c6 1 6 11 0 11M22 46v-7h7v7M38 46v-5h9v5"/>' },
+  { k: 'joy', name: 'Joyshunos', c: '#c0643a', ic: '<path d="M32 38l26 7-26 7-26-7zM32 26l26 7-26 7-26-7zM32 14l26 7-26 7-26-7z"/>' },
+  { k: 'ren', name: 'Render', c: '#c08a1e', ic: '<path d="M4 8h56v44H4zM32 8v44M8 46l10-8 10 8M18 38V24l-7 4v16M36 46l10-8 10 8M46 38V24l-7 4v16"/>' },
+  { k: 'chz', name: 'Chizmadon', c: '#8b4a9c', ic: '<path d="M8 6h48v46H8zM12 10h30v38H12zM46 10v38M16 40c6-14 14-4 22-18M48 16h6M48 22h4M48 44h6"/>' },
+];
+let svcF: SvcF = (() => { try { return (sessionStorage.getItem('home-svcF') as SvcF) || 'all'; } catch { return 'all'; } })();
+const svcHrefOf = (k: SvcKind, id: string) => `./${k === 'ks' ? 'kochasoz' : k === 'joy' ? 'joyshunos' : 'render'}.html?p=${encodeURIComponent(id)}`;
+/** Yangi loyiha — tanlangan servisda boʻsh sahna */
+async function newIn(k: Exclude<SvcF, 'all'>): Promise<void> {
+  if (k === 'mr') { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; return; }
+  if (k === 'chz') { const p: Project = { ...blankProject(tr('Taqdimot albomi')), svc: 'chz' }; await putProject(p); location.hash = `#/p/${p.id}/chizmadon`; return; }
+  const p = createSvc(k, `${tr('Yangi loyiha')} ${listSvc(k).length + 1}`); location.href = svcHrefOf(k, p.id);
+}
+function newMenu(): HTMLElement {
+  const menu = h('div', { class: 'newmenu', id: 'newMenu', role: 'menu', hidden: true },
+    h('span', { class: 't-small' }, tr('Qaysi servisda?')),
+    ...SVC.map(s => h('button', { type: 'button', role: 'menuitem', id: `newP-${s.k}`, style: `--svc:${s.c}`, onclick: () => void newIn(s.k) },
+      h('i'), h('b', {}, tr(s.name)))));
+  const btn = h('button', { class: 'btn btn-primary btn-lg', id: 'newP', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: (e: Event) => {
+    e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden));
+    if (!menu.hidden) { const off = (ev: Event) => { if (!(ev.target as Element).closest?.('#newMenu')) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', off); } }; setTimeout(() => document.addEventListener('click', off)); }
+  } }, ...icl(IC.plus, tr('Yangi loyiha')));
+  return h('span', { class: 'newwrap' }, btn, menu);
+}
+/** Servis loyihasi kartasi (Koʻchasoz, Joyshunos, Render, Chizmadon) */
+function svcCard(k: Exclude<SvcF, 'all' | 'mr'>, id: string, name: string, updated: string, href: string, del: () => Promise<void> | void, i: number): HTMLElement {
+  const m = SVC.find(s => s.k === k)!;
+  const th = h('span', { class: 'thumb svc', 'aria-hidden': 'true', style: `--svc:${m.c}` }); th.innerHTML = `<svg viewBox="-60 -2 184 60" preserveAspectRatio="xMidYMid meet">${m.ic}</svg>`;
+  return h('a', { class: 'card group', href, 'data-sid': id, 'data-svc': k, 'data-t': updated, style: `--i:${Math.min(i, 12)}` },
+    th, h('b', {}, name),
+    h('span', { class: 'svcbadge', style: `--svc:${m.c}` }, h('i'), tr(m.name)),
+    h('span', { class: 't-small' }, updated ? `${tr('oʻzgargan')}: ${new Date(updated).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })}` : ''),
+    h('button', { class: 'btn btn-ghost btn-sm icon-btn card-more', type: 'button', 'aria-label': tr('Amallar'), title: tr('Amallar'), onclick: (e: Event) => { e.preventDefault(); e.stopPropagation(); (e.currentTarget as HTMLElement).closest('.card')?.classList.toggle('more-on'); } },
+      svgIcon('<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>')),
+    h('button', { class: 'btn btn-danger btn-sm card-del', 'data-del': id, onclick: async (e: Event) => {
+      e.preventDefault(); e.stopPropagation();
+      if (!confirm(`«${name}» oʻchirilsinmi? Buni qaytarib boʻlmaydi.`)) return;
+      await del(); void home();
+    } }, ...icl('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>', tr('Oʻchirish'))));
+}
+
 /** Qidiruv, saralash (Hammasi · Bulutda · Brauzerda · Boʻsh) va eski boʻsh loyihalar haqida eslatma */
 function projTools(list: ProjectMeta[], links: Map<string, unknown> | null): HTMLElement {
   const nEmpty = list.filter(isEmptyOld).length;
@@ -186,7 +235,8 @@ function projTools(list: ProjectMeta[], links: Map<string, unknown> | null): HTM
 
 async function home(): Promise<void> {
   let list: ProjectMeta[] = [];
-  try { list = (await listProjects()).filter(p => !p.svc); } catch (e) { toast('Saqlash ishlamayapti: ' + (e as Error).message); }   // 14.11: Chizmadonning oʻz loyihalari bu yerda emas
+  let chz: ProjectMeta[] = [];
+  try { const all = await listProjects(); list = all.filter(p => !p.svc); chz = all.filter(p => p.svc === 'chz'); } catch (e) { toast('Saqlash ishlamayapti: ' + (e as Error).message); }
   const cs = await cloudState(list);
   for (const id of [...picked]) if (!list.some(p => p.id === id) || cs.links.has(id)) picked.delete(id);
   const moveBtn = h('button', { class: 'btn btn-primary btn-sm', id: 'cloudMove', disabled: !picked.size, onclick: (e: Event) => void moveSelected(e.currentTarget as HTMLButtonElement) }, picked.size ? tf('Tanlanganlarni bulutga koʻchirish (${n})', { n: picked.size }) : tr('Tanlanganlarni bulutga koʻchirish')) as HTMLButtonElement;
@@ -209,26 +259,39 @@ async function home(): Promise<void> {
     svgIcon(isDark() ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'));
   offThemeHome?.(); offThemeHome = onTheme(() => { if (location.hash === '' || location.hash === '#/' || location.hash === '#') void home(); });
   const q = projQ.trim().toLowerCase();
-  const shown = list.length > 5 ? list.filter(p => (!q || p.name.toLowerCase().includes(q)) && (projF === 'all' || (projF === 'cloud' ? cs.links.has(p.id) : projF === 'local' ? !cs.links.has(p.id) : isEmptyOld(p)))) : list;
+  // 23.11: boshqa servislar loyihalari (filtr va qidiruv bilan)
+  const others: { k: Exclude<SvcF, 'all' | 'mr'>; id: string; name: string; updated: string; href: string; del: () => Promise<void> | void }[] = [
+    ...(['ks', 'joy', 'ren'] as SvcKind[]).flatMap(k => listSvc(k).map(p => ({ k, id: p.id, name: p.name, updated: p.updated, href: svcHrefOf(k, p.id), del: () => removeSvc(k, p.id) }))),
+    ...chz.map(p => ({ k: 'chz' as const, id: p.id, name: p.name, updated: p.updated, href: `#/p/${p.id}/chizmadon`, del: () => deleteProject(p.id) })),
+  ].filter(o => (svcF === 'all' || svcF === o.k) && (!q || o.name.toLowerCase().includes(q))).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
+  const counts = new Map<SvcF, number>([['mr', list.length], ['ks', listSvc('ks').length], ['joy', listSvc('joy').length], ['ren', listSvc('ren').length], ['chz', chz.length]]);
+  if (svcF !== 'all' && !counts.get(svcF)) svcF = 'all';
+  const mrOn = svcF === 'all' || svcF === 'mr';
+  const svcSeg = h('div', { class: 'seg sm', role: 'group', id: 'svcF', 'aria-label': tr('Servis'), style: 'margin-top:16px' },
+    ...([['all', tr('Hammasi')] as [SvcF, string], ...SVC.filter(m => counts.get(m.k)).map(m => [m.k, `${tr(m.name)} · ${counts.get(m.k)}`] as [SvcF, string])]).map(([k, t]) =>
+      h('button', { type: 'button', 'data-s': k, 'aria-pressed': svcF === k, onclick: () => { svcF = k; try { sessionStorage.setItem('home-svcF', k); } catch { /* */ } void home(); } }, t)));
+  const shown = !mrOn ? [] : list.length > 5 ? list.filter(p => (!q || p.name.toLowerCase().includes(q)) && (projF === 'all' || (projF === 'cloud' ? cs.links.has(p.id) : projF === 'local' ? !cs.links.has(p.id) : isEmptyOld(p)))) : list;
   root.replaceChildren(h('main', { class: `home home2${first ? ' enter' : ''}` },
     h('header', { class: 'home-top home-bar glassbar' },
       h('a', { class: 'btn btn-ghost btn-sm', href: '../index.html', style: 'text-decoration:none' }, ...icl(IC.back, 'Archemistry Lab')),
-      h('span', { class: 'svcbadge home-svc' }, h('i'), tr('Master reja')),
+      h('span', { class: 'svcbadge home-svc' }, h('i'), tr('Loyihalarim')),
       h('span', { class: 'sp' }),
       homeAcct(), themeB),
-    h('h1', { class: 't-display' }, tr('Master reja'), h('span', { class: 'h1-sub' }, ` · ${tr('loyihalar')}`)),
-    h('p', { class: 't-small lead' }, tr('Uchastkadan meʼyoriy tekshiruvgacha — bitta 3D oynada. Har bir koʻrsatkich bitta modeldan hisoblanadi va ShNQ bandiga bogʻlanadi.')),
+    h('h1', { class: 't-display' }, tr('Loyihalarim')),
+    h('p', { class: 't-small lead' }, tr('Barcha servislardagi loyihalaringiz. Yangi loyiha har doim boʻsh sahnadan boshlanadi — servisni tanlang.')),
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
-      h('button', { class: 'btn btn-primary btn-lg', id: 'newP', onclick: async () => { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; } }, ...icl(IC.plus, tr('Yangi loyiha'))),
+      newMenu(),
       h('a', { class: 'btn btn-lg', id: 'sampleP', href: '#/namuna', style: 'text-decoration:none' }, ...icl(OPEN, tourText('Namuna loyihani ochish'))),
       h('button', { class: 'btn btn-lg', id: 'openFile', onclick: () => file.click() }, ...icl(OPEN, tr('Fayldan ochish'))), file),
     cs.on ? h('div', { class: 'row', id: 'cloudBar', style: 'gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px' },
       h('span', { class: 't-small' }, cs.usage ? tf('Bulutda: ${n} ta loyiha · ${u} MB', { n: cs.usage.count, u: mb(cs.usage.bytes) }) + (cs.usage.quota ? tf(' / ${q} MB', { q: mb(cs.usage.quota) }) : '') : ''),
       list.some(p => !cs.links.has(p.id)) ? moveBtn : '') : '',
-    list.length > 5 ? projTools(list, cs.on ? cs.links : null) : '',
-    shown.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...shown.map((p, i) => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id, style: `--i:${Math.min(i, 12)}` },
+    (list.length + others.length > 0 && [...counts.values()].filter(Boolean).length > 1) ? svcSeg : '',
+    mrOn && list.length > 5 ? projTools(list, cs.on ? cs.links : null) : '',
+    shown.length ? h('div', { class: 'row3 cards', id: 'cards' }, ...shown.map((p, i) => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-pid': p.id, 'data-t': p.updated, style: `--i:${Math.min(i, 12)}` },
       thumb(p.buildings, p.hasSite, cs.links.has(p.id), p.thumb),
       h('b', {}, p.name),
+      others.length || svcF === 'mr' && [...counts.entries()].some(([k, n]) => k !== 'mr' && n) ? h('span', { class: 'svcbadge', style: '--svc:var(--ink)' }, h('i'), tr('Master reja')) : '',
       cs.links.has(p.id) ? h('span', { class: 't-small', 'data-cloud': 'on', style: 'color:var(--ok)' }, tr('bulutda'))
         : cs.on ? (() => {
           const c = check(tr('bulutga koʻchirish uchun tanlash'), { 'data-pick': p.id, checked: picked.has(p.id), onchange: (v: boolean) => {
@@ -252,16 +315,22 @@ async function home(): Promise<void> {
         if (inCloud) { try { await cloud.remove(p.id); await cloud.dropLink(p.id); } catch (er) { toast((er as Error).message); return; } }
         await deleteProject(p.id); home();
       } }, ...icl(TRASH, tr('Oʻchirish'))))))
+      : !mrOn || others.length ? ''
       : list.length ? h('div', { class: 'empty', id: 'projNone', style: 'margin-top:16px' }, h('span', {}, tr('Hech narsa topilmadi')))
       : h('div', { class: 'empty', style: 'margin-top:16px' }, svgIcon('<path d="M4 4h16v16H4zM4 11h8V4M12 15h8M16 15v5"/>'), h('span', {}, tr('Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.'))),
-    cs.remote.length ? h('h2', { class: 't-title', style: 'margin-top:28px' }, tr('Bulutda, shu brauzerda yoʻq')) : '',
-    cs.remote.length ? h('div', { class: 'row3 cards', id: 'cloudCards' }, ...cs.remote.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-cid': p.id },
+    others.length ? h('div', { class: 'row3 cards', id: 'svcCards', style: shown.length ? 'margin-top:12px' : '' }, ...others.map((o, i) => svcCard(o.k, o.id, o.name, o.updated, o.href, o.del, shown.length + i))) : '',
+    mrOn && cs.remote.length ? h('h2', { class: 't-title', style: 'margin-top:28px' }, tr('Bulutda, shu brauzerda yoʻq')) : '',
+    mrOn && cs.remote.length ? h('div', { class: 'row3 cards', id: 'cloudCards' }, ...cs.remote.map(p => h('a', { class: 'card group', href: `#/p/${p.id}`, 'data-cid': p.id },
       thumb(Number(p.meta?.buildings ?? 0), !!p.meta?.hasSite, true, cleanThumb(p.meta?.thumb)),
       h('b', {}, p.name),
       h('span', { class: 't-small' }, `${tr('oʻzgargan')}: ${created(p.updated)} · ${tr('bulutda')}`)))) : '',
     h('p', { class: 't-small', style: 'margin-top:24px' }, cs.on
       ? tr('Bulutga koʻchirilgan loyihalar hisobingizda saqlanadi va istalgan qurilmadan ochiladi; qolganlari faqat shu brauzerda.')
       : tr('Loyihalar shu brauzerda saqlanadi; muhim loyihani «Taqdimot va eksport» qadamida faylga saqlang.'))));
+  // 23.11: Master reja va boshqa servis kartalari — bitta panjarada, oxirgi oʻzgarganidan boshlab
+  const cards = document.getElementById('cards'), sc = document.getElementById('svcCards');
+  if (sc && cards) { cards.append(...sc.children); [...cards.children].sort((a, b) => String((b as HTMLElement).dataset.t).localeCompare(String((a as HTMLElement).dataset.t))).forEach(c => cards.append(c)); sc.remove(); }
+  else if (sc) sc.id = 'cards';
 }
 
 window.addEventListener('hashchange', route);

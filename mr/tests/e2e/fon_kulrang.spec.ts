@@ -10,7 +10,7 @@ async function start(page: import('@playwright/test').Page, staticOk: boolean) {
   await page.route(/static-map-tiles-api\.arcgis\.com/, r => { hits.stat++; return staticOk ? r.fulfill({ status: 200, contentType: 'image/png', body: png }) : r.fulfill({ status: 403, body: '{"error":{"code":403}}' }); });
   await page.route(/server\.arcgisonline\.com/, r => { hits.legacy++; return r.fulfill({ status: 200, contentType: 'image/png', body: png }); });
   await page.addInitScript(() => { try { sessionStorage.setItem('kps_esri', 'AAPTtestkeyabcdefghijklmnop'); } catch { /* */ } });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   return hits;
 }
 test('kulrang fon: kalitli Static Basemap Tiles, manba matnida TomTom', async ({ page }) => {

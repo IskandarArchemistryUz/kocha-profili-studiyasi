@@ -6,7 +6,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kvartira m
   await page.setViewportSize({ width: w, height: 860 });
   // 12.11 (egasi): bu maʼlumot faqat ichki tekshiruv rejimida
   await page.addInitScript(() => { try { localStorage.setItem('mr-dev', '1'); } catch { /* */ } });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
@@ -29,7 +29,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kvartira m
 
 test('12.11 (egasi): odatiy rejimda «!» belgilari, «meʼyorga mos emas» va 40-band jadvali koʻrinmaydi', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');

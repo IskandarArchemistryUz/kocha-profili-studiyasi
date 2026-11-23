@@ -16,7 +16,7 @@ test('mening qatlamlarim: GeoJSON import, toifalar, mahalla koʻrsatkichlari, lo
   test.setTimeout(120_000);
   const shots = process.env.GX_SHOTS;
   await page.route(/overpass|interpreter|openfreemap|arcgisonline|terrain|amazonaws/, r => r.abort());
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   // Hudud panelidagi tugma — Qatlamlar oynasini ochadi
   await page.locator('#ctxMore').waitFor(); if ((await page.locator('#ctxMore').getAttribute('open')) === null) await page.click('#ctxMore > summary'); await expect(page.locator('#ctxMore')).toHaveAttribute('open', ''); await page.click('#ulOpen');
   await expect(page.locator('#ulSec')).toBeVisible();

@@ -6,7 +6,7 @@ for (const [w, dark] of [[1024, true], [1440, false]] as const) test(`1-qadam: b
   test.setTimeout(120_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: w > 1100 ? 900 : 720 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
   // yangi loyiha: 1 — ochiq, 3–5 — qulf
   await expect(page.locator('#secJoy')).toHaveAttribute('aria-expanded', 'true');

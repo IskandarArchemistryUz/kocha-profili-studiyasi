@@ -15,7 +15,7 @@ test('namuna: KPI va yashil karkas hisoblanadi, generatsiyadan keyin KPI yangila
   await expect(page.locator('#greenKpi .kpi b')).not.toHaveText('0 %', { timeout: 20_000 });
   await expect(page.locator('#greenKpi')).toContainText(/Hovli maysasi [1-9]/);
   // yangi loyiha: generatsiya → KPI darhol yangi GFA ni koʻrsatadi
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');

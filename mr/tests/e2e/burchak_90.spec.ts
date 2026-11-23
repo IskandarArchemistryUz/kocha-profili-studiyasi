@@ -9,7 +9,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`burchak se
   test.setTimeout(240_000);
   await page.route(/^(?!http:\/\/127\.0\.0\.1)/, r => r.abort());
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   // 150 × 130 m kvartal, bir burchagi 6 m siljigan (≈ 2,6°) — koʻzga toʻgʻri toʻrtburchak
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];

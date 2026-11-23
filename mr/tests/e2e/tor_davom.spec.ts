@@ -15,7 +15,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`toʻr mavj
     way(15, 'residential', [[-31, 420], [-31, 212]]),                    // shimoldan berk uch, x = −31
   ] } }));
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText(/yoʻl|bino|Tayyor/, { timeout: 15000 });

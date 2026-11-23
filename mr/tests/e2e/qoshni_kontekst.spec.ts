@@ -19,7 +19,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qoʻshni c
   test.setTimeout(150_000);
   await mockNet(context);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('2 bino', { timeout: 15000 });

@@ -9,7 +9,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`Chizmadon:
   test.setTimeout(200_000);
   await page.setViewportSize({ width: w, height: 900 });
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');
   await page.click('[data-step=kocha]'); await page.click('[data-gpre=barselona]'); await page.click('#gridApply');

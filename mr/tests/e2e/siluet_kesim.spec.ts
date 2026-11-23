@@ -10,7 +10,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`kesim va f
   const bld = (id: number, x: number, y: number, wd: number, dp: number, lv: number) => ({ type: 'way', id, tags: { building: 'apartments', 'building:levels': String(lv) }, geometry: [[x, y], [x + wd, y], [x + wd, y + dp], [x, y + dp], [x, y]].map(([a, b]) => ll(a, b)) });
   await context.route(/interpreter/, r => r.fulfill({ json: { elements: [bld(101, -230, 60, 40, 14, 4), bld(102, 170, 70, 50, 14, 12), bld(103, -60, 140, 70, 14, 5), bld(104, 60, 150, 30, 30, 2)] } }));
   await context.route(/elevation-tiles|arcgisonline|openfreemap|amazonaws|fonts\.g/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText(/yoʻl|bino|Tayyor/, { timeout: 15000 });

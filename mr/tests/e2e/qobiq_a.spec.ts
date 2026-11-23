@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 /** 31.10 (egasi: «A ni kirit»): sarlavha — «Taqdimot» menyusi (Grafika, Chizmadon), «Sozlamalar» (til, tema); oʻngda bitta xarita guruhi */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`qobiq A · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   // sarlavhada alohida Grafika / Chizmadon / til / tema tugmalari yoʻq — menyularda
   await expect(page.locator('.top #chOpen')).toHaveCount(0);

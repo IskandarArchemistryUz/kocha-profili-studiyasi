@@ -6,7 +6,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     test.setTimeout(120_000);
     await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
     await page.setViewportSize({ width: w, height: 820 }); if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
-    await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+    await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
     // sharq–gʻarb choʻzilgan uchastka: avto burchak 0° — shimoliy fasad quyoshsiz
     await page.click('[data-step=uchastka]'); await page.fill('#rw', '400'); await page.fill('#rh', '300'); await page.click('#rectSite');
     await page.click('[data-step=kocha]'); if (await page.locator('[data-ktab=tor]').count()) await page.click('[data-ktab=tor]');
@@ -32,7 +32,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻcha to
   test.setTimeout(120_000);
   await page.route(/^(?!http:\/\/127\.0\.0\.1)(?=.*(?:overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|cartocdn|tile))/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '400'); await page.fill('#rh', '300'); await page.click('#rectSite');
   await page.click('[data-step=kocha]'); if (await page.locator('[data-ktab=tor]').count()) await page.click('[data-ktab=tor]');

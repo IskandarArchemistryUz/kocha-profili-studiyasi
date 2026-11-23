@@ -17,7 +17,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`mavjud yo�
     way(16, 'footway', [[-420, -100], [-215, -100]]),                    // piyoda — taklif yoʻq
   ] } }));
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText(/yoʻl|bino|Tayyor/, { timeout: 15000 });
