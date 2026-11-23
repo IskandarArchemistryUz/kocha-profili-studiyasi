@@ -41,7 +41,7 @@ export interface ModOut {
   smeta: Smeta;
 }
 export type WOut =
-  | { t: 'analyzed'; A: Analysis; geo: { trees: unknown; classes: unknown; slope: unknown }; sug?: { prog: Prog; sportNeed: number; why: string } }
+  | { t: 'analyzed'; A: Analysis; geo: { trees: unknown; classes: unknown; slope: unknown }; fixed?: { name: string; t: string }[]; sug?: { prog: Prog; sportNeed: number; why: string } }
   | { t: 'designed'; V: Record<string, Variant>; geo: Record<string, unknown>; why: string[] }
   | { t: 'albom'; sheets: { id: string; title: string; svg: string; w: number; h: number }[] }
   | { t: 'planted'; P: Omit<Planting, 'decisions' | 'trees' | 'shrubs'> & { nTrees: number; nShrubs: number }; geo: unknown }
@@ -77,7 +77,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
       const G = toGeo(site);
       const ex = C.G.u8(); for (const p of C.pitches) fillMPoly(C.G, ex, p);
       const sug = suggest(site.kind, A.areaHa, A.visitors.N1, { pitch: area(C.G, ex), play: C.playgrounds.length, tarixiy: !!site.tarixiy });
-      out({ t: 'analyzed', A, geo: { trees: G.trees(C), classes: G.classes(C, cls), slope: G.slope(C) }, sug });
+      out({ t: 'analyzed', A, geo: { trees: G.trees(C), classes: G.classes(C, cls), slope: G.slope(C) }, sug, fixed: (C.fixed ?? []).map(f => ({ name: f.name, t: f.t })) });
     } else if (m.t === 'design') {
       if (!site || !data || !C || !A) throw new Error('Avval tahlil');
       const T = targets(C, data), G = toGeo(site), V: Record<string, Variant> = {}, geo: Record<string, unknown> = {};

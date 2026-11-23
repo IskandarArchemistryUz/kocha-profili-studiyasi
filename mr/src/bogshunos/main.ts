@@ -54,6 +54,9 @@ let geo: { trees?: unknown; classes?: unknown; slope?: unknown; v?: Record<strin
 let PLT: Extract<WOut, { t: 'planted' }>['P'] | null = null;
 /** dastur taklifi (tahlildan): bogʻ turi, maydon va tashrif sonidan */
 let SUG: { prog: Prog; sportNeed: number; why: string } | null = null;
+/** saqlanadigan obyektlar (tahlildan) va qoʻlda belgilash rejimi */
+let FIXED: { name: string; t: string }[] = [], pickKeep = false;
+const FIX_N: Record<string, string> = { haykal: 'haykal / yodgorlik', tarixiy: 'tarixiy obyekt', favvora: 'favvora', sanat: 'sanʼat obyekti' };
 const guessTarixiy = (name: string): boolean => /skver|xiyobon|сквер|аллея|square|memorial|мемориал|yodgorlik|xotira/i.test(name);
 const guessKind = (name: string, ha: number): BgSite['kind'] => (guessTarixiy(name) || ha < 3 ? 'xiyobon' : ha >= 15 ? 'shahar' : ha >= 10 ? 'tuman' : 'turarjoy');
 let MODR: ModOut | null = null, modGeo: Record<string, unknown> = {}, placing: NetKind | null = null, tuCap = 0;
@@ -192,6 +195,10 @@ function stepHudud(): Node[] {
       h('label', { class: 'bg-lbl' }, tr('Bogʻ turi (ShNQ 2.07.01-23, 481/490)'), h('select', { class: 'input', id: 'bgKind', onchange: (e: Event) => { s.kind = (e.target as HTMLSelectElement).value as Kind; S.prog = undefined; A = null; V = null; save(); render(); } }, ...KINDS.map(([k, n]) => h('option', { value: k, selected: s.kind === k }, tr(n))))),
       h('label', { class: 'bg-chk' }, h('input', { type: 'checkbox', id: 'bgRek', checked: s.rekonstruksiya, onchange: (e: Event) => { s.rekonstruksiya = (e.target as HTMLInputElement).checked; A = null; V = null; save(); render(); } }), tr('Rekonstruksiya (minimal maydon −20 %)')),
       h('label', { class: 'bg-chk' }, h('input', { type: 'checkbox', id: 'bgTar', checked: !!s.tarixiy, onchange: (e: Event) => { s.tarixiy = (e.target as HTMLInputElement).checked; S.prog = undefined; A = null; V = null; save(); render(); } }), tr('Tarixiy yoki rasmiy makon (mavjud kompozitsiya saqlanadi)')),
+      sec('Saqlanadigan obyektlar'),
+      note(tr('Haykal, yodgorlik va favvoralar xaritadan avtomatik olinadi: joyi oʻzgarmaydi, demontaj qilinmaydi, ustidan yoʻl ham, element ham oʻtmaydi. Xaritada yoʻq boʻlsa — qoʻlda belgilang.')),
+      ...(s.keepPts ?? []).map((q, i) => h('div', { class: 'bg-row' }, h('span', {}, q.name), h('button', { type: 'button', class: 'btn btn-sm btn-ghost', 'aria-label': tr('Olib tashlash'), onclick: () => { s.keepPts = (s.keepPts ?? []).filter((_, j) => j !== i); A = null; V = null; save(); render(); } }, '×'))),
+      h('button', { type: 'button', class: 'btn btn-block', id: 'bgKeepAdd', 'aria-pressed': pickKeep, onclick: () => { pickKeep = !pickKeep; render(); } }, pickKeep ? tr('Xaritada obyekt joyini bosing…') : tr('Haykal yoki obyektni belgilash')),
       nextBtn(2, 'Maʼlumotga oʻtish'));
     // Topshiriq (15.11): maqsad, byudjet, foydalanuvchilar, saqlanadigan obyektlar
     const B: Brief = S.brief ?? { goal: '', budget: null, users: [], keep: '' }, setB = (p: Partial<Brief>) => { S.brief = { ...(S.brief ?? B), ...p }; sheets = []; save(); };
@@ -246,7 +253,7 @@ async function runAnalyze(): Promise<void> {
   busy = tr('Tahlil…'); V = null; MODR = null; sheets = []; render();
   const m = await ask({ t: 'analyze', site: S.site, data, opt: S.opt });
   busy = '';
-  if (m.t === 'analyzed') { SUG = m.sug ?? null; A = m.A; geo = { trees: m.geo.trees, classes: m.geo.classes, slope: m.geo.slope }; } else if (m.t === 'error') toast(m.msg);
+  if (m.t === 'analyzed') { SUG = m.sug ?? null; FIXED = m.fixed ?? []; A = m.A; geo = { trees: m.geo.trees, classes: m.geo.classes, slope: m.geo.slope }; } else if (m.t === 'error') toast(m.msg);
   render(); paint();
 }
 
@@ -261,6 +268,7 @@ function stepTahlil(): Node[] {
     sec('Cheklovlar'), row(tr('Erkin'), `${fmt(K.green / 1e4, 2)} ga`), row(tr('Cheklangan'), `${fmt(K.yellow / 1e4, 2)} ga`), row(tr('Mumkin emas'), `${fmt(K.red / 1e4, 2)} ga`),
     num('canalStrip', 'Kanal sohil mintaqasi', 0, 60), num('shore', 'Koʻl qirgʻogʻi', 0, 40), num('noise', 'Magistral shovqini', 0, 120),
     note(tr('Mintaqa kengliklari — foydalanuvchi qiymati (P): nizom matni bilan tekshirilsin.')),
+    ...(FIXED.length ? [sec('Saqlanadigan obyektlar'), ...FIXED.map(f => row(f.name, tr(FIX_N[f.t] ?? f.t))), note(tr('Bu obyektlar joyida qoladi: generator ularning atrofini band qilmaydi.'))] : []),
     h('button', { type: 'button', class: 'btn btn-block', id: 'bgReAn', disabled: !!busy, onclick: () => void runAnalyze() }, tr('Qayta hisoblash')),
     nextBtn(4, 'Dasturga oʻtish'),
   ];
@@ -779,7 +787,7 @@ function addLayers(): void {
   m.addLayer({ id: 'bg-trees', type: 'circle', source: 'bg-trees', paint: { 'circle-color': ['case', ['==', ['get', 'inv'], 1], '#d62828', ['>=', ['get', 'd'], 40], '#3f7a3c', '#8db77a'], 'circle-opacity': 0.7, 'circle-radius': mpxE(['max', 1.5, ['/', ['get', 'c'], 2]], v => ['max', 1.5, v]) } } as never);
   m.addLayer({ id: 'bg-new', type: 'circle', source: 'bg-new', paint: { 'circle-color': ['coalesce', ['get', 'col'], '#9fcf86'], 'circle-opacity': 0.9, 'circle-stroke-color': ['coalesce', ['get', 'ed'], '#2f5e33'], 'circle-stroke-width': 1, 'circle-radius': mpxE(['/', ['get', 'c'], 2], v => ['max', 2, v]) } } as never);
   m.addLayer({ id: 'bg-newf', type: 'circle', source: 'bg-new', filter: ['!=', ['get', 'fc'], ''], paint: { 'circle-color': ['get', 'fc'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 0.8, 'circle-radius': mpxE(['/', ['get', 'c'], 6], v => ['max', 1.5, v]) } } as never);
-  m.addLayer({ id: 'bg-vpts', type: 'circle', source: 'bg-vpts', paint: { 'circle-color': ['case', ['==', ['get', 't'], 'item'], '#151413', '#ffffff'], 'circle-stroke-color': '#151413', 'circle-stroke-width': 1.5, 'circle-radius': ['case', ['==', ['get', 't'], 'item'], 7, ['==', ['get', 'main'], 1], 6, 4] } } as never);
+  m.addLayer({ id: 'bg-vpts', type: 'circle', source: 'bg-vpts', paint: { 'circle-color': ['case', ['==', ['get', 't'], 'item'], '#151413', ['==', ['get', 't'], 'fix'], ['case', ['==', ['get', 'k'], 'haykal'], '#c8102e', '#e9b949'], '#ffffff'], 'circle-stroke-color': ['case', ['==', ['get', 't'], 'fix'], '#ffffff', '#151413'], 'circle-stroke-width': ['case', ['==', ['get', 't'], 'fix'], 2, 1.5], 'circle-radius': ['case', ['==', ['get', 't'], 'item'], 7, ['==', ['get', 't'], 'fix'], ['case', ['==', ['get', 'k'], 'haykal'], 8, 5], ['==', ['get', 'main'], 1], 6, 4] } } as never);
   m.addLayer({ id: 'bg-mod-f', type: 'fill', source: 'bg-mod', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': ['get', 'c'], 'fill-opacity': 0.85 } } as never);
   m.addLayer({ id: 'bg-mod-l', type: 'line', source: 'bg-mod', filter: ['==', ['geometry-type'], 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': ['coalesce', ['get', 'w'], 2] } } as never);
   m.addLayer({ id: 'bg-mod-p', type: 'circle', source: 'bg-mod', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': ['get', 'c'], 'circle-radius': ['coalesce', ['get', 'r'], 3], 'circle-stroke-color': '#151413', 'circle-stroke-width': 1 } } as never);
@@ -823,6 +831,7 @@ async function onClick(c: LngLat): Promise<void> {
   if (toolsOn() && S.site) { toolClick(L2(c)); return; }
   if (S.step === 8 && placing && S.site) { const F = frame(S.site.origin), p = F.toLocal(c); S.tu = [...(S.tu ?? []), { kind: placing, p, cap: tuCap, unit: placing === 'elektr' ? 'kVt' : placing === 'aloqa' ? 'port' : 'm³/sut' }]; placing = null; save(); MODR = null; sheets = []; render(); void runModul(); return; }
   if (S.step !== 1) return;
+  if (pickKeep && S.site) { const name = (prompt(tr('Obyekt nomi (masalan: Amir Temur haykali)'), tr('Haykal')) ?? '').trim(); pickKeep = false; if (name) { S.site.keepPts = [...(S.site.keepPts ?? []), { p: frame(S.site.origin).toLocal(c) as XY, name }]; A = null; V = null; save(); } render(); return; }
   if (drawing) { drawing.push(c); paint(); return; }
   busy = tr('OSM: shu nuqtadagi bogʻlar…'); render();
   try { cands = await parksAt(c, fetch, m => { busy = m; renderStatus(); }); if (!cands.length) toast(tr('Bu nuqtada OSM bogʻi topilmadi — chegarani qoʻlda chizing.')); }

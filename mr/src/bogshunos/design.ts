@@ -54,10 +54,12 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   for (const b of bridges) strokeLine(G, bridgeMask, b.g, 3);
   const isl = G.u8(); for (const r of C.island) fillRing(G, isl, r);
   const rpaV = G.u8(); for (const t of C.trees) if (t.d >= 20) strokeLine(G, rpaV, [t.p, t.p], 2 * t.rpa * vd.rpaK);
+  const fixCore = G.u8(); for (const f of C.fixed ?? []) strokeLine(G, fixCore, [f.p, f.p], 2 * Math.min(6, f.r));
   for (let k = 0; k < G.n; k++) {
     const inSite = C.site[k] === 1;
     let o = inSite && !C.bld[k] && (!C.water[k] || bridgeMask[k] === 1 || isl[k] === 1) && (dCanal[k] > 4 || crossMask[k] === 1);
     if (C.water[k] && isl[k] !== 1 && bridgeMask[k] !== 1) o = false;
+    if (fixCore[k] && !C.exPath[k]) o = false;   // haykal va yodgorlik oʻrni: yangi yoʻl ustidan oʻtmaydi
     ok[k] = o ? 1 : 0;
     let m = 1; if (C.exPath[k]) m *= vd.exist; if (rpaV[k]) m *= vd.tree; pen[k] = m;
   }
@@ -100,7 +102,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
     // nishab boʻyicha boʻlaklash: > 8 % — zina (+ rampa), 5–8 % — rampa (maydonchalar bilan)
     pushGraded(paths, pts, C, tier, w);
   }
-  if (vd.keepExist) for (const p of C.paths) { const keep = p.g.filter(q => !paths.some(n => near(q, n.g, 5))); if (keep.length > 1 && len(keep) > 8) pushGraded(paths, keep, C, 'soqmoq', 2.5); }
+  if (vd.keepExist) for (const p of C.paths) { const keep = p.g.filter(q => !paths.some(n => near(q, n.g, 5))); if (keep.length > 1 && len(keep) > 8) { if (opt.tarixiy) pushGraded(paths, keep, C, p.h === 'pedestrian' ? 'asosiy' : 'ikkinchi', p.h === 'pedestrian' ? vd.wMain : 2.5); else pushGraded(paths, keep, C, 'soqmoq', 2.5); } }
   else { // qamrov: har nuqta yoʻldan ≤ 35 m (T) — yetmagan joyda mavjud yoʻl soʻqmoq boʻlib qoladi
     for (const p of C.paths) { const seg: XY[] = []; for (const q of p.g) { if (!paths.some(n => near(q, n.g, 18))) seg.push(q); else if (seg.length) { if (seg.length > 1 && len(seg) > 6) pushGraded(paths, seg.splice(0), C, 'soqmoq', vd.wTrail); else seg.length = 0; } } if (seg.length > 1 && len(seg) > 6) pushGraded(paths, seg, C, 'soqmoq', vd.wTrail); }
   }
@@ -145,6 +147,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   for (let k = 0; k < G.n; k++) if (C.grass[k] && C.site[k] && !C.water[k] && dHard[k] >= 8 && !occ[k] && !play[k] && !courts.m[k] && !(opt.tarixiy && C.rpa[k])) cand.push(k);
   cand.sort((a, b) => C.S[b] - C.S[a]);
   const grassA = area(G, C.grass), meadow = G.u8(); for (let i = 0; i < Math.min(cand.length, Math.floor(vd.meadow * grassA / G.cellA)); i++) meadow[cand[i]] = 1;
+  tidy(G, meadow, C.grass, 250);   // oʻtloq: tarqoq kataklar emas, yaxlit maydonlar (≥ 250 m²)
   prog.otloq = meadow;
   // ---- 8. metrikalar ----
   const cellA = G.cellA, siteA = area(G, C.site), waterA = countAnd(C.site, C.water) * cellA;
@@ -158,7 +161,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   const V: Variant = {
     id: vd.id, name: vd.name, desc: vd.desc, paths, bridges, items,
     gates: gates.map((p, i) => ({ p, f: gateF[i], main: gateF[i] >= 0.5 * gf })),
-    prog: progVec(G, prog, placed.blocks), blocks: placed.blocks, ...fitoutAll(placed.blocks), miss: placed.miss,
+    prog: progVec(G, prog, placed.blocks), blocks: placed.blocks, ...fitoutAll(placed.blocks), miss: placed.miss, fixed: C.fixed,
     m: { gates: gates.length, pathLen: Math.round(paths.reduce((s, p) => s + len(p.g), 0)), asosiy: Math.round(lenT('asosiy')), ikkinchi: Math.round(lenT('ikkinchi')), soqmoq: Math.round(lenT('soqmoq')), sohil: Math.round(lenT('sohil')), rampa: Math.round(lenT('rampa')), zina: Math.round(lenT('zina')),
       hard: Math.round(hardA), greenPct: Math.round((siteA - waterA - hardA) / siteA * 1000) / 10, prd: avg(prd), prdP90: pct(prd, 0.9), sport: Math.round(area(G, exSport) + area(G, courts.m)), meadow: Math.round(area(G, meadow)),
       wetland: Math.round(prog.botqoq ? area(G, prog.botqoq) : 0), rain: Math.round(prog.yomgir_bogi ? area(G, prog.yomgir_bogi) : 0), conflict: conflict.length, conflictBig: conflict.filter(t => t.d >= 40).length,
@@ -170,6 +173,13 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
 }
 
 /* ---------------- yordamchilar ---------------- */
+/** Niqobni tartibga solish: koʻpchilik filtri (2 marta, faqat ruxsat etilgan kataklarda) va kichik boʻlaklarni olib tashlash */
+function tidy(G: Grid, m: Uint8Array, allow: Uint8Array, minA: number): void {
+  const nx = G.nx;
+  for (let it = 0; it < 2; it++) { const src = m.slice(); for (let j = 1; j < G.ny - 1; j++) for (let i = 1; i < nx - 1; i++) { const k = j * nx + i; let n = 0; for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) n += src[k + b * nx + a]; m[k] = n >= 5 && (src[k] || allow[k]) ? 1 : n <= 3 ? 0 : src[k]; } }
+  const seen = new Uint8Array(G.n);
+  for (let k0 = 0; k0 < G.n; k0++) if (m[k0] && !seen[k0]) { const comp = [k0]; seen[k0] = 1; for (let q = 0; q < comp.length; q++) { const k = comp[q], i = k % nx; for (const d of [1, -1, nx, -nx]) { const t = k + d; if (t < 0 || t >= G.n || seen[t] || !m[t] || (d === 1 && i === nx - 1) || (d === -1 && i === 0)) continue; seen[t] = 1; comp.push(t); } } if (comp.length * G.cellA < minA) for (const k of comp) m[k] = 0; }
+}
 const avg = (a: number[]) => (a.length ? Math.round(a.reduce((s, v) => s + v, 0) / a.length * 100) / 100 : 0);
 const pct = (a: number[], p: number) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return Math.round(s[Math.min(s.length - 1, Math.floor(p * s.length))] * 100) / 100; };
 const countAnd = (a: Uint8Array, b: Uint8Array) => { let n = 0; for (let k = 0; k < a.length; k++) if (a[k] && b[k]) n++; return n; };
@@ -190,12 +200,14 @@ function pushGraded(out: Variant['paths'], pts: XY[], C: Ctx, tier: Tier, w: num
   const z = (p: XY) => { const k = C.G.idx(p[0], p[1]); return k >= 0 && Number.isFinite(C.E[k]) ? C.E[k] : NaN; };
   let cur: XY[] = [pts[0]], curT: Tier = tier, curG = 0;
   const kind = (g: number): Tier => (tier === 'soqmoq' || tier === 'sohil' ? tier : g > 8 ? 'zina' : g > 5 ? 'rampa' : tier);
+  // zina / rampa faqat ishonchli balandlik farqida: qoʻpol relyefda ≥ 1,5 m, syomkada ≥ 0,45 m (3 pogʻona) — aks holda oddiy yoʻl (T)
+  const sure = (g: XY[], t: Tier): Tier => { if (t !== 'zina' && t !== 'rampa') return t; const dz = Math.abs(z(g[g.length - 1]) - z(g[0])); return Number.isFinite(dz) && dz >= (C.rough ? 1.5 : 0.45) ? t : tier; };
   for (let k = 1; k < pts.length; k++) {
     const d = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]) || 1e-6, g = Math.abs(z(pts[k]) - z(pts[k - 1])) / d * 100, t = kind(Number.isFinite(g) ? g : 0);
-    if (t !== curT && cur.length > 1 && len(cur) > 6) { out.push({ g: cur, tier: curT, w: curT === 'zina' ? Math.max(w, 2) : w, grade: curG }); cur = [pts[k - 1]]; curG = 0; }
+    if (t !== curT && cur.length > 1 && len(cur) > 6) { const tt = sure(cur, curT); out.push({ g: cur, tier: tt, w: tt === 'zina' ? Math.max(w, 2) : w, grade: tt === curT ? curG : Math.min(curG, 5) }); cur = [pts[k - 1]]; curG = 0; }
     curT = t; cur.push(pts[k]); curG = Math.max(curG, Number.isFinite(g) ? g : 0);
   }
-  if (cur.length > 1) out.push({ g: cur, tier: curT, w, grade: curG });
+  if (cur.length > 1) { const tt = sure(cur, curT); out.push({ g: cur, tier: tt, w, grade: tt === curT ? curG : Math.min(curG, 5) }); }
 }
 
 /** Amfiteatr: suvga qaragan qiyalik (gradient yoʻnalishi suv tomonga), 8–25 %, suvdan 8–40 m, katta daraxtlarsiz */
