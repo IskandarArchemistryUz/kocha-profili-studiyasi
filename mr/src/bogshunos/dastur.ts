@@ -16,12 +16,13 @@
 import type { XY, Ring, MPoly, Variant, BgSite } from './types';
 import type { Ctx } from './analyze';
 import { Grid, fillPoly, distance, contour, simplify, len } from './grid';
+import { furnById } from './library';
 
 export type ElKey = 'basket' | 'streetbol' | 'voleybol' | 'futbol_k' | 'futbol' | 'tennis' | 'stol_tennis' | 'workout' | 'skeyt'
-  | 'bolalar_k' | 'bolalar_m' | 'suv_oyin' | 'piknik' | 'sokin_bog' | 'gulzor' | 'tadbir' | 'it_maydon';
-export type ElGrp = 'sport' | 'bolalar' | 'sokin' | 'yashil' | 'tadbir';
+  | 'bolalar_k' | 'bolalar_m' | 'suv_oyin' | 'piknik' | 'sokin_bog' | 'gulzor' | 'tadbir' | 'it_maydon' | 'kirish' | 'wc' | 'kafe' | 'ijara';
+export type ElGrp = 'xizmat' | 'sport' | 'bolalar' | 'sokin' | 'yashil' | 'tadbir';
 /** w × d — egallaydigan joy (xavfsizlik chetlari bilan), pw × pd — oʻyin maydoni; noise: 0 sokin, 1 oʻrta, 2 shovqinli; trees — eng koʻp kesiladigan daraxt */
-export interface ElDef { n: string; grp: ElGrp; zone: string; w: number; d: number; pw?: number; pd?: number; ns: boolean; noise: 0 | 1 | 2; edge: number; trees: number; src: 'A' | 'T'; note: string }
+export interface ElDef { n: string; grp: ElGrp; zone: string; w: number; d: number; pw?: number; pd?: number; ns: boolean; noise: 0 | 1 | 2; edge: number; trees: number; src: 'A' | 'T'; note: string; /** darvozadan ichkariga masofa, m — xizmat elementlari darvoza oqimiga bogʻlanadi */ anchor?: number; /** bir xil elementlar orasidagi eng kam masofa, m */ gap?: number }
 export const ELEM: Record<ElKey, ElDef> = {
   basket: { n: 'Basketbol maydoni', grp: 'sport', zone: 'sport_yangi', w: 32, d: 19, pw: 28, pd: 15, ns: true, noise: 2, edge: 10, trees: 4, src: 'A', note: 'oʻyin maydoni 28 × 15 m, atrofida 2 m' },
   streetbol: { n: 'Streetbol (3×3)', grp: 'sport', zone: 'sport_yangi', w: 18, d: 14, pw: 15, pd: 11, ns: true, noise: 2, edge: 10, trees: 2, src: 'A', note: 'oʻyin maydoni 15 × 11 m, bitta halqa' },
@@ -33,27 +34,37 @@ export const ELEM: Record<ElKey, ElDef> = {
   workout: { n: 'Workout maydonchasi', grp: 'sport', zone: 'workout', w: 15, d: 10, ns: false, noise: 1, edge: 8, trees: 1, src: 'T', note: 'turnik va trenajyorlar, rezina qoplama' },
   skeyt: { n: 'Skeyt maydoni', grp: 'sport', zone: 'skeyt', w: 30, d: 18, ns: false, noise: 2, edge: 15, trees: 3, src: 'T', note: 'beton, shovqinli — sokin zonadan uzoq' },
   bolalar_k: { n: 'Bolalar maydoni (6 yoshgacha)', grp: 'bolalar', zone: 'bolalar', w: 15, d: 12, ns: false, noise: 1, edge: 10, trees: 1, src: 'T', note: 'qumdon, mayda jihozlar, soyabon, ota-onalar oʻrindigʻi' },
-  bolalar_m: { n: 'Bolalar maydoni (7–12 yosh)', grp: 'bolalar', zone: 'bolalar', w: 20, d: 15, ns: false, noise: 1, edge: 10, trees: 2, src: 'T', note: 'oʻyin majmuasi, argʻimchoq, batut' },
+  bolalar_m: { n: 'Bolalar maydoni (7–12 yosh)', grp: 'bolalar', zone: 'bolalar', w: 26, d: 16, ns: false, noise: 1, edge: 10, trees: 2, src: 'T', note: 'oʻyin majmuasi, argʻimchoq, batut' },
   suv_oyin: { n: 'Suv oʻyin maydoni', grp: 'bolalar', zone: 'suv_oyin', w: 14, d: 14, ns: false, noise: 1, edge: 10, trees: 1, src: 'T', note: 'quruq favvora, issiq mavsum uchun' },
   piknik: { n: 'Piknik joyi', grp: 'sokin', zone: 'piknik', w: 20, d: 15, ns: false, noise: 0, edge: 6, trees: 0, src: 'T', note: 'stollar daraxt soyasida, urna' },
   sokin_bog: { n: 'Sokin bogʻ', grp: 'sokin', zone: 'sokin_bog', w: 20, d: 16, ns: false, noise: 0, edge: 6, trees: 0, src: 'T', note: 'oʻrindiqlar, shaxmat stollari, pergola' },
   gulzor: { n: 'Gulzor', grp: 'yashil', zone: 'gulzor', w: 16, d: 7, ns: false, noise: 0, edge: 3, trees: 0, src: 'T', note: 'koʻp yillik oʻsimliklar, yoʻl boʻylab' },
   tadbir: { n: 'Tadbir maysasi', grp: 'tadbir', zone: 'tadbir', w: 40, d: 28, ns: false, noise: 2, edge: 15, trees: 2, src: 'T', note: 'sahna podiumi oldida ochiq maysa' },
+  /* xizmat va kirish (23.11): darvoza oqimiga bogʻlanadi. Hojatxona — 1 ta / 500 bir vaqtdagi tashrifchi, oraliq ≥ 150 m (T);
+     kafe — 33-jadval: 28 oʻrin / 1 000 dam oluvchi (N); velo turargoh — 33-jadval: 200 joy / 1 000 (N), kirish maydonchalarida */
+  kirish: { n: 'Kirish maydonchasi', grp: 'xizmat', zone: 'maydon', w: 12, d: 7, ns: false, noise: 1, edge: 0, trees: 1, src: 'T', note: 'axborot stendi, velo turargoh, oʻrindiq, urna', anchor: 9, gap: 40 },
+  wc: { n: 'Hojatxona', grp: 'xizmat', zone: 'xizmat', w: 8, d: 6, ns: false, noise: 1, edge: 3, trees: 1, src: 'T', note: 'modul, MGN kabinasi bilan; suv, kanalizatsiya, elektr', anchor: 18, gap: 150 },
+  kafe: { n: 'Kafe paviloni', grp: 'xizmat', zone: 'xizmat', w: 18, d: 13, ns: false, noise: 1, edge: 6, trees: 2, src: 'T', note: 'pavilon 10 × 8 m va ochiq terrasa', anchor: 45, gap: 200 },
+  ijara: { n: 'Ijara punkti', grp: 'xizmat', zone: 'xizmat', w: 8, d: 6, ns: false, noise: 1, edge: 3, trees: 1, src: 'T', note: 'velosiped, samokat, oʻyin anjomlari', anchor: 28, gap: 200 },
   it_maydon: { n: 'It sayr maydoni', grp: 'sokin', zone: 'it_maydon', w: 30, d: 20, ns: false, noise: 2, edge: 15, trees: 2, src: 'T', note: 'toʻsiqli; binolardan 40 m (4-jadval, P)' },
 };
 export const EL_GROUPS: [string, ElKey[]][] = [
   ['Sport', ['basket', 'streetbol', 'voleybol', 'futbol_k', 'futbol', 'tennis', 'stol_tennis', 'workout', 'skeyt']],
   ['Bolalar', ['bolalar_k', 'bolalar_m', 'suv_oyin']],
   ['Sokin dam olish va tadbir', ['sokin_bog', 'piknik', 'gulzor', 'tadbir', 'it_maydon']],
+  ['Xizmat va kirish', ['kirish', 'wc', 'kafe', 'ijara']],
 ];
 /** Yumshoq elementlar: daraxtlar saqlanadi (soya — afzallik), shuning uchun daraxt soni cheklanmaydi; yengillari yirik daraxt ildiz zonasida ham boʻlishi mumkin */
-const SOFT = new Set<ElKey>(['bolalar_k', 'bolalar_m', 'piknik', 'sokin_bog', 'gulzor', 'it_maydon']), LIGHT = new Set<ElKey>(['piknik', 'sokin_bog', 'gulzor']);
+const SOFT = new Set<ElKey>(['bolalar_k', 'bolalar_m', 'piknik', 'sokin_bog', 'gulzor', 'it_maydon', 'kirish']), LIGHT = new Set<ElKey>(['piknik', 'sokin_bog', 'gulzor', 'kirish']);   // kirish maydonchasi: yengil jihozlar daraxtlar orasida, mavjud qoplama ustida ham boʻlishi mumkin
 export type Prog = Partial<Record<ElKey, number>>;
 export interface Block { id: string; el: ElKey; p: XY; a: number; rule: string }
 
 /** Sukut dastur: bogʻ turi, maydoni (ga), bir vaqtdagi tashrif (N1), mavjud sport (m²) va bolalar maydonlari soni */
 export function suggest(kind: BgSite['kind'], ha: number, N1: number, has: { pitch: number; play: number; tarixiy: boolean }): { prog: Prog; sportNeed: number; why: string } {
   const P: Prog = {}; const add = (k: ElKey, n = 1) => { if (n > 0) P[k] = (P[k] ?? 0) + n; };
+  // xizmat: kirish maydonchalari (bosh darvozalarda), hojatxona 1 / 500 kishi (T), kafe — 28 oʻrin / 1 000 kishi 20 oʻrindan oshsa, ijara — yirik bogʻda
+  add('kirish', ha >= 8 ? 3 : ha >= 2 ? 2 : 1); if (ha >= 1) add('wc', Math.max(1, Math.min(6, Math.ceil(N1 / 500))));
+  if (!has.tarixiy && kind !== 'xiyobon' && kind !== 'ormon') { if (28 * N1 / 1000 >= 20 || ha >= 6) add('kafe'); if (ha >= 8) add('ijara'); }
   const norm = Math.round(3800 * N1 / 1000), cap = Math.round(ha * 10000 * 0.04), need = Math.max(0, Math.min(norm, cap) - has.pitch);
   if (has.tarixiy || kind === 'xiyobon') {
     add('sokin_bog', ha >= 2 ? 2 : 1); add('gulzor', Math.max(1, Math.min(4, Math.round(ha))));
@@ -81,6 +92,7 @@ export function varProg(id: 'A' | 'B' | 'C', P: Prog): Prog {
   if (id === 'B') return P;
   const o: Prog = {};
   for (const k of Object.keys(P) as ElKey[]) { const E = ELEM[k], n = P[k] ?? 0; if (!n) continue;
+    if (id === 'A' && (k === 'kafe' || k === 'ijara')) continue;
     if (id === 'A') { if (E.noise === 2 || (E.grp === 'sport' && k !== 'workout' && k !== 'stol_tennis')) continue; o[k] = E.grp === 'sport' ? 1 : n; }
     else { if ((E.zone === 'sport_yangi' && k !== 'stol_tennis') || k === 'skeyt' || k === 'suv_oyin' || k === 'tadbir') continue; o[k] = n; } }
   if (id === 'C') { const had = (Object.keys(P) as ElKey[]).some(k => ELEM[k].zone === 'sport_yangi' && (P[k] ?? 0) > 0); if (had) { o.piknik = (o.piknik ?? 0) + 1; o.sokin_bog = (o.sokin_bog ?? 0) + 1; } o.gulzor = (o.gulzor ?? 0) + 1; }
@@ -103,7 +115,7 @@ function cellsOf(G: Grid, b: Pick<Block, 'p' | 'a'>, w: number, d: number): numb
   return out;
 }
 
-export interface PlaceEnv { occ: Uint8Array; bigRpa: Uint8Array; hard: Uint8Array; paths: Variant['paths']; keep?: Uint8Array; keepPaths?: boolean }
+export interface PlaceEnv { gates?: { p: XY; f: number; main: boolean }[]; occ: Uint8Array; bigRpa: Uint8Array; hard: Uint8Array; paths: Variant['paths']; keep?: Uint8Array; keepPaths?: boolean }
 export interface Placed { blocks: Block[]; masks: Record<string, Uint8Array>; spurs: Variant['paths']; earth: number; miss: { el: ElKey; why: string }[] }
 
 /** Dastur elementlarini joylash */
@@ -122,21 +134,32 @@ export function placeBlocks(C: Ctx, prog: Prog, env: PlaceEnv): Placed {
   const dGreen = distance(G, green), core = G.u8(); if (nG > nS * 0.15) for (let k = 0; k < G.n; k++) core[k] = C.site[k] && dGreen[k] > 4 ? 1 : 0;
   const blocks: Block[] = [], spurs: Variant['paths'] = [], miss: Placed['miss'] = [], masks: Record<string, Uint8Array> = {}; let earthAll = 0;
   const NS_ANG = [105, 90, 120, 75, 135, 150].map(d => d * Math.PI / 180);
-  const order = (Object.keys(prog) as ElKey[]).filter(k => ELEM[k] && (prog[k] ?? 0) > 0).sort((x, y) => { const gx = ['sport', 'tadbir', 'bolalar', 'sokin', 'yashil'].indexOf(ELEM[x].grp), gy = ['sport', 'tadbir', 'bolalar', 'sokin', 'yashil'].indexOf(ELEM[y].grp); return gx - gy || ELEM[y].w * ELEM[y].d - ELEM[x].w * ELEM[x].d; });
+  // darvoza langarlari: har darvozadan asosiy yoʻl boʻylab ichkariga d metr (oqimi katta darvoza birinchi)
+  const mainPts = env.paths.filter(p => p.tier === 'asosiy' || p.tier === 'ikkinchi' || p.tier === 'sohil').flatMap(p => p.g);
+  const anchorsOf = (d: number): XY[] => [...(env.gates ?? [])].sort((a, b) => b.f - a.f).map(g => { let best: XY | null = null, bd = Infinity; for (const q of mainPts) { const dq = Math.hypot(q[0] - g.p[0], q[1] - g.p[1]); if (dq >= d && dq < bd) { bd = dq; best = q; } } return best && bd < d + 40 ? best : null; }).filter((q): q is XY => !!q);
+  const GO = ['xizmat', 'sport', 'tadbir', 'bolalar', 'sokin', 'yashil'];
+  const order = (Object.keys(prog) as ElKey[]).filter(k => ELEM[k] && (prog[k] ?? 0) > 0).sort((x, y) => { const gx = GO.indexOf(ELEM[x].grp), gy = GO.indexOf(ELEM[y].grp); return gx - gy || ELEM[y].w * ELEM[y].d - ELEM[x].w * ELEM[x].d; });
   let seq = 0;
   for (const el of order) for (let n = 0; n < Math.min(12, prog[el] ?? 0); n++) {
     const E = ELEM[el], same = blocks.filter(b => ELEM[b.el].grp === E.grp), loud = blocks.filter(b => ELEM[b.el].noise === 2), quiet = blocks.filter(b => ELEM[b.el].noise === 0);
     const soft = SOFT.has(el), light = LIGHT.has(el);
     const clusterA = E.grp === 'sport' && same.length ? same[0].a : null;
+    // langar: shu turdagi element hali qoʻyilmagan (gap dan uzoq) eng yirik darvoza nuqtasi
+    const mine = blocks.filter(b => b.el === el), anc = E.anchor != null ? anchorsOf(E.anchor).filter(q => mine.every(b => Math.hypot(b.p[0] - q[0], b.p[1] - q[1]) >= (E.gap ?? 0))) : [];
+    if (E.anchor != null && (env.gates?.length ?? 0) > 0 && !anc.length) { if (!mine.length) miss.push({ el, why: 'mos darvoza yoki asosiy yoʻl topilmadi' }); continue; }
+    const tgt = anc[0] ?? null;
     let best: { p: XY; a: number; s: number; e: number; t: number; sl: number } | null = null;
     for (let j = 1; j < G.ny - 1; j += 2) for (let i = 1; i < nx - 1; i += 2) {
       const k0 = j * nx + i; if (!C.site[k0] || taken[k0] || C.water[k0] || dOut[k0] < E.edge + E.d / 2 || dPath[k0] > 70) continue;
+      if (tgt && Math.hypot(G.cx(i) - tgt[0], G.cy(j) - tgt[1]) > 35) continue;
       const p: XY = [G.cx(i), G.cy(j)], pa = dirAt(p);
       // burchaklar: sport — shimol–janub oraligʻi (klasterda — birinchi maydon burchagi); qolganlar — eng yaqin yoʻl yoki chegaraga parallel
       const angs = clusterA != null ? [clusterA, clusterA + Math.PI / 2].filter(a => !E.ns || nsOk(a)) : E.ns ? [...NS_ANG, pa, pa + Math.PI / 2].filter(nsOk) : [pa, pa + Math.PI / 2];
       const dCl = same.length ? Math.min(...same.map(b => Math.hypot(b.p[0] - p[0], b.p[1] - p[1]))) : 0;
       const dLoud = loud.length ? Math.min(...loud.map(b => Math.hypot(b.p[0] - p[0], b.p[1] - p[1]))) : 999, dQuiet = quiet.length ? Math.min(...quiet.map(b => Math.hypot(b.p[0] - p[0], b.p[1] - p[1]))) : 999;
       let base = Math.max(0, dPath[k0] - E.d / 2 - 2) * 1.2;
+      if (tgt) base = base * 3 + Math.hypot(p[0] - tgt[0], p[1] - tgt[1]) * 2;
+      if (mine.length && E.gap) base += Math.max(0, E.gap - Math.min(...mine.map(b => Math.hypot(b.p[0] - p[0], b.p[1] - p[1])))) * 0.5;
       if (same.length) base += E.grp === 'sport' ? dCl * 1.5 : E.grp === 'yashil' || E.grp === 'sokin' ? Math.max(0, 60 - dCl) * 0.8 : Math.max(0, 40 - dCl) * 0.5;   // sport yigʻiladi, sokin va gulzor tarqaladi
       if (E.noise === 0) base += Math.max(0, 45 - dLoud) * 2; if (E.noise === 2) base += Math.max(0, 45 - dQuiet) * 2;
       if (E.grp === 'bolalar' && loud.length) base += Math.max(0, 15 - dLoud) * 3 + Math.max(0, dLoud - 70) * 0.4;   // sportga yaqin, lekin tutashmaydi
@@ -145,7 +168,7 @@ export function placeBlocks(C: Ctx, prog: Prog, env: PlaceEnv): Placed {
       for (const a of angs) {
         const cs = cellsOf(G, { p, a }, E.w, E.d); if (!cs) continue;
         let bad = false, sum = 0, sl = 0, tr = 0, pv = 0;   // pv — mavjud yoʻl yoki ochiq qoplama ustiga tushgan qism
-        for (const k of cs) { if (!C.site[k] || taken[k] || C.water[k] || (!light && env.bigRpa[k]) || env.keep?.[k] || core[k] || (env.keepPaths && C.exPath[k])) { bad = true; break; } sum += C.E[k]; sl += C.S[k]; tr += tc[k]; if (C.exPath[k] || (!C.grass[k] && !C.crown[k])) pv++; }
+        for (const k of cs) { if (!C.site[k] || taken[k] || C.water[k] || (!light && env.bigRpa[k]) || env.keep?.[k] || (core[k] && el !== 'kirish') || (env.keepPaths && C.exPath[k] && el !== 'kirish')) { bad = true; break; } sum += C.E[k]; sl += C.S[k]; tr += tc[k]; if (C.exPath[k] || (!C.grass[k] && !C.crown[k])) pv++; }
         if (bad) continue;
         const seen = new Set(cs); tr = 0; for (const k of seen) tr += tc[k];
         if (!soft && tr > E.trees) continue;
@@ -189,7 +212,7 @@ export function progVec(G: Grid, masks: Record<string, Uint8Array>, blocks: Bloc
 const arc = (b: Block, cu: number, cv: number, r: number, a0: number, a1: number, n = 14): XY[] => Array.from({ length: n + 1 }, (_, i) => { const t = a0 + (a1 - a0) * i / n; return toW(b, cu + r * Math.cos(t), cv + r * Math.sin(t)); });
 const box = (b: Block, w: number, d: number, cu = 0, cv = 0): XY[] => { const q = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2], [-w / 2, -d / 2]]; return q.map(([u, v]) => toW(b, cu + u, cv + v)); };
 /** Blok ichidagi belgilar (chiziqlar) va jihozlar: joylashuv — tipik sxema (T), loyihada aniqlanadi */
-export function fitout(b: Block): { furn: { id: string; p: XY; a: number }[]; marks: XY[][] } {
+export function fitout(b: Block): { furn: { id: string; p: XY; a: number }[]; marks: XY[][]; safe: { p: XY; r: number }[] } {
   const E = ELEM[b.el], F: { id: string; p: XY; a: number }[] = [], M: XY[][] = [], pw = E.pw ?? E.w, pd = E.pd ?? E.d;
   const f = (id: string, u: number, v: number, rot = 0) => F.push({ id, p: toW(b, u, v), a: b.a + rot });
   const ln = (u1: number, v1: number, u2: number, v2: number) => M.push([toW(b, u1, v1), toW(b, u2, v2)]);
@@ -215,14 +238,20 @@ export function fitout(b: Block): { furn: { id: string; p: XY; a: number }[]; ma
     case 'workout': for (const u of [-5, -1.5]) f('turnik', u, -2); for (const [u, v] of [[2, -2.5], [5, -2.5], [2, 1], [5, 1]]) f('trenajyor', u, v); f('skameyka', -4, E.d / 2 - 0.6); f('urna', -1.5, E.d / 2 - 0.6); break;
     case 'skeyt': M.push(box(b, E.w - 2, E.d - 2)); f('skameyka_beton', -6, E.d / 2 - 0.6); f('skameyka_beton', 6, E.d / 2 - 0.6); f('urna', 0, E.d / 2 - 0.6); break;
     case 'bolalar_k': f('qumdon', -4, -1.5); f('karusel', 2, -2); f('tabiiy_oyin', 4.5, 2); f('soyabon', -4, -1.5); for (const u of [-4, 0, 4]) f('skameyka', u, E.d / 2 - 0.5); f('urna', E.w / 2 - 0.8, E.d / 2 - 0.5); break;
-    case 'bolalar_m': f('majmua', -4, -1); f('arg', 4.5, -3); f('batut', 5, 3); for (const u of [-6, -2, 2]) f('skameyka', u, E.d / 2 - 0.5); f('urna', E.w / 2 - 0.8, E.d / 2 - 0.5); f('ichimlik', -E.w / 2 + 0.8, E.d / 2 - 0.5); break;
+    case 'bolalar_m': f('majmua', -6, -1); f('arg', 7, -2.4); f('batut', 1.5, 5.3); for (const u of [-9, -5, 5]) f('skameyka', u, E.d / 2 - 0.5); f('urna', E.w / 2 - 0.8, E.d / 2 - 0.5); f('ichimlik', -E.w / 2 + 0.8, E.d / 2 - 0.5); break;
     case 'suv_oyin': f('quruq_favvora', 0, 0); for (const u of [-4, 4]) f('skameyka', u, E.d / 2 - 0.5); break;
     case 'piknik': for (const [u, v] of [[-6, -2.5], [0, 2.5], [6, -2.5]]) f('piknik_stol', u, v); f('piknik_mgn', -6, 3.5); f('urna_2', E.w / 2 - 1, 0); break;
     case 'sokin_bog': f('pergola', 0, -3); for (const u of [-6, 6]) { f('skameyka', u, 4, Math.PI); f('shaxmat', u, -4); } f('skameyka', 0, 4, Math.PI); break;
     case 'gulzor': f('skameyka', -4, E.d / 2 + 0.6, Math.PI); f('skameyka', 4, E.d / 2 + 0.6, Math.PI); break;
     case 'tadbir': f('podium', -E.w / 2 + 4, 0, Math.PI / 2); break;
+    case 'kirish': f('stend', -E.w / 2 + 1.2, -E.d / 2 + 0.8); f('velo_turargoh', 2.5, -E.d / 2 + 1.4); f('velo_turargoh', -2, -E.d / 2 + 1.4); f('skameyka', -2.5, E.d / 2 - 0.6, Math.PI); f('skameyka', 2.5, E.d / 2 - 0.6, Math.PI); f('urna', E.w / 2 - 0.8, E.d / 2 - 0.6); f('ichimlik', E.w / 2 - 0.9, -E.d / 2 + 0.9); break;
+    case 'wc': f('wc_modul', 0, -0.8); f('urna', E.w / 2 - 0.7, E.d / 2 - 0.7); f('skameyka', -1.5, E.d / 2 - 0.5, Math.PI); break;
+    case 'kafe': f('kafe', -3.5, -2); for (const [u, v] of [[4.5, -3.5], [4.5, 0.5], [-2, 4.3], [2.2, 4.3]]) f('stol_aylana', u, v); f('urna_2', E.w / 2 - 0.8, E.d / 2 - 0.8); f('velo_turargoh', -E.w / 2 + 2.2, E.d / 2 - 1.3); break;
+    case 'ijara': f('ijara', 0, -0.8); f('velo_turargoh', -1.5, E.d / 2 - 1.2); f('samokat', 2.5, E.d / 2 - 1); break;
     case 'it_maydon': M.push(box(b, E.w - 0.4, E.d - 0.4)); f('it_urna', E.w / 2 - 1.2, E.d / 2 - 1.2); f('ichimlik_it', -E.w / 2 + 1.2, E.d / 2 - 1.2); f('skameyka', 0, E.d / 2 - 1); break;
   }
-  return { furn: F, marks: M };
+  // bolalar oʻyin jihozlari xavfsizlik zonasi: jihoz gabariti + kutubxonadagi r (EN 1176 — A; aniq oʻlcham jihoz pasportidan)
+  const safe = F.flatMap(x => { const fu = furnById(x.id); return fu?.cat === 'oyin' && fu.r ? [{ p: x.p, r: Math.max(fu.w, fu.d) / 2 + fu.r }] : []; });
+  return { furn: F, marks: M, safe };
 }
-export function fitoutAll(blocks: Block[]): { furn: { id: string; p: XY; a: number }[]; marks: XY[][] } { const furn: { id: string; p: XY; a: number }[] = [], marks: XY[][] = []; for (const b of blocks) { const r = fitout(b); furn.push(...r.furn); marks.push(...r.marks); } return { furn, marks }; }
+export function fitoutAll(blocks: Block[]): { furn: { id: string; p: XY; a: number }[]; marks: XY[][]; safe: { p: XY; r: number }[] } { const furn: { id: string; p: XY; a: number }[] = [], marks: XY[][] = [], safe: { p: XY; r: number }[] = []; for (const b of blocks) { const r = fitout(b); furn.push(...r.furn); marks.push(...r.marks); safe.push(...r.safe); } return { furn, marks, safe }; }

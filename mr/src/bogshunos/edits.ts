@@ -103,7 +103,7 @@ export function applyEdits(C: Ctx, DO: DesignOut, E: Edit[]): DesignOut {
     irrLo: Math.round((lawn * 15 + meadow * 3 + other * 3) / 1000), irrHi: Math.round((lawn * 20 + meadow * 4 + other * 4) / 1000), edits: E.length };
   const prog: Record<string, MPoly> = progVec(G, masks, blocks), fit = fitoutAll(blocks);
   const furn = [...fit.furn, ...E.filter(e => e.t === 'furn').map(e => { const f = e as Extract<Edit, { t: 'furn' }>; return { id: f.id, p: f.p, a: f.a }; })];
-  return { V: { ...V0, paths, items, prog, m, furn, blocks, marks: fit.marks }, masks, ods: DO.ods };
+  return { V: { ...V0, paths, items, prog, m, furn, blocks, marks: fit.marks, safe: fit.safe }, masks, ods: DO.ods };
 }
 
 /** Ekish kompozitsiyasi qoidalari (T — loyiha qoidasi, manba: landshaft amaliyoti; asbob panelida oʻzgartiriladi):

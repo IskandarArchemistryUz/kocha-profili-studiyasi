@@ -38,3 +38,15 @@ test('variant xarakteri: Saqlovchi — shovqinli elementsiz, Faol — toʻliq, T
   expect(sportA(A)).toBe(0); expect(A.it_maydon ?? 0).toBe(0); expect(A.workout).toBe(1); expect(A.bolalar_m).toBe(P.bolalar_m);
   expect(sportA(C)).toBe(0); expect(C.skeyt ?? 0).toBe(0); expect(C.piknik).toBe((P.piknik ?? 0) + 1); expect(C.gulzor).toBe((P.gulzor ?? 0) + 1);
 });
+
+test('bolalar maydoni: xavfsizlik zonalari bir-birini kesmaydi va blokdan chiqmaydi; xizmat elementlari taklifda bor', () => {
+  for (const el of ['bolalar_k', 'bolalar_m'] as ElKey[]) {
+    const b: Block = { id: 'b', el, p: [0, 0], a: 0, rule: '' }, S = fitout(b).safe;
+    for (let i = 0; i < S.length; i++) { expect(Math.abs(S[i].p[0]) + S[i].r).toBeLessThanOrEqual(ELEM[el].w / 2 + 0.01); expect(Math.abs(S[i].p[1]) + S[i].r).toBeLessThanOrEqual(ELEM[el].d / 2 + 0.01);
+      for (let j = i + 1; j < S.length; j++) expect(Math.hypot(S[i].p[0] - S[j].p[0], S[i].p[1] - S[j].p[1])).toBeGreaterThanOrEqual(S[i].r + S[j].r - 0.01); }
+  }
+  const t = suggest('tuman', 12, 1200, { pitch: 0, play: 0, tarixiy: false }).prog;
+  expect(t.wc).toBe(3); expect(t.kafe).toBe(1); expect(t.ijara).toBe(1); expect(t.kirish).toBe(3);
+  const x = suggest('xiyobon', 6.3, 600, { pitch: 0, play: 0, tarixiy: true }).prog;
+  expect(x.wc).toBe(2); expect(x.kafe ?? 0).toBe(0);
+});
