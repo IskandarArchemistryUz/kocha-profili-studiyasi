@@ -7,6 +7,7 @@
  * Eski toʻliq asboblar (gis, shamol, posadka, ai) — panel pastidagi havolalar orqali ochiq qoladi (0-qoida).
  */
 import { scoped, svcHref, ctxProject, seedSite, svcLinks } from '../core/projctx';
+import { setSvcThumb, ringSvg } from '../storage/svcthumb';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -924,6 +925,7 @@ function ringPerim(r: LngLat[]): number { return lineLen([...r, r[0]]); }
 function kpsSite(): LngLat[] | null { try { const o = JSON.parse(localStorage.getItem(scoped('kps_site')) || 'null'); if (o && Array.isArray(o.ring) && o.ring.length > 2) return o.ring.map((p: number[]) => [+p[1], +p[0]] as LngLat); } catch { /* */ } return null; }
 function setSite(r: LngLat[] | null, write = true): void {
   S.site = r; save();
+  if (r) setSvcThumb(ctxProject(), ringSvg(r as [number, number][]));   // 23.11: Loyihalarim kartasi — hudud chizmasi
   if (write) try { if (r) localStorage.setItem(scoped('kps_site'), JSON.stringify({ t: Date.now(), mode: 'poly', ring: r.map(p => [+p[1].toFixed(6), +p[0].toFixed(6)]), center: null, r: null, areaM2: Math.round(ringArea(r)), src: 'joyshunos' })); } catch { /* */ }
   renderLeft(); renderRight(); paintDraw(); if (mode === 'axo') axBuild();
 }

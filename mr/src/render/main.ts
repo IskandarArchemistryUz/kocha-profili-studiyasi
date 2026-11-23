@@ -9,6 +9,7 @@
  */
 import { scoped, svcHref, ctxProject, svcLinks } from '../core/projctx';
 import { isLegacySvc } from '../storage/svcprojects';
+import { setSvcThumb, shrink as shrinkThumb } from '../storage/svcthumb';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -83,7 +84,9 @@ const engName = (e: string) => {
   if (e === 'enhance') return tr('Tiniqlashtirish'); const l = LAB.find(x => x[0] === e); return l ? l[1] : `Archemistry ${tr((ENGINES.find(x => x[0] === e) ?? ENGINES[1])[1])}`; };
 let viewer: { id: string; mode: 'natija' | 'cmp' | 'yon' } | null = null;
 const base = () => SRC.find(s => s.id === baseId) ?? null;
-const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem(scoped('render-base'), id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos'; };
+const setBase = (id: string) => { baseId = id; allOuts = false; try { localStorage.setItem(scoped('render-base'), id); } catch { /* */ } const s = base(); if (s && s.subj) A.subj = s.subj; view = 'asos';
+  // 23.11: Loyihalarim kartasi — natija boʻlmasa asos rasm
+  if (s?.img && !OUT.length) void shrinkThumb(s.img).then(u => setSvcThumb(ctxProject(), u)); };
 const saveRefs = () => { void cachePut('render-refs', REFS).catch(() => {}); };
 const save = () => saveState(A);
 
@@ -303,6 +306,7 @@ async function keep(j: Job, srcId: string, name: string, orig: string): Promise<
   if (j.out) FULL.set(j.id, j.out);
   let th = j.thumb;
   try { th = await dataUrl(await jobBlob(j.id, 'thumb', j.thumb)); } catch { /* havola qoladi (1 soat) */ }
+  if (th.startsWith('data:')) void shrinkThumb(th).then(u => setSvcThumb(ctxProject(), u));   // 23.11: kartada oxirgi natija
   const sty = j.params.style ?? '';
   return addOut({ job: j.id, status: j.status, srcId, src: th, orig, name, prompt: j.prompt ?? '', model: engName(j.engine), sty, fid: j.params.fid ?? 'qatiy', refs: j.params.refs ?? 0, t: j.created });
 }

@@ -24,6 +24,7 @@ import { isLinkOwner } from './core/wm';
 import { fmt } from './ui/dom';
 import { cleanThumb, thumbSvg, type ThumbData } from './core/projthumb';
 import { listSvc, createSvc, removeSvc, type SvcKind } from './storage/svcprojects';
+import { getSvcThumb } from './storage/svcthumb';
 import { otishEnter, otishTo } from './ui/otish';
 import { kolbaOverlay } from './ui/kolba';
 // 14.11: boʻlimga oʻtish — boshqa xizmatdan kelinsa Master reja foni bir lahza; loyiha kartasi ekranga kengayib ochiladi
@@ -207,7 +208,10 @@ function newMenu(): HTMLElement {
 /** Servis loyihasi kartasi (Koʻchasoz, Joyshunos, Render, Chizmadon) */
 function svcCard(k: Exclude<SvcF, 'all' | 'mr'>, id: string, name: string, updated: string, href: string, del: () => Promise<void> | void, i: number): HTMLElement {
   const m = SVC.find(s => s.k === k)!;
-  const th = h('span', { class: 'thumb svc', 'aria-hidden': 'true', style: `--svc:${m.c}` }); th.innerHTML = `<svg viewBox="-60 -2 184 60" preserveAspectRatio="xMidYMid meet">${m.ic}</svg>`;
+  const img = k === 'chz' ? null : getSvcThumb(id);   // 23.11: servis loyihasining oʻz kichik rasmi (storage/svcthumb)
+  const th = h('span', { class: `thumb svc${img ? ' pic' : ''}`, 'aria-hidden': 'true', style: `--svc:${m.c}` });
+  if (img) th.append(h('img', { src: img, alt: '', loading: 'lazy', decoding: 'async' }));
+  else th.innerHTML = `<svg viewBox="-60 -2 184 60" preserveAspectRatio="xMidYMid meet">${m.ic}</svg>`;
   return h('a', { class: 'card group', href, 'data-sid': id, 'data-svc': k, 'data-t': updated, style: `--i:${Math.min(i, 12)}` },
     th, h('b', {}, name),
     h('span', { class: 'svcbadge', style: `--svc:${m.c}` }, h('i'), tr(m.name)),

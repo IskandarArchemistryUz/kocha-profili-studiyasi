@@ -5,6 +5,7 @@
  * B va Varaq bitta koʻcha maʼlumotini (kesim, rejadagi elementlar, tarmoqlar) birga ishlatadi.
  */
 import { scoped, svcHref, ctxProject, svcLinks } from '../core/projctx';
+import { setSvcThumb, shrink } from '../storage/svcthumb';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
 { const p = ctxProject(); if (p) svcWatch(p); }
@@ -193,6 +194,7 @@ async function show(): Promise<void> {
   current = { id, m };
   if (id === 'b') fitWidth(inst);
   if (EMBED) persist(id, inst);   // ota oyna boshlangʻich holatni ham olsin
+  thumbLater();   // 23.11: yangi loyihada ham karta rasmi (oʻzgarishsiz)
   (window as unknown as { __ks: unknown }).__ks = current;   // e2e testlar uchun
 }
 /** B: kesim chizmasi kartani toʻldiradi — viewBox eni karta nisbatiga qarab (pastki qator shu bilan bir vertikalda) */
@@ -204,8 +206,19 @@ function fitWidth(inst: DCLogic): void {
   const upd = () => { const r = card.getBoundingClientRect(); if (r.width < 50 || r.height < 50) return; const vw = Math.round(680 * r.width / r.height); if (vw !== (inst.state as { vw?: number }).vw) inst.setState({ vw }); };
   ro = new ResizeObserver(upd); ro.observe(card); upd();
 }
+/** 23.11: Loyihalarim kartasi — joriy chizmaning kichik nusxasi (eng katta SVG), saqlashdan 2,5 s keyin */
+let thT: ReturnType<typeof setTimeout> | undefined;
+function thumbLater(): void {
+  const pid = ctxProject(); if (!pid?.startsWith('s_')) return;
+  clearTimeout(thT); thT = setTimeout(() => {
+    let best: SVGSVGElement | null = null, ba = 0;
+    stage.querySelectorAll<SVGSVGElement>('main svg').forEach(sv => { const r = sv.getBoundingClientRect(), a = r.width * r.height; if (a > ba) { ba = a; best = sv; } });
+    if (best && ba > 40_000) void shrink(best).then(u => setSvcThumb(pid, u));
+  }, 2500);
+}
 function persist(id: BoardId, inst: DCLogic): void {
   const st = inst.state as Record<string, unknown>, shared = SHARED[id] ?? [];
+  thumbLater();
   LS.set(`ks-${id}`, omit(st, [...shared, ...VOLATILE]));
   if (shared.length) LS.set('ks-street', { ...(LS.get('ks-street') ?? {}), ...pick(st, shared) });
   if (EMBED && id === 'b') try { window.parent.postMessage({ type: 'ks-street', st: { els: st.els, sk: st.sk, uk: st.uk, rl: st.rl } }, location.origin); } catch { /* ota oyna yopilgan */ }
