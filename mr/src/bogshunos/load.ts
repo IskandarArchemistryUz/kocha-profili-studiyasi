@@ -18,7 +18,7 @@ export const TERRARIUM = (z: number, x: number, y: number) => `https://s3.amazon
 export const REGISTRY_CITE = 'Toshkent shahri daraxtlar reyestri — green.tashkent.uz (Zamin fondi, Ekologiya vazirligi, Toshkent shahar hokimligi)';
 
 type Fetch = typeof fetch;
-const KEEP = ['building', 'building:levels', 'highway', 'waterway', 'natural', 'water', 'landuse', 'leisure', 'amenity', 'power', 'voltage', 'railway', 'public_transport', 'man_made', 'name', 'tunnel', 'bridge', 'width', 'surface', 'barrier'];
+const KEEP = ['building', 'building:levels', 'highway', 'waterway', 'natural', 'water', 'landuse', 'leisure', 'amenity', 'power', 'voltage', 'railway', 'public_transport', 'man_made', 'name', 'tunnel', 'bridge', 'width', 'surface', 'barrier', 'historic', 'tourism'];
 
 /** Overpass — Lab API keshi (/data/overpass) orqali, keyin ochiq serverlar (context/load bilan bir xil) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,7 +49,7 @@ function ringIn(p: XY, r: XY[]): boolean { let c = false; for (let i = 0, j = r.
 
 export function osmQuery(bb: [number, number, number, number]): string {
   const b = `${bb[1]},${bb[0]},${bb[3]},${bb[2]}`;
-  return `[out:json][timeout:120];(way["building"](${b});way["highway"](${b});way["waterway"](${b});relation["waterway"](${b});way["natural"](${b});relation["natural"](${b});way["water"](${b});relation["water"](${b});way["landuse"](${b});relation["landuse"](${b});way["leisure"](${b});relation["leisure"](${b});way["power"](${b});node["power"](${b});nwr["amenity"~"school|kindergarten|toilets|cafe|restaurant|clinic|hospital|fountain"](${b});node["highway"="bus_stop"](${b});node["public_transport"="platform"](${b});nwr["railway"~"station|subway_entrance"](${b});way["man_made"](${b}););out geom tags qt;`;
+  return `[out:json][timeout:120];(way["building"](${b});way["highway"](${b});way["waterway"](${b});relation["waterway"](${b});way["natural"](${b});relation["natural"](${b});way["water"](${b});relation["water"](${b});way["landuse"](${b});relation["landuse"](${b});way["leisure"](${b});relation["leisure"](${b});way["power"](${b});node["power"](${b});nwr["amenity"~"school|kindergarten|toilets|cafe|restaurant|clinic|hospital|fountain"](${b});node["highway"="bus_stop"](${b});node["public_transport"="platform"](${b});nwr["railway"~"station|subway_entrance"](${b});way["man_made"](${b});nwr["historic"](${b});nwr["tourism"~"artwork|attraction"](${b}););out geom tags qt;`;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,7 +57,7 @@ export function parseOsm(j: any, F: Frame): BgFeat[] {
   const out: BgFeat[] = [];
   for (const e of j.elements ?? []) {
     const t: Record<string, string> = {}; for (const k of KEEP) if (e.tags?.[k] != null) t[k] = e.tags[k];
-    const key = ['building', 'highway', 'waterway', 'natural', 'water', 'landuse', 'leisure', 'amenity', 'power', 'railway', 'public_transport', 'man_made'].find(k => t[k] != null);
+    const key = ['building', 'highway', 'waterway', 'natural', 'water', 'landuse', 'leisure', 'amenity', 'power', 'railway', 'public_transport', 'man_made', 'historic', 'tourism'].find(k => t[k] != null);
     if (!key) continue;
     if (e.type === 'node') { out.push({ k: key, v: t[key], name: t.name, kind: 'pt', g: [F.toLocal([e.lon, e.lat]) as XY], tags: t }); continue; }
     if (e.type === 'way' && e.geometry) {

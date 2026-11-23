@@ -16,7 +16,8 @@ import { sectionLines, profile, shores, SHORE, type ShoreT } from './kesim';
 import { fauna, habRings, HAB } from './fauna';
 import { nets, NET } from './nets';
 import { smeta, PRICE0, type Price, type Smeta } from './cost';
-import { area } from './grid';
+import { area, fillMPoly } from './grid';
+import { suggest, type Prog } from './dastur';
 import type { BgTu } from './types';
 import { applyEdits, applyTreeEdits, type Edit } from './edits';
 import { akso, type AksoReq } from './akso';
@@ -26,7 +27,7 @@ export type VSum = Pick<VOut, 'cut' | 'fill' | 'parts'>;
 export type AnOpt = { canalStrip: number; shore: number; noise: number; s: [number, number]; k: number };
 export type WIn =
   | { t: 'analyze'; site: BgSite; data: BgData; opt: AnOpt }
-  | { t: 'design' }
+  | { t: 'design'; prog?: Prog }
   | { t: 'albom'; chosen: 'A' | 'B' | 'C'; author?: string; akso?: AksoReq[]; brief?: AlbomSrc['brief']; tu?: BgTu[]; prices?: Record<string, { p: number | null; src: string }> }
   | { t: 'plant'; chosen: 'A' | 'B' | 'C' }
   | { t: 'assort'; u: UserAssort | null }
@@ -40,7 +41,7 @@ export interface ModOut {
   smeta: Smeta;
 }
 export type WOut =
-  | { t: 'analyzed'; A: Analysis; geo: { trees: unknown; classes: unknown; slope: unknown } }
+  | { t: 'analyzed'; A: Analysis; geo: { trees: unknown; classes: unknown; slope: unknown }; sug?: { prog: Prog; sportNeed: number; why: string } }
   | { t: 'designed'; V: Record<string, Variant>; geo: Record<string, unknown>; why: string[] }
   | { t: 'albom'; sheets: { id: string; title: string; svg: string; w: number; h: number }[] }
   | { t: 'planted'; P: Omit<Planting, 'decisions' | 'trees' | 'shrubs'> & { nTrees: number; nShrubs: number }; geo: unknown }
@@ -74,11 +75,13 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
       out({ t: 'progress', msg: 'Toʻr va niqoblar…' });
       C = context(site, data); const r = analyze(site, data, C, m.opt); A = r.A; cls = r.cls;
       const G = toGeo(site);
-      out({ t: 'analyzed', A, geo: { trees: G.trees(C), classes: G.classes(C, cls), slope: G.slope(C) } });
+      const ex = C.G.u8(); for (const p of C.pitches) fillMPoly(C.G, ex, p);
+      const sug = suggest(site.kind, A.areaHa, A.visitors.N1, { pitch: area(C.G, ex), play: C.playgrounds.length, tarixiy: !!site.tarixiy });
+      out({ t: 'analyzed', A, geo: { trees: G.trees(C), classes: G.classes(C, cls), slope: G.slope(C) }, sug });
     } else if (m.t === 'design') {
       if (!site || !data || !C || !A) throw new Error('Avval tahlil');
       const T = targets(C, data), G = toGeo(site), V: Record<string, Variant> = {}, geo: Record<string, unknown> = {};
-      for (const vd of VARS) { out({ t: 'progress', msg: `${vd.name}…` }); const R = design(C, A, T.attr, T.inner, vd); D[vd.id] = R; V[vd.id] = R.V; geo[vd.id] = G.variant(R.V); }
+      for (const vd of VARS) { out({ t: 'progress', msg: `${vd.name}…` }); const R = design(C, A, T.attr, T.inner, vd, { prog: m.prog, kind: site.kind, tarixiy: !!site.tarixiy }); D[vd.id] = R; V[vd.id] = R.V; geo[vd.id] = G.variant(R.V); }
       out({ t: 'designed', V, geo, why: T.why });
     } else if (m.t === 'plant') {
       const DO = ed(m.chosen); if (!site || !C || !A || !cls || !DO) throw new Error('Avval variantlar');
