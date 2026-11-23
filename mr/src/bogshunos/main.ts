@@ -618,7 +618,8 @@ function renderKesim(): void {
   kesimEl.replaceChildren(
     h('div', { class: 'bg-sh-top glass' },
       h('button', { type: 'button', class: 'btn btn-sm', onclick: () => showView('reja') }, '← ', tr('Xaritaga')),
-      h('b', {}, tr('Kesimlar')), h('span', { class: 'sp' })),
+      h('b', {}, tr('Kesimlar')), h('span', { class: 'sp' }),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'bgKesimChz', disabled: !kesimItems?.length, onclick: () => { const K = kesimItems ?? [], P: { name: string; svg: string; w: number; h: number; inner: boolean }[] = []; for (let i = 0; i < K.length; i += 3) { const g = K.slice(i, i + 3), t = `${tr('Kesimlar')} ${g.map(k => k.name).join(', ')}`; P.push({ name: t, svg: a3Page(t, g.map(k => k.svg)), w: 420, h: 297, inner: true }); } void toChz(tr('Kesimlar'), P); } }, tr('Chizmadonga'), ' →')),
     h('div', { class: 'bg-kesim-list' }, ...(kesimItems == null ? [h('p', { class: 'bg-note' }, tr('Chizilmoqda…'))] : !kesimItems.length ? [h('p', { class: 'bg-note' }, tr('Kesim chizigʻi topilmadi'))]
       : kesimItems.map(k => h('figure', { class: 'bg-kesim-it' }, h('img', { src: url(k.svg), alt: k.name }),
         h('figcaption', {}, h('b', {}, k.name), h('span', {}, `${fmt(k.len)} m · M 1:${k.N}`), h('span', { class: 'sp' }),
@@ -626,6 +627,23 @@ function renderKesim(): void {
           h('button', { type: 'button', class: 'btn btn-sm', onclick: async () => { const r = await svgPng(k.svg, 4000); dl(`${k.name}.png`, await (await fetch(r.url)).blob()); } }, 'PNG'),
           (S.kl ?? []).some(l => l.name === k.name) ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { S.kl = (S.kl ?? []).filter(l => l.name !== k.name); MODR = null; sheets = []; save(); paint(); void openKesim(); } }, tr('Oʻchirish')) : ''))))),
     h('p', { class: 'bg-note' }, tr('Oʻz kesimingiz: 6-qadamdagi asboblar panelida «Kesim chizigʻi» — boshi va oxirini bosing.')));
+}
+
+/* ---------- Chizmadonga: albom varaqlari, akso va kesimlar (A3 varaq sifatida; ui/chzsend.ts) ---------- */
+const svgInner = (svg: string) => svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+const svgVB = (svg: string) => (/viewBox="([^"]+)"/.exec(svg)?.[1] ?? '0 0 100 100');
+/** Bir yoki bir necha rasmni A3 (420 × 297 mm) varaqqa joylash: sarlavha + ustma-ust qatorlar */
+function a3Page(title: string, parts: string[]): string {
+  const esc = (t: string) => t.replace(/[<&>]/g, ''), top = 20, gap = 6, hh = (297 - top - 10 - gap * (parts.length - 1)) / parts.length;
+  return `<rect width="420" height="297" fill="#fff"/><text x="12" y="13" font-family="Inter, Arial, sans-serif" font-size="7" font-weight="700" fill="#151413">${esc(title)}</text><text x="408" y="13" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="3.4" fill="#6b6660">${esc(S.site?.name ?? '')} · Archemistry Lab · Bogʻshunos</text>`
+    + parts.map((sv, i) => `<svg x="10" y="${(top + i * (hh + gap)).toFixed(1)}" width="400" height="${hh.toFixed(1)}" viewBox="${svgVB(sv)}" preserveAspectRatio="xMidYMid meet">${svgInner(sv)}</svg>`).join('');
+}
+async function toChz(name: string, pages: { name: string; svg: string; w: number; h: number; inner?: boolean }[]): Promise<void> {
+  if (!pages.length || !S.site) return;
+  const items = pages.map(p => ({ name: p.name, kind: 'sheet' as const, svg: p.inner ? p.svg : svgInner(p.svg), vb: [0, 0, p.w, p.h] as [number, number, number, number], w: p.w, h: p.h }));
+  const { sendSheet } = await import('../ui/chzsend'); save();
+  const r = await sendSheet({ ...items[0], name, more: items.slice(1) }, S.site.origin as LngLat);
+  if (r === false) toast(tr('Brauzer xotirasi toʻla — varaq uzatilmadi'));
 }
 
 /* ---------- aksonometriya oynasi ---------- */
@@ -677,6 +695,7 @@ function renderAkso(): void {
       h('button', { type: 'button', class: 'btn btn-sm', disabled: !aksoSvg, title: tr('Chuqurlik xaritasi — yaqin oq, uzoq qora'), onclick: () => void aksoPng('depth') }, tr('Chuqurlik')),
       h('button', { type: 'button', class: 'btn btn-sm', disabled: !aksoSvg, title: tr('ID-maska — har obyekt turi oʻz rangida'), onclick: () => void aksoPng('mask') }, tr('Maska')),
       h('button', { type: 'button', class: 'btn btn-sm', id: 'bgAksoRender', disabled: !aksoSvg, title: tr('AI render: joylashuv saqlanadi, uslub va material qoʻshiladi'), onclick: () => void aksoToRender() }, tr('Render studiyasiga')),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'bgAksoChz', disabled: !aksoSvg, onclick: () => void toChz(q.title || tr('Aksonometriya'), [{ name: q.title || tr('Aksonometriya'), svg: a3Page(q.title || tr('Aksonometriya'), [aksoSvg]), w: 420, h: 297, inner: true }]) }, tr('Chizmadonga'), ' →'),
       aksoIdx < 0 ? h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'bgAksoSave', disabled: !aksoSvg, onclick: () => { S.akso = [...(S.akso ?? []), { ...q, title: q.title || tf('Aksonometriya ${n}', { n: (S.akso?.length ?? 0) + 1 }) }]; aksoIdx = S.akso.length - 1; aksoCur = S.akso[aksoIdx]; sheets = []; save(); toast(tr('Albomga qoʻshildi')); render(); renderAkso(); } }, tr('Albomga qoʻshish')) : h('span', { class: 'chip ok' }, tr('albomda'))),
     h('div', { class: 'bg-akso-view' }, aksoSvg ? h('img', { id: 'bgAksoImg', alt: q.title || tr('Aksonometriya'), src: URL.createObjectURL(new Blob([aksoSvg], { type: 'image/svg+xml' })) }) : h('p', { class: 'bg-note' }, busy || tr('Chizilmoqda…'))),
   );
@@ -803,7 +822,7 @@ function renderSheets(): void {
   cur = Math.max(0, Math.min(cur, sheets.length - 1));
   const pdf = async () => { const b = document.getElementById('bgPdf') as HTMLButtonElement | null; if (b) b.disabled = true; try { await svgPdf(sheets.map(s => ({ svg: s.svg, widthMm: s.w, heightMm: s.h })), `${S.site?.name ?? 'Bogshunos'} — albom`); } finally { if (b) b.disabled = false; } };
   sheetsEl.replaceChildren(
-    h('div', { class: 'bg-sh-top glass' }, h('button', { type: 'button', class: 'btn btn-sm', id: 'bgShClose', onclick: () => { sheetsEl.hidden = true; } }, '← ', tr('Xaritaga')), h('b', {}, `${S.site?.name ?? ''} — ${tr('Loyiha albomi')}`), h('span', { class: 'sp' }), h('span', { class: 'chip' }, tf('${n} varaq · A3', { n: sheets.length })), h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'bgPdf', onclick: () => void pdf() }, 'PDF')),
+    h('div', { class: 'bg-sh-top glass' }, h('button', { type: 'button', class: 'btn btn-sm', id: 'bgShClose', onclick: () => { sheetsEl.hidden = true; } }, '← ', tr('Xaritaga')), h('b', {}, `${S.site?.name ?? ''} — ${tr('Loyiha albomi')}`), h('span', { class: 'sp' }), h('button', { type: 'button', class: 'btn btn-sm', id: 'bgShChz', onclick: () => void toChz(`${S.site?.name ?? ''} — ${tr('Loyiha albomi')}`, sheets.map(x => ({ name: tr(x.title), svg: x.svg, w: x.w, h: x.h }))) }, tr('Chizmadonga'), ' →'), h('span', { class: 'chip' }, tf('${n} varaq · A3', { n: sheets.length })), h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'bgPdf', onclick: () => void pdf() }, 'PDF')),
     h('nav', { class: 'bg-sh-list panel' }, ...sheets.map((s, i) => h('button', { type: 'button', class: i === cur ? 'on' : '', 'data-sheet': s.id, onclick: () => { cur = i; renderSheets(); } }, h('img', { src: urls[i], alt: '', loading: 'lazy' }), h('span', {}, `${i + 1}. ${tr(s.title)}`)))),
     h('div', { class: 'bg-sh-view' }, h('img', { src: urls[cur], alt: sheets[cur]?.title ?? '', id: 'bgShImg' })),
   );
