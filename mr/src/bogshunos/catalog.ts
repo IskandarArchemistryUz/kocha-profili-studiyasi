@@ -28,7 +28,7 @@ export const TIER_ORD: Tier[] = ['ekotropa', 'soqmoq', 'yugurish', 'pastil', 'so
 export type ZoneKind = 'maydon' | 'bolalar' | 'sport_yangi' | 'otloq' | 'yomgir_bogi' | 'botqoq' | 'gulzor' | 'piknik' | 'it_maydon' | 'workout' | 'suv_oyin' | 'skeyt' | 'tadbir' | 'jamoat_bogi' | 'mevazor' | 'sokin_bog' | 'avtoturargoh' | 'xizmat' | 'swale' | 'suv_maydon' | 'tozalash' | 'qumlik' | 'ormoncha' | 'tepalik' | 'yovvoyi' | 'oyin_tabiiy' | 'sohil_pogona';
 export interface ZoneDef { n: string; c: string; hard: boolean; price: string; hab: 'otloq' | 'maysa' | 'buta' | 'daraxt' | 'botqoq' | null; d?: string }
 export const ZONES: Record<ZoneKind, ZoneDef> = {
-  maydon: { n: 'Maydon (qattiq qoplama)', c: '#e2d6c2', hard: true, price: 'z_maydon', hab: null },
+  maydon: { n: 'Maydon / kirish maydonchasi', c: '#e2d6c2', hard: true, price: 'z_maydon', hab: null },
   bolalar: { n: 'Bolalar maydoni', c: '#f4c98f', hard: false, price: 'bolalar', hab: null },
   sport_yangi: { n: 'Sport maydoni', c: '#a891cf', hard: true, price: 'sport', hab: null },
   workout: { n: 'Workout va trenajyorlar', c: '#b8a3d9', hard: true, price: 'z_workout', hab: null },
@@ -45,7 +45,7 @@ export const ZONES: Record<ZoneKind, ZoneDef> = {
   yomgir_bogi: { n: 'Yomgʻir bogʻi', c: '#a9cdb9', hard: false, price: 'yomgir', hab: 'botqoq' },
   botqoq: { n: 'Botqoq qirgʻoq', c: '#b9d9cf', hard: false, price: 'botqoq', hab: 'botqoq' },
   avtoturargoh: { n: 'Avtoturargoh', c: '#cfcac3', hard: true, price: 'z_avto', hab: null },
-  xizmat: { n: 'Xizmat hovlisi (texnik)', c: '#d5d0c8', hard: true, price: 'z_xizmat', hab: null },
+  xizmat: { n: 'Xizmat obyekti', c: '#d5d0c8', hard: true, price: 'z_xizmat', hab: null },
   /* xalqaro amaliyotdagi takrorlanadigan yechimlar (15.11.2026) */
   swale: { n: 'Swale (chiziqli yomgʻir ariqchasi)', c: '#9fcbb4', hard: false, price: 'yomgir', hab: 'botqoq', d: 'Yoʻl boʻylab uzluksiz halqa: yomgʻir suvini yigʻadi, salqin va nam muhit beradi' },
   suv_maydon: { n: 'Suv bosadigan maydon (water square)', c: '#b7d3df', hard: true, price: 'z_suv_maydon', hab: null, d: 'Odatda skeyt / oʻyin maydoni, kuchli yomgʻirda vaqtincha suv havzasi' },

@@ -76,7 +76,9 @@ export function nets(C: Ctx, A: Analysis, DO: DesignOut, PL: Planting | null, da
   const inward = (g: XY, d: number): XY => { const pts = mainPts.filter(q => Math.hypot(q[0] - g[0], q[1] - g[1]) >= d); return pts.length ? nearestOn(g, pts) : g; };
   const gates = [...V.gates].sort((a, b) => b.f - a.f);
   const nWc = Math.max(1, A.toilets);   // 1 hojatxona / 500 bir vaqtdagi tashrifchi — analyze (T)
-  for (const g of gates) { if (cons.filter(c => c.id.startsWith('wc')).length >= nWc) break; const p = inward(g.p, 15); if (cons.some(c => c.id.startsWith('wc') && Math.hypot(c.p[0] - p[0], c.p[1] - p[1]) < 150)) continue; cons.push({ id: `wc${cons.length}`, n: 'Hojatxona', p, nets: ['suv', 'kanal', 'elektr'], why: `darvoza (oqim ${Math.round(g.f)}) yonida, ichkariga 15 m; oraliq ≥ 150 m (T)` }); }
+  const bWc = (V.blocks ?? []).filter(b => b.el === 'wc'); bWc.forEach((b, i) => cons.push({ id: `wc${i}`, n: 'Hojatxona', p: b.p, nets: ['suv', 'kanal', 'elektr'], why: 'dastur elementi (master reja)' }));
+  (V.blocks ?? []).filter(b => b.el === 'kafe').forEach((b, i) => cons.push({ id: `kafeb${i}`, n: 'Kafe paviloni', p: b.p, nets: ['suv', 'kanal', 'elektr', 'aloqa'], why: 'dastur elementi (master reja)' }));
+  if (!bWc.length) for (const g of gates) { if (cons.filter(c => c.id.startsWith('wc')).length >= nWc) break; const p = inward(g.p, 15); if (cons.some(c => c.id.startsWith('wc') && Math.hypot(c.p[0] - p[0], c.p[1] - p[1]) < 150)) continue; cons.push({ id: `wc${cons.length}`, n: 'Hojatxona', p, nets: ['suv', 'kanal', 'elektr'], why: `darvoza (oqim ${Math.round(g.f)}) yonida, ichkariga 15 m; oraliq ≥ 150 m (T)` }); }
   const it = (id: string) => V.items.find(x => x.id === id);
   const ter = it('terrasa'); if (ter) cons.push({ id: 'kafe', n: 'Kafe terrasasi', p: ter.p, nets: ['suv', 'kanal', 'elektr', 'aloqa'], why: ter.rule });
   const amf = it('amfiteatr'); if (amf) cons.push({ id: 'sahna', n: 'Amfiteatr sahnasi', p: amf.p, nets: ['elektr', 'aloqa'], why: 'ovoz va yoritish' });

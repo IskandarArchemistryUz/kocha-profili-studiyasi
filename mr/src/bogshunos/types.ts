@@ -68,6 +68,8 @@ export interface Variant {
   blocks?: import('./dastur').Block[];
   /** maydon belgilari (oq chiziqlar) */
   marks?: XY[][];
+  /** bolalar oʻyin jihozlari xavfsizlik zonalari (doira) */
+  safe?: { p: XY; r: number }[];
   /** joylanmay qolgan dastur elementlari va sababi */
   miss?: { el: string; why: string }[];
   /** saqlanadigan obyektlar (haykal, yodgorlik, favvora): joyi oʻzgarmaydi, ustidan yoʻl ham, element ham oʻtmaydi */

@@ -132,7 +132,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   const PR: Prog = opt.prog && opt.progUser ? opt.prog : varProg(vd.id, opt.prog ?? suggest(opt.kind ?? 'tuman', area(G, C.site) / 10000, A.visitors.N1, { pitch: area(G, exSport), play: C.playgrounds.length, tarixiy: !!opt.tarixiy }).prog);
   for (let k = 0; k < G.n; k++) if (exSport[k] || play[k] || (prog.terrasa?.[k] ?? 0) || (prog.qushxona?.[k] ?? 0)) occ[k] = 1;
   // mavjud yoʻllar saqlanadigan variantda (A, tarixiy) ular ustiga element qoʻyilmaydi; boshqalarida — jarima bilan (yoʻl buziladi)
-  const placed = placeBlocks(C, PR, { occ, bigRpa, hard, paths, keep: C.keep, keepPaths: vd.keepExist });
+  const placed = placeBlocks(C, PR, { gates: gates.map((p, i) => ({ p, f: gateF[i], main: gateF[i] >= 0.5 * gf })), occ, bigRpa, hard, paths, keep: C.keep, keepPaths: vd.keepExist });
   for (const sp of placed.spurs) { paths.push(sp); strokeLine(G, hard, sp.g, sp.w); }
   for (let k = 0; k < G.n; k++) if (!C.site[k] || C.water[k]) hard[k] = 0;
   const courts = { m: placed.masks.sport_yangi ?? G.u8(), earth: placed.earth };
@@ -152,7 +152,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   prog.otloq = meadow;
   // ---- 8. metrikalar ----
   const cellA = G.cellA, siteA = area(G, C.site), waterA = countAnd(C.site, C.water) * cellA;
-  const hardAll = G.u8(); for (let k = 0; k < G.n; k++) hardAll[k] = hard[k] || C.bld[k] || courts.m[k] || (prog.amfiteatr?.[k] ?? 0) || (prog.terrasa?.[k] ?? 0) || (prog.workout?.[k] ?? 0) || (prog.skeyt?.[k] ?? 0) || (prog.suv_oyin?.[k] ?? 0) ? 1 : 0;
+  const hardAll = G.u8(); for (let k = 0; k < G.n; k++) hardAll[k] = hard[k] || C.bld[k] || courts.m[k] || (prog.amfiteatr?.[k] ?? 0) || (prog.terrasa?.[k] ?? 0) || (prog.workout?.[k] ?? 0) || (prog.xizmat?.[k] ?? 0) || (prog.maydon?.[k] ?? 0) || (prog.skeyt?.[k] ?? 0) || (prog.suv_oyin?.[k] ?? 0) ? 1 : 0;
   const hardA = countAnd(C.site, hardAll) * cellA;
   const conflict = C.trees.filter(t => { const k = G.idx(t.p[0], t.p[1]); return k >= 0 && (hard[k] || courts.m[k] || (prog.amfiteatr?.[k] ?? 0)) && !C.exPath[k]; });
   const lawnLeft = area(G, andNot(C.grass, meadow)), other = siteA - waterA - hardA - grassA;
