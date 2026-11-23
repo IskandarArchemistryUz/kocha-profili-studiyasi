@@ -75,6 +75,18 @@ export function suggest(kind: BgSite['kind'], ha: number, N1: number, has: { pit
   return { prog: P, sportNeed: need, why: `Sport: 33-jadval boʻyicha ${norm} m², bogʻ maydonining 4 % i — ${cap} m², mavjudi ${Math.round(has.pitch)} m² → yangi ${need} m² gacha.` };
 }
 
+/** Avtomatik taklifni variant xarakteriga moslash: A Saqlovchi — faqat sokin va yengil elementlar; B Faol — toʻliq dastur;
+ *  C Tabiiy — qattiq sport maydonlari va shovqinli elementlar oʻrniga sokin bogʻ, piknik va gulzor (T) */
+export function varProg(id: 'A' | 'B' | 'C', P: Prog): Prog {
+  if (id === 'B') return P;
+  const o: Prog = {};
+  for (const k of Object.keys(P) as ElKey[]) { const E = ELEM[k], n = P[k] ?? 0; if (!n) continue;
+    if (id === 'A') { if (E.noise === 2 || (E.grp === 'sport' && k !== 'workout' && k !== 'stol_tennis')) continue; o[k] = E.grp === 'sport' ? 1 : n; }
+    else { if ((E.zone === 'sport_yangi' && k !== 'stol_tennis') || k === 'skeyt' || k === 'suv_oyin' || k === 'tadbir') continue; o[k] = n; } }
+  if (id === 'C') { const had = (Object.keys(P) as ElKey[]).some(k => ELEM[k].zone === 'sport_yangi' && (P[k] ?? 0) > 0); if (had) { o.piknik = (o.piknik ?? 0) + 1; o.sokin_bog = (o.sokin_bog ?? 0) + 1; } o.gulzor = (o.gulzor ?? 0) + 1; }
+  return o;
+}
+
 /* ---------------- geometriya ---------------- */
 export const elSize = (b: Pick<Block, 'el'>): [number, number] => [ELEM[b.el].w, ELEM[b.el].d];
 /** Blok ichki koordinatasi (u — uzun oʻq boʻylab, v — koʻndalang) → hudud koordinatasi */

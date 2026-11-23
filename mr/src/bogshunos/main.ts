@@ -304,6 +304,7 @@ function progEditor(): Node[] {
       h('button', { type: 'button', class: 'btn btn-sm btn-ghost', 'aria-label': tr('Kamaytirish'), disabled: !(P[k] ?? 0), onclick: () => set(k, (P[k] ?? 0) - 1) }, '−'),
       h('b', {}, String(P[k] ?? 0)),
       h('button', { type: 'button', class: 'btn btn-sm btn-ghost', 'aria-label': tr('Koʻpaytirish'), onclick: () => set(k, (P[k] ?? 0) + 1) }, '+')))]),
+    note(tr(S.prog ? 'Sonlarni oʻzingiz kiritdingiz — uchala variantda bir xil qoʻllanadi.' : 'Avtomatik taklif — «Faol» variant uchun; «Saqlovchi» va «Tabiiy» variantlarda shovqinli va qattiq sport elementlari qoʻyilmaydi.')),
     S.prog ? h('button', { type: 'button', class: 'btn btn-sm btn-block', id: 'bgProgReset', onclick: () => { S.prog = undefined; V = null; PLT = null; MODR = null; sheets = []; save(); render(); } }, tr('Taklifga qaytarish')) : '',
     note(tr('Joyni generator tanlaydi: yoʻlga yaqin, daraxtlarga eng kam zarar, sport maydonlari yonma-yon va shimol–janub oʻqida. Master reja bosqichida har elementni surish, burish, almashtirish va olib tashlash mumkin.')),
   ] as Node[];
@@ -320,7 +321,7 @@ async function runDesign(): Promise<void> {
 function stepVariant(): Node[] {
   if (!V) return [note(busy || tr('Variantlar hisoblanmoqda…'))];
   return [
-    note(tr('Yoʻllar manba–manzil oqimidan, nishab va daraxtlarni hisobga olib quriladi; amfiteatr, terrasa, koʻpriklar, qushxona — qoidalar bilan.')),
+    note(tr('Uch xarakter: Saqlovchi, Faol, Tabiiy. Yoʻllar manba–manzil oqimidan, nishab va daraxtlarni hisobga olib quriladi; dastur elementlari qoidalar bilan joylanadi.')),
     ...VARS.filter(vd => V![vd.id]).map(vd => { const v = V![vd.id]; return h('div', { class: `bg-var${showVar === vd.id ? ' on' : ''}${S.chosen === vd.id ? ' chosen' : ''}`, 'data-var': vd.id },
       h('button', { type: 'button', class: 'hd', onclick: () => { showVar = vd.id; render(); paint(); } }, h('b', {}, v.name), S.chosen === vd.id ? h('span', { class: 'chip ok' }, tr('tanlangan')) : ''),
       h('div', { class: 'mx' }, h('span', {}, `${tr('Yashil')} ${fmt(v.m.greenPct, 1)} %`), h('span', {}, `${tr('Qattiq')} ${fmt(v.m.hard)} m²`), h('span', {}, `${v.m.gates} ${tr('darvoza')}`), h('span', {}, `${tr('Zina/rampa')} ${fmt(v.m.zina)}/${fmt(v.m.rampa)} m`), h('span', {}, `${tr('Ziddiyat')} ${v.m.conflict} (${v.m.conflictBig})`)),

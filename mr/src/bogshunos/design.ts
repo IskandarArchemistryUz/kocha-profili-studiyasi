@@ -1,5 +1,5 @@
 /**
- * Bogʻshunos — konsepsiya generatori (6-qadam), nishabni hisobga oladi. 3 variant: A Saqlovchi, B Koʻl halqasi, C Ekologik qirgʻoq.
+ * Bogʻshunos — konsepsiya generatori (6-qadam), nishabni hisobga oladi. 3 variant (23.11 — xarakter boʻyicha, koʻlga bogʻliq emas): A Saqlovchi, B Faol, C Tabiiy; suv boʻlsa B va C ga sohil yoʻli, koʻprik, amfiteatr, botqoq qirgʻoq qoʻshiladi.
  *
  * Yoʻl tarmogʻi: manba–manzil (OD) → 3 m toʻrda eng arzon yoʻl → birlashtirish (bundling) → oqim boʻyicha ierarxiya → qamrov (≤ 35 m).
  * Narx: qirra uzunligi × nishab koeffitsiyenti (qirra boʻylab: ≤ 5 % — 1; 5–8 % — 1,6; 8–12 % — 3; > 12 % — 8) — yoʻllar gorizontallar
@@ -16,14 +16,14 @@
 import type { XY, Variant } from './types';
 import type { Ctx, Analysis } from './analyze';
 import { Grid, fillMPoly, strokeLine, distance, contour, chaikin, simplify, len, area, andNot, interp } from './grid';
-import { placeBlocks, progVec, fitoutAll, suggest, ELEM, type Prog } from './dastur';
+import { placeBlocks, progVec, fitoutAll, suggest, varProg, ELEM, type Prog } from './dastur';
 
 type Tier = Variant['paths'][number]['tier'];
 export interface VarDef { id: 'A' | 'B' | 'C'; name: string; desc: string; exist: number; tree: number; rpaK: number; beta: number; keepExist: boolean; meadow: number; promenade: boolean; bridges: number; wMain: number; wSec: number; wTrail: number }
 export const VARS: VarDef[] = [
-  { id: 'A', name: 'A · Saqlovchi', desc: 'Mavjud yoʻl tarmogʻi deyarli toʻliq qoladi; yangi yoʻl faqat yetishmagan bogʻlanishlarda. Eng arzon, daraxtlarga eng yumshoq.', exist: 0.15, tree: 2.5, rpaK: 0.7, beta: 0.6, keepExist: true, meadow: 0, promenade: false, bridges: 0, wMain: 4, wSec: 3, wTrail: 2 },
-  { id: 'B', name: 'B · Koʻl halqasi', desc: 'Koʻl atrofida 4 m sohil promenadasi, gʻarbiy turar joydan yangi darvozalar, orolga koʻpriklar, amfiteatr. Shahar parki xarakteri.', exist: 0.45, tree: 4, rpaK: 1, beta: 0.55, keepExist: false, meadow: 0.25, promenade: true, bridges: 2, wMain: 5, wSec: 3, wTrail: 2 },
-  { id: 'C', name: 'C · Ekologik qirgʻoq', desc: 'Halqa va koʻpriklar, lekin qattiq qoplama minimal: soʻqmoqlar, botqoq qirgʻoq, maysaning yarmi — oʻtloq. Suv va bioxilma-xillikka ustuvorlik.', exist: 0.55, tree: 8, rpaK: 1.2, beta: 0.7, keepExist: false, meadow: 0.5, promenade: true, bridges: 2, wMain: 4, wSec: 2.4, wTrail: 1.6 },
+  { id: 'A', name: 'A · Saqlovchi', desc: 'Mavjud yoʻl tarmogʻi va daraxtlar deyarli toʻliq qoladi; yangi yoʻl faqat yetishmagan bogʻlanishlarda, faqat sokin elementlar. Eng arzon va eng ehtiyotkor.', exist: 0.15, tree: 2.5, rpaK: 0.7, beta: 0.6, keepExist: true, meadow: 0, promenade: false, bridges: 0, wMain: 4, wSec: 3, wTrail: 2 },
+  { id: 'B', name: 'B · Faol', desc: 'Yoʻl tarmogʻi oqim boʻyicha qayta quriladi, turar joy tomonidan yangi darvozalar; dastur toʻliq: sport, bolalar, tadbir. Shahar bogʻi xarakteri.', exist: 0.45, tree: 4, rpaK: 1, beta: 0.55, keepExist: false, meadow: 0.25, promenade: true, bridges: 2, wMain: 5, wSec: 3, wTrail: 2 },
+  { id: 'C', name: 'C · Tabiiy', desc: 'Qattiq qoplama minimal: tor yoʻllar va soʻqmoqlar, maysaning yarmi — oʻtloq, yomgʻir bogʻlari; sport maydonlari oʻrniga sokin va tabiiy elementlar. Suv va bioxilma-xillikka ustuvorlik.', exist: 0.55, tree: 8, rpaK: 1.2, beta: 0.7, keepExist: false, meadow: 0.5, promenade: true, bridges: 2, wMain: 4, wSec: 2.4, wTrail: 1.6 },
 ];
 export const gradeK = (g: number) => (g <= 5 ? 1 : g <= 8 ? 1.6 : g <= 12 ? 3 : 8);
 
@@ -36,7 +36,7 @@ const MOV: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -
 export interface DesignOut { V: Variant; masks: Record<string, Uint8Array>; ods: { a: XY; b: XY; f: number; path: XY[]; prd: number }[] }
 
 /** opt.prog — dastur (boʻlmasa bogʻ turidan sukut taklif); opt.tarixiy — mavjud yoʻl tarmogʻi saqlanadi, yangi darvoza ochilmaydi */
-export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: VarDef, opt: { prog?: Prog; kind?: import('./types').BgSite['kind']; tarixiy?: boolean } = {}): DesignOut {
+export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: VarDef, opt: { prog?: Prog; progUser?: boolean; kind?: import('./types').BgSite['kind']; tarixiy?: boolean } = {}): DesignOut {
   const vd: VarDef = opt.tarixiy ? { ...vd0, keepExist: true, exist: Math.min(vd0.exist, 0.12), bridges: 0, promenade: false } : vd0;
   const G = C.G, nx = G.nx;
   const dW = distance(G, C.water), dCanal = distance(G, C.canal);
@@ -128,7 +128,8 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   prog.sport_mavjud = exSport;
   const play = G.u8(); for (const p of C.playgrounds) fillMPoly(G, play, p);
   // dastur bloklari (dastur.ts): soni dasturdan, joyi qoidalardan; mavjud sport va bolalar maydonlari band joy hisoblanadi
-  const PR: Prog = opt.prog ?? suggest(opt.kind ?? 'tuman', area(G, C.site) / 10000, A.visitors.N1, { pitch: area(G, exSport), play: C.playgrounds.length, tarixiy: !!opt.tarixiy }).prog;
+  // foydalanuvchi sonlarni oʻzi kiritgan boʻlsa — uchala variantda bir xil; avtomatik taklifda har variant oʻz xarakteriga moslaydi
+  const PR: Prog = opt.prog && opt.progUser ? opt.prog : varProg(vd.id, opt.prog ?? suggest(opt.kind ?? 'tuman', area(G, C.site) / 10000, A.visitors.N1, { pitch: area(G, exSport), play: C.playgrounds.length, tarixiy: !!opt.tarixiy }).prog);
   for (let k = 0; k < G.n; k++) if (exSport[k] || play[k] || (prog.terrasa?.[k] ?? 0) || (prog.qushxona?.[k] ?? 0)) occ[k] = 1;
   // mavjud yoʻllar saqlanadigan variantda (A, tarixiy) ular ustiga element qoʻyilmaydi; boshqalarida — jarima bilan (yoʻl buziladi)
   const placed = placeBlocks(C, PR, { occ, bigRpa, hard, paths, keep: C.keep, keepPaths: vd.keepExist });
@@ -159,7 +160,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
   const prd = ods.filter(o => o.path.length).map(o => o.prd);
   const mgnOver = paths.filter(p => p.tier !== 'zina' && (p.grade ?? 0) > 5).reduce((s, p) => s + len(p.g), 0);
   const V: Variant = {
-    id: vd.id, name: vd.name, desc: vd.desc, paths, bridges, items,
+    id: vd.id, name: vd.name, desc: vd.desc + (paths.some(p => p.tier === 'sohil') ? (vd.id === 'B' ? ` Suv boʻyida: sohil promenadasi${bridges.length ? ', koʻpriklar' : ''}${prog.amfiteatr ? ', amfiteatr' : ''}.` : ' Suv boʻyida: tabiiy sohil yoʻli va botqoq qirgʻoq.') : ''), paths, bridges, items,
     gates: gates.map((p, i) => ({ p, f: gateF[i], main: gateF[i] >= 0.5 * gf })),
     prog: progVec(G, prog, placed.blocks), blocks: placed.blocks, ...fitoutAll(placed.blocks), miss: placed.miss, fixed: C.fixed,
     m: { gates: gates.length, pathLen: Math.round(paths.reduce((s, p) => s + len(p.g), 0)), asosiy: Math.round(lenT('asosiy')), ikkinchi: Math.round(lenT('ikkinchi')), soqmoq: Math.round(lenT('soqmoq')), sohil: Math.round(lenT('sohil')), rampa: Math.round(lenT('rampa')), zina: Math.round(lenT('zina')),

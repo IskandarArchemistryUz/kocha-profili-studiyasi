@@ -81,7 +81,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
     } else if (m.t === 'design') {
       if (!site || !data || !C || !A) throw new Error('Avval tahlil');
       const T = targets(C, data), G = toGeo(site), V: Record<string, Variant> = {}, geo: Record<string, unknown> = {};
-      for (const vd of VARS) { out({ t: 'progress', msg: `${vd.name}…` }); const R = design(C, A, T.attr, T.inner, vd, { prog: m.prog, kind: site.kind, tarixiy: !!site.tarixiy }); D[vd.id] = R; V[vd.id] = R.V; geo[vd.id] = G.variant(R.V); }
+      for (const vd of VARS) { out({ t: 'progress', msg: `${vd.name}…` }); const R = design(C, A, T.attr, T.inner, vd, { prog: m.prog, progUser: !!m.prog, kind: site.kind, tarixiy: !!site.tarixiy }); D[vd.id] = R; V[vd.id] = R.V; geo[vd.id] = G.variant(R.V); }
       out({ t: 'designed', V, geo, why: T.why });
     } else if (m.t === 'plant') {
       const DO = ed(m.chosen); if (!site || !C || !A || !cls || !DO) throw new Error('Avval variantlar');
