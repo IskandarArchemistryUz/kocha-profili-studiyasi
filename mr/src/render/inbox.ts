@@ -6,10 +6,10 @@ import { cacheGet, cachePut } from '../storage/db';
 import { scoped } from '../core/projctx';
 import type { Subject } from './providers';
 
-export type From = 'mr' | 'joy' | 'ks' | 'chz' | 'fayl' | 'natija';
+export type From = 'mr' | 'joy' | 'ks' | 'chz' | 'bg' | 'fayl' | 'natija';
 /** Kirish rasmi (asos yoki referens) — dataURL */
 /** facts — sahna faktlari (butun son): server promptiga yoziladi (masalan kesim: floorsLeft / floorsRight) */
-export interface RenderSrc { id: string; name: string; from: From; subj: Subject; t: string; img: string; w?: number; h?: number; facts?: Record<string, number> }
+export interface RenderSrc { id: string; name: string; from: From; subj: Subject; t: string; img: string; w?: number; h?: number; facts?: Record<string, number>; /** Bogʻshunos aksonometriyasi: chuqurlik va ID-maska (dataURL), qisqa tavsif (modelga) */ depth?: string; mask?: string; hint?: string }
 /**
  * Natija: 13.11 dan — server tarixidagi ish (job). Keshda faqat 512 px eskiz (src) va asosning kichik nusxasi (orig);
  * toʻliq rasm har ochilganda serverdan (qisqa muddatli havola). Eski yozuvlarda (job yoʻq) src — toʻliq rasm.

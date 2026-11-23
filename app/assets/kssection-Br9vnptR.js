@@ -1,0 +1,1 @@
+export{t as ksSectionSvg}from"./kssection-_e_is4_N.js";
