@@ -2,7 +2,7 @@
  * Bogʻshunos — hisob worker'i: tahlil (context + analyze), uch variant (targets + design), albom (buildAlbom).
  * Holat worker ichida saqlanadi (Ctx toʻrlari katta — asosiy oqimga faqat natija va GeoJSON qaytadi).
  */
-import type { BgData, BgSite, Variant } from './types';
+import type { BgData, BgSite, Variant, XY } from './types';
 import { context, analyze, type Ctx, type Analysis } from './analyze';
 import { design, VARS, type DesignOut } from './design';
 import { targets } from './od';
@@ -12,7 +12,7 @@ import { plant, type Planting } from './planting';
 import { TPAL, symOf } from './symbols';
 import { PHEN, setUserAssort, type UserAssort } from './assort';
 import { frame } from '../core/geo';
-import { sectionLines, profile, shores, SHORE, type ShoreT } from './kesim';
+import { sectionLines, profile, shores, drawSection, SHORE, type ShoreT } from './kesim';
 import { fauna, habRings, HAB } from './fauna';
 import { nets, NET } from './nets';
 import { smeta, PRICE0, type Price, type Smeta } from './cost';
@@ -33,6 +33,7 @@ export type WIn =
   | { t: 'plant'; chosen: 'A' | 'B' | 'C' }
   | { t: 'assort'; u: UserAssort | null }
   | { t: 'akso'; chosen: 'A' | 'B' | 'C'; req: AksoReq }
+  | { t: 'kesimlar'; chosen: 'A' | 'B' | 'C'; lines?: { name: string; a: XY; b: XY }[] }
   | { t: 'edits'; chosen: 'A' | 'B' | 'C'; edits: Edit[] }
   | { t: 'modul'; chosen: 'A' | 'B' | 'C'; tu: BgTu[]; prices: Record<string, { p: number | null; src: string }> };
 export interface ModOut {
@@ -50,6 +51,7 @@ export type WOut =
   | { t: 'edited'; V: Variant; geo: unknown; vert: VSum }
   | { t: 'assorted'; warn: string[] }
   | { t: 'akso'; svg: string; w: number; h: number; legend: { n: string; c: string }[]; hint: string }
+  | { t: 'kesimlar'; items: { name: string; svg: string; len: number; N: number }[] }
   | { t: 'progress'; msg: string }
   | { t: 'error'; msg: string };
 
@@ -70,6 +72,14 @@ const post = (m: WOut) => (self as unknown as Worker).postMessage(m);
 export function handle(m: WIn, out: (m: WOut) => void = post): void {
   try {
     if (m.t === 'assort') { const r = setUserAssort(m.u); out({ t: 'assorted', warn: r.warn }); }
+    else if (m.t === 'kesimlar') { const DO = ed(m.chosen); if (!site || !C || !A || !DO) throw new Error('Avval variantlar');
+      // kesimlar: avtomatik chiziqlar (A–A, B–B) + foydalanuvchi chizgan chiziqlar; har biri alohida SVG (mm oʻlchamda)
+      const CE = CG(vert()), P = plantE(DO), lines = [...sectionLines(C, DO), ...(m.lines ?? [])], W = 400, H = 95;
+      const items = lines.map(l => profile(CE, DO, P, site!, l)).filter(p => p.pts.length > 2).map(p => { const d = drawSection(p, { x: 0, y: 0, w: W, h: H });
+        const w = Math.min(W, Math.max(160, 4 + p.len * 1000 / d.N + 14));   // keng boʻsh joy kesib tashlanadi; sarlavha va masshtab kesimning oʻzida
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${(w + 4).toFixed(1)}mm" height="${H}mm" viewBox="-4 0 ${(w + 4).toFixed(1)} ${H}"><rect x="-4" width="${(w + 4).toFixed(1)}" height="${H}" fill="#fff"/>${d.g}</svg>`;
+        return { name: p.name, svg, len: Math.round(p.len), N: d.N }; });
+      out({ t: 'kesimlar', items }); }
     else if (m.t === 'akso') { const DO = ed(m.chosen); if (!C || !A || !cls || !DO || !data) throw new Error('Avval variantlar'); const r = akso(CG(vert()), data, DO, plantE(DO), m.req); out({ t: 'akso', ...r }); }
     else if (m.t === 'analyze') {
       site = m.site; data = m.data; for (const k of Object.keys(D)) delete D[k as 'A'];

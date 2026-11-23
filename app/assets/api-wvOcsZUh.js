@@ -1,1 +1,0 @@
-export{l as toUpload}from"./api-CNG7JdhR.js";

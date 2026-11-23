@@ -86,7 +86,8 @@ const statusEl = h('div', { class: 'bg-status glassbar', id: 'bgStatus', hidden:
 const sheetsEl = h('section', { class: 'bg-sheets', id: 'bgSheets', hidden: true, 'aria-label': tr('Varaqlar') });
 const toolsEl = h('div', { class: 'bg-toolsw', id: 'bgTools', hidden: true });
 const aksoEl = h('section', { class: 'bg-akso', id: 'bgAkso', hidden: true, 'aria-label': tr('Aksonometriya') });
-root.replaceChildren(mapEl, header, rail, left, mapctl, legendEl, kpiEl, statusEl, toolsEl, sheetsEl, aksoEl);
+const kesimEl = h('section', { class: 'bg-akso bg-kesim', id: 'bgKesim', hidden: true, 'aria-label': tr('Kesimlar') });
+root.replaceChildren(mapEl, header, rail, left, mapctl, legendEl, kpiEl, statusEl, toolsEl, sheetsEl, aksoEl, kesimEl);
 /** svgIcon ichki SVG belgisini kutadi — yoʻl (d) <path> ga oʻraladi */
 const pth = (d: string) => svgIcon(`<path d="${d}"/>`);
 const ic = (d: string) => { const s = pth(d); s.classList.add('ic'); return s; };
@@ -108,6 +109,7 @@ function renderHeader(): void {
     svcPickBtn('bogshunos'),
     h('span', { class: 'sp' }),
     vseg,
+    ...viewCtl(),
     langMenu(l => { void setLang(l); }),
     h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'themeBtn', type: 'button', 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }, ic(isDark() ? 'M12 4v2M12 18v2M4 12h2M18 12h2M6 6l1.4 1.4M16.6 16.6L18 18M6 18l1.4-1.4M16.6 7.4L18 6M12 8a4 4 0 100 8 4 4 0 000-8z' : 'M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z')),
   );
@@ -140,7 +142,7 @@ const NEED_MODR = (m: Mod | null) => !!m && m !== 'ekish' && m !== 'reja' && m !
 const can = (s: Step): boolean => s === 1 || (s === 2 && !!S.site) || (s >= 3 && s <= 5 && !!A) || (s >= 6 && !!V);
 const LAST = 10 as Step;
 const done = (s: Step): boolean => (s === 1 && !!S.site) || (s === 2 && !!data) || (s >= 3 && s <= 4 && !!A) || (s === 5 && !!V) || (s === 6 && !!V) || (s === 7 && !!PLT) || (s >= 8 && s <= 9 && !!MODR) || (s === 10 && sheets.length > 0);
-function go(s: Step): void { if (!can(s)) return; sheetsEl.hidden = true; aksoEl.hidden = true; aksoCur = null; S.step = s; save(); render(); paint(); if (s === 5 && !V) void runDesign(); if (s >= 6 && s <= 9) void ensureMods(); }
+function go(s: Step): void { if (!can(s)) return; sheetsEl.hidden = true; aksoEl.hidden = true; kesimEl.hidden = true; aksoCur = null; S.step = s; save(); render(); paint(); if (s === 5 && !V) void runDesign(); if (s >= 6 && s <= 9) void ensureMods(); }
 async function ensureMods(): Promise<void> { if (!PLT) await runPlant(); if (NEED_MODR(mod()) && !MODR) await runModul(); }
 function render(): void {
   rail.replaceChildren(...STEPS.map(([n, name, d]) => h('button', { type: 'button', class: `rb${can(n) ? '' : ' locked'}`, 'data-step': n, title: tr(name), 'aria-label': tr(name), 'aria-current': S.step === n ? 'step' : null, disabled: !can(n), onclick: () => go(n) },
@@ -577,16 +579,57 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { draft = []; selItem = null; measure = ''; renderTools(); paint(); }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redoE(); else undo(); }
 });
+/* ---------- koʻrinishlar: reja / akso / kesim + render (har qadamda, variantlar bor boʻlsa) ---------- */
+const curVar = (): 'A' | 'B' | 'C' => (S.step === 5 ? showVar : S.chosen);
+let wantRender = false, kesimItems: { name: string; svg: string; len: number; N: number }[] | null = null;
+function wholeAkso(): AksoReq & { title: string } {
+  const B = S.site!.boundary, xs = B.map(p => p[0]), ys = B.map(p => p[1]), pad = 6;
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+  return { c: [(x0 + x1) / 2, (y0 + y1) / 2], w: x1 - x0, d: y1 - y0, view: 0, ex: 1.5, labels: true, title: tr('Umumiy aksonometriya') };
+}
+function showView(v: 'reja' | 'akso' | 'kesim'): void {
+  if (v === 'reja') { aksoEl.hidden = true; kesimEl.hidden = true; aksoCur = null; }
+  else if (v === 'akso') { kesimEl.hidden = true; if (!aksoCur) { aksoCur = wholeAkso(); aksoIdx = -1; } void openAkso(); }
+  else { aksoEl.hidden = true; aksoCur = null; void openKesim(); }
+  renderTools(); renderHeader();
+}
+function viewCtl(): Node[] {
+  if (!V || !S.site || S.step < 5) return [];
+  const cur = !aksoEl.hidden ? 'akso' : !kesimEl.hidden ? 'kesim' : 'reja';
+  return [h('div', { class: 'seg', id: 'bgViewSeg', role: 'group', 'aria-label': tr('Koʻrinish') }, ...([['reja', 'Reja'], ['akso', 'Akso'], ['kesim', 'Kesim']] as const).map(([k, n]) => h('button', { type: 'button', 'aria-pressed': cur === k, onclick: () => showView(k) }, tr(n)))),
+    h('button', { type: 'button', class: 'btn btn-sm', id: 'bgRenderBtn', title: tr('AI render: joylashuv saqlanadi, uslub va material qoʻshiladi'), onclick: () => { if (!aksoEl.hidden && aksoSvg) { void aksoToRender(); return; } wantRender = true; showView('akso'); } }, tr('Render'))];
+}
+async function openKesim(): Promise<void> {
+  if (!V) return; await syncAssort(); kesimEl.hidden = false; kesimItems = null; renderKesim();
+  busy = tr('Kesimlar…'); renderStatus();
+  const m = await ask({ t: 'kesimlar', chosen: curVar() }); busy = ''; renderStatus();
+  if (m.t === 'kesimlar') kesimItems = m.items; else if (m.t === 'error') toast(m.msg);
+  renderKesim();
+}
+function renderKesim(): void {
+  const url = (svg: string) => URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  kesimEl.replaceChildren(
+    h('div', { class: 'bg-sh-top glass' },
+      h('button', { type: 'button', class: 'btn btn-sm', onclick: () => showView('reja') }, '← ', tr('Xaritaga')),
+      h('b', {}, tr('Kesimlar')), h('span', { class: 'sp' })),
+    h('div', { class: 'bg-kesim-list' }, ...(kesimItems == null ? [h('p', { class: 'bg-note' }, tr('Chizilmoqda…'))] : !kesimItems.length ? [h('p', { class: 'bg-note' }, tr('Kesim chizigʻi topilmadi'))]
+      : kesimItems.map(k => h('figure', { class: 'bg-kesim-it' }, h('img', { src: url(k.svg), alt: k.name }),
+        h('figcaption', {}, h('b', {}, k.name), h('span', {}, `${fmt(k.len)} m · M 1:${k.N}`), h('span', { class: 'sp' }),
+          h('button', { type: 'button', class: 'btn btn-sm', onclick: () => dl(`${k.name}.svg`, new Blob([k.svg], { type: 'image/svg+xml' })) }, 'SVG'),
+          h('button', { type: 'button', class: 'btn btn-sm', onclick: async () => { const r = await svgPng(k.svg, 4000); dl(`${k.name}.png`, await (await fetch(r.url)).blob()); } }, 'PNG')))))));
+}
+
 /* ---------- aksonometriya oynasi ---------- */
 let aksoCur: (AksoReq & { title: string }) | null = null, aksoIdx = -1, aksoSvg = '', aksoHint = '';
 const VIEWS = ['Janubi-gʻarbdan', 'Janubi-sharqdan', 'Shimoli-sharqdan', 'Shimoli-gʻarbdan'];
 async function openAkso(): Promise<void> {
   if (!aksoCur || !V) return; await syncAssort();
   aksoEl.hidden = false; aksoSvg = ''; renderAkso(); renderTools();
-  const req = aksoCur, m = await ask({ t: 'akso', chosen: S.chosen, req });
+  const req = aksoCur, m = await ask({ t: 'akso', chosen: curVar(), req });
   if (req !== aksoCur) return;   // keyingi soʻrov bor — eskisi tashlanadi
   if (m.t === 'akso') { aksoSvg = m.svg; aksoHint = m.hint; } else if (m.t === 'error') toast(m.msg);
-  renderAkso();
+  renderAkso(); renderHeader();
+  if (wantRender && aksoSvg) { wantRender = false; void aksoToRender(); }
 }
 function dl(name: string, blob: Blob): void { const u = URL.createObjectURL(blob), a = h('a', { href: u, download: name }) as HTMLAnchorElement; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
 /** SVG → PNG (dataURL); maxSide — uzun tomon, px */
@@ -614,7 +657,7 @@ function renderAkso(): void {
   const set = (p: Partial<AksoReq & { title: string }>, redraw = true) => { aksoCur = { ...q, ...p }; if (aksoIdx >= 0 && S.akso) { S.akso[aksoIdx] = aksoCur; sheets = []; save(); } if (redraw) void openAkso(); else renderAkso(); };
   aksoEl.replaceChildren(
     h('div', { class: 'bg-sh-top glass' },
-      h('button', { type: 'button', class: 'btn btn-sm', id: 'bgAksoClose', onclick: () => { aksoEl.hidden = true; aksoCur = null; renderTools(); } }, '← ', tr('Xaritaga')),
+      h('button', { type: 'button', class: 'btn btn-sm', id: 'bgAksoClose', onclick: () => { aksoEl.hidden = true; aksoCur = null; renderTools(); renderHeader(); } }, '← ', tr('Xaritaga')),
       h('input', { class: 'input', id: 'bgAksoTitle', value: q.title, placeholder: tr('Nomi (masalan, Amfiteatr va qirgʻoq)'), onchange: (e: Event) => set({ title: (e.target as HTMLInputElement).value.trim() }) }),
       h('div', { class: 'seg', role: 'group', 'aria-label': tr('Koʻrinish') }, ...VIEWS.map((n, i) => h('button', { type: 'button', 'aria-pressed': q.view === i, title: tr(n), onclick: () => set({ view: i as AksoReq['view'] }) }, ['JG', 'JSh', 'ShSh', 'ShG'][i]))),
       h('select', { class: 'input', id: 'bgAksoEx', title: tr('Vertikal masshtab'), onchange: (e: Event) => set({ ex: +(e.target as HTMLSelectElement).value }) }, ...[1, 1.5, 2, 3].map(x => h('option', { value: String(x), selected: (q.ex ?? 1.5) === x }, `${tr('Vertikal')} ×${String(x).replace('.', ',')}`))),
