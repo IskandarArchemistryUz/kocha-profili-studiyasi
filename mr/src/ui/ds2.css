@@ -32,7 +32,7 @@
   --bad:#b23a2e;  --bad-soft:#f9e8e5;
   --na:#6b6965;   --na-soft:#ecebe8;
   /* ——— Xizmat rangi (faqat logotip yonidagi nuqta, faol rail, grafik urgʻu) ——— */
-  --svc-mr:#141414; --svc-ks:#4c5bd4; --svc-joy:#c0643a; --svc-dk:#0f8a7e; --svc-chz:#8b4a9c; --svc-ren:#c08a1e;
+  --svc-mr:#141414; --svc-ks:#4c5bd4; --svc-joy:#c0643a; --svc-bg:#4f8a3a; --svc-dk:#0f8a7e; --svc-chz:#8b4a9c; --svc-ren:#c08a1e;
   --svc:var(--svc-mr);
   /* ——— Maʼlumot qatlamlari (har xizmatda bir xil maʼno) ——— */
   --d-sun:#e8a317; --d-wind:#3f8f6b; --d-flow:#4c5bd4; --d-heat:#c2416b;

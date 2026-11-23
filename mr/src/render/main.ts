@@ -56,7 +56,7 @@ export const SERVICES = [
   { id: 'dk', name: 'Dizayn-kod', href: SL.dk, color: 'var(--svc-dk)' },
   { id: 'chz', name: 'Chizmadon', href: SL.chz, color: 'var(--svc-chz)' },
 ];
-const FROM: Record<From, [string, string]> = { mr: ['Master reja', 'var(--svc-mr)'], ks: ['Koʻchasoz', 'var(--svc-ks)'], joy: ['Joyshunos', 'var(--svc-joy)'], chz: ['Chizmadon', 'var(--svc-chz)'], bg: ['Bogʻshunos', 'var(--svc-bg, #4f8a3a)'], fayl: ['Fayldan', 'var(--faint)'], natija: ['Natijadan', 'var(--svc-ren)'] };
+const FROM: Record<From, [string, string]> = { mr: ['Master reja', 'var(--svc-mr)'], ks: ['Koʻchasoz', 'var(--svc-ks)'], joy: ['Joyshunos', 'var(--svc-joy)'], chz: ['Chizmadon', 'var(--svc-chz)'], bg: ['Bogʻshunos', 'var(--svc-bg)'], fayl: ['Fayldan', 'var(--faint)'], natija: ['Natijadan', 'var(--svc-ren)'] };
 const MAX_REFS = 4;
 
 /* ---------------- holat ---------------- */
