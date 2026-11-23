@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 async function proj(page: import('@playwright/test').Page, origin: [number, number], w: number) {
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: w > 1100 ? 900 : 720 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.evaluate(o => (window as any).__mr.store.dispatch({ type: 'moveProject', origin: o, carry: false }), origin);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');

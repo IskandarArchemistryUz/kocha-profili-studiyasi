@@ -22,7 +22,7 @@ test('OSM dan cheklovlar: qabriston, 110 kV ELU tayanchlari bilan, bogʻ', async
     return r.fulfill({ json: { elements: [{ type: 'way', id: 1, tags: { building: 'yes' }, geometry: sq(300, 300, 312, 312) }] } });
   });
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.click('#ctxLoad');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('bino', { timeout: 15000 });
   await page.click('[data-step=uchastka]');
   await rectSite(page, 400, 400);

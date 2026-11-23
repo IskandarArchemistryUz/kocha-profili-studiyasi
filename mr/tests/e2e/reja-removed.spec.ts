@@ -9,7 +9,7 @@ test('olib tashlangan atrof binolari qaytib chiqmaydi', async ({ page, context }
   const els = () => { const el: unknown[] = []; let id = base; for (const bx of [-150, 0, 150]) for (const by of [-150, 0, 150]) if (bx || by) el.push({ type: 'way', id: id++, tags: { building: 'yes' }, geometry: [ll(bx - 6 + sh, by - 6), ll(bx + 6 + sh, by - 6), ll(bx + 6 + sh, by + 6), ll(bx - 6 + sh, by + 6), ll(bx - 6 + sh, by - 6)] }); return el; };
   await context.route(/interpreter/, r => r.fulfill({ json: { elements: els() } }));
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.click('#ctxLoad');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('8 bino', { timeout: 15000 });
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '400'); await page.fill('#rh', '400'); await page.click('#rectSite');

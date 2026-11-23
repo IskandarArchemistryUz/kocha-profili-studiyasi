@@ -16,7 +16,7 @@ for (const dark of [false, true]) test(`OSM koʻprik va tunnel — 3D${dark ? ' 
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: dark ? 1024 : 1440, height: 900 });
   await page.goto('./'); if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  await page.click('#newP'); await page.click('#ctxLoad');
+  await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('1 bino', { timeout: 15000 });
   await expect.poll(() => page.evaluate(() => { let n = 0; (window as any).__mr.scene.scene.traverse((o: any) => { if (o.name === 'koʻpriklar') n++; }); return n; }), { timeout: 15000 }).toBe(1);
   const info = await page.evaluate(() => {
@@ -48,7 +48,7 @@ test('koʻtarilgan koʻprikni tanlash va oʻchirish', async ({ page, context }) 
   await context.route(/interpreter/, r => r.fulfill({ json: { elements: els } }));
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.click('#ctxLoad');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('1 bino', { timeout: 15000 });
   await page.click('[data-view=axo]'); await page.evaluate(() => (window as any).__mr.scene.frameRadius(90)); await page.waitForTimeout(600);
   // koʻprik oʻqi (x = −35, y = 0) — plita ustida, 13 m balandlikda (2-qavat) (ostidagi yoʻldan chetroqda)

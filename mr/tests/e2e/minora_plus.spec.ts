@@ -6,7 +6,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`«+» mino
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|fonts\.g/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '120'); await page.fill('#rh', '100'); await page.click('#rectSite');
   await page.evaluate(() => {

@@ -2,7 +2,7 @@ import { test, expect, pickLang } from './fx';
 
 /** Qobiq (DS-03): rail — faqat 12 qadam; asboblar pastda; Tab — panelni yigʻish; til va tungi rejim */
 test('qobiq: rail, asboblar paneli, Tab, til, tungi rejim', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page.locator('.rail [data-step]')).toHaveCount(11);
   await expect(page.locator('.rail [data-tool]')).toHaveCount(0);
   await expect(page.locator('.tb [data-tool]')).toHaveCount(5);

@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 test('Shift + ramka bilan koʻp tanlash, Delete; chizishda oʻng tugma menyusi; Illustrator eksporti', async ({ page }) => {
   test.setTimeout(120_000);
   const shots = process.env.GX_SHOTS;
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await expect(page.locator('#bldSt')).toContainText('shundan avtomatik');

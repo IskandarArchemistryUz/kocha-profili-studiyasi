@@ -1217,3 +1217,16 @@ body:has(.home2){background-color:var(--bg);background-image:radial-gradient(col
   .top .pname{width:auto;max-width:220px}
 }
 @media (min-width:761px) and (max-width:900px) and (max-height:720px){:root{--chrome-y:104px}}
+
+/* 23.11: «Loyihalarim» — servis tanlovi va servis loyihalari kartalari */
+.home2 .newwrap{position:relative;display:inline-flex}
+.home2 .newmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:220px;display:flex;flex-direction:column;gap:2px;padding:8px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:0 12px 32px rgba(0,0,0,.16)}
+.home2 .newmenu[hidden]{display:none}
+.home2 .newmenu>.t-small{padding:2px 8px 6px}
+.home2 .newmenu button{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.home2 .newmenu button:hover,.home2 .newmenu button:focus-visible{background:color-mix(in srgb,var(--svc) 12%,transparent)}
+.home2 .newmenu button i{width:9px;height:9px;border-radius:5px;background:var(--svc)}
+.home2 .newmenu button b{font-weight:600}
+.home2 .card .thumb.svc svg{stroke:var(--svc);fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.home2 .card .thumb.svc{background:color-mix(in srgb,var(--svc) 6%,transparent)}
+.home2 .card .svcbadge{font-size:11.5px}

@@ -2,7 +2,7 @@ import { test, expect } from './fx';
 
 /** 03.11 (audit): panel qayta chizilganda (hisob tugadi) yozilayotgan maydon fokusi saqlanadi — uchastka eni yoʻqolmaydi */
 test('panel qayta chizilganda kiritish yoʻqolmaydi', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]');
   const rw = page.locator('#rw');
   await rw.click(); await rw.press('Control+a');

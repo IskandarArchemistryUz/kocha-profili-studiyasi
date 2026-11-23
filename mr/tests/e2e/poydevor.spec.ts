@@ -2,7 +2,7 @@ import { test, expect, type Page } from './fx';
 
 async function newProject(page: Page) {
   await page.goto('./');
-  await page.click('#newP');
+  await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page).toHaveURL(/#\/p\/p_/);
   await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');           // yangi loyiha — avval joy tanlanadi
   await page.click('[data-step=uchastka]');
@@ -136,7 +136,7 @@ test('«Uchlarini mavjud yoʻllarga ulash» — qisqa qolgan koʻcha OSM yoʻlga
 
 /** Xarita surilib «Atrofni yuklash» bosilsa — loyiha markazi ekran markaziga koʻchadi (Amir Temur xiyoboni qolib ketmaydi) */
 test('«Atrofni yuklash» — markaz ekran markaziga koʻchadi', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
   await page.waitForTimeout(1500);   // fon xaritasi kelib kamerani moslashi mumkin — undan keyin suriladi
   // surish va bosish bir vaqtda (fon xaritasi kelganda kamera qayta moslanishi oldini olish uchun)
   const o0 = await page.evaluate(() => { const ed = (window as any).__mr; ed.scene.ctl.target.set(1500, 0, -900); ed.scene.ctl.update(); const o = ed.store.doc.origin; (document.querySelector('#ctxLoad') as HTMLButtonElement).click(); return o; });
@@ -172,7 +172,7 @@ test('atrof yoʻli va piyoda yoʻlagi tanlanib oʻchiriladi', async ({ page }) =
 
 /** 5-band: uchastkani kesib oʻtgan mavjud koʻcha — kvartallar ustiga tushmaydi, loyihaga olinadi, toʻr koʻchalari unga ulanadi */
 test('toʻr: mavjud koʻchalar saqlanadi — kvartallar ularning ustida emas', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '500'); await page.fill('#rh', '480'); await page.click('#rectSite');
   await page.evaluate(() => {
     const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), g = (x: number, y: number) => [o[0] + x / mx, o[1] + y / 111132];
@@ -204,7 +204,7 @@ test('toʻr: mavjud koʻchalar saqlanadi — kvartallar ularning ustida emas', a
 
 /** 4-band: toʻr bilan uchastka perimetri boʻylab koʻcha — qizil chiziq chegarada, kvartallar ichkarida, toʻr koʻchalari unga ulanadi */
 test('toʻr: perimetr boʻylab koʻcha', async ({ page }) => {
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '500'); await page.fill('#rh', '480'); await page.click('#rectSite');
   await page.click('[data-step=kocha]'); await page.click('[data-ktab=tor]'); await page.click('[data-gpre=barselona]');
   await page.click('#gridPerim'); await expect(page.locator('#gridPerimProf')).toBeVisible();

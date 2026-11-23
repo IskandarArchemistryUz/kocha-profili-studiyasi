@@ -133,7 +133,7 @@ test('til va tungi rejim', async ({ page }) => {
 test('Master reja koʻchasi → Koʻchasoz oynasi → «Toʻliq oyna» → B kesim shu profil bilan', async ({ page }) => {
   page.on('pageerror', e => errs.push(e.message));
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws|fonts\.g/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');
   await page.click('[data-step=kocha]'); await page.click('[data-gpre=barselona]'); await page.click('#gridApply');
   await page.click('[data-ktab=chiz]');

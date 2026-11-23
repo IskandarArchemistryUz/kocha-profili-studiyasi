@@ -17,7 +17,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`Overpass j
   });
   await context.route(/elevation-tiles|arcgisonline|openfreemap/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('bino', { timeout: 15000 });

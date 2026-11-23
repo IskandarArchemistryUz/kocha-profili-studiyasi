@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 test('fasad materiali va tom turlari: hammasi / funksiya / tanlangan, quyosh panellari, TEP', async ({ page }) => {
   test.setTimeout(120_000);
   const shots = process.env.GX_SHOTS;
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '220'); await page.fill('#rh', '160'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0');
   await page.click('[data-typ=qatorlar]'); await page.click('#genGo');
@@ -33,7 +33,7 @@ test('fasad materiali va tom turlari: hammasi / funksiya / tanlangan, quyosh pan
 /** 14-band: qiya tomda qavat raqami tom ichida qolmaydi — tizmadan yuqorida */
 test('qiya tom: qavat raqami tizma ustida', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180); ed.store.dispatch({ type: 'setSite', rings: [[[0, 0], [140, 0], [140, 110], [0, 110]].map(p => [o[0] + p[0] / mx, o[1] + p[1] / 111132])] }); });
   await page.click('[data-step=hajm]'); await page.click('#genAll');
   await page.waitForFunction(() => (window as any).__mr.store.doc.buildings.length > 0, null, { timeout: 30000 });
@@ -54,7 +54,7 @@ test('qiya tom: qavat raqami tizma ustida', async ({ page }) => {
 /** 16-band: savdo markazi (keng blok) qiya tomi noreal baland emas */
 test('savdo markazi: qiya tom ≤ 6 m', async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr);
   const r = await page.evaluate(() => {
     const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
     ed.store.dispatch({ type: 'setSite', rings: [[[0, 0], [180, 0], [180, 160], [0, 160]].map(G)] });

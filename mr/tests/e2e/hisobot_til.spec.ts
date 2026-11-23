@@ -6,7 +6,7 @@ test('hisobot: inglizcha va ruscha — tarjimasiz satr yoʻq', async ({ page, co
   for (const lang of ['en', 'ru']) {
     await page.addInitScript(l => { localStorage.setItem('mr-lang', l); localStorage.setItem('kps_lang', l); localStorage.setItem('i18n-miss', '1'); }, lang);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+    await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
     await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
     await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
     await page.waitForTimeout(1200);

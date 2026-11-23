@@ -8,7 +8,7 @@ test('loyihalar: qidiruv, boʻsh loyihalar, ⋯ ichida oʻchirish', async ({ pag
   test.setTimeout(90_000);
   await page.goto('./#/');
   await page.waitForFunction(() => !!document.getElementById('newP'));
-  for (let i = 0; i < 6; i++) { await page.goto('./#/'); await page.click('#newP'); await page.waitForURL(/#\/p\//); }
+  for (let i = 0; i < 6; i++) { await page.goto('./#/'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForURL(/#\/p\//); }
   await page.goto('./#/');
   await expect(page.locator('#cards [data-pid]')).toHaveCount(6);
   await expect(page.locator('#projQ')).toBeVisible();

@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 /** Rekonstruksiya / renovatsiya rejimi (ShNQ 2.07.01-23, 79-band, 2-jadval, 7-izoh): toretslar orasi jadvaldan kam, yarmidan koʻp — «koʻrib chiqish» */
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`rekonstruksiya rejimi · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForFunction(() => !!(window as any).__mr?.store?.doc?.origin);
   // ikki 12 qavatli bino toretsi bilan 8 m oraliqda (qoʻlda chizilgan: talab (H1+H2)·0,15 ≈ 12 m)

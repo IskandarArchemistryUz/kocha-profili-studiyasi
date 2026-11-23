@@ -9,7 +9,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`generatsiy
   await context.route(/interpreter/, r => r.fulfill({ json: { elements: el } }));
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP'); await page.click('#ctxLoad');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('1 bino', { timeout: 15000 });
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');

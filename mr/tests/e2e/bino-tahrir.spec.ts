@@ -6,7 +6,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) {
     test.setTimeout(120_000);
     const shots = process.env.GX_SHOTS;
     await page.setViewportSize({ width: w, height: 820 }); if (dark) await page.addInitScript(() => { try { localStorage.setItem('mr-theme', 'dark'); } catch { /* */ } });
-    await page.goto('./'); await page.click('#newP'); await expect(page).toHaveURL(/#\/p\/p_/); await page.waitForFunction(() => !!(window as any).__mr?.store);
+    await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await expect(page).toHaveURL(/#\/p\/p_/); await page.waitForFunction(() => !!(window as any).__mr?.store);
     await page.evaluate(() => {
       const m = (window as any).__mr, o = m.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
       m.store.dispatch({ type: 'setSite', rings: [[[-80, -60], [80, -60], [80, 60], [-80, 60]].map(G)] });

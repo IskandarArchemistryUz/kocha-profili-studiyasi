@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻcha nuqtasi amallari · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '200'); await page.fill('#rh', '160'); await page.click('#rectSite');
@@ -37,7 +37,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`koʻcha nu
 test('koʻcha oʻrtasini olib tashlash', async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '200'); await page.fill('#rh', '150'); await page.click('#rectSite');
   await page.evaluate(() => {

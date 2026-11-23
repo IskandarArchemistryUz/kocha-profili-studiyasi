@@ -3,7 +3,7 @@ import { test, expect } from './fx';
 test('ijtimoiy binolar: funksiya berilganda maktab avtomatik, modullar, MTM', async ({ page }) => {
   test.setTimeout(120_000);
   const shots = process.env.GX_SHOTS;
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '200'); await page.fill('#rh', '150'); await page.click('#rectSite');
   await page.click('[data-step=parsel]');
   await page.locator('[data-block="0"]').click();

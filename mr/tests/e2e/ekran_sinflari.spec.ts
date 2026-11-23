@@ -11,7 +11,7 @@ const VP: [string, number, number][] = [
 for (const [nm, w, h] of VP) {
   test(`ekran sinfi: ${nm} ${w}×${h} — qobiq sigʻadi`, async ({ page }, info) => {
     await page.setViewportSize({ width: w, height: h });
-    await page.goto('./'); await page.click('#newP');
+    await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
     await expect(page.locator('.rail .rb')).toHaveCount(11);
     await page.waitForTimeout(600);   // panel kirish animatsiyasi
     const r = await page.evaluate(() => {
@@ -39,7 +39,7 @@ for (const [nm, w, h] of VP) {
 
 test('rail: qadam bosilgandan keyin izoh qayta chiqib sarlavhani yopmaydi', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 630 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page.locator('.rail .rb')).toHaveCount(11);
   const b = page.locator('.rail .rb').nth(0); const box = (await b.boundingBox())!;
   await page.mouse.move(box.x + 60, box.y + 300); await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });

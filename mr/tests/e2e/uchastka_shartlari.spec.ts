@@ -42,7 +42,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`uchastka s
 test('generator balandlik va chekinish shartiga amal qiladi', async ({ page }) => {
   test.setTimeout(120_000);
   await page.route(/overpass|openfreemap|elevation|arcgis|openstreetmap|amazonaws/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.evaluate(() => (window as any).__mr.store.dispatch({ type: 'setSettings', patch: { siteCond: { hMax: 13 } } }));
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');

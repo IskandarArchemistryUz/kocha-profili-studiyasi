@@ -87,7 +87,7 @@ test('bosh sahifa · minimal: xizmatlar, Boshlash, fikr, til, tungi rejim', asyn
   await page.route(/fonts\.g|goatcounter|gc\.zgo/, r => r.abort());
   await page.goto(`http://127.0.0.1:${PORT}/index.html`);
   await expect(page.locator('h1')).toContainText('meʼyor bilan');
-  await expect(page.locator('#ctaNew')).toHaveAttribute('href', 'app/#/yangi');
+  await expect(page.locator('#ctaNew')).toHaveAttribute('href', 'app/#/')   // 23.11: «Boshlash» — «Loyihalarim» paneli (servis tanlanadi);
   const hrefs = await page.locator('nav.dots a.d').evaluateAll(a => a.map(x => x.getAttribute('href')));
   expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);
   // Bogʻshunos — sahifasi hali yoʻq: havolasiz element («tez kunda»)

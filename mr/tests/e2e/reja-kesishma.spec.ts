@@ -1,7 +1,7 @@
 import { test, expect, type Page } from './fx';
 
 async function newSite(page: Page, w: number, h: number) {
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', String(w)); await page.fill('#rh', String(h));
   await page.click('#rectSite');

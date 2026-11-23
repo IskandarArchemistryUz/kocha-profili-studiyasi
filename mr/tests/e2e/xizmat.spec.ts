@@ -18,7 +18,7 @@ function fixture(): unknown {
 test('xizmatlar: OSM obyektlari, piyoda masofa, reyestr; DXF va GLB eksport', async ({ page }) => {
   test.setTimeout(120_000);
   await page.route(/overpass|interpreter/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture()) }));
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '160'); await page.fill('#rh', '140'); await page.click('#rectSite');
   await page.click('[data-step=hajm]'); await page.selectOption('#genBlock', '0'); await page.click('#genGo');
   await page.click('[data-step=xizmat]');

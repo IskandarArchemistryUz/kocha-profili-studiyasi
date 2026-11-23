@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 test('parselni siniq chiziq bilan kesish va SMZ boʻyicha ajratish', async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('./'); await page.click('#newP'); await page.click('[data-step=uchastka]');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('[data-step=uchastka]');
   await page.fill('#rw', '300'); await page.fill('#rh', '200'); await page.click('#rectSite');
   const c = await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), r = ed.store.doc.site.rings[0];
     return [r.reduce((t: number, p: number[]) => t + (p[0] - o[0]) * mx, 0) / r.length, r.reduce((t: number, p: number[]) => t + (p[1] - o[1]) * 111132, 0) / r.length]; });

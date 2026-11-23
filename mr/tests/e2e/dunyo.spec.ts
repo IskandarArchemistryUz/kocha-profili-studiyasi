@@ -7,7 +7,7 @@ async function mockNet(ctx: BrowserContext) {
   await ctx.route(/nominatim/, r => r.fulfill({ json: [{ lat: '40.3936', lon: '47.7872', name: 'Azərbaycan', display_name: 'Azərbaycan', boundingbox: ['38.3929', '41.9123', '44.7646', '50.6081'] }] }));
 }
 async function newProject(page: Page) {
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await expect(page.locator('.panel h2')).toHaveText('Joy va uchastka');
 }
 async function search(page: Page, q: string) {

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from './fx';
 
 async function newSite(page: Page, w = 120, h = 100) {
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', String(w)); await page.fill('#rh', String(h));
   await page.click('#rectSite');
@@ -48,7 +48,7 @@ test('uchastkadagi mavjud binolar: buzish va saqlash', async ({ page, context })
   for (const bx of [-150, 0, 150]) for (const by of [-150, 0, 150]) if (bx || by) el.push({ type: 'way', id: id++, tags: { building: 'yes' }, geometry: [ll(bx - 6, by - 5), ll(bx + 6, by - 5), ll(bx + 6, by + 5), ll(bx - 6, by + 5), ll(bx - 6, by - 5)] });
   await context.route(/interpreter/, r => r.fulfill({ json: { elements: el } }));
   await context.route(/elevation-tiles|arcgisonline/, r => r.fulfill({ status: 404, body: '' }));
-  await page.goto('./'); await page.click('#newP'); await page.click('#ctxLoad');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.click('#ctxLoad');
   await expect(page.locator('#ctxSt')).toContainText('8 bino', { timeout: 15000 });
   await page.click('[data-step=uchastka]');
   await page.fill('#rw', '400'); await page.fill('#rh', '400'); await page.click('#rectSite');

@@ -11,7 +11,7 @@ const buildings = fc(Array.from({ length: 12 }, (_, i) => F(sq(-150 + (i % 4) * 
 test('qatlam obyektlari: ramka bilan tanlash, rang berish, tiklash, saqlanish', async ({ page }) => {
   test.setTimeout(120_000);
   await page.route(/overpass|interpreter|openfreemap|arcgisonline|terrain|amazonaws/, r => r.abort());
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   await page.locator('#ctxMore').waitFor(); if ((await page.locator('#ctxMore').getAttribute('open')) === null) await page.click('#ctxMore > summary'); await expect(page.locator('#ctxMore')).toHaveAttribute('open', ''); await page.click('#ulOpen');
   await page.setInputFiles('#ulFile', { name: 'binolar.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(buildings) });
   await page.click('#ulOk');

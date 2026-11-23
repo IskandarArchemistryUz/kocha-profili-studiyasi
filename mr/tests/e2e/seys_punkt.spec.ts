@@ -4,7 +4,7 @@ import { test, expect } from './fx';
 for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`seysmiklik aholi punktidan · ${w}px${dark ? ' · tungi' : ''}`, async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.waitForFunction(() => !!(window as any).__mr?.store?.doc?.origin);
   await page.click('#kMore'); await page.locator('.drawer #regSet > summary').click();   // 04.11 (A): hisob shartlari — «Qoʻshimcha» ichida

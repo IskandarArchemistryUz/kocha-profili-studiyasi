@@ -5,7 +5,7 @@ for (const [w, dark] of [[1440, false], [1024, true]] as const) test(`MTM binosi
   test.setTimeout(120_000);
   const shots = process.env.GX_SHOTS, tag = `${w}${dark ? 'd' : 'l'}`;
   await page.setViewportSize({ width: w, height: 860 });
-  await page.goto('./'); await page.click('#newP');
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr'));
   if (dark) await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.click('[data-step=uchastka]'); await page.fill('#rw', '200'); await page.fill('#rh', '150'); await page.click('#rectSite');
   await page.evaluate(() => { const ed = (window as any).__mr; ed.store.dispatch({ type: 'setZones', zones: [{ id: 'z0', at: ed.store.doc.origin, use: 'mtm' }] }); });

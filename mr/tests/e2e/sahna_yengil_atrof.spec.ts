@@ -29,7 +29,7 @@ test('atrof daraxtlari uzoqdan soddalashadi, «Toʻliq» va sahna rasmida — to
   test.setTimeout(120_000);
   await mockNet(context);
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.scene);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.scene);
   await page.click('#ctxLoad');
   await page.waitForFunction(() => !!(window as any).__mr.scene.ctx?.group.getObjectByName('daraxtlar'), null, { timeout: 30_000 });
   /** koʻrinish yarim kengligi (m) → daraxtlar holati: [toj uchlari soni, toj soya tashlaydimi, tana chiziladimi] */
@@ -78,7 +78,7 @@ test('loyiha daraxtlari juda uzoqdan kam uchburchakli, yaqindan va GLB da — to
   test.setTimeout(120_000);
   await page.route(/^(?!http:\/\/127\.0\.0\.1)/, r => r.fulfill({ status: 404, body: '' }));
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('./'); await page.click('#newP'); await page.waitForFunction(() => !!(window as any).__mr?.store);
+  await page.goto('./'); await page.click('#newP').then(() => page.click('#newP-mr')); await page.waitForFunction(() => !!(window as any).__mr?.store);
   await page.evaluate(() => { const ed = (window as any).__mr, o = ed.store.doc.origin, mx = 111320 * Math.cos(o[1] * Math.PI / 180), G = (p: number[]) => [o[0] + p[0] / mx, o[1] + p[1] / 111132];
     ed.store.dispatch({ type: 'setSite', rings: [[[-115, -90], [115, -90], [115, 90], [-115, 90]].map(G)] });
     ed.store.dispatch({ type: 'addStreet', axis: [[-150, 0], [150, 0]].map(G), profile: 'mahalla-15' });
