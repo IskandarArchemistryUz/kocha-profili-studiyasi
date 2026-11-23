@@ -12,7 +12,7 @@ import { plant, type Planting } from './planting';
 import { TPAL, symOf } from './symbols';
 import { PHEN, setUserAssort, type UserAssort } from './assort';
 import { frame } from '../core/geo';
-import { sectionLines, profile, shores, drawSection, SHORE, type ShoreT } from './kesim';
+import { sectionLines, setUserLines, profile, shores, drawSection, SHORE, type ShoreT } from './kesim';
 import { fauna, habRings, HAB } from './fauna';
 import { nets, NET } from './nets';
 import { smeta, PRICE0, type Price, type Smeta } from './cost';
@@ -29,13 +29,13 @@ export type AnOpt = { canalStrip: number; shore: number; noise: number; s: [numb
 export type WIn =
   | { t: 'analyze'; site: BgSite; data: BgData; opt: AnOpt }
   | { t: 'design'; prog?: Prog }
-  | { t: 'albom'; chosen: 'A' | 'B' | 'C'; author?: string; akso?: AksoReq[]; brief?: AlbomSrc['brief']; tu?: BgTu[]; prices?: Record<string, { p: number | null; src: string }> }
+  | { t: 'albom'; chosen: 'A' | 'B' | 'C'; lines?: { name: string; a: XY; b: XY }[]; author?: string; akso?: AksoReq[]; brief?: AlbomSrc['brief']; tu?: BgTu[]; prices?: Record<string, { p: number | null; src: string }> }
   | { t: 'plant'; chosen: 'A' | 'B' | 'C' }
   | { t: 'assort'; u: UserAssort | null }
   | { t: 'akso'; chosen: 'A' | 'B' | 'C'; req: AksoReq }
   | { t: 'kesimlar'; chosen: 'A' | 'B' | 'C'; lines?: { name: string; a: XY; b: XY }[] }
   | { t: 'edits'; chosen: 'A' | 'B' | 'C'; edits: Edit[] }
-  | { t: 'modul'; chosen: 'A' | 'B' | 'C'; tu: BgTu[]; prices: Record<string, { p: number | null; src: string }> };
+  | { t: 'modul'; chosen: 'A' | 'B' | 'C'; lines?: { name: string; a: XY; b: XY }[]; tu: BgTu[]; prices: Record<string, { p: number | null; src: string }> };
 export interface ModOut {
   kesim: { name: string; len: number; z0: number; z1: number; wl: number | null; trees: number }[]; shore: { t: string; n: string; len: number; c: string }[]; perim: number;
   fauna: { areas: { n: string; m2: number; c: string }[]; H: number; J: number; quiet: number; quiet100: number; maxQuiet: number; old: number; qush: number; kshap: number; fruit: number[]; flower: number[]; soft: number; guilds: { n: string; m2: number; act: string }[] };
@@ -74,7 +74,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
     if (m.t === 'assort') { const r = setUserAssort(m.u); out({ t: 'assorted', warn: r.warn }); }
     else if (m.t === 'kesimlar') { const DO = ed(m.chosen); if (!site || !C || !A || !DO) throw new Error('Avval variantlar');
       // kesimlar: avtomatik chiziqlar (A–A, B–B) + foydalanuvchi chizgan chiziqlar; har biri alohida SVG (mm oʻlchamda)
-      const CE = CG(vert()), P = plantE(DO), lines = [...sectionLines(C, DO), ...(m.lines ?? [])], W = 400, H = 95;
+      const CE = CG(vert()), P = plantE(DO), lines = (setUserLines(m.lines), sectionLines(C, DO)), W = 400, H = 95;
       const items = lines.map(l => profile(CE, DO, P, site!, l)).filter(p => p.pts.length > 2).map(p => { const d = drawSection(p, { x: 0, y: 0, w: W, h: H });
         const w = Math.min(W, Math.max(160, 4 + p.len * 1000 / d.N + 14));   // keng boʻsh joy kesib tashlanadi; sarlavha va masshtab kesimning oʻzida
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${(w + 4).toFixed(1)}mm" height="${H}mm" viewBox="-4 0 ${(w + 4).toFixed(1)} ${H}"><rect x="-4" width="${(w + 4).toFixed(1)}" height="${H}" fill="#fff"/>${d.g}</svg>`;
@@ -104,6 +104,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
       EDITS = m.edits; const DO = ed(m.chosen)!;
       out({ t: 'edited', V: DO.V, geo: toGeo(site).variant(DO.V), vert: vsum(vert()) });
     } else if (m.t === 'modul') {
+      setUserLines(m.lines);
       const DO = ed(m.chosen); if (!site || !data || !C || !A || !cls || !DO) throw new Error('Avval variantlar');
       data.tu = m.tu; const book = mergePrices(m.prices), F = frame(site.origin), G = C.G;
       out({ t: 'progress', msg: 'Kesimlar…' });
@@ -129,7 +130,7 @@ export function handle(m: WIn, out: (m: WOut) => void = post): void {
       const geoF = fc([...habRings(C!, FA).flatMap(hr => hr.rings.map(r => ({ type: 'Feature', properties: { c: HAB[hr.h].c }, geometry: { type: 'Polygon', coordinates: [[...r, r[0]].map(q => F.toGeo(q))] } }))), ...FA.boxes.map(b => pt(b.p, { c: b.kind === 'qush' ? '#ffffff' : '#3b2f4a', r: 4 }))]);
       const geoT = fc([...NT.routes.flatMap(r => r.lines.map(l => ln(l, { c: NET[r.kind].c, w: 2 }))), ...NT.lamps.map(l => pt(l.p, { c: l.conflict ? '#d62828' : '#f2c230', r: l.kind === 'ustun' ? 3.5 : 2.5 })), ...NT.cons.filter(c => !c.id.startsWith('irr')).map(c => pt(c.p, { c: '#ffffff', r: 6, n: c.n })), ...NT.routes.map(r => pt(r.src, { c: r.srcTu ? '#151413' : '#ffffff', r: 6, n: `${NET[r.kind].n}: ${r.srcTu ? 'TU' : 'taxminiy ulanish'}` }))]);
       out({ t: 'modul', M, geo: { kesim: geoK, fauna: geoF, tarmoq: geoT } });
-    } else if (m.t === 'albom') {
+    } else if (m.t === 'albom') { setUserLines(m.lines);
       if (!site || !data || !C || !A || !cls) throw new Error('Avval tahlil');
       if (m.tu) data.tu = m.tu;
       out({ t: 'progress', msg: 'Varaqlar…' });

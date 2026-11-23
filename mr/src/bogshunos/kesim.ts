@@ -40,7 +40,11 @@ export function mainLake(C: Ctx): XY[] | null {
   return C.lakes.flatMap(mp => mp.map(poly => poly[0])).filter(inSite).sort((x, y) => ar(y) - ar(x))[0] ?? null;
 }
 /** Kesim chiziqlari (qoidalar bilan) */
-export function sectionLines(C: Ctx, DO: DesignOut): { name: string; a: XY; b: XY }[] {
+/** Foydalanuvchi chizgan kesim chiziqlari (C–C, D–D …): avtomatik chiziqlarga qoʻshiladi — oyna, modul va albomda */
+let USER: { name: string; a: XY; b: XY }[] = [];
+export function setUserLines(l: { name: string; a: XY; b: XY }[] | undefined): void { if (l) USER = l.filter(x => Math.hypot(x.b[0] - x.a[0], x.b[1] - x.a[1]) >= 10); }
+export function sectionLines(C: Ctx, DO: DesignOut): { name: string; a: XY; b: XY }[] { return [...autoLines(C, DO), ...USER]; }
+function autoLines(C: Ctx, DO: DesignOut): { name: string; a: XY; b: XY }[] {
   const out: { name: string; a: XY; b: XY }[] = [];
   const lake = mainLake(C); if (!lake) { // koʻl yoʻq — hududning eng uzun oʻqi
     const B = C.boundary; let best: [XY, XY] = [B[0], B[1]], bd = 0; for (const p of B) for (const q of B) { const d = Math.hypot(p[0] - q[0], p[1] - q[1]); if (d > bd) { bd = d; best = [p, q]; } }
