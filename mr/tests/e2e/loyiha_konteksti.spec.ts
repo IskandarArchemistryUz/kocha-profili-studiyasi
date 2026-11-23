@@ -33,8 +33,8 @@ test('loyiha ichidan Joyshunos: ?p= manzilda, «← Master reja» loyihaga qayta
 test('Koʻchasoz: eski ish «… — eski ish» loyihasiga koʻchadi, yangi loyiha boʻsh; Render manbalari loyihalar orasida aralashmaydi', async ({ page }) => {
   test.setTimeout(120_000);
   await page.route(/fonts\.g/, r => r.abort());
-  await page.goto('./kochasoz.html?asosiy=1#/b');
-  await page.waitForFunction(() => (window as any).__ks?.id === 'b');
+  // eski (loyihasiz) holat — Koʻchasoz sahifasidan tashqarida yoziladi (ochiq sahifa yopilishda uni qayta yozib qoʻyardi)
+  await page.goto('./#/');
   await page.evaluate(() => { localStorage.setItem('ks-b', JSON.stringify({ bL: 7 })); localStorage.removeItem('svcmig:ks'); localStorage.removeItem('svcp:ks'); });
   await page.goto('./kochasoz.html');
   await expect(page.locator('#projWin .pw-card')).toHaveCount(1);
@@ -91,7 +91,7 @@ test('Loyihalarim: yangi loyiha servis tanlab ochiladi, kartalar servis belgisi 
   await expect(page.locator('#newMenu')).toBeHidden();
   await page.click('#newP');
   await expect(page.locator('#newMenu')).toBeVisible();
-  await expect(page.locator('#newMenu button')).toHaveCount(5);
+  await expect(page.locator('#newMenu button')).toHaveCount(6);
   await page.click('#newP-ks');
   await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
   await expect(page.locator('#projWin')).toHaveCount(0);
