@@ -8,6 +8,9 @@ import type { BgSite, Ring, Variant, XY } from './types';
 import type { Ctx } from './analyze';
 import { contour } from './grid';
 import { furnById, FCATS } from './library';
+import { speciesLaw } from '../core/treelaw';
+/** 23.11: kesishga moratoriy ostidagi toifalar (qimmatbaho, Qizil kitob, ziddiyatli) — xaritada toʻq yashil */
+const QCLS = new Set(['qizil_kitob', 'qimmatbaho', 'ziddiyat']);
 
 type FC = { type: 'FeatureCollection'; features: unknown[] };
 const fc = (features: unknown[]): FC => ({ type: 'FeatureCollection', features });
@@ -20,7 +23,7 @@ export function toGeo(site: BgSite) {
   return {
     g,
     boundary: (): FC => fc([{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring(site.boundary)] } }]),
-    trees: (C: Ctx): FC => fc(C.trees.map(t => ({ type: 'Feature', properties: { sp: t.sp, d: t.d, c: t.c, h: t.h, inv: t.sp === 'Yuksak aylant' ? 1 : 0 }, geometry: { type: 'Point', coordinates: g(t.p) } }))),
+    trees: (C: Ctx): FC => fc(C.trees.map(t => ({ type: 'Feature', properties: { sp: t.sp, d: t.d, c: t.c, h: t.h, inv: t.sp === 'Yuksak aylant' ? 1 : 0, q: QCLS.has(speciesLaw(t.sp).cls) ? 1 : 0 }, geometry: { type: 'Point', coordinates: g(t.p) } }))),
     classes: (C: Ctx, cls: Uint8Array): FC => { const out: unknown[] = []; for (const v of [0, 1, 2]) { const m = C.G.u8(); for (let k = 0; k < C.G.n; k++) m[k] = cls[k] === v ? 1 : 0; out.push(...maskFC(C, m, { c: v })); } return fc(out); },
     slope: (C: Ctx): FC => { const out: unknown[] = []; const B: [number, number, number][] = [[0, 5, 0], [5, 8, 1], [8, 12, 2], [12, 999, 3]]; for (const [a, b, v] of B) { const m = C.G.u8(); for (let k = 0; k < C.G.n; k++) m[k] = C.site[k] && !C.water[k] && ((C.S[k] > a && C.S[k] <= b) || (a === 0 && C.S[k] === 0)) ? 1 : 0; out.push(...maskFC(C, m, { c: v })); } return fc(out); },
     variant: (V: Variant): { paths: FC; prog: FC; pts: FC; furn: FC; marks: FC } => ({

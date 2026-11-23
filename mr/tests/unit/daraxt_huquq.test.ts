@@ -91,3 +91,23 @@ describe('«Daraxtlar xaritasi» varagʻi — huquqiy balans', () => {
     expect(r.svg).toContain('Ruxsatnoma toʻlovi');
   });
 });
+
+describe('Bogʻshunos — huquqiy qaror (planting)', async () => {
+  const { lawDecision, lawBalOf } = await import('../../src/bogshunos/planting');
+  const { mustKeep } = await import('../../src/core/treelaw');
+  it('qimmatbaho — yoʻl suriladi; ≤ 15 sm — koʻchiriladi; kam qimmatli — kesiladi; diametrsiz — saqlanadi', () => {
+    expect(lawDecision(T('Sharq chinori', 80))).toBe('yol_suriladi');
+    expect(lawDecision(T('Grek yongʻogʻi', 12))).toBe('kochiriladi');
+    expect(lawDecision(T('Yuksak aylant', 30))).toBe('kesiladi');
+    expect(lawDecision(T('Yuksak aylant', 0))).toBe('yol_suriladi');
+  });
+  it('invaziv Ailanthus: kichigi ham kesiladi (preferCut), toʻlov va 10 koʻchat bilan', () => {
+    const r = decide({ name: 'Yuksak aylant', dbh: 10, conflict: 'dog', preferCut: true });
+    expect([r.decision, r.feeBhm, r.compSaplings]).toEqual(['kesiladi', 0.4, 10]);
+  });
+  it('mustKeep va balans (null — saqlanadi)', () => {
+    expect(mustKeep('Sharq chinori', 50)).toBe(true); expect(mustKeep('Yuksak aylant', 50)).toBe(false); expect(mustKeep('Eldor qaragʻay', 10)).toBe(false);
+    expect(lawBalOf([null, null])).toBeNull();
+    expect(lawBalOf([null, T('Yuksak aylant', 30)])?.compSaplings).toBe(10);
+  });
+});

@@ -58,12 +58,12 @@ Nomaʼlum toifadagi eng koʻp turlar: gilos, olcha, oddiy shumtol (*F. excelsior
 
 Ziddiyatli 1–3 turlar qimmatbaho deb olinadi va REVIEW belgisini oladi. Bularni Ekologiya qoʻmitasidan yozma soʻrab aniqlash mumkin.
 
-## 5. Avvalgi hujjatlardagi xato (tuzatish kerak)
+## 5. Avvalgi hujjatlardagi xato (23.11 da tuzatildi)
 
-- `bogshunos-src/ts/albom.ts`, «Daraxtlarni saqlash rejasi» jadvalida ikki xato bor:
-  - «Koʻchiriladi (dbh < 40 sm, T)» va «Saqlanadi, yoʻl suriladi (≥ 40 sm, **480-band**)» qatorlari. **ShNQ 480-band** faqat istirohat bogʻlari va xiyobonlarni joylashtirish haqida, unda 40 sm chegarasi yoʻq. Qonuniy chegara — **15 sm** (VMQ-342), saqlash sababi — moratoriy (VMQ-464, 5 va 31-bandlar).
-  - Ailanthus «invaziv» deb belgilangan. Qonunda bunday tushuncha yoʻq, u faqat **kam qimmatli** (15-ilova). Invazivlik — ekologik baho, alohida manba bilan berilishi kerak.
-- `daraxt-reyestri-wfs-14-11.md`, 2-band: «R14, ShNQ 2.07.01-23, 480-band» oʻrniga quyidagi havolalar boʻlishi kerak: VMQ-464 5, 31, 32-bandlar; VMQ-86 15-ilova; ShNQ 35-jadval.
+- Bogʻshunos (`planting.ts`, `albom.ts`, `main.ts`): «koʻchiriladi < 40 sm» va «yoʻl suriladi ≥ 40 sm (480-band)» chegarasi normada yoʻq edi. **ShNQ 480-band** bogʻ va xiyobonlarni joylashtirishda mavjud dov-daraxtlar va suv havzalarini saqlashni talab qiladi — Bogʻshunos uchun oʻrinli, lekin unda diametr chegarasi yoʻq. Endi qaror `core/treelaw` dan: qimmatbaho tur — moratoriy, ≤ 15 sm — koʻchirish (VMQ-342), kam qimmatli — ruxsatnoma va kompensatsiya.
+- Ailanthus: «invaziv» — ekologik baho (T), huquqan **kam qimmatli** (15-ilova). Bogʻshunos uni ziddiyatsiz ham olib tashlashni taklif qiladi — toʻlov va 10 koʻchat bilan hisoblanadi.
+- «Ziddiyat (≥ 40 sm)» koʻrsatkichi endi «kesish taqiqlangan» daraxtlar soni (`mustKeep`).
+- `daraxt-reyestri-wfs-14-11.md` (loyiha hujjati), 2-band: «R14, ShNQ 2.07.01-23, 480-band» yoniga VMQ-464 5, 31, 32-bandlar; VMQ-86 15-ilova; ShNQ 35-jadval qoʻshilishi kerak.
 
 ## 6. Master rejada (bajarildi, 23.11)
 
@@ -72,5 +72,4 @@ Ziddiyatli 1–3 turlar qimmatbaho deb olinadi va REVIEW belgisini oladi. Bularn
 3. Balans jadvalida: loyiha oʻzgaradi (qimmatbaho, moratoriy) / koʻchiriladi (≤ 15 sm) / kesiladi (kam qimmatli) / nomaʼlum, ruxsatnoma toʻlovi (soʻm, BHM), kompensatsiya koʻchatlari. Xaritada: binafsha halqa — saqlanadi, loyiha oʻzgaradi; jigarrang — koʻchiriladi; qizil × — kesiladi.
 
 ### Navbatda
-- Bogʻshunos `albom.ts` ni shu modulga oʻtkazish (5-boʻlimdagi xato).
 - Variantlar panelida daraxtlar balansini koʻrsatish (sahnada, varaqdan tashqari).

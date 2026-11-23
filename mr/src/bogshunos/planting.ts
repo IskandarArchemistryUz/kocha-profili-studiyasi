@@ -2,8 +2,10 @@
  * Bogʻshunos — ekish moduli (9-qadam): mavjud daraxtlar boʻyicha qaror + yangi daraxt va butalar + xilma-xillik.
  *
  * Qoidalar (teg bilan):
- *  · Mavjud daraxt: yangi qattiq qoplama / sport / amfiteatr ostida va mavjud yoʻlda emas → ziddiyat. dbh < 40 sm — koʻchiriladi (T),
- *    ≥ 40 sm — saqlanadi, yoʻl suriladi (480-band, N). Ailanthus altissima — invaziv, kesiladi (T). Qolgani saqlanadi.
+ *  · Mavjud daraxt: yangi qattiq qoplama / sport / amfiteatr ostida va mavjud yoʻlda emas → ziddiyat. Qaror — core/treelaw (23.11, docs/daraxt-normalar-toshkent.md):
+ *    qimmatbaho yoki Qizil kitob turi, koʻchirib boʻlmaydigan oʻlcham → saqlanadi, yoʻl suriladi (moratoriy: PF-46 2-band, VMQ-464 5, 31-bandlar, N);
+ *    d ≤ 15 sm → koʻchiriladi (VMQ-342 2-band, N); kam qimmatli → kesiladi + toʻlov + 10 koʻchat (VMQ-86 15-ilova, N); tur roʻyxatda yoʻq — REVIEW.
+ *    Ailanthus altissima — invaziv (ekologik baho, T), ziddiyatsiz ham olib tashlanadi; huquqan kam qimmatli (15-ilova) — toʻlov va kompensatsiya bilan. Qolgani saqlanadi.
  *  · Yangi daraxt joyi: hudud ichida, suv, bino, kanal sohili (cheklov «qizil») va dastur elementlaridan tashqarida;
  *    bino devoridan ≥ 5 m, yoʻl chetidan ≥ 1,5 m (35-jadval: 5,0 m / 0,7 m — N; yoʻl uchun zaxira T); mavjud toj chetidan ≥ 0,6 r.
  *  · Ustuvorlik: asosiy/sohil yoʻl chetidan 2–6 m (soya, T) → bolalar maydonidan ≤ 15 m → suv boʻyi ≤ 20 m → > 12 % qiyalik (eroziya, T) → maysa cheti.
@@ -19,6 +21,7 @@ import type { DesignOut } from './design';
 import { distance, strokeLine, area, andNot } from './grid';
 import { ASSORT, FAMILY, genus, crownOf, type Sp } from './assort';
 import { SPECIES } from './species';
+import { decide, balance, type TreeOut, type Balance } from '../core/treelaw';
 
 export type Zone = 'soya' | 'bolalar' | 'suv' | 'qiyalik' | 'ochiq';
 export interface NewTree { p: XY; sp: Sp; crown: number; zone: Zone }
@@ -26,6 +29,8 @@ export interface ShrubGroup { p: XY; sp: Sp; n: number }
 export type Decision = 'saqlanadi' | 'kochiriladi' | 'yol_suriladi' | 'kesiladi';
 export interface Planting {
   decisions: Decision[]; counts: Record<Decision, number>;
+  /** 23.11: har mavjud daraxt uchun huquqiy qaror (ziddiyatsiz va saqlanadigan — null) va balans (toʻlov, kompensatsiya, REVIEW) */
+  law: (TreeOut | null)[]; lawBal: Balance | null;
   trees: NewTree[]; shrubs: ShrubGroup[];
   canopy0: number; canopy1: number; target: number;
   mix: { lat: string; ru: string; n: number; nNew: number; share: number }[];
@@ -38,6 +43,10 @@ const isTree = (s: Sp) => s.g !== 'buta';
 /** Reyestr nomi (oʻzbekcha) → lotincha */
 const latOfReg = (sp: string) => SPECIES[sp]?.[0] ?? sp;
 
+/** Huquqiy qaror → Bogʻshunos qarori. Diametri yoʻq (review) — tekshirilguncha saqlanadi, yoʻl suriladi. */
+export const lawDecision = (r: TreeOut): Decision => r.decision === 'kochiriladi' ? 'kochiriladi' : r.decision === 'kesiladi' ? 'kesiladi' : 'yol_suriladi';
+export const lawBalOf = (law: (TreeOut | null)[]): Balance | null => { const L = law.filter((x): x is TreeOut => !!x && x.decision !== 'saqlanadi'); return L.length ? balance(L) : null; };
+
 /** Deterministik tasodif (bir xil kirish → bir xil reja) */
 function rng(seed: number) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -46,7 +55,13 @@ export function plant(C: Ctx, A: Analysis, DO: DesignOut, cls: Uint8Array, opt: 
   void A;
   // ---- 1. mavjud daraxtlar ----
   const hit = (k: number) => !!(M.hard?.[k] || M.sport_yangi?.[k] || M.amfiteatr?.[k]) && !C.exPath[k];
-  const decisions: Decision[] = C.trees.map(t => { const k = G.idx(t.p[0], t.p[1]); if (latOfReg(t.sp) === 'Ailanthus altissima') return 'kesiladi'; if (k >= 0 && hit(k)) return t.d >= 40 ? 'yol_suriladi' : 'kochiriladi'; return 'saqlanadi'; });
+  const law: (TreeOut | null)[] = [];
+  const decisions: Decision[] = C.trees.map(t => {
+    const k = G.idx(t.p[0], t.p[1]), inv = latOfReg(t.sp) === 'Ailanthus altissima', conf = k >= 0 && hit(k);
+    if (!conf && !inv) { law.push(null); return 'saqlanadi'; }
+    const r = decide({ name: t.sp, dbh: t.d, crown: t.c, conflict: 'dog', preferCut: inv }); law.push(r);
+    return lawDecision(r);
+  });
   const counts = { saqlanadi: 0, kochiriladi: 0, yol_suriladi: 0, kesiladi: 0 } as Record<Decision, number>; for (const d of decisions) counts[d]++;
   // ---- 2. toj niqobi (saqlanadigan + koʻchirilgan daraxtlar oʻz joyida emas — hisobga olinmaydi) ----
   const crown = G.u8(); C.trees.forEach((t, i) => { if (decisions[i] === 'saqlanadi' || decisions[i] === 'yol_suriladi') strokeLine(G, crown, [t.p, t.p], Math.max(2, t.c)); });
@@ -121,7 +136,7 @@ export function plant(C: Ctx, A: Analysis, DO: DesignOut, cls: Uint8Array, opt: 
   for (const m of mixM.values()) m.n = comp.sp.get(m.lat) ?? m.nNew;
   const zones = { soya: 0, bolalar: 0, suv: 0, qiyalik: 0, ochiq: 0 } as Record<Zone, number>; for (const t of trees) zones[t.zone]++;
   return {
-    decisions, counts, trees, shrubs, canopy0, canopy1: canopy, target,
+    decisions, counts, law, lawBal: lawBalOf(law), trees, shrubs, canopy0, canopy1: canopy, target,
     mix: [...mixM.values()].sort((a, b) => b.nNew - a.nNew).map(m => ({ ...m, share: m.n / Math.max(1, N) * 100 })),
     r22, r22_0, native: trees.filter(t => t.sp.native).length / Math.max(1, trees.length) * 100, lowWater: trees.filter(t => t.sp.water === 'НТ').length / Math.max(1, trees.length) * 100, zones,
   };

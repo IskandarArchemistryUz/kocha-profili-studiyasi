@@ -17,6 +17,7 @@ import type { XY, Variant } from './types';
 import type { Ctx, Analysis } from './analyze';
 import { Grid, fillMPoly, strokeLine, distance, contour, chaikin, simplify, len, area, andNot, interp } from './grid';
 import { placeBlocks, progVec, fitoutAll, suggest, ELEM, type Prog } from './dastur';
+import { mustKeep } from '../core/treelaw';
 
 type Tier = Variant['paths'][number]['tier'];
 export interface VarDef { id: 'A' | 'B' | 'C'; name: string; desc: string; exist: number; tree: number; rpaK: number; beta: number; keepExist: boolean; meadow: number; promenade: boolean; bridges: number; wMain: number; wSec: number; wTrail: number }
@@ -161,7 +162,7 @@ export function design(C: Ctx, A: Analysis, attr: Attr[], inner: Attr[], vd0: Va
     prog: progVec(G, prog, placed.blocks), blocks: placed.blocks, ...fitoutAll(placed.blocks), miss: placed.miss,
     m: { gates: gates.length, pathLen: Math.round(paths.reduce((s, p) => s + len(p.g), 0)), asosiy: Math.round(lenT('asosiy')), ikkinchi: Math.round(lenT('ikkinchi')), soqmoq: Math.round(lenT('soqmoq')), sohil: Math.round(lenT('sohil')), rampa: Math.round(lenT('rampa')), zina: Math.round(lenT('zina')),
       hard: Math.round(hardA), greenPct: Math.round((siteA - waterA - hardA) / siteA * 1000) / 10, prd: avg(prd), prdP90: pct(prd, 0.9), sport: Math.round(area(G, exSport) + area(G, courts.m)), meadow: Math.round(area(G, meadow)),
-      wetland: Math.round(prog.botqoq ? area(G, prog.botqoq) : 0), rain: Math.round(prog.yomgir_bogi ? area(G, prog.yomgir_bogi) : 0), conflict: conflict.length, conflictBig: conflict.filter(t => t.d >= 40).length,
+      wetland: Math.round(prog.botqoq ? area(G, prog.botqoq) : 0), rain: Math.round(prog.yomgir_bogi ? area(G, prog.yomgir_bogi) : 0), conflict: conflict.length, conflictBig: conflict.filter(t => mustKeep(t.sp, t.d)).length,
       irrLo: Math.round((lawnLeft * 15 + area(G, meadow) * 3 + other * 3) / 1000), irrHi: Math.round((lawnLeft * 20 + area(G, meadow) * 4 + other * 4) / 1000), earth: Math.round(courts.earth), mgnOver: Math.round(mgnOver), lawn: Math.round(lawnLeft), other: Math.round(other) },
     earth: { cut: Math.round(courts.earth / 2), fill: Math.round(courts.earth / 2) },
   };
