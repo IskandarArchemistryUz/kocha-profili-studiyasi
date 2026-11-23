@@ -239,7 +239,8 @@ export interface Project {
   /** saqlanadigan binolar markazi (id → [lng, lat]) — atrof boshqa manbadan qayta yuklansa id oʻzgarishi mumkin, shunda markaz boʻyicha qayta topiladi */
   keepAt?: Record<string, LngLat>;
   /** 12.11: daraxtlar inventarizatsiyasi (CSV / GeoJSON / DXF dan) — «Daraxtlar xaritasi» varagʻi (core/trees) */
-  treeInv?: { at: LngLat; sp?: string; d?: number; h?: number; st?: string }[];
+  /** 23.11: c — toj diametri, m; src — 'reyestr' (Toshkent daraxtlar reyestri, green.tashkent.uz) yoki fayl */
+  treeInv?: { at: LngLat; sp?: string; d?: number; h?: number; st?: string; c?: number; src?: 'reyestr' }[];
   /** saqlanadigan binolar konturi (id → halqa) — hovli obodonlashtirish va generator ularni toʻsiq deb biladi (sahnasiz ham) */
   keepRings?: Record<string, Ring>;
   /** atrofdagi (OSM) binolar — foydalanuvchi sahnadan olib tashlagan (id lar) */
@@ -413,7 +414,7 @@ export function migrate(raw: unknown): Project {
   const sections: SiteSection[] = (Array.isArray(d.sections) ? d.sections : []).filter((c: any) => c && typeof c.id === 'string' && ll(c.a) && ll(c.b) && typeof c.label === 'string').map((c: any) => ({ id: c.id, a: [c.a[0], c.a[1]], b: [c.b[0], c.b[1]], label: c.label.slice(0, 2), look: c.look === -1 ? -1 : 1, depth: isNum(c.depth) ? Math.max(10, Math.min(1000, c.depth)) : 200 }));
   const cuts: StreetCut[] = (Array.isArray(d.cuts) ? d.cuts : []).filter((c: any) => c && typeof c.id === 'string' && typeof c.street === 'string' && isNum(c.t) && typeof c.label === 'string').map((c: any) => ({ id: c.id, street: c.street, t: Math.max(0, c.t), label: c.label.slice(0, 2) }));
   const profiles: Profile[] = (Array.isArray(d.profiles) ? d.profiles : []).map(cleanProfile).filter((p: Profile | null): p is Profile => !!p);
-  const treeInv = (Array.isArray(d.treeInv) ? d.treeInv : []).filter((t: any) => t && isLL(t.at)).slice(0, 50000).map((t: any) => ({ at: [t.at[0], t.at[1]] as LngLat, ...(typeof t.sp === 'string' ? { sp: t.sp.slice(0, 60) } : {}), ...(isNum(t.d) ? { d: t.d } : {}), ...(isNum(t.h) ? { h: t.h } : {}), ...(typeof t.st === 'string' ? { st: t.st.slice(0, 40) } : {}) }));
+  const treeInv = (Array.isArray(d.treeInv) ? d.treeInv : []).filter((t: any) => t && isLL(t.at)).slice(0, 50000).map((t: any) => ({ at: [t.at[0], t.at[1]] as LngLat, ...(typeof t.sp === 'string' ? { sp: t.sp.slice(0, 60) } : {}), ...(isNum(t.d) ? { d: t.d } : {}), ...(isNum(t.h) ? { h: t.h } : {}), ...(typeof t.st === 'string' ? { st: t.st.slice(0, 40) } : {}), ...(isNum(t.c) ? { c: t.c } : {}), ...(t.src === 'reyestr' ? { src: 'reyestr' as const } : {}) }));
   const rounds: Round[] = (Array.isArray(d.rounds) ? d.rounds : []).filter((r: any) => r && typeof r.id === 'string' && isLL(r.at) && isNum(r.r) && r.r >= 8 && r.r <= 40).map((r: any) => ({ id: r.id, at: [r.at[0], r.at[1]] as LngLat, r: r.r, ...(r.kind === 'mini' || r.kind === 'kichik' || r.kind === 'katta' ? { kind: r.kind as RoundKind } : {}) }));
   const zones: ZoneLabel[] = (Array.isArray(d.zones) ? d.zones : []).filter((z: any) => z && typeof z.id === 'string' && isLL(z.at)).map((z: any) => ({ id: z.id, at: [z.at[0], z.at[1]] as LngLat, use: isUse(z.use) ? z.use : 'turar', ...(typeof z.sub === 'string' && /^[a-z_]{1,20}$/.test(z.sub) ? { sub: z.sub } : {}), ...(z.gen && typeof z.gen === 'object' ? { gen: z.gen } : {}) }));
   const keep: number[] = (Array.isArray(d.keep) ? d.keep : []).filter(isNum);
