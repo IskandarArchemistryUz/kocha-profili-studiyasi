@@ -8,7 +8,9 @@ import '../ui/ds2.css';
 import './bg.css';
 import type { Map as MLMap, GeoJSONSource } from 'maplibre-gl';
 import type { LngLat } from '../core/doc';
-import { scoped } from '../core/projctx';
+import { scoped, ctxProject } from '../core/projctx';
+import { svcPickBtn } from '../ui/svcpick';
+import { setSvcThumb, ringSvg } from '../storage/svcthumb';
 import { frame } from '../core/geo';
 import { h, svgIcon, toast } from '../ui/dom';
 import { tr, tf, setLang } from '../i18n';
@@ -95,6 +97,7 @@ function renderHeader(): void {
     h('a', { class: 'brand', href: '../index.html', title: 'Archemistry Lab', 'aria-label': 'Archemistry Lab' }, logoSvg(22)),
     h('span', { class: 'bg-svcw' }, svc, menu),
     S.site ? h('input', { class: 'pname', id: 'bgPname', value: S.site.name, 'aria-label': tr('Loyiha nomi'), onchange: (e: Event) => { S.site!.name = (e.target as HTMLInputElement).value.trim() || S.site!.name; sheets = []; save(); } }) : '',
+    svcPickBtn('bogshunos'),
     h('span', { class: 'sp' }),
     vseg,
     langMenu(l => { void setLang(l); }),
@@ -196,6 +199,7 @@ function stepHudud(): Node[] {
   return out;
 }
 function setSite(ring: LngLat[], name: string, srcId?: string): void {
+  setSvcThumb(ctxProject(), ringSvg(ring as [number, number][], '#d62828'));   // 23.11: Loyihalarim kartasi — bogʻ chegarasi (doim qizil)
   const o: LngLat = [ring.reduce((a, p) => a + p[0], 0) / ring.length, ring.reduce((a, p) => a + p[1], 0) / ring.length], F = frame(o);
   S.site = { name, place: 'Toshkent', origin: [+o[0].toFixed(7), +o[1].toFixed(7)], boundary: ring.map(F.toLocal), kind: S.site?.kind ?? 'tuman', rekonstruksiya: S.site?.rekonstruksiya ?? true, src: srcId ? `OSM ${srcId}` : undefined };
   data = null; A = null; V = null; S.dataKey = null; sheets = []; cands = []; drawing = null; for (const k in src) src[k] = { st: 'wait' };

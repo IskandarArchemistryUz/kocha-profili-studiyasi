@@ -65,7 +65,7 @@ test('Koʻchasoz: eski ish «… — eski ish» loyihasiga koʻchadi, yangi loyi
 });
 
 /** 22.11 (egasi): xizmat loyihasiz ochilsa — eski ish oʻzi ochilmaydi, avval oʻz loyihalari paneli */
-for (const svc of ['kochasoz', 'joyshunos', 'render']) {
+for (const svc of ['kochasoz', 'joyshunos', 'bogshunos', 'render']) {
   test(`${svc}: loyihasiz ochilganda — loyihalar paneli (eshik), xizmat yuklanmaydi`, async ({ page }) => {
     await page.route(/fonts\.g/, r => r.abort());
     await page.goto(`./${svc}.html`);
@@ -91,7 +91,7 @@ test('Loyihalarim: yangi loyiha servis tanlab ochiladi, kartalar servis belgisi 
   await expect(page.locator('#newMenu')).toBeHidden();
   await page.click('#newP');
   await expect(page.locator('#newMenu')).toBeVisible();
-  await expect(page.locator('#newMenu button')).toHaveCount(6);
+  await expect(page.locator('#newMenu button')).toHaveCount(7);   // 23.11: + Bogʻshunos
   await page.click('#newP-ks');
   await page.waitForURL(/kochasoz\.html\?p=s_\w+/);
   await expect(page.locator('#projWin')).toHaveCount(0);

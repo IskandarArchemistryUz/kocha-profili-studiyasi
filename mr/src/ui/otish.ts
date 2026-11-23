@@ -14,6 +14,7 @@ const PAL: Record<OtId, { day: string; night: string; dark: boolean; acc: string
   mr: { day: '#ffffff', night: '#141414', dark: false, acc: '20,20,20' },
   ks: { day: '#f1f3f8', night: '#0f1220', dark: false, acc: NAQSH.ks.acc },
   joy: { day: '#f7f1ec', night: '#15100d', dark: true, acc: NAQSH.joy.acc },
+  bg: { day: '#f1f6ee', night: '#10150e', dark: true, acc: NAQSH.bg.acc },
   dk: { day: '#eaf3f3', night: '#05272b', dark: true, acc: NAQSH.dk.acc },
   chz: { day: '#eee9df', night: '#17121a', dark: false, acc: NAQSH.chz.acc },
   ren: { day: '#f4f1ea', night: '#0b0b0b', dark: true, acc: NAQSH.ren.acc },
@@ -64,7 +65,7 @@ export function otishEnter(id: OtId): void {
 }
 
 /** Sarlavhadagi xizmatlar menyusi (a[data-svc]) bosilganda — oʻtish bilan */
-const SVC_OF: Record<string, OtId> = { mr: 'mr', ks: 'ks', joy: 'joy', ren: 'ren', dk: 'dk', chz: 'chz' };
+const SVC_OF: Record<string, OtId> = { mr: 'mr', ks: 'ks', joy: 'joy', bg: 'bg', ren: 'ren', dk: 'dk', chz: 'chz' };
 export function otishLinks(root: ParentNode = document): void {
   root.addEventListener('click', ev => {
     const e = ev as MouseEvent; if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

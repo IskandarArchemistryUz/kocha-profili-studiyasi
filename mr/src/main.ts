@@ -183,12 +183,13 @@ const SVC: { k: Exclude<SvcF, 'all'>; name: string; c: string; ic: string }[] = 
   { k: 'mr', name: 'Master reja', c: 'var(--ink)', ic: '<path d="M10 22h50l-6 34H4z" class="st"/><path d="M18 30h10v8H18zM32 30h12v8H32zM16 42h12v8H16zM32 42h10v8H32z"/>' },
   { k: 'ks', name: 'Koʻchasoz', c: '#4c5bd4', ic: '<path d="M2 50h60M2 46h12v4M62 46H50v4M32 50v-4M32 42v-4M10 46V28M10 28c-6 0-6-10 0-11c6 1 6 11 0 11M54 46V28M54 28c-6 0-6-10 0-11c6 1 6 11 0 11M22 46v-7h7v7M38 46v-5h9v5"/>' },
   { k: 'joy', name: 'Joyshunos', c: '#c0643a', ic: '<path d="M32 38l26 7-26 7-26-7zM32 26l26 7-26 7-26-7zM32 14l26 7-26 7-26-7z"/>' },
+  { k: 'bg', name: 'Bogʻshunos', c: '#4f8a3a', ic: '<path d="M4 8h56v44H4zM4 38c18 0 22-18 36-17s16 12 20 4M38 52c0-12 6-20 2-31"/><circle cx="14" cy="18" r="4"/><circle cx="22" cy="28" r="4"/><circle cx="50" cy="42" r="4"/>' },
   { k: 'ren', name: 'Render', c: '#c08a1e', ic: '<path d="M4 8h56v44H4zM32 8v44M8 46l10-8 10 8M18 38V24l-7 4v16M36 46l10-8 10 8M46 38V24l-7 4v16"/>' },
   { k: 'dk', name: 'Dizayn-kod', c: '#025E69', ic: '<path d="M10 52V8h30v44M18 20h6v8h-6zM28 20h6v8h-6zM20 52V40h10v12M6 52h52M8 30h34v6H8z"/>' },
   { k: 'chz', name: 'Chizmadon', c: '#8b4a9c', ic: '<path d="M8 6h48v46H8zM12 10h30v38H12zM46 10v38M16 40c6-14 14-4 22-18M48 16h6M48 22h4M48 44h6"/>' },
 ];
 let svcF: SvcF = (() => { try { return (sessionStorage.getItem('home-svcF') as SvcF) || 'all'; } catch { return 'all'; } })();
-const svcHrefOf = (k: SvcKind, id: string) => k === 'dk' ? `../dizaynkod.html?p=${encodeURIComponent(id)}` : `./${k === 'ks' ? 'kochasoz' : k === 'joy' ? 'joyshunos' : 'render'}.html?p=${encodeURIComponent(id)}`;
+const svcHrefOf = (k: SvcKind, id: string) => k === 'dk' ? `../dizaynkod.html?p=${encodeURIComponent(id)}` : `./${k === 'ks' ? 'kochasoz' : k === 'joy' ? 'joyshunos' : k === 'bg' ? 'bogshunos' : 'render'}.html?p=${encodeURIComponent(id)}`;
 /** Yangi loyiha — tanlangan servisda boʻsh sahna */
 async function newIn(k: Exclude<SvcF, 'all'>): Promise<void> {
   if (k === 'mr') { const p = blankProject(tr('Yangi loyiha')); await putProject(p); location.hash = `#/p/${p.id}`; return; }
@@ -266,13 +267,13 @@ async function home(): Promise<void> {
   const q = projQ.trim().toLowerCase();
   // 23.11: boshqa servislar loyihalari (filtr va qidiruv bilan)
   const others: { k: Exclude<SvcF, 'all' | 'mr'>; id: string; name: string; updated: string; href: string; del: () => Promise<void> | void }[] = [
-    ...(['ks', 'joy', 'ren', 'dk'] as SvcKind[]).flatMap(k => listSvc(k).map(p => ({ k, id: p.id, name: p.name, updated: p.updated, href: svcHrefOf(k, p.id), del: () => {
+    ...(['ks', 'joy', 'bg', 'ren', 'dk'] as SvcKind[]).flatMap(k => listSvc(k).map(p => ({ k, id: p.id, name: p.name, updated: p.updated, href: svcHrefOf(k, p.id), del: () => {
       removeSvc(k, p.id);
       if (k === 'dk') try { const r = indexedDB.open('archemistry-dk', 1); r.onupgradeneeded = () => r.result.createObjectStore('st'); r.onsuccess = () => { try { r.result.transaction('st', 'readwrite').objectStore('st').delete(p.id); } catch { /* */ } }; } catch { /* */ }
     } }))),
     ...chz.map(p => ({ k: 'chz' as const, id: p.id, name: p.name, updated: p.updated, href: `#/p/${p.id}/chizmadon`, del: () => deleteProject(p.id) })),
   ].filter(o => (svcF === 'all' || svcF === o.k) && (!q || o.name.toLowerCase().includes(q))).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
-  const counts = new Map<SvcF, number>([['mr', list.length], ['ks', listSvc('ks').length], ['joy', listSvc('joy').length], ['ren', listSvc('ren').length], ['dk', listSvc('dk').length], ['chz', chz.length]]);
+  const counts = new Map<SvcF, number>([['mr', list.length], ['ks', listSvc('ks').length], ['joy', listSvc('joy').length], ['bg', listSvc('bg').length], ['ren', listSvc('ren').length], ['dk', listSvc('dk').length], ['chz', chz.length]]);
   if (svcF !== 'all' && !counts.get(svcF)) svcF = 'all';
   const mrOn = svcF === 'all' || svcF === 'mr';
   const svcSeg = h('div', { class: 'seg sm', role: 'group', id: 'svcF', 'aria-label': tr('Servis'), style: 'margin-top:16px' },

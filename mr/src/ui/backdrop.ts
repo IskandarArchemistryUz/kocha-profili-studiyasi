@@ -7,11 +7,12 @@
  */
 import './naqsh/naqsh.css';
 
-export type NaqshId = 'joy' | 'ks' | 'dk' | 'chz' | 'ren' | 'bin';
+export type NaqshId = 'joy' | 'ks' | 'bg' | 'dk' | 'chz' | 'ren' | 'bin';
 /** naqsh rangi (r,g,b) va shaffofligi (kunduz, tun) — kanvasdagi bilan bir xil */
 export const NAQSH: Record<NaqshId, { acc: string; op: [number, number] }> = {
   joy: { acc: '240,138,93', op: [.55, .6] },
   ks: { acc: '76,91,212', op: [.5, .45] },
+  bg: { acc: '79,138,58', op: [.55, .5] },   // 23.11: Bogʻshunos — daraxt tojlari va yoʻlaklar
   dk: { acc: '20,154,166', op: [.35, .4] },
   chz: { acc: '139,74,156', op: [.8, .5] },
   ren: { acc: '255,197,61', op: [.3, .45] },
@@ -20,6 +21,7 @@ export const NAQSH: Record<NaqshId, { acc: string; op: [number, number] }> = {
 export const SRC: Record<NaqshId, () => Promise<{ default: string }>> = {
   joy: () => import('./naqsh/joy.svg?raw'),
   ks: () => import('./naqsh/ks.svg?raw'),
+  bg: () => import('./naqsh/bg.svg?raw'),
   dk: () => import('./naqsh/dk.svg?raw'),
   chz: () => import('./naqsh/chz.svg?raw'),
   ren: () => import('./naqsh/ren.svg?raw'),

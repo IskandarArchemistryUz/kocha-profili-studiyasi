@@ -9,16 +9,17 @@ import { ctxProject, svcHref } from '../core/projctx';
 import { listSvc, createSvc, removeSvc, touchSvc, migrateOld, type SvcKind } from '../storage/svcprojects';
 import { openProjects } from './projwin';
 
-export type SvcId = 'joyshunos' | 'kochasoz' | 'render';
-const KIND: Record<SvcId, SvcKind> = { joyshunos: 'joy', kochasoz: 'ks', render: 'ren' };
-const NAME: Record<SvcId, string> = { joyshunos: 'Joyshunos', kochasoz: 'Koʻchasoz', render: 'Render' };
+export type SvcId = 'joyshunos' | 'kochasoz' | 'bogshunos' | 'render';
+const KIND: Record<SvcId, SvcKind> = { joyshunos: 'joy', kochasoz: 'ks', bogshunos: 'bg', render: 'ren' };
+const NAME: Record<SvcId, string> = { joyshunos: 'Joyshunos', kochasoz: 'Koʻchasoz', bogshunos: 'Bogʻshunos', render: 'Render' };
 const LEAD: Record<SvcId, string> = {
   joyshunos: 'Hudud tahlili: har loyiha — oʻz hududi, qatlamlari va hisoboti.',
   kochasoz: 'Koʻcha kesimi, tarmoq va chorraha: har loyiha — oʻz koʻchasi.',
+  bogshunos: 'Landshaft master reja: har loyiha — oʻz bogʻi, variantlari va albomi.',
   render: 'Render: har loyiha — oʻz asos rasmlari va natijalari.',
 };
 /** xizmat holati kalitlari boshlanishi (eski nom bilan ham ishlatiladi) */
-export const SVC_KEYS: Record<SvcId, string[]> = { joyshunos: ['joy-', 'kps_site'], kochasoz: ['ks-'], render: ['render-'] };
+export const SVC_KEYS: Record<SvcId, string[]> = { joyshunos: ['joy-', 'kps_site'], kochasoz: ['ks-'], bogshunos: ['bg:'], render: ['render-'] };
 
 const page = () => location.pathname.split('/').pop() || '';
 /** 22.11: loyihasiz eski ish («Avvalgi ish») tanlanganini bildiruvchi belgi — busiz xizmat avval loyihalar panelini koʻrsatadi */
