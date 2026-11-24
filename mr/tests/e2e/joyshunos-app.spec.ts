@@ -111,6 +111,30 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   expect(errs).toEqual([]);
 });
 
+test('24.11: kechikkan eski javob yangisini bosib yozmaydi (raqobatchilar toifasi)', async ({ page }) => {
+  const errs: string[] = [];
+  await open(page, errs);
+  await joyTab(page, 'raqobat');
+  const big = page.locator('[data-card=raqobat] .big');
+  await expect(big).toHaveText(/^\d+ ta$/);
+  // qahvaxona soʻrovi ushlab turiladi (dorixona javobi kelguncha), dorixona — darhol
+  let release = () => {}; const gate = new Promise<void>(f => { release = f; }); let held = 0;
+  await page.route(/overpass|kumi\.systems|mail\.ru|private\.coffee/, async r => {
+    const body = decodeURIComponent(r.request().postData() || '');
+    if (!body.includes('"amenity"="cafe"')) { await r.fallback(); return; }
+    held++; await gate;
+    await r.fulfill({ contentType: 'application/json', body: JSON.stringify({ elements: ring(9, 950, () => ({ amenity: 'cafe' })) }) }).catch(() => {});
+  });
+  await page.locator('.joy-card.head .seg button', { hasText: '1250' }).click();   // qahvaxona, 1250 m — javobi kechikadi
+  await page.locator('.joy-cat').click();
+  await page.locator('.joy-menu button', { hasText: 'Dorixona' }).click();
+  await expect(big).toHaveText('3 ta');
+  expect(held).toBeGreaterThan(0);   // qahvaxona soʻrovi hali javobsiz
+  release(); await page.waitForTimeout(1500);   // kechikkan qahvaxona javobi (9 ta) endi keladi
+  await expect(page.locator('.joy-cat')).toHaveText('Dorixona');
+  await expect(big).toHaveText('3 ta');
+});
+
 test('tungi rejim va til: panel qorongʻi, inglizcha matn', async ({ page }) => {
   const errs: string[] = [];
   await page.addInitScript(() => { localStorage.setItem('mr-theme', 'dark'); });
