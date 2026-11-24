@@ -13,6 +13,7 @@ import { svcWatch } from '../storage/cloud';
 { const p = ctxProject(); if (p) svcWatch(p); }
 import { langMenu } from '../ui/langmenu';
 import { sahnaBtn } from '../ui/sahna';
+import { autoHideTop, topPinBtn } from '../ui/autohide';
 import '../ui/ds2.css';
 import './joy.css';
 import type { Map as MLMap, GeoJSONSource, Marker } from 'maplibre-gl';
@@ -706,7 +707,7 @@ const strip = h('section', { class: 'joy-strip glass', id: 'joyStrip', hidden: t
 /** 6B2 (28.10): joy pasporti va hisobot — pastda, oʻrtada; oʻlchov asboblari — pastda, chapda */
 const pass = h('section', { class: 'joy-card head joy-pass', id: 'joyPass', 'aria-label': tr('Joy pasporti') });
 const tools = h('div', { class: 'joy-mtools', id: 'joyTools' });
-root.replaceChildren(mapEl, axoEl, header, left, right, ask, legend, strip, tools, pass, axL, axN, axT, modeSw);   // 14.11: xarita uslubi — doim pastki chap asboblar ustida (baseSw tools ichida)
+root.replaceChildren(mapEl, axoEl, header, left, right, ask, legend, strip, tools, pass, axL, axN, axT);   // modeSw — sarlavha ichida (renderHeader)   // 14.11: xarita uslubi — doim pastki chap asboblar ustida (baseSw tools ichida)
 const isK = () => S.an === 'kocha';
 /** Tahlil turi: Hudud · Koʻcha (chap panel tepasida) */
 function anSwitch(): HTMLElement {
@@ -795,14 +796,20 @@ function agentBtn(): HTMLButtonElement {
   });
   return b;
 }
+/** 24.11: xizmatlar roʻyxati sarlavhaga sigʻmasa — joriydan boshqalari faqat rangli nuqta (nomi — title); oʻlchab tanlanadi */
+function fitHeader(): void { header.classList.remove('svc-tor'); if (header.scrollWidth > header.clientWidth + 1) header.classList.add('svc-tor'); }
+addEventListener('resize', fitHeader);
 function renderHeader(): void {
+  requestAnimationFrame(fitHeader);
   header.replaceChildren(
     mrBackBtn('joyshunos'),
     h('a', { class: 'brand', href: '../index.html', title: tr('Bosh sahifa'), 'aria-label': 'Archemistry Lab' }, logoSvg(20)),
     h('span', { class: 'vr' }),
-    h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
+    h('nav', { class: 'svc', 'aria-label': tr('Xizmatlar') }, ...SERVICES.map(s => h('a', { href: s.href, class: s.cur ? 'on' : '', 'aria-current': s.cur ? 'page' : null, 'data-svc': s.id, title: tr(s.name) }, h('i', { style: `background:${s.color}` }), tr(s.name), (s as { beta?: boolean }).beta ? h('em', { class: 'beta' }, 'beta') : null))),
     h('span', { class: 'sp' }),
+    modeSw,   // 24.11: Xarita / Aksonometriya — sarlavha ichida (avval ustiga absolute qoʻyilgan va xizmatlar roʻyxatini yopardi)
     sahnaBtn(),   // 18.11 (T1): sahna rejimi — P / Esc
+    topPinBtn(),   // 24.11: yuqori panel — avtomatik yashirish / qadash
     agentBtn(),
     langMenu(l => { void setLang(l); }),
     (() => { const b = h('button', { class: 'btn btn-sm btn-ghost icon-btn', id: 'themeBtn', type: 'button', title: tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), 'aria-label': tr(isDark() ? 'Yorugʻ rejim' : 'Tungi rejim'), onclick: () => toggleTheme() }); b.append(ic(isDark() ? ICON.sun : ICON.moon)); return b; })(),
@@ -1246,7 +1253,7 @@ function setRadius(r: number): void { S.r = r; save(); D.comp = { st: 'idle' }; 
 function frame(duration = 0): void {
   if (!map) return;
   const r = circleRing(S.c, S.r * 1.08, 32), xs = r.map(p => p[0]), ys = r.map(p => p[1]);
-  const pad = { top: 84, bottom: 92, left: left.offsetWidth + 36, right: right.offsetWidth + 36 };
+  const pad = { top: document.documentElement.classList.contains('top-ah') ? 24 : 84, bottom: 92, left: left.offsetWidth + 36, right: right.offsetWidth + 36 };
   try { map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: pad, duration, maxZoom: 17 }); } catch { /* juda tor oyna */ }
 }
 function pick(c: LngLat, fly = false): void {
@@ -1396,7 +1403,7 @@ addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Escape' && (p
 streetInit({
   map: () => map,
   rerender: () => { renderLeft(); renderRight(); if (isK()) { const lg = streetLegend(); legend.replaceChildren(...lg); legend.hidden = !lg.length; } },
-  fit: b => { try { map?.fitBounds(b, { padding: { top: 90, bottom: (strip.hidden ? 0 : strip.offsetHeight) + 40, left: left.offsetWidth + 40, right: right.offsetWidth + 40 }, duration: 800, maxZoom: 17.5 }); } catch { /* tor oyna */ } },
+  fit: b => { try { map?.fitBounds(b, { padding: { top: document.documentElement.classList.contains('top-ah') ? 30 : 90, bottom: (strip.hidden ? 0 : strip.offsetHeight) + 40, left: left.offsetWidth + 40, right: right.offsetWidth + 40 }, duration: 800, maxZoom: 17.5 }); } catch { /* tor oyna */ } },
   marker: el => MK?.(el) ?? null,
 });
 const fc = (features: unknown[]) => ({ type: 'FeatureCollection', features });
@@ -2823,7 +2830,7 @@ async function exportPng(): Promise<void> {
   if (b) { b.disabled = false; b.textContent = coinLabel('PNG · 4K', 'joy.png').text; }
 }
 
-function renderAll(): void { root.classList.toggle('an-kocha', isK()); renderHeader(); renderLeft(); renderRight(); renderAsk(); renderBase(); renderMode(); if (mode === 'axo') renderAxo(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
+function renderAll(): void { root.classList.toggle('an-kocha', isK()); renderHeader(); autoHideTop(header); renderLeft(); renderRight(); renderAsk(); renderBase(); renderMode(); if (mode === 'axo') renderAxo(); document.title = `${tr('Joyshunos')} · Archemistry Lab`; }
 renderAll();
 onPrices(() => renderAll());   // E3: narx yuklangach tugmalardagi tanga
 onLang(() => { renderAll(); paint(); document.documentElement.lang = getLang(); });

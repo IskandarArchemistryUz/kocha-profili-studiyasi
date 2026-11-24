@@ -475,4 +475,9 @@ svg.chev{width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2.2;s
 /* 18.11 (T1): sahna rejimi (ui/sahna.ts) — chiqish tugmasi barcha xizmatlarda pastda chapda */
 .sahna-exit{position:fixed;left:12px;bottom:12px;z-index:60;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;box-shadow:var(--sh-float,0 4px 16px rgba(0,0,0,.12))}
 .sahna-exit svg{width:16px;height:16px}
+/* 24.11: yuqori panel yashirin — tepada kichik tutqich (planshet va yangi foydalanuvchi uchun) */
+.top-ah-tab{display:none}
+html.top-ah:not(.top-ah-show):not(.sahna) .top-ah-tab{display:grid;place-items:center;position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:60;width:56px;height:16px;padding:0;border:0;border-radius:0 0 10px 10px;color:var(--muted);cursor:pointer;box-shadow:var(--sh-float,0 2px 8px rgba(0,0,0,.12))}
+.top-ah-tab svg{width:16px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.top-ah-tab:hover{color:var(--ink)}
 #sahnaBtn[aria-pressed=true]{background:var(--ink);color:var(--surface)}
