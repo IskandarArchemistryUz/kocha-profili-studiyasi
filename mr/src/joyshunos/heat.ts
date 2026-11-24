@@ -5,6 +5,7 @@
  * Bu havo harorati emas — sirt harorati; 1 km piksel: mahalla darajasi, alohida bino emas.
  */
 import type { LngLat } from '../core/doc';
+import { dataFile, DATA_SRC } from '../context/datafile';
 
 export const GIBS = 'https://gibs.earthdata.nasa.gov';
 export const LST_LAYER = 'MODIS_Terra_L3_Land_Surface_Temp_8Day_Day';
@@ -106,7 +107,7 @@ export function bilinear(v: Float32Array, n: number, step: number, x: number, y:
 /* ---------- Landsat 8/9 (oldindan hisoblangan, lst-data branchi) ----------
  * Quvur: landsat_yoz_harorat.py (USGS Landsat C2 L2 ST_B10, Microsoft Planetary Computer) — iyun–avgust medianasi, haqiqiy piksel 100 m.
  * Fayl: uint16 LE = (°C + 50) · 100, 0 — maʼlumot yoʻq; 0-qator shimol; qadam `qadam` gradus. Qamrovdan tashqarida MODIS ishlatiladi. */
-export const LST_DATA = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/lst-data/data/lst';
+export const LST_DATA = DATA_SRC.lst;
 export const LST_REGIONS = ['toshkent'];
 /** Doira ichidagi kataklarning shuncha ulushida maʼlumot boʻlmasa — MODIS ga qaytiladi */
 export const LST_MIN_COVER = 0.8;
@@ -140,13 +141,15 @@ export function landsatGrid(ix: LstIndex, year: number, q: Uint16Array, c: LngLa
 const ixCache = new Map<string, Promise<LstIndex | null>>(), binCache = new Map<string, Promise<Uint16Array>>();
 /** Uchastka Landsat qamrovida boʻlsa — Landsat to'ri, aks holda null (MODIS ga qaytiladi). Tarmoq xatosi ham null. */
 export async function loadLstLandsat(c: LngLat, R: number, step: number, f: typeof fetch = fetch, regions = LST_REGIONS, base = LST_DATA, want?: number): Promise<LstGrid | null> {
+  // 24.11: sukut manzilda — avval oʻz serverimizdagi nusxa, boʻlmasa manba (datafile.ts); boshqa `base` (test) — toʻgʻridan-toʻgʻri
+  const get = (name: string) => (base === LST_DATA ? dataFile('lst', name, f) : f(`${base}/${name}`));
   for (const h of regions) {
     const ku = `${base}/${h}_index.json`;
-    if (!ixCache.has(ku)) ixCache.set(ku, f(ku).then(r => (r.ok ? r.json() as Promise<LstIndex> : null)).catch(() => null));
+    if (!ixCache.has(ku)) ixCache.set(ku, get(`${h}_index.json`).then(r => (r.ok ? r.json() as Promise<LstIndex> : null)).catch(() => null));
     const ix = await ixCache.get(ku)!; if (!ix || !lstIndexHas(ix, c)) { if (!ix) ixCache.delete(ku); continue; }
     const y = lstLatestYear(ix, want); if (y == null) continue;
     const bu = `${base}/${ix.yillar[String(y)].fayl}`;
-    if (!binCache.has(bu)) binCache.set(bu, f(bu).then(async r => { if (!r.ok) throw new Error(`Landsat ${r.status}`); return new Uint16Array(await r.arrayBuffer()); }));
+    if (!binCache.has(bu)) binCache.set(bu, get(ix.yillar[String(y)].fayl).then(async r => { if (!r.ok) throw new Error(`Landsat ${r.status}`); return new Uint16Array(await r.arrayBuffer()); }));
     let q: Uint16Array; try { q = await binCache.get(bu)!; } catch { binCache.delete(bu); return null; }
     if (q.length !== ix.nx * ix.ny) return null;
     const { g, cover } = landsatGrid(ix, y, q, c, R, step);
