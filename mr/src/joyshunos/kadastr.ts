@@ -3,7 +3,9 @@
    «Ijtimoiy skaner» → shaxsiy qatlam orqali koʻradi (server, faqat oʻz hisobida). Kanvas boardlari 16 (uylar yoshi),
    17 (aholi zichligi), 18 (seysmik eʼtibor). */
 
-export const KAD_DATA = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/kadastr-agregat/data/kadastr';
+import { dataFile, DATA_SRC } from '../context/datafile';
+
+export const KAD_DATA = DATA_SRC.kadastr;
 
 export interface KadIndex { bbox: [number, number, number, number]; qadam: [number, number]; nx: number; ny: number; sana?: string; manba?: string }
 export interface KadGrid { ix: KadIndex; aholi: Uint16Array; kku: Uint16Array; yil: Uint16Array; sq: Uint16Array }
@@ -15,8 +17,10 @@ async function gunzip(buf: ArrayBuffer): Promise<ArrayBuffer> {
 
 /** Toʻrni yuklash; xato boʻlsa — istisno */
 export async function loadKadastr(f: typeof fetch = fetch, base = KAD_DATA): Promise<KadGrid> {
-  const ix = await (await f(`${base}/toshkent_index.json`)).json() as KadIndex;
-  const r = await f(`${base}/toshkent_50m.bin.gz`); if (!r.ok) throw new Error(`kadastr ${r.status}`);
+  // 24.11: sukut manzilda — avval oʻz serverimizdagi nusxa, boʻlmasa manba (datafile.ts)
+  const get = (name: string) => (base === KAD_DATA ? dataFile('kadastr', name, f) : f(`${base}/${name}`));
+  const ix = await (await get('toshkent_index.json')).json() as KadIndex;
+  const r = await get('toshkent_50m.bin.gz'); if (!r.ok) throw new Error(`kadastr ${r.status}`);
   const raw = await gunzip(await r.arrayBuffer()), n = ix.nx * ix.ny;
   if (raw.byteLength < 8 * n) throw new Error('kadastr: fayl qisqa');
   const all = new Uint16Array(raw, 0, 4 * n);

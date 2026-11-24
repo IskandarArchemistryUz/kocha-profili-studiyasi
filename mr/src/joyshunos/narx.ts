@@ -7,8 +7,9 @@
  * Toʻr narx_hex.py bilan aynan bir xil (oʻzgartirmang): boshi 41.10 / 69.05, pointy-top axial (q, r).
  */
 import type { LngLat } from '../core/doc';
+import { dataFile, DATA_SRC } from '../context/datafile';
 
-export const NARX_URL = 'https://raw.githubusercontent.com/IskandarArchemistryUz/kocha-profili-studiyasi/narx-monitoring/data/narx/toshkent_hex.json';
+export const NARX_FILE = 'toshkent_hex.json', NARX_URL = `${DATA_SRC.narx}/${NARX_FILE}`;
 /** kvartira | hovli | hammasi | ijara_kvartira | ijara_hovli | <kat>_yangi | <kat>_ikkilamchi */
 export type NarxKat = string;
 /** [q, r, n, median, p25, p75] — narxli; [q, r, 0] — eʼlon yoʻq; [q, r, -1] — 5 tadan kam */
@@ -45,7 +46,7 @@ export function narxCallouts(d: NarxData, k: NarxKat, c: LngLat, R: number, minN
 
 let memo: Promise<NarxData> | null = null;
 export function loadNarx(f: typeof fetch = fetch): Promise<NarxData> {
-  memo ??= f(NARX_URL).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<NarxData>; }).catch(e => { memo = null; throw e; });
+  memo ??= dataFile('narx', NARX_FILE, f).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<NarxData>; }).catch(e => { memo = null; throw e; });
   return memo;
 }
 
