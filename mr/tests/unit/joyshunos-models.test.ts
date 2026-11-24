@@ -38,4 +38,15 @@ describe('Joyshunos · tarmoq modellari', () => {
     expect(noiseAt(g)).toBeGreaterThan(70);
     expect(noiseShare(g, 65)).toBeGreaterThan(0); expect(noiseShare(g, 65)).toBeLessThan(0.3);
   });
+  it('shovqin: magistraldan 300 m narida ham kesilmaydi (24.11) — 3 dB / ikki baravar davom etadi', () => {
+    const at = (d: number, cls = 'trunk') => noiseAt(noiseGrid([{ cls, pts: [[-d, -3000], [-d, 3000]] }], 100, 50));
+    expect(at(200)).toBeGreaterThan(60); expect(at(200)).toBeLessThan(62);
+    expect(at(200) - at(400)).toBeGreaterThan(2.5); expect(at(200) - at(400)).toBeLessThan(3.5);   // avval: 60,8 → 35
+    expect(at(800)).toBeGreaterThan(53);
+    expect(at(600, 'motorway')).toBeGreaterThan(at(600));   // avtomagistral — eng kuchli manba
+    expect(at(600, 'residential')).toBe(35);
+    // uzoq maydon (katakka jamlangan) aniq formulaga mos: 6 km lik toʻgʻri yoʻl uchun analitik qiymat (2·atan(3000/d)/π · P/d)
+    const exact = (d: number) => 10 * Math.log10(2 * Math.atan(3000 / d) / Math.PI * Math.pow(10, 7.4) * 10 / d);
+    for (const d of [200, 450, 900, 1500]) expect(Math.abs(at(d) - exact(d))).toBeLessThan(0.15);
+  });
 });
