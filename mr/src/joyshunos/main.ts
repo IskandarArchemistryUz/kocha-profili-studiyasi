@@ -159,12 +159,13 @@ function loadKad(): void {
 }
 const ctx = new ContextManager();
 /** Tarmoq modellari (piyoda, oqim, shovqin) — xizmatlar soʻrovidagi yoʻllardan, nuqta oʻzgarganda qayta */
-type NetM = { pers?: string; key: string; net: Net; strict: Net; flowSrc?: string; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>> };
+type NetM = { pers?: string; key: string; net: Net; strict: Net; flowSrc?: string; fr: ReturnType<typeof geoFrame>; reach?: Reach; flow?: Float32Array; noise?: { n: number; step: number; v: Float32Array; R: number }; near?: Partial<Record<Svc, number>>; /** 24.11: hisobi xato bergan model — qayta urinilmaydi, kartada xato va «Qayta urinish» */ err?: Partial<Record<NmJob, { msg: string; k: string }>> };
+type NmJob = 'reach' | 'flow' | 'noise';
 let NM: NetM | null = null, nmBusy = false;
 function netModels(): NetM | null {
   const pb = D.poi.v; if (!pb) return null;
   const key = `${S.c.join()}|${S.r}`;
-  if (NM?.key.startsWith(S.c.join() + '|')) { if (NM.key !== key) { NM.key = key; NM.flow = undefined; NM.noise = undefined; } }
+  if (NM?.key.startsWith(S.c.join() + '|')) { if (NM.key !== key) { NM.key = key; NM.flow = undefined; NM.noise = undefined; if (NM.err) { NM.err.flow = undefined; NM.err.noise = undefined; } } }
   else { const fr = geoFrame(S.c), rs = pb.roads.map(r => ({ cls: r.cls, f: r.f, pts: r.pts.map(p => fr.toLocal(p)) })), net = walkNet(rs); NM = { key, fr, net, strict: strictNet(net, rs) }; }
   return NM;
 }
@@ -173,7 +174,9 @@ function computeNet(): void {
   const m = netModels(); if (!m || nmBusy) return;
   if (m.reach && m.pers !== pers()) m.reach = undefined;
   if (m.flow && m.flowSrc !== flowSrc()) m.flow = undefined;   // aholi/bino maʼlumoti keyin kelsa — oqim qayta
-  const job = isOn('piyoda') && !m.reach ? 'reach' : isOn('oqim') && !m.flow ? 'flow' : isOn('shovqin') && !m.noise ? 'noise' : null; if (!job) return;
+  // xato bergan hisob oʻsha kirish bilan qayta urinilmaydi (persona / aholi manbasi oʻzgarsa — yangi urinish)
+  const ek = (j: NmJob) => (j === 'reach' ? pers() : j === 'flow' ? flowSrc() : ''), bad = (j: NmJob) => m.err?.[j]?.k === ek(j);
+  const job: NmJob | null = isOn('piyoda') && !m.reach && !bad('reach') ? 'reach' : isOn('oqim') && !m.flow && !bad('flow') ? 'flow' : isOn('shovqin') && !m.noise && !bad('noise') ? 'noise' : null; if (!job) return;
   nmBusy = true;
   setTimeout(() => {
     try {
@@ -200,7 +203,7 @@ function computeNet(): void {
         const R = S.r, roads = pb.roads.map(r => ({ cls: r.cls, pts: r.pts.map(p => m.fr.toLocal(p)) }));
         m.noise = { ...noiseGrid(roads, R, Math.max(8, R / 55)), R };
       }
-    } catch (e) { console.warn('Joyshunos model', e); }
+    } catch (e) { console.warn('Joyshunos model', e); m.err = { ...m.err, [job]: { msg: (e as Error).message || String(e), k: ek(job) } }; }   // avval: xatoda oʻzini cheksiz qayta chaqirardi
     nmBusy = false; renderRight(); paint(); computeNet();
   }, 30);
 }
@@ -1074,7 +1077,8 @@ function renderRightH(): void {
         h('span', { class: 'src' }, u(tf('uybor.uz eʼlonlari, ${s}. Soʻralgan narx, bitim narxi emas: auksion, takror va chetki qiymatlar chiqarilgan. Katak — ${w} m; 5 tadan kam eʼlonli katakda narx koʻrsatilmaydi.', { s: d.sana, w: fmt(narxSize(k)) })))] : [],
       null, D.narx));
   }
-  const busy: Ld<unknown> = D.poi.st !== 'ok' ? D.poi : { st: 'load' };
+  const busy0: Ld<unknown> = D.poi.st !== 'ok' ? D.poi : { st: 'load' };
+  const busyOf = (j: NmJob): Ld<unknown> => (D.poi.st === 'ok' && NM?.err?.[j] ? { st: 'err', err: NM.err[j]!.msg } : busy0);
   if (isOn('piyoda')) {
     const r = NM?.reach, nr = NM?.near ?? {}, ha = (m2: number) => fmt(m2 / 10000, 1);
     const all = NM?.pers === 'hammasi';
@@ -1083,7 +1087,7 @@ function renderRightH(): void {
         r.directness != null ? tf('Tarmoq toʻgʻriligi: ${d} (1 — toʻgʻri chiziq; 0,7 dan past — aylanma yoʻllar)', { d: fmt(r.directness, 2) }) : '',
         h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[pers()]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
         h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), pers() !== 'yosh' && PERSONA[pers()] ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[pers()].note) })}` : all ? ` ${tr('Har persona — 10 daqiqa, tezliklar taxminiy; aravacha uchun zinapoya va bordyur hali hisobga olinmagan.')}` : '')] : [],
-      null, r ? undefined : busy));
+      null, r ? undefined : busyOf('reach')));
   }
   if (isOn('skaner')) {
     const r = SK?.res, sel = r && skSel != null ? r.b[skSel] : null, R = (k: Svc) => svcDef(k).r;
@@ -1108,7 +1112,7 @@ function renderRightH(): void {
     const F = NM?.flow, v = F && NM ? flowAt(NM.net, F) : null;
     cards.push(card(L('oqim'), tr('model'), v != null ? tr(flowClass(v)) : '—',
       v != null ? [tf('Oqim indeksi ${v} (0–1, hududdagi 95-persentilga nisbatan).', { v: fmt(v, 2) }), h('br'), h('span', { class: 'src' }, tr('Model: piyoda tarmogʻida 800 m gacha eng qisqa yoʻllar; manzillar vazni — bekatlar, metro, savdo va xizmatlar. Haqiqiy sanoq emas — haftaning 2 kunida 15 daqiqalik sanoq bilan tasdiqlang.'))] : [],
-      null, v != null ? undefined : busy));
+      null, v != null ? undefined : busyOf('flow')));
   }
   if (isOn('shovqin')) {
     const g = NM?.noise;
@@ -1116,7 +1120,7 @@ function renderRightH(): void {
       g ? [tf('Lden, markazda. Doira ichida: ≥ 65 dB — ${a} %, ≥ 53 dB (JSST tavsiyasi) — ${b} %.', { a: fmt(noiseShare(g, 65) * 100), b: fmt(noiseShare(g, 53) * 100) }), h('br'),
         V('shovqin').st === 'nyc' ? h('ul', { class: 'joy-norm' }, ...([[70, Infinity, '> 70'], [65, 70, '65–70'], [60, 65, '60–65'], [55, 60, '55–60'], [50, 55, '50–55']] as const).map(([a, b, n]) => h('li', {}, h('span', {}, h('i', { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${noiseCol(a + 0.1)}` }), `${n} dB`), h('b', {}, `${fmt((noiseShare(g, a) - (b === Infinity ? 0 : noiseShare(g, b))) * 100)} %`), h('em', {}, tr('doiraning'))))) : '',
         h('span', { class: 'src' }, tr('Model: yoʻl toifasidan manba darajasi, chiziqli tarqalish (3 dB / ikki baravar). Binolar toʻsiqligi, tezlik va oqim hisobga olinmagan. JSST: Environmental Noise Guidelines for the European Region (2018), yoʻl transporti Lden 53 dB.'))] : [],
-      null, g ? undefined : busy));
+      null, g ? undefined : busyOf('noise')));
   }
   if (isOn('issiqlik')) {
     const g = D.lst.v, st = g ? lstStats(g, S.r) : null, sg = (v: number) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v), 1)}`;
@@ -1216,6 +1220,7 @@ function retry(id: LayerId): void {
   if (id === 'shamol') D.wind = { st: 'idle' };
   if (id === 'issiqlik') D.lst = { st: 'idle' };
   if (id === 'narx') D.narx = { st: 'idle' };
+  if (id === 'piyoda' || id === 'oqim' || id === 'shovqin') { if (D.poi.st === 'err') D.poi = { st: 'idle' }; else if (NM?.err) NM.err[id === 'piyoda' ? 'reach' : id === 'oqim' ? 'flow' : 'noise'] = undefined; }
   ensure();
 }
 
@@ -1253,10 +1258,13 @@ function pick(c: LngLat, fly = false): void {
   ensure();
   if (mode === 'axo') void enterAxo();
 }
+/** 24.11: har maʼlumot turi uchun oxirgi soʻrov raqami. Avval faqat seq (nuqta) tekshirilardi: radius, raqobat toifasi yoki issiqlik yili
+ *  almashtirilganda kechikkan eski javob (Overpass 25–30 s) yangisini bosib yozardi — «Dorixona» kartasida qahvaxonalar soni. */
+const runN: Partial<Record<keyof typeof D, number>> = {};
 function run<T>(k: keyof typeof D, job: () => Promise<T>): void {
-  const my = seq; (D[k] as Ld<T>) = { st: 'load' };
-  job().then(v => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'ok', v }; if (k === 'poi') computeNet(); renderRight(); paint(); if (mode === 'axo' && k !== 'ter') { if (k === 'addr') renderAxo(); else axBuild(); } })
-    .catch(e => { if (my !== seq) return; (D[k] as Ld<T>) = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); });
+  const my = seq, id = runN[k] = (runN[k] ?? 0) + 1; (D[k] as Ld<T>) = { st: 'load' };
+  job().then(v => { if (my !== seq || id !== runN[k]) return; (D[k] as Ld<T>) = { st: 'ok', v }; if (k === 'poi') computeNet(); renderRight(); paint(); if (mode === 'axo' && k !== 'ter') { if (k === 'addr') renderAxo(); else axBuild(); } })
+    .catch(e => { if (my !== seq || id !== runN[k]) return; (D[k] as Ld<T>) = { st: 'err', err: (e as Error).message || String(e) }; renderRight(); });
 }
 let cmap: Promise<Map<number, number>> | null = null;
 async function getTile(date: string, z: number, x: number, y: number): Promise<Px | null> {
