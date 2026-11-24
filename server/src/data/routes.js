@@ -3,11 +3,13 @@
    GET  /data/sources  — manbalar reyestri (litsenziya, atributsiya).
    GET  /data/overture/buildings?bbox=w,s,e,n — Overture binolari (≤ 0,06°), 90 kun kesh; kalit bbox 4 xonaga yaxlitlanadi.
    GET  /data/wind?lat=&lon= — ERA5 shamol guli (0,25° katak), 10 yil kesh; tayyorlanayotgan bo'lsa 202.
-        ERA5 kaliti yo'q yoki Copernicus yiqilsa — NASA POWER (kalitsiz, 0,5° katak), 10 yil kesh (12.11.2026). */
+        ERA5 kaliti yo'q yoki Copernicus yiqilsa — NASA POWER (kalitsiz, 0,5° katak), 10 yil kesh (12.11.2026).
+   GET  /data/file/:set/:name — tayyor ma'lumot fayllari nusxasi (lst, narx, kadastr), 1 kun; manba yiqilsa — eski nusxa (files.js, 24.11.2026). */
 import { SOURCES, sourceInfo } from './sources.js';
 import { makeOverture, MAX_SPAN } from './overture.js';
 import { snap } from './era5.js';
 import { snapP } from './power.js';
+import { registerFiles } from './files.js';
 
 export const OVERPASS_SERVERS = [
   'https://overpass-api.de/api/interpreter',
@@ -22,7 +24,9 @@ export const TREES_SPAN = 0.02;
 // shaxsga oid maydonlar (volunteer_id, dendrologist_id) soʻralmaydi (14.11.2026)
 const TREE_FIELDS = ['dbh_cm', 'crowndiameter_m', 'height_m', 'name_oz', 'name_ru', 'is_verified', 'geom'];
 
-export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 25_000, overture = makeOverture({ fetchImpl }), era5 = null, power = null, powerWaitMs = 20_000 }) {
+export function registerData(app, { cache, fetchImpl = fetch, servers = OVERPASS_SERVERS, limited, timeoutMs = 25_000, overture = makeOverture({ fetchImpl }), era5 = null, power = null, powerWaitMs = 20_000, files = null }) {
+  // GET /data/file/:set/:name — tayyor maʼlumot fayllari (Landsat, narx, kadastr agregati) server nusxasidan — files.js
+  if (files?.dir) registerFiles(app, { dir: files.dir, fetchImpl, limited, timeoutMs, now: files.now });
   app.get('/data/sources', async () => ({ sources: Object.keys(SOURCES).map(sourceInfo) }));
 
   const inflight = new Map();   // bir xil so'rov bir vaqtda kelsa — bitta tashqi so'rov

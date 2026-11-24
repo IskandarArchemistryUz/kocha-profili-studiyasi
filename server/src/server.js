@@ -65,7 +65,9 @@ const app = await buildApp({
   origins: (env.ORIGINS || 'https://archemistry.uz,https://www.archemistry.uz').split(','),
   cookieDomain: env.COOKIE_DOMAIN || undefined,
   // hudud ma'lumoti keshi: sukut — server/cache (xizmat faqat /srv/archemistry/server ga yoza oladi), 20 GB
-  data: { cache: makeCache({ dir: env.DATA_CACHE_DIR || fileURLToPath(new URL('../cache', import.meta.url)), maxBytes: Number(env.DATA_CACHE_GB || 20) * 2 ** 30 }), era5: makeEra5({ key: env.CDS_API_KEY || null }), power: env.NASA_POWER === '0' ? null : makePower() },
+  data: { cache: makeCache({ dir: env.DATA_CACHE_DIR || fileURLToPath(new URL('../cache', import.meta.url)), maxBytes: Number(env.DATA_CACHE_GB || 20) * 2 ** 30 }), era5: makeEra5({ key: env.CDS_API_KEY || null }), power: env.NASA_POWER === '0' ? null : makePower(),
+    // tayyor maʼlumot fayllari nusxasi: sukut — server/files (kesh kabi, xizmat yoza oladigan joy)
+    files: { dir: env.DATA_FILES_DIR || fileURLToPath(new URL('../files', import.meta.url)) } },
   mapKeys: { arcgis: env.ARCGIS_API_KEY || null },
   // agent «Maslahatchi»: kalit boʻlmasa oʻchiq. Narx/chegara — .env (AGENT_*), sukut agent.js: AGENT_DEFAULTS
   agent: env.ANTHROPIC_API_KEY ? {
