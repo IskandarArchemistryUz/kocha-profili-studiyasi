@@ -42,6 +42,9 @@ export interface SkBuilding {
   /** 6 yoʻnalish bali (SK_DIMS tartibida) */ s: number[];
   comp: number; weak: number;
 }
+/** 24.11: skanerga kirmaydigan binolar (OSM building=*): yordamchi va noturar. «yes» va nomaʼlum turlar qoladi — OSM da koʻp uylar shunday chizilgan. */
+export const SK_SKIP = /^(garage|garages|carport|parking|shed|hut|roof|kiosk|toilets|service|transformer_tower|greenhouse|barn|stable|sty|cowshed|farm_auxiliary|silo|storage_tank|hangar|industrial|warehouse|manufacture|retail|commercial|office|supermarket|school|kindergarten|university|college|hospital|public|government|civic|mosque|church|cathedral|chapel|temple|synagogue|religious|shrine|stadium|sports_hall|grandstand|pavilion|train_station|transportation|fire_station|bunker|ruins|construction|bridge|gatehouse|guardhouse|container|tent)$/;
+
 export interface SkResult { b: SkBuilding[]; mean: number[]; comp: number; bins: number[] }
 
 const centroid = (ring: XY[]): XY => {
@@ -55,16 +58,18 @@ const centroid = (ring: XY[]): XY => {
  * @param net   piyoda tarmogʻi (mahalliy metr)
  * @param rings binolar konturlari (mahalliy metr, tashqi halqa)
  * @param pois  xizmat obyektlari turi bo'yicha (mahalliy metr) — OSM va «hisobga kiritilgan» qoʻshilganlar
+ * @param w     (24.11) har bino vazni — qavat maydoni (aholining taxminiy oʻlchovi): hudud oʻrtachalari shu vazn bilan; berilmasa — har bino teng
  */
-export function skScan(net: Net, rings: XY[][], pois: Partial<Record<Svc, XY[]>>): SkResult {
+export function skScan(net: Net, rings: XY[][], pois: Partial<Record<Svc, XY[]>>, w?: number[]): SkResult {
   const kinds = [...new Set(SK_DIMS.flatMap(d => d.kinds))];
   const R = Object.fromEntries(kinds.map(k => [k, svcDef(k).r])) as Record<Svc, number>;
   // har tur uchun bitta koʻp manbali Dijkstra (3 × radius dan nariga bormaydi — ball baribir 0)
   const field = new Map<Svc, Float64Array>();
   for (const k of kinds) { const src = pois[k] ?? []; if (src.length) field.set(k, sssp(net, src, 3 * R[k] + 400).D); }
   const out: SkBuilding[] = [];
-  for (const ring of rings) {
-    if (ring.length < 3) continue;
+  const ws: number[] = [];
+  rings.forEach((ring, ri) => {
+    if (ring.length < 3) return;
     const c = centroid(ring), s0 = snap(net, c, 250);
     const d: Partial<Record<Svc, number>> = {};
     for (const k of kinds) {
@@ -78,10 +83,10 @@ export function skScan(net: Net, rings: XY[][], pois: Partial<Record<Svc, XY[]>>
     }
     const s = SK_DIMS.map(dim => Math.max(...dim.kinds.map(k => skScore(d[k] ?? Infinity, R[k]))));
     let weak = 0; s.forEach((v, i) => { if (v < s[weak]) weak = i; });
-    out.push({ c, d, s, comp: Math.round(s.reduce((a, v) => a + v, 0) / s.length), weak });
-  }
-  const n = Math.max(1, out.length);
-  const mean = SK_DIMS.map((_, i) => Math.round(out.reduce((a, b) => a + b.s[i], 0) / n));
+    out.push({ c, d, s, comp: Math.round(s.reduce((a, v) => a + v, 0) / s.length), weak }); ws.push(w && w[ri] > 0 ? w[ri] : 1);
+  });
+  const n = ws.reduce((a, v) => a + v, 0) || 1;
+  const mean = SK_DIMS.map((_, i) => Math.round(out.reduce((a, b, k) => a + b.s[i] * ws[k], 0) / n));
   const bins = SK_BINS.map(() => 0); for (const b of out) bins[SK_BINS.findIndex(([t]) => b.comp < t)]++;
-  return { b: out, mean, comp: Math.round(out.reduce((a, b) => a + b.comp, 0) / n), bins };
+  return { b: out, mean, comp: Math.round(out.reduce((a, b, k) => a + b.comp * ws[k], 0) / n), bins };
 }

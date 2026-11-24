@@ -14,9 +14,14 @@ export interface Poi { id: string; kind: Svc; at: LngLat; name?: string }
 export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[]; f?: string; id?: number }[]; attr?: { at: LngLat; w: number }[] }
 
 export const POI_R = 2000;
+/** 24.11: xizmat obyektlari yoʻllardan kengroq kvadratda olinadi. Avval ikkalasi ham 2 000 m edi: 1 250 m doiraning chekkasidagi bino uchun
+ *  tashqariga atigi 750 m maʼlumot bor edi (poliklinika radiusi — 1 500 m) va Ijtimoiy skaner chekkada sunʼiy past ball berardi.
+ *  Yoʻllar (ogʻir qism, out geom) — avvalgidek POI_R; tarmoqdan tashqaridagi obyektgacha masofa — toʻgʻri chiziq × 1,3 (skaner.ts). */
+export const POI_WIDE = 3500;
 /** poi5 (14.11): yoʻllarda OSM id — loyihada olib tashlangan / koʻchaga aylantirilgan yoʻllarni ajratish uchun.
- *  poi6 (24.11): avtomagistral (motorway, motorway_link) ham olinadi — shovqin manbai; piyoda tarmogʻiga kirmaydi (WALKABLE). */
-export const poiKey = (c: LngLat) => `poi6:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
+ *  poi6 (24.11): avtomagistral (motorway, motorway_link) ham olinadi — shovqin manbai; piyoda tarmogʻiga kirmaydi (WALKABLE).
+ *  poi7 (24.11): xizmat obyektlari POI_WIDE kvadratida. */
+export const poiKey = (c: LngLat) => `poi7:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
 
 const SHOP = /^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$/;
 export function classify(t: Record<string, string>): Svc | null {
@@ -81,21 +86,21 @@ export function roadFlags(t: Record<string, string>): string {
 }
 
 export async function fetchPoi(center: LngLat, f: typeof fetch = fetch.bind(globalThis)): Promise<PoiBundle> {
-  const bb = bboxAround(center, POI_R).map(v => v.toFixed(6)).join(',');
-  const q = `[out:json][timeout:90][bbox:${bb}];(
-  nwr["amenity"~"^(school|kindergarten|clinic|hospital|pharmacy|marketplace|community_centre|townhall)$"];
-  nwr["healthcare"~"^(clinic|hospital|pharmacy)$"];
-  nwr["shop"~"^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$"];
-  nwr["leisure"~"^(sports_centre|fitness_centre|stadium|sports_hall)$"];
-  way["building"~"^(school|kindergarten|hospital)$"];
-  node["highway"="bus_stop"];
-  node["railway"~"^(tram_stop|subway_entrance)$"];
-  nwr["public_transport"="platform"]["bus"="yes"];
-  nwr["public_transport"="platform"]["trolleybus"="yes"];
-  nwr["railway"="station"]["station"="subway"];
-  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court|university|college|cinema|theatre)$"];
+  const B = (R: number) => `(${bboxAround(center, R).map(v => v.toFixed(6)).join(',')})`, w = B(POI_WIDE), r = B(POI_R);
+  const q = `[out:json][timeout:90];(
+  nwr["amenity"~"^(school|kindergarten|clinic|hospital|pharmacy|marketplace|community_centre|townhall)$"]${w};
+  nwr["healthcare"~"^(clinic|hospital|pharmacy)$"]${w};
+  nwr["shop"~"^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$"]${w};
+  nwr["leisure"~"^(sports_centre|fitness_centre|stadium|sports_hall)$"]${w};
+  way["building"~"^(school|kindergarten|hospital)$"]${w};
+  node["highway"="bus_stop"]${w};
+  node["railway"~"^(tram_stop|subway_entrance)$"]${w};
+  nwr["public_transport"="platform"]["bus"="yes"]${w};
+  nwr["public_transport"="platform"]["trolleybus"="yes"]${w};
+  nwr["railway"="station"]["station"="subway"]${w};
+  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court|university|college|cinema|theatre)$"]${r};
 );out center qt;
-way["highway"]["area"!="yes"]["highway"!~"^(construction|proposed|raceway|bus_guideway)$"];out geom qt;`;
+way["highway"]["area"!="yes"]["highway"!~"^(construction|proposed|raceway|bus_guideway)$"]${r};out geom qt;`;
   const j = await overpass(q, f, () => {}) as { elements?: El[] };
   return { center, radius: POI_R, fetched: new Date().toISOString(), pois: parsePoi(j), roads: parseRoads(j), attr: parseAttr(j) };
 }
