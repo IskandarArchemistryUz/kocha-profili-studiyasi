@@ -14,8 +14,9 @@ export interface Poi { id: string; kind: Svc; at: LngLat; name?: string }
 export interface PoiBundle { center: LngLat; radius: number; fetched: string; pois: Poi[]; roads: { cls: string; pts: LngLat[]; f?: string; id?: number }[]; attr?: { at: LngLat; w: number }[] }
 
 export const POI_R = 2000;
-/** poi5 (14.11): yoʻllarda OSM id — loyihada olib tashlangan / koʻchaga aylantirilgan yoʻllarni ajratish uchun */
-export const poiKey = (c: LngLat) => `poi5:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
+/** poi5 (14.11): yoʻllarda OSM id — loyihada olib tashlangan / koʻchaga aylantirilgan yoʻllarni ajratish uchun.
+ *  poi6 (24.11): avtomagistral (motorway, motorway_link) ham olinadi — shovqin manbai; piyoda tarmogʻiga kirmaydi (WALKABLE). */
+export const poiKey = (c: LngLat) => `poi6:${c[0].toFixed(3)},${c[1].toFixed(3)}`;
 
 const SHOP = /^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$/;
 export function classify(t: Record<string, string>): Svc | null {
@@ -94,7 +95,7 @@ export async function fetchPoi(center: LngLat, f: typeof fetch = fetch.bind(glob
   nwr["railway"="station"]["station"="subway"];
   nwr["amenity"~"^(restaurant|cafe|fast_food|food_court|university|college|cinema|theatre)$"];
 );out center qt;
-way["highway"]["area"!="yes"]["highway"!~"^(motorway|motorway_link|construction|proposed|raceway|bus_guideway)$"];out geom qt;`;
+way["highway"]["area"!="yes"]["highway"!~"^(construction|proposed|raceway|bus_guideway)$"];out geom qt;`;
   const j = await overpass(q, f, () => {}) as { elements?: El[] };
   return { center, radius: POI_R, fetched: new Date().toISOString(), pois: parsePoi(j), roads: parseRoads(j), attr: parseAttr(j) };
 }

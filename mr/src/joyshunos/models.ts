@@ -7,7 +7,8 @@
  *   jamoat transporti va xizmatlar. Qirra oqimi = undan oʻtadigan manzillar vazni yigʻindisi. Bu «betweenness» ning yaqinlashuvi —
  *   haqiqiy sanoq emas; nisbiy taqqoslash uchun.
  * Shovqin: har yoʻl qirrasi — chekli chiziqli manba; Lden(10 m) yoʻl toifasiga qarab (taxminiy), masofa boʻyicha 3 dB / ikki baravar
- *   (silindrik tarqalish), hissa — qirraning koʻrinish burchagi ulushi; manbalar energetik qoʻshiladi. Binolar toʻsiqligi, tezlik va oqim maʼlumoti hisobga olinmagan.
+ *   (silindrik tarqalish), hissa — qirraning koʻrinish burchagi ulushi; manbalar energetik qoʻshiladi. Katta koʻchalar (≥ 64 dB) — yuklangan
+ *   hududning hammasidan, kichiklari — ≈ 300 m gacha. Binolar toʻsiqligi, tezlik va oqim maʼlumoti hisobga olinmagan.
  */
 import type { XY } from '../core/geo';
 import { buildNet, snap, WALKABLE, type Net } from '../core/services';
@@ -127,27 +128,46 @@ export const NOISE_SRC: Record<string, number> = { motorway: 76, trunk: 74, prim
 export const NOISE_BINS: [number, string, string][] = [[50, '#e9f0e4', '< 50'], [55, '#d6e7b8', '50–55'], [60, '#f3dd8a', '55–60'], [65, '#f0a85c', '60–65'], [70, '#d9603f', '65–70'], [Infinity, '#8e2c4f', '≥ 70']];
 export const noiseColor = (db: number) => NOISE_BINS.find(([t]) => db < t)![1];
 
+/** 24.11: avval hamma manba ±300 m katakdan olinardi — magistraldan 300–350 m narida daraja birdan 35 dB ga tushardi
+ *  (trunk: 200 m — 60,8 dB, 350 m — 35 dB). Endi katta koʻcha (10 m da ≥ NOISE_FAR dB) yuklangan hududning hammasidan olinadi:
+ *  yaqinda (±4 katak) — aniq formula, undan narida — katakka jamlangan nuqtaviy manba (qisqa qirraning uzoq maydoni: E = len · P / (π d²),
+ *  yoʻnalishga bogʻliq emas; 400 m dan narida aniq formuladan farqi < 0,1 dB). Kichik koʻcha — ±3 katak (≈ 300 m; narida hissasi ≤ ~42 dB). */
+export const NOISE_FAR = 64;
 /** Shovqin toʻri: n×n, qadam step (m), qiymat — Lden dB(A) */
 export function noiseGrid(roads: Road[], R: number, step: number): { n: number; step: number; v: Float32Array } {
-  const src: { a: XY; b: XY; L: number }[] = [];
-  for (const r of roads) { const L = NOISE_SRC[r.cls]; if (L == null) continue; for (let i = 1; i < r.pts.length; i++) src.push({ a: r.pts[i - 1], b: r.pts[i], L }); }
-  const C = 100, grid = new Map<string, number[]>();
-  src.forEach((s, k) => { const x0 = Math.min(s.a[0], s.b[0]), x1 = Math.max(s.a[0], s.b[0]), y0 = Math.min(s.a[1], s.b[1]), y1 = Math.max(s.a[1], s.b[1]); for (let i = Math.floor(x0 / C); i <= Math.floor(x1 / C); i++) for (let j = Math.floor(y0 / C); j <= Math.floor(y1 / C); j++) { const key = `${i},${j}`; (grid.get(key) || grid.set(key, []).get(key)!).push(k); } });
+  // P — 10 m dagi energiya × 10 (silindrik tarqalish: E(d) = P / d), shunda har nuqtada pow/log hisoblanmaydi
+  type Src = { ax: number; ay: number; ux: number; uy: number; len: number; P: number };
+  const C = 100, KF = 4, KN = 3, key = (i: number, j: number) => `${i},${j}`;
+  const gF = new Map<string, Src[]>(), gN = new Map<string, Src[]>(), agg = new Map<string, { i: number; j: number; W: number; x: number; y: number }>();
+  for (const r of roads) {
+    const L = NOISE_SRC[r.cls]; if (L == null) continue; const P = Math.pow(10, L / 10) * 10, big = L >= NOISE_FAR;
+    for (let i = 1; i < r.pts.length; i++) {
+      const a = r.pts[i - 1], b = r.pts[i], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy); if (len < 0.5) continue;
+      // ≤ C m boʻlaklar: har boʻlak oʻrtasi boʻyicha bitta katakka tegishli (aniq formula boʻlaklar boʻyicha qoʻshiluvchan)
+      const m = Math.ceil(len / C), l = len / m, ux = dx / len, uy = dy / len;
+      for (let q = 0; q < m; q++) {
+        const ax = a[0] + ux * l * q, ay = a[1] + uy * l * q, mx = ax + ux * l / 2, my = ay + uy * l / 2, ci = Math.floor(mx / C), cj = Math.floor(my / C), k = key(ci, cj), g = big ? gF : gN;
+        (g.get(k) || g.set(k, []).get(k)!).push({ ax, ay, ux, uy, len: l, P });
+        if (big) { const w = l * P / Math.PI, c = agg.get(k) || agg.set(k, { i: ci, j: cj, W: 0, x: 0, y: 0 }).get(k)!; c.W += w; c.x += mx * w; c.y += my * w; }
+      }
+    }
+  }
+  const cells = [...agg.values()]; for (const c of cells) { c.x /= c.W; c.y /= c.W; }
+  // chekli chiziqli manba: cheksiz chiziq intensivligi × koʻrinish burchagi ulushi (Δθ/π)
+  const add = (s: Src, x: number, y: number): number => {
+    const ax = s.ax - x, ay = s.ay - y, ta = ax * s.ux + ay * s.uy, tb = ta + s.len, dp = Math.max(5, Math.abs(ax * s.uy - ay * s.ux));
+    return (Math.atan(tb / dp) - Math.atan(ta / dp)) / Math.PI * s.P / dp;
+  };
   const n = Math.round(2 * R / step) + 1, v = new Float32Array(n * n);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const x = -R + i * step, y = -R + j * step; if (x * x + y * y > R * R * 1.02) { v[j * n + i] = NaN; continue; }
-    const ci = Math.floor(x / C), cj = Math.floor(y / C), seen = new Set<number>(); let E = 0;
-    for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) for (const k of grid.get(`${ci + a},${cj + b}`) ?? []) {
-      if (seen.has(k)) continue; seen.add(k);
-      // chekli chiziqli manba: cheksiz chiziq intensivligi × koʻrinish burchagi ulushi (Δθ/π)
-      const s = src[k], dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], len = Math.hypot(dx, dy); if (len < 0.5) continue;
-      const ux = dx / len, uy = dy / len, ax = s.a[0] - x, ay = s.a[1] - y;
-      const ta = ax * ux + ay * uy, tb = ta + len, dp = Math.max(5, Math.abs(ax * uy - ay * ux));
-      if (Math.min(Math.abs(ta), Math.abs(tb)) > 400 && ta * tb > 0) continue;
-      const dth = Math.atan(tb / dp) - Math.atan(ta / dp);
-      E += (dth / Math.PI) * Math.pow(10, (s.L - 10 * Math.log10(dp / 10)) / 10);
+    const x = -R + i * step, y = -R + j * step, q = j * n + i; if (x * x + y * y > R * R * 1.02) { v[q] = NaN; continue; }
+    const ci = Math.floor(x / C), cj = Math.floor(y / C); let E = 0;
+    for (const c of cells) { if (Math.abs(c.i - ci) <= KF && Math.abs(c.j - cj) <= KF) continue; const dx = c.x - x, dy = c.y - y; E += c.W / (dx * dx + dy * dy); }
+    for (let a = -KF; a <= KF; a++) for (let b = -KF; b <= KF; b++) {
+      for (const s of gF.get(key(ci + a, cj + b)) ?? []) E += add(s, x, y);
+      if (Math.abs(a) <= KN && Math.abs(b) <= KN) for (const s of gN.get(key(ci + a, cj + b)) ?? []) E += add(s, x, y);
     }
-    v[j * n + i] = E > 0 ? 10 * Math.log10(E) : 35;
+    v[q] = E > 0 ? Math.max(35, 10 * Math.log10(E)) : 35;
   }
   return { n, step, v };
 }
