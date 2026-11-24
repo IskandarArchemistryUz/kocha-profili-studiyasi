@@ -20,7 +20,7 @@ body.joy-body{overflow:hidden;font-size:14px;line-height:1.45}
 .eko .langsw{width:108px}
 
 /* ——— chap panel: qidiruv va qatlamlar ——— */
-.joy-lp{position:absolute;top:76px;left:12px;width:286px;max-height:calc(100% - 88px);overflow-y:auto;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;z-index:4;scrollbar-width:thin}
+.joy-lp{position:absolute;top:var(--top-y);left:12px;width:286px;max-height:calc(100% - var(--top-y) - 12px);overflow-y:auto;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;z-index:4;scrollbar-width:thin}
 .joy-lp>*{flex-shrink:0}
 .joy-search{position:relative;display:flex;align-items:center}
 .joy-search .ic{position:absolute;left:12px;color:var(--muted);pointer-events:none}
@@ -51,7 +51,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-old a .ic{width:14px;height:14px;color:var(--muted)}
 
 /* ——— oʻng ustun: joy pasporti ——— */
-.joy-rp{position:absolute;top:76px;right:12px;bottom:12px;width:316px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;z-index:4;scrollbar-width:thin;padding:2px 2px 6px}
+.joy-rp{position:absolute;top:var(--top-y);right:12px;bottom:12px;width:316px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;z-index:4;scrollbar-width:thin;padding:2px 2px 6px}
 .joy-rp>*{flex-shrink:0}
 .joy-card{background:var(--surface);border-radius:18px;box-shadow:var(--sh-float);padding:14px 16px;display:flex;flex-direction:column;gap:4px;position:relative}
 .joy-card header{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
@@ -91,9 +91,9 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-ask>.ic{color:var(--svc-joy)}
 .joy-ask .q{flex:1;min-width:0;border:0;background:transparent;font-size:14px;color:var(--ink);outline:none}
 .joy-ask .q:disabled{color:var(--muted)}
-.joy-base{position:absolute;left:310px;top:76px;padding:3px;border-radius:var(--r-ctl);z-index:3}
+.joy-base{position:absolute;left:310px;top:var(--top-y);padding:3px;border-radius:var(--r-ctl);z-index:3}
 .joy-base .seg{background:transparent;height:30px;width:220px}
-.joy-legend{position:absolute;left:310px;top:122px;max-width:300px;padding:10px 12px;border-radius:var(--r-card);z-index:3;display:flex;flex-direction:column;gap:8px;font-size:11.5px}
+.joy-legend{position:absolute;left:310px;top:calc(var(--top-y) + 46px);max-width:300px;padding:10px 12px;border-radius:var(--r-card);z-index:3;display:flex;flex-direction:column;gap:8px;font-size:11.5px}
 .joy-legend[hidden]{display:none}
 .joy-legend .lg{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
 .joy-legend .lg b{width:100%;font-size:11px;font-weight:600;color:var(--muted)}
@@ -121,7 +121,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 @media (prefers-reduced-motion:reduce){#joy *{transition:none!important;animation:none!important}}
 
 /* ——— rejim almashtirgich: Xarita · Aksonometriya ——— */
-.joy-mode{position:absolute;top:21px;right:222px;padding:0;border-radius:var(--r-ctl);z-index:6;background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.joy-mode{position:static;flex:none;padding:0;border-radius:var(--r-ctl);background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .joy-mode .seg{height:32px;width:240px}
 #joy.mode-axo .joy-lp,#joy.mode-axo .joy-rp,#joy.mode-axo .joy-pass,#joy.mode-axo .joy-mtools,#joy.mode-axo .joy-ask,#joy.mode-axo .joy-base,#joy.mode-axo .joy-legend,#joy.mode-axo .joy-map{visibility:hidden}
 #joy:not(.mode-axo) .joy-axl,#joy:not(.mode-axo) .joy-notes,#joy:not(.mode-axo) .joy-time{display:none}
@@ -156,7 +156,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .axo-side small{font-size:11.5px;color:var(--muted)}
 
 /* chap panel */
-.joy-axl{position:absolute;top:76px;left:12px;width:280px;max-height:calc(100% - 160px);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;z-index:4;scrollbar-width:thin}
+.joy-axl{position:absolute;top:var(--top-y);left:12px;width:280px;max-height:calc(100% - var(--top-y) - 84px);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;z-index:4;scrollbar-width:thin}
 .joy-axl>*{flex-shrink:0}
 .joy-axl .ttl{font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:-6px}
 .joy-axl .row{display:flex;align-items:center;justify-content:space-between}
@@ -176,7 +176,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-axlist .mv:disabled{opacity:.25;cursor:default}
 
 /* izohlar bloki («Notes») */
-.joy-notes{position:absolute;top:76px;right:12px;width:270px;padding:14px 16px;border-radius:18px;z-index:4;display:flex;flex-direction:column;gap:3px;font-size:12px}
+.joy-notes{position:absolute;top:var(--top-y);right:12px;width:270px;padding:14px 16px;border-radius:18px;z-index:4;display:flex;flex-direction:column;gap:3px;font-size:12px}
 .joy-notes .ttl{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
 .joy-notes .kv{display:flex;justify-content:space-between;gap:10px}
 .joy-notes .kv span{color:var(--muted)}
@@ -217,7 +217,7 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-axlist .nm small{display:block;font-size:10.5px;color:var(--warn)}
 .joy-time #axAnim[aria-pressed="true"]{color:#2f8a5f}
 .joy-card.head .seg{min-width:200px}
-@media (max-width:1100px){.joy-mode{right:212px}.joy-mode .seg{width:210px}}
+@media (max-width:1100px){.joy-mode .seg{width:210px}}
 
 /* ——— chizish, uchastka, eksport ——— */
 .joy-tools .btn[aria-pressed="true"],.joy-site .btn[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
@@ -502,9 +502,9 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 @media (max-width:1180px){.joy-pass .chip.mono{display:none}}
 /* tor ekranda: uslub almashtirgich — yuqoriga (pastki qator pasportga yetsin) */
 @media (max-width:1500px){
-  .joy-base{top:76px;bottom:auto;right:auto;left:356px}
+  .joy-base{top:var(--top-y);bottom:auto;right:auto;left:356px}
   .joy-base>.joy-pal:not(.inline){top:40px;bottom:auto;left:0;right:auto}
-  .joy-legend{top:122px}
+  .joy-legend{top:calc(var(--top-y) + 46px)}
   .joy-pass{max-width:calc(100% - 470px)}
   .maplibregl-ctrl-bottom-right{bottom:12px}
 }
@@ -561,7 +561,7 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
    1) xarita uslubi (Stil / Sunʼiy yoʻldosh / palitra) — har qanday kenglikda bitta joyda: pastki chap asboblar ustida */
 #joyTools .joy-base{position:relative;left:auto;top:auto;right:auto;bottom:auto;z-index:auto}
 #joyTools .joy-base>.joy-pal:not(.inline){top:auto;bottom:40px;left:0;right:auto}
-#joyLegend{top:76px}
+#joyLegend{top:var(--top-y)}
 /* 2) uslub tugmalari: matn kesilmaydi — kerak boʻlsa ikki qatorga oʻtadi */
 .jv-st.wrap{grid-auto-rows:minmax(26px,auto)}
 .jv-st.wrap button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15;padding:3px 5px}
@@ -593,3 +593,21 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 /* 18.11 (T1): sahna rejimi — xarita toʻliq: chap/oʻng panel va «Joy pasporti» yashirinadi; oʻlchov asboblari va fon tanlovi qoladi */
 .sahna #joyLeft,.sahna #joyRight,.sahna #joyPass{display:none !important}
 .sahna #joyTools{left:auto;right:12px}
+
+/* 24.11 — yuqori panel avtomatik yashirinadi (ui/autohide.ts): panellar yuqoriga koʻtariladi, sarlavha sichqoncha tepaga borganda ustidan chiqadi */
+#joy{--top-y:76px}
+html.top-ah #joy{--top-y:12px}
+/* 24.11 (egasi: panel chiqqanda ostidan kartalarning bir boʻlagi qirqilib koʻrinardi): panel chiqqanda panellar sarlavha ostiga silliq suriladi */
+html.top-ah.top-ah-show #joy{--top-y:76px}
+html.top-ah #joy :is(.joy-lp,.joy-rp,.joy-base,.joy-legend,.joy-axl,.joy-notes,.agentp){transition:top .2s ease,max-height .2s ease}
+@media (prefers-reduced-motion:reduce){html.top-ah #joy :is(.joy-lp,.joy-rp,.joy-base,.joy-legend,.joy-axl,.joy-notes,.agentp){transition:none}}
+html.top-ah #joy .eko{z-index:30;transition:transform .2s ease,opacity .2s ease;transform:translateY(calc(-100% - 16px));opacity:0;pointer-events:none}
+html.top-ah.top-ah-show #joy .eko{transform:none;opacity:1;pointer-events:auto}
+html.top-ah #joy .agentp{top:var(--top-y)}
+/* xizmatlar roʻyxati sigʻmasa — faqat joriy xizmat nomi bilan, qolganlari rangli nuqta (nomi — title) */
+@media (max-width:1500px){.joy-mode .seg{width:160px}.joy-mode .seg .l{display:none}.joy-mode .seg .s{display:inline}}
+#joy .eko.svc-tor .svc a:not(.on){font-size:0;gap:0;width:30px;justify-content:center;padding:0}
+#joy .eko.svc-tor .svc a:not(.on) i{width:10px;height:10px;border-radius:5px}
+#joy .eko.svc-tor .svc a:not(.on) em.beta{display:none}
+/* yashirin rejimda panel ustidan chiqadi — ostidagi matn koʻrinmasin */
+html.top-ah #joy .eko{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
