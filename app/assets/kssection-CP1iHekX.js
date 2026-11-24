@@ -1,0 +1,1 @@
+export{t as ksSectionSvg}from"./kssection-B_FjruL_.js";

@@ -61,7 +61,7 @@ import { loadKadastr, kadCell, kadCovers, kadStats, eraCol, seiCol, densCol, sei
 import { windFlow, clipLine, windSpeedGrid, windStreaks } from './windflow';
 import { view, viewPanel, rampColor, isolines, joinSegs, VIEW, PERSONA, PERSONA_ALL, WALK_MIN_PAL, SHADE_PAL, SHADE_BINS, WIND_FIELD_PAL, type LayerView } from './viewcfg';
 import { wmFree, freeRaster, exportGate, isOwner } from '../core/wm';
-import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult } from './skaner';
+import { skScan, skColor, SK_DIMS, SK_COL, SK_BINS, type SkResult, SK_SKIP } from './skaner';
 import { privFeatures, privLayers, privDelete, privUpload, parseUpload, attachPriv, HH, type PrivData, type PrivLayer } from './shaxsiy';
 import { buildIndex, isovist, polyline, walkSteps, walkAt, walkSum, type IsoIndex, type Iso, type Walk, type P2 } from './izovist';
 import { recordVideo, type VidFmt, type VidScene } from './izovideo';
@@ -230,11 +230,11 @@ function computeSk(): void {
   skBusy = true;
   setTimeout(() => {
     try {
-      const fr = m.fr, rings: LngLat[][] = [], loc: [number, number][][] = [], area: number[] = [], hh: number[] = [];
-      for (const bd of b.osm.buildings) { const r = bd.rings[0]; if (!r || r.length < 3) continue; const L = r.map(p => fr.toLocal(p) as [number, number]); const cx = L.reduce((a, p) => a + p[0], 0) / L.length, cy = L.reduce((a, p) => a + p[1], 0) / L.length; if (Math.hypot(cx, cy) > S.r) continue; const a = ringArea(r); if (a < 12) continue; rings.push(r); loc.push(L); area.push(a); hh.push(bd.h); }
+      const fr = m.fr, rings: LngLat[][] = [], loc: [number, number][][] = [], area: number[] = [], hh: number[] = [], wt: number[] = [];
+      for (const bd of b.osm.buildings) { const r = bd.rings[0]; if (!r || r.length < 3 || SK_SKIP.test(bd.kind)) continue; /* 24.11: garaj, ombor, maktabning oʻzi — baholanmaydi */ const L = r.map(p => fr.toLocal(p) as [number, number]); const cx = L.reduce((a, p) => a + p[0], 0) / L.length, cy = L.reduce((a, p) => a + p[1], 0) / L.length; if (Math.hypot(cx, cy) > S.r) continue; const a = ringArea(r); if (a < 12) continue; rings.push(r); loc.push(L); area.push(a); hh.push(bd.h); wt.push(a * Math.max(1, Math.round((bd.h || 3) / 3))); /* vazn — qavat maydoni */ }
       const pois: Partial<Record<Svc, [number, number][]>> = {};
       for (const p of normPois(pb.pois, S.added ?? [])) (pois[p.kind] ??= []).push(fr.toLocal(p.at) as [number, number]);
-      SK = { key, res: skScan(m.net, loc, pois), rings, area, h: hh }; skSel = null;
+      SK = { key, res: skScan(m.net, loc, pois, wt), rings, area, h: hh }; skSel = null;
     } catch (e) { console.warn('Joyshunos skaner', e); }
     skBusy = false; renderRight(); paint();
   }, 30);
@@ -1103,7 +1103,7 @@ function renderRightH(): void {
         h('ul', { class: 'joy-norm', id: 'joySk' }, ...SK_DIMS.map((d, i) => { const v = sel ? sel.s[i] : r.mean[i]; return h('li', { class: v >= 100 ? 'ok' : 'warn', 'data-dim': d.id }, h('span', {}, tr(d.name)), h('b', {}, sel ? dTxt(sel, i) : tf('${v} ball', { v })), h('em', {}, sel ? tf('${v} ball', { v }) : norm(i))); })),
         pvRows(sel ? skSel : null),
         sel ? h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'joySkAll', onclick: () => { skSel = null; renderRight(); paint(); } }, tr('Butun hudud')) : '',
-        h('span', { class: 'src' }, tr('Masofa — har bino markazidan piyoda tarmogʻi boʻylab eng yaqin obyektgacha. Ball: meʼyor radiusi ichida 100, uch baravar uzoqda 0 (ShNQ 2.07.01-23, 38-jadval; bekat — 382-band). Transport — bekat va metroning yaxshisi. Bu xonadon haqidagi kuzatuv emas — joy bahosi; OSM toʻliq emas.'))] : [],
+        h('span', { class: 'src' }, tr('Masofa — har bino markazidan piyoda tarmogʻi boʻylab eng yaqin obyektgacha. Ball: meʼyor radiusi ichida 100, uch baravar uzoqda 0 (ShNQ 2.07.01-23, 38-jadval; bekat — 382-band). Transport — bekat va metroning yaxshisi. Bu xonadon haqidagi kuzatuv emas — joy bahosi; OSM toʻliq emas.'), ' ', tr('Garaj, ombor va noturar binolar hisobga kirmaydi; oʻrtacha ball — qavat maydoni boʻyicha.'))] : [],
       null, r ? undefined : busySk));
     if (isOwner()) cards[cards.length - 1].append(pvPanel());
   }
