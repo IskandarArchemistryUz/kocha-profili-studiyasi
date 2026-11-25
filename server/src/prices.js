@@ -45,7 +45,7 @@ export const TRIALS = Object.freeze({
   'wind':  { coins: 5, mr: true },  // shamol oqimi
   'sun':   { coins: 4, mr: true },  // insolyatsiya / soya
   'flats': { coins: 4, mr: true },  // xonadonlar hisobi — 14.11: 6 → 4 (insolyatsiya bilan teng; hisob brauzerda)
-  'area':  { coins: 1, mr: false }, // yangi hudud (Joyshunos)
+  'area':  { coins: 3, mr: false }, // Joyshunos: 3 km radiusli hudud (25.11, egasi; 2 km gacha — bepul). Har yangi nuqta uchun bir marta
   'gen':   { coins: 1, mr: true },  // «Variant taklif qil»
   'view':  { coins: 2, mr: true },  // koʻrinish tekshiruvi — hozir ↔ loyiha (VGA), 13.11
 });

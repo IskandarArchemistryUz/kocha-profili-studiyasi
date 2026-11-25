@@ -1,0 +1,1 @@
+export{r as svgPdf}from"./pdf-DePUZkb6.js";

@@ -32,7 +32,7 @@ async function loadProject(): Promise<ProjInfo | null> {
   const id = exportProject(); if (!id || !current()) return null;
   try { const p = await projectInfo(id, exportArea()); const ch = JSON.stringify(PI) !== JSON.stringify({ ...p, id }); PI = { ...p, id }; if (ch) emit(); return p; } catch { return null; }
 }
-const freeMode = (): boolean => isOwner() || !authRequired();
+export const freeMode = (): boolean => isOwner() || !authRequired();
 /** Ogʻir hisob narxi (tanga) — joriy uchastka maydoni boʻyicha */
 export function heavyPrice(kind: Heavy): number | null {
   const t = PR?.trials[kind]; if (!t) return null;
@@ -177,7 +177,7 @@ async function gate(o: { name: string; item?: string; sample: string | Blob; pai
 
 /* ---------- 2) ogʻir hisoblar va generatsiya ---------- */
 export type Heavy = 'wind' | 'sun' | 'flats' | 'area' | 'gen' | 'view';
-const TRIAL_NAME: Record<Heavy, string> = { wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Variant taklif qil', view: 'Koʻrinish tekshiruvi' };
+const TRIAL_NAME: Record<Heavy, string> = { wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Katta hudud (3 km)', gen: 'Variant taklif qil', view: 'Koʻrinish tekshiruvi' };
 /**
  * Ogʻir hisobdan oldin chaqiriladi. true — davom etish mumkin.
  * Bepul (haftalik sinov / loyihadagi bepul generatsiya / shift toʻlgan) — darhol. Pullik — narx koʻrsatilib tasdiq soʻraladi;
@@ -242,7 +242,7 @@ const REASON: Record<string, string> = { export: 'Toza fayl', trial: 'Ogʻir his
 const ITEM_NAME: Record<string, string> = {
   'mr.album': 'Albom PDF', 'mr.dxf': 'DXF — reja', 'mr.dxf3d': 'DXF — 3D', 'mr.glb': 'GLB / OBJ', 'mr.tik': 'TIK — Excel', 'mr.norm': 'Meʼyoriy hisobot', 'mr.ifc': 'IFC4',
   'mr.sheet': 'Varaq', 'mr.axo': 'Aksonometriya', 'mr.floors': 'Qavat rejalari', 'mr.png': 'PNG', 'chz.album': 'Chizmadon albomi', 'ks.section': 'Koʻcha kesimi', 'ks.a3': 'Koʻchasoz A3',
-  'ks.dxf': 'Koʻchasoz DXF', 'joy.passport': 'Joy pasporti', 'joy.axo': 'Joyshunos aksonometriya', 'joy.png': 'Joyshunos PNG 4K', 'joy.passport.all': 'Toʻliq hudud pasporti', 'joy.video': 'Koʻrinish videosi', wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Yangi hudud', gen: 'Generatsiya',
+  'ks.dxf': 'Koʻchasoz DXF', 'joy.passport': 'Joy pasporti', 'joy.axo': 'Joyshunos aksonometriya', 'joy.png': 'Joyshunos PNG 4K', 'joy.passport.all': 'Toʻliq hudud pasporti', 'joy.video': 'Koʻrinish videosi', wind: 'Shamol oqimi', sun: 'Insolyatsiya', flats: 'Xonadonlar hisobi', area: 'Katta hudud (3 km)', gen: 'Generatsiya',
 };
 function label(x: HistItem): [string, string] {
   const what = String(x.ref ?? '').split('@')[0], parts = what.split('+').map(s => tr(ITEM_NAME[s] ?? '')).filter(Boolean);
