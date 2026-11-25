@@ -21,15 +21,19 @@ function sync(force){
   /* 19.11: loyiha ichidan (Koʻchasoz → Tarmoq, ?p=) — boshqa loyihadan qolgan sinxron koʻchalar olib tashlanadi; qoʻlda chizilganlari qoladi */
   if(M.pid&&ds.mrPid!==M.pid){const old=new Set(ds.segs.filter(s=>s.mr!=null).map(s=>s.id));for(let i=ds.segs.length-1;i>=0;i--)if(old.has(ds.segs[i].id))ds.segs.splice(i,1);for(let i=ds.nodes.length-1;i>=0;i--){const n=ds.nodes[i];if(n.mr!=null&&!ds.segs.some(s=>s.a===n.id||s.b===n.id))ds.nodes.splice(i,1);}ds.mrPid=M.pid;if(M.name)ds.name=ds.name||M.name;ds.mrFit=1;}
   const byN=new Map(ds.nodes.filter(n=>n.mr!=null).map(n=>[n.mr,n])),idMap={};
-  M.nodes.forEach(m=>{const ll=[+(+m.ll[1]).toFixed(7),+(+m.ll[0]).toFixed(7)];let n=byN.get(m.id);
-    if(!n){n=newNode(ll);n.mr=m.id;}else{n.ll=ll;byN.delete(m.id);}idMap[m.id]=n.id;});
+  /* 25.11: tugun id si endi koordinatadan (totarmoq.ts weld). Id topilmasa — ≤ 2,5 m dagi avvalgi sinxron tugun olinadi:
+     eski loyihalarda chorraha sozlamalari (turi, imtiyoz, ulagichlar) saqlanadi */
+  const LLm=m=>[+(+m.ll[1]).toFixed(7),+(+m.ll[0]).toFixed(7)],dM=(a,b)=>Math.hypot((a[0]-b[0])*110574,(a[1]-b[1])*111320*Math.cos(a[0]*Math.PI/180)),rest=[];
+  M.nodes.forEach(m=>{const n=byN.get(m.id);if(n){n.ll=LLm(m);byN.delete(m.id);idMap[m.id]=n.id;}else rest.push(m);});
+  rest.forEach(m=>{const ll=LLm(m);let n=null,bd=2.5,bk=null;byN.forEach((o,k)=>{const d=dM(o.ll,ll);if(d<bd){bd=d;n=o;bk=k;}});
+    if(n){byN.delete(bk);n.ll=ll;n.mr=m.id;}else{n=newNode(ll);n.mr=m.id;}idMap[m.id]=n.id;});
   const byS=new Map(ds.segs.filter(s=>s.mr!=null).map(s=>[s.mr,s]));let added=0;
   M.edges.forEach(e=>{const a=idMap[e.a],b=idMap[e.b];if(a==null||b==null)return;const pre=PRESETS[e.preset]?e.preset:'r4';let s=byS.get(e.id);
     const pts=Array.isArray(e.pts)?e.pts.map(q=>[+(+q[0]).toFixed(7),+(+q[1]).toFixed(7)]):[];
     if(!s){s={id:ds.sid++,a,b,pts,rad:pts.map(()=>0),p:pre,mr:e.id,mrP:pre};if(Array.isArray(e.st)&&e.st.length){s.p='custom';s.st=e.st;s.shift=-autoOff(e.st);}if(e.name)s.name=e.name;ds.segs.push(s);added++;}
     else{byS.delete(e.id);
       /* bu yerda boʻlingan segment (uchlaridan biri mahalliy tugun) — geometriyasi saqlanadi */
-      const A=nodeById(s.a),B=nodeById(s.b);if(A&&B&&A.mr!=null&&B.mr!=null){s.a=a;s.b=b;s.pts=[];s.rad=[];}
+      const A=nodeById(s.a),B=nodeById(s.b);if(A&&B&&A.mr!=null&&B.mr!=null){const r0=s.rad||[];s.a=a;s.b=b;s.pts=pts;s.rad=pts.map((_,i)=>pts.length===r0.length?r0[i]||0:0);}
       if(s.p===s.mrP&&!s.st)s.p=pre;s.mrP=pre;}});
   /* asosiy oynada oʻchirilganlar */
   byS.forEach(s=>{const i=ds.segs.indexOf(s);if(i>=0)ds.segs.splice(i,1);});

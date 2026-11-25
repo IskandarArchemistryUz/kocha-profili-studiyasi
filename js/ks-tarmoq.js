@@ -23,6 +23,7 @@ const IC={
   undo:SV('<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>',18),
   redo:SV('<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h2"/>',18),
   x:SV('<path d="M6 6l12 12M18 6 6 18"/>',16),
+  sat:SV('<path d="M12 4 3 9l9 5 9-5z"/><path d="M3 14l9 5 9-5"/>',18),
 };
 const LOGO=(document.querySelector('.brand .logo')||{}).outerHTML||'';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -36,8 +37,8 @@ const top=el(`<div class="kt-ui kt-pn kt-top"><a class="lg" href="${KP('app/')}"
   <nav class="kt-seg" aria-label="Koʻchasoz rejimlari"><span class="on"><b class="kt-mono">A</b>Tarmoq<span class="kt-tag">beta</span></span><a href="${KP('app/kochasoz.html#/b')}"><b class="kt-mono">B</b>Kesim</a><a href="${KP('app/kochasoz.html#/c')}"><b class="kt-mono">C</b>Chorraha<span class="kt-tag">beta</span></a></nav></div>`);
 const acts=el(`<div class="kt-ui kt-pn kt-acts"><span class="kt-q-slot"></span>
   <button class="kt-btn ic" data-a="undo" title="Orqaga (Ctrl+Z)" aria-label="Orqaga">${IC.undo}</button><button class="kt-btn ic" data-a="redo" title="Oldinga (Ctrl+Y)" aria-label="Oldinga">${IC.redo}</button>
-  <button class="kt-btn" data-a="sat" title="Fon: sunʼiy yoʻldosh / xarita">Sunʼiy yoʻldosh</button>
-  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="chk" title="YHQ tekshiruvi">Tekshiruv<span class="kt-cnt" hidden></span></button><button class="kt-btn" data-a="file">Fayl</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
+  <button class="kt-btn" data-a="sat" title="Fon: sunʼiy yoʻldosh / xarita" aria-label="Sunʼiy yoʻldosh">${IC.sat}<span>Sunʼiy yoʻldosh</span></button>
+  <button class="kt-btn" data-a="fun" title="Funksional ranglar (U)">Funksional</button><button class="kt-btn" data-a="chk" title="YHQ tekshiruvi">Tekshiruv<span class="kt-cnt" hidden></span></button><button class="kt-btn" data-a="file">Fayl</button><button class="kt-btn" data-a="3d">3D</button><button class="kt-btn kt-mono" data-a="lang" data-noi18n aria-haspopup="menu" aria-expanded="false" title="Til · Language · Язык" aria-label="Til · Language · Язык">UZ</button><button class="kt-btn ic" data-a="help" title="Qoʻllanma (?)" aria-label="Qoʻllanma">?</button></div>`);
 const hint=el(`<div class="kt-ui kt-pn kt-hint" role="status"></div>`);
 const dock=el(`<div class="kt-ui kt-dock"><div class="kt-pn kt-tray" hidden></div><div class="kt-pn kt-tools" role="toolbar" aria-label="Asboblar">${TOOLS.map(([k,n,key],i)=>`${i===1?'<span class="kt-sep"></span>':''}<button class="kt-tool" data-t="${k}" title="${n} (${key})">${IC[k]}${n}<span class="k">${key}</span></button>`).join('')}</div></div>`);
 const card=el(`<div class="kt-ui kt-pn kt-card" hidden></div>`);
@@ -48,11 +49,32 @@ const tray=dock.querySelector('.kt-tray');
 
 /* --- amallar --- */
 acts.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();else if(b.dataset.a==='file')toggleFile(b);else if(b.dataset.a==='chk')toggleChk(b);
+  if(b.dataset.a==='undo')undo();else if(b.dataset.a==='redo')redo();else if(b.dataset.a==='3d')open3D();else if(b.dataset.a==='help')openHelp();else if(b.dataset.a==='file')toggleFile(b);else if(b.dataset.a==='chk')toggleChk(b);else if(b.dataset.a==='lang')toggleLang(b);
   else if(b.dataset.a==='fun'){toggleDSty();try{localStorage.setItem('kt-dsty','1');}catch(e){}refresh();}
   else if(b.dataset.a==='sat'){setBase(/^img/.test(S.base||'')?'stil':'img');refresh();}});
 dock.querySelector('.kt-tools').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;const k=b.dataset.t;
   if(k==='sim'){simTool();}else pickTool(k);refresh();});
+/* --- til (25.11, egasi: «interfeysda til tanlash imkoniyati yoʻq»): js/i18n.js almashtirgichi (#kpsLang) eski sarlavhaga
+   qoʻyiladi, u esa bu sahifada yashirin — shuning uchun til faqat brauzer tiliga qarab tanlanardi. Endi oʻz tugmasi. --- */
+const langP=el(`<div class="kt-ui kt-pn kt-langm" data-noi18n role="menu" aria-label="Til · Language · Язык" hidden></div>`);document.body.append(langP);
+const curLang=()=>window.KPS_LANG||document.documentElement.lang||'uz';
+/* js/i18n.js bu fayldan keyin yuklanishi mumkin — yorliq sahifa toʻliq yuklangach ham yangilanadi */
+function langLabel(){const lb=acts.querySelector('[data-a="lang"]'),lc=curLang().toUpperCase();if(lb&&lb.textContent!==lc)lb.textContent=lc;}
+addEventListener('load',langLabel);if(document.readyState==='complete')langLabel();
+function closeLang(){if(langP.hidden)return;langP.hidden=true;const b=acts.querySelector('[data-a="lang"]');if(b)b.setAttribute('aria-expanded','false');}
+function toggleLang(btn){if(!langP.hidden){closeLang();return;}
+  const LS=window.KPS_LANGS||['uz','en','ru'],NAT=window.KPS_NAT||{uz:'Oʻzbekcha',en:'English',ru:'Русский'},c=curLang();
+  langP.innerHTML=LS.map(k=>`<button role="menuitemradio" aria-checked="${k===c}"${k===c?' class="on"':''} data-l="${k}" lang="${k}">${esc(NAT[k]||k)}</button>`).join('');
+  langP.hidden=false;btn.setAttribute('aria-expanded','true');const r=btn.getBoundingClientRect();
+  langP.style.left=Math.max(8,Math.min(innerWidth-langP.offsetWidth-8,r.right-langP.offsetWidth))+'px';
+  if(innerHeight-r.bottom<langP.offsetHeight+22){langP.style.top='';langP.style.bottom=(innerHeight-r.top+10)+'px';}else{langP.style.bottom='';langP.style.top=(r.bottom+14)+'px';}}
+langP.addEventListener('click',e=>{const b=e.target.closest('[data-l]');if(!b)return;if(b.dataset.l===curLang()){closeLang();return;}
+  try{localStorage.setItem('kps_lang',b.dataset.l);localStorage.setItem('mr-lang',b.dataset.l);}catch(e){}location.reload();});
+document.addEventListener('pointerdown',e=>{if(!langP.hidden&&!e.target.closest('.kt-langm,[data-a="lang"]'))closeLang();},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLang();});
+/* 25.11: «Sinash» — bir nechta chorraha boʻlsa dvigatel xabar (toast) chiqaradi; bu sahifada aynan shu yoʻriqnoma dok ustida
+   turadi — ikkinchi xabar kichik ekranda sinash oynasi ustiga tushardi */
+{const _st=simTool;simTool=function(){_st();if(DS().tool==='sim'){const t=document.getElementById('toast');if(t)t.hidden=true;}};}
 /* qoʻllanma (?) — faqat shu sahifa uchun */
 window.openHelp=function(){const m=document.getElementById('helpModal'),b=document.getElementById('helpBody');if(!m||!b)return;
   const K=(k,t)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0eee9"><span>${t}</span><kbd style="padding:1px 7px">${k}</kbd></div>`;
@@ -208,7 +230,9 @@ function setAppr(sg,k,fn){const c=apprCur(sg,k);const u={man:1,L:c.L,R:c.R,U:c.U
 function midLL(ll){let L=0;const d=[];for(let i=1;i<ll.length;i++){const s=map.distance(ll[i-1],ll[i]);d.push(s);L+=s;}let h=L/2;for(let i=0;i<d.length;i++){if(h<=d[i]){const t=h/(d[i]||1);return [ll[i][0]+(ll[i+1][0]-ll[i][0])*t,ll[i][1]+(ll[i+1][1]-ll[i][1])*t];}h-=d[i];}return ll[0];}
 /* karta oʻngda qotirilgan (inspektor) — chizilayotgan joy ustiga chiqmaydi; tanlangan obyekt karta ostida qolsa, xarita bir marta suriladi */
 function placeCard(){if(card.hidden)return;if(innerWidth<=760){card.style.left='';card.style.top='';return;}
-  card.style.left=(innerWidth-card.offsetWidth-16)+'px';card.style.top='76px';}
+  /* 25.11: joy yuqori panel va dokdan hisoblanadi (avval qatʼiy 76 px va 100vh − 240 px — past ekranda karta 240 px ga siqilardi) */
+  const top=Math.round(acts.getBoundingClientRect().bottom+12),left=innerWidth-card.offsetWidth-16,dk=dock.querySelector('.kt-tools').getBoundingClientRect();
+  card.style.left=left+'px';card.style.top=top+'px';card.style.maxHeight=Math.max(160,(left<dk.right+8?dk.top-12:innerHeight-16)-top)+'px';}
 function revealSel(){if(card.hidden||innerWidth<=760||!anchor)return;const ll=anchor();if(!ll)return;const p=map.latLngToContainerPoint(L.latLng(ll[0],ll[1])),r=map.getContainer().getBoundingClientRect(),cx=innerWidth-card.offsetWidth-16-r.left-40;
   if(p.x>cx)map.panBy([p.x-cx+60,0],{animate:true});}
 card.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const ds=DS(),sel=ds.sel;if(!sel)return;
@@ -248,6 +272,7 @@ function refresh(){const ds=DS(),t=ds.tool||'select';
   hint.innerHTML=hintText(t);
   acts.querySelector('[data-a="sat"]').classList.toggle('on',/^img/.test(S.base||''));
   acts.querySelector('[data-a="fun"]').classList.toggle('on',S.dsty==='line');
+  langLabel();
   {const n=issues().out.length,c=acts.querySelector('.kt-cnt');c.hidden=!n;c.textContent=n;if(!chkP.hidden)drawChk();}
   const sel=t==='select'&&!D.start&&chkP.hidden?ds.sel:null,h=sel&&cardHTML(sel);
   if(h){const k=JSON.stringify(sel)+'|'+(sel.t==='att'?JSON.stringify(((segById(sel.id)||{}).att||[])[sel.i]||0):'')+'|'+(sel.t==='node'?JSON.stringify((nodeById(sel.id)||{}).pri||0)+(nodeById(sel.id)||{}).type+((nodeById(sel.id)||{}).rtor?'r':''):'')+'|'+(sel.t==='seg'?issues().out.filter(x=>x.it.id===sel.id).map(x=>x.rid+x.it.why).join()+(segById(sel.id)||{}).p+JSON.stringify((segById(sel.id)||{}).appr||0)+JSON.stringify(withVirtual(V=>['a','b'].map(k=>{const sg=segById(sel.id),p=sg&&endPieceOf(sg,k,V);return p&&p._cfg?[p._cfg.L,p._cfg.R,Math.round(p._cfg.Ls)]:0;}))):'');
