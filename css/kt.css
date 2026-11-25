@@ -9,6 +9,8 @@ body.kt .app{padding:0;background:#f1f3f8}
 body.kt .topbar,body.kt .rail,body.kt .side,body.kt .statusbar,body.kt .infobox,body.kt .hint,body.kt .basemap,body.kt .viewtog,body.kt .ntq,body.kt #frameWarn{display:none!important}
 body.kt .work,body.kt.big .work,body.kt.railc .work{display:block!important;position:relative;grid-template-columns:none}
 body.kt .mapwrap{position:absolute;inset:0;border-radius:0;box-shadow:none}
+/* 25.11: eski studiyada xarita ustida 44 px maʼlumot qatori bor edi (css/app.css) — bu sahifada u yoʻq, xarita ekranning tepasidan boshlanadi */
+body.kt .mapwrap #map{top:0!important}
 body.kt .simpin{display:none!important}
 body.kt.kt-sim .simpin{display:inline-flex!important}
 body.kt .leaflet-bottom.leaflet-right{bottom:84px;right:6px}
@@ -69,7 +71,7 @@ body.kt .kssim{left:16px!important;top:76px!important;max-height:calc(100% - 180
 .kt-prof svg{display:block;border-radius:6px}
 .kt-more{height:44px;border-radius:12px;background:#fff;box-shadow:0 2px 0 #e2dfd8;border:0;padding:0 10px;font:600 12px Archivo,sans-serif;max-width:170px}
 /* --- tanlangan narsa kartasi --- */
-.kt-card{width:300px;max-height:calc(100vh - 240px);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.kt-card{width:300px;max-height:calc(100vh - 184px);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 .kt-card .eb{font-size:11px;font-weight:600;letter-spacing:.08em;color:rgb(var(--kt))}
 .kt-card .ti{font-size:17px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
 .kt-card .x{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#8f8b84}
@@ -86,6 +88,14 @@ body.kt .kssim{left:16px!important;top:76px!important;max-height:calc(100% - 180
 .kt-sign{transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.1),0 2px 6px rgba(0,0,0,.2);cursor:pointer}
 .kt-sign:hover{box-shadow:0 0 0 2px rgb(76,91,212),0 2px 6px rgba(0,0,0,.2)}
 @media (max-width:980px){.kt-hint{display:none}.kt-q input{width:150px}.kt-tool{width:62px}}
+/* --- til tanlash --- */
+.kt-acts [data-a="lang"]{font-size:12px;font-weight:600;letter-spacing:.04em;padding:0 10px}
+.kt-acts [data-a="sat"] svg{display:none}
+.kt-langm{z-index:1300;padding:6px;display:flex;flex-direction:column;gap:2px;min-width:176px;max-height:calc(100vh - 32px);overflow-y:auto}
+.kt-langm[hidden]{display:none}
+.kt-langm button{height:34px;padding:0 12px;border-radius:12px;text-align:left;font-size:13.5px;font-weight:500}
+.kt-langm button:hover{background:#fff}
+.kt-langm button.on{color:rgb(var(--kt));background:rgb(var(--kp));font-weight:600;box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 rgb(var(--ke))}
 @media (prefers-reduced-motion:reduce){.kt-ui *{transition:none!important}}
 
 /* =====================================================================
@@ -120,6 +130,8 @@ body.kt .kssim .small{font-size:12px;color:var(--mut)}
 /* xabar (toast) */
 body.kt .toast{bottom:auto!important;top:128px;background:var(--pn)!important;color:var(--ink)!important;border-radius:999px!important;padding:9px 10px 9px 16px!important;font-size:13px!important;box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 18px 30px -16px rgba(0,0,0,.25)!important;z-index:3000}
 body.kt .toast button{border:0!important;border-radius:999px!important;padding:4px 12px!important;background:rgb(var(--kp))!important;color:rgb(var(--kt))!important;font-weight:600;box-shadow:0 2px 0 rgb(var(--ke))}
+/* uzun xabar ikki qatorga tushsa — «tabletka» emas, yumaloq burchakli karta */
+body.kt .toast{border-radius:22px!important;max-width:min(520px,calc(100% - 32px))}
 /* qoʻllanma va boshqa oynalar */
 body.kt .modal{background:rgba(241,243,248,.65);backdrop-filter:blur(4px)}
 body.kt .modal-card{background:var(--pn);border-radius:var(--r2);box-shadow:inset 0 1px 1px #fff,0 0 0 1px rgba(0,0,0,.04),0 3px 0 #dcd9d2,0 30px 60px -20px rgba(0,0,0,.35)}
@@ -144,7 +156,7 @@ body.kt .kt-q .res button{font:500 12.5px Archivo,sans-serif;color:var(--ink)}
 @media (max-width:760px){
   .kt-top{left:8px;right:8px;top:8px;padding:6px 8px;gap:8px;overflow-x:auto;scrollbar-width:none}
   .kt-top .lg{font-size:0;gap:0}.kt-badge{display:none}
-  .kt-acts{top:auto;right:8px;bottom:96px;flex-direction:column;padding:6px;gap:6px}
+  .kt-acts{top:auto;right:8px;bottom:146px;flex-direction:column;padding:6px;gap:6px}
   .kt-acts .kt-q,.kt-acts [data-a="sat"],.kt-acts [data-a="fun"]{display:none}
   .kt-hint{display:none}
   .kt-dock{left:8px;right:8px;bottom:8px;transform:none}
@@ -155,6 +167,8 @@ body.kt .kt-q .res button{font:500 12.5px Archivo,sans-serif;color:var(--ink)}
   body.kt .kssim{left:8px!important;right:8px;top:64px!important;width:auto!important;max-height:calc(100% - 170px)!important}
   body.kt .toast{top:64px}
   body.kt .leaflet-bottom.leaflet-right{bottom:150px;right:52px}
+  body.kt:has(.kt-tray:not([hidden])) .kt-acts{bottom:190px}
+  .kt-acts [data-a="sat"]{display:none}
 }
 /* fikr bildirish tugmasi — dok bilan toʻqnashmasin */
 body.kt #kbBtn{bottom:96px!important}
@@ -166,6 +180,34 @@ body.kt #v3d>div:first-child b{font-size:15px;font-weight:600}
 body.kt #v3d input[type=checkbox]{accent-color:rgb(76,91,212)}
 @media (max-width:1500px) and (min-width:761px){.kt-q input{width:120px}.kt-top .lg{font-size:0;gap:0}}
 @media (max-width:1180px) and (min-width:761px){.kt-badge{display:none}.kt-q{display:none}}
+/* =====================================================================
+   KICHIK EKRAN (25.11, egasi: «kichik ekranlarga mos emas»): noutbuk 125–150 % masshtabda yoki yarim oyna —
+   761…1280 px en va ≤ 620 px boʻy. Avval 761 px dan yuqorida faqat qidiruv yashirinardi: yuqoridagi ikki panel
+   bir-biriga tegib qolardi, sinash oynasi va maslahat ustma-ust tushardi, karta 240 px ga siqilardi.
+   ===================================================================== */
+@media (max-width:1280px) and (min-width:761px){
+  .kt-top{gap:8px;padding:6px 8px 6px 12px}.kt-top .kt-seg .kt-tag{display:none}
+  .kt-acts{gap:6px;padding:6px}.kt-acts .kt-btn{padding:0 10px}.kt-acts .kt-btn.ic{padding:0}
+  .kt-acts [data-a="sat"]{width:34px;padding:0}.kt-acts [data-a="sat"] svg{display:block}.kt-acts [data-a="sat"] span{display:none}
+  .kt-hint{top:72px}
+  body.kt .kssim{top:72px!important;width:min(380px,calc(100% - 32px))!important;max-height:calc(100% - 172px)!important}
+  .kt-card{width:280px}
+}
+@media (max-width:1000px) and (min-width:761px){
+  .kt-top .kt-seg>a{font-size:0;gap:0;padding:0 10px}.kt-top .kt-seg>a b{font-size:12.5px}
+  .kt-acts [data-a="fun"]{display:none}
+}
+/* sinash oynasi ochiq — maslahat uning ustiga chiqmasin (yoʻriqnoma oynaning oʻzida) */
+@media (max-width:1400px){body.kt:has(.kssim) .kt-hint{display:none}}
+/* past ekran: dok va panellar ixcham, xaritaga joy qoladi */
+@media (max-height:620px) and (min-width:761px){
+  .kt-top,.kt-acts{top:10px}.kt-hint{top:66px}
+  .kt-dock{bottom:10px;gap:6px}.kt-tools{padding:4px}.kt-tool{height:50px;gap:1px;font-size:11.5px}.kt-tool svg{width:20px;height:20px}
+  .kt-prof{padding:5px 6px}.kt-tray{padding:6px}
+  body.kt .kssim{top:66px!important;max-height:calc(100% - 146px)!important;padding:10px 12px!important}
+  body.kt .leaflet-bottom.leaflet-right{bottom:70px}
+  body.kt .toast{top:112px}
+}
 
 /* tekshiruv */
 .kt-cnt{min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#b2342a;color:#fff;font:600 11px 'IBM Plex Mono',monospace;display:inline-grid;place-items:center;box-sizing:border-box}

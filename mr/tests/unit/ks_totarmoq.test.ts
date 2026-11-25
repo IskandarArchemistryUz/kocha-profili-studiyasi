@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMrDoc, profileStrips, osmPreset, innerEnds, outerEnds } from '../../src/kochasoz/totarmoq';
+import { buildMrDoc, profileStrips, osmPreset, innerEnds, outerEnds, weld } from '../../src/kochasoz/totarmoq';
 import { joinNode, nodesQuery, type OsmEl } from '../../src/kochasoz/node';
 import type { Profile } from '../../src/core/profiles';
 
@@ -45,5 +45,90 @@ describe('Master reja → Tarmoq: koʻp koʻchali loyiha (22.11)', () => {
     const q = nodesQuery(outerEnds([s1, s2, s3]), 50);
     expect(q.match(/way\(around:50,/g)!.length).toBe(3);
     expect(q.startsWith('[out:json]')).toBe(true);
+  });
+});
+
+describe('Master reja → Tarmoq: koʻchalar bir-biriga ulanadi (25.11)', () => {
+  const P = (x: number, y: number): [number, number] => [lon0 + x * dLon, lat0 + y * dLat];
+  const deg = (M: { edges: { a: string; b: string }[] }, id: string) => M.edges.filter(e => e.a === id || e.b === id).length;
+  const at = (M: { nodes: { id: string; ll: [number, number] }[] }, p: [number, number]) => M.nodes.find(n => Math.hypot((n.ll[0] - p[0]) / dLon, (n.ll[1] - p[1]) / dLat) < 2.5);
+  const none = () => null, nj = () => null;
+  it('T-tutashuv: boshqa koʻcha oʻrtasiga tushgan uch — tugun, koʻcha ikkiga boʻlinadi', () => {
+    const M = buildMrDoc('p', 'T', [
+      { id: 'b', axis: [P(0, -100), P(120, -100)], profile: prof, name: 'B' },
+      { id: 'c', axis: [P(60, -160), P(60, -101)], profile: prof, name: 'C' }], none, nj);
+    expect(M.edges.map(e => e.id).sort()).toEqual(['s_b', 's_b~1', 's_c']);
+    const n = at(M, P(60, -100))!; expect(n).toBeTruthy(); expect(deg(M, n.id)).toBe(3);
+    expect(Math.abs(n.ll[1] - P(60, -100)[1]) / dLat).toBeLessThan(0.01);   // tugun B oʻqida — B toʻgʻri qoladi
+  });
+  it('kesishuv: ikki koʻcha bir-birini kesib oʻtsa — 4 tarmoqli chorraha', () => {
+    const M = buildMrDoc('p', 'X', [
+      { id: 'h', axis: [P(-100, 0), P(100, 0)], profile: prof, name: 'H' },
+      { id: 'v', axis: [P(0, -80), P(5, -20), P(0, 90)], profile: prof, name: 'V' }], none, nj);
+    expect(M.edges.length).toBe(4);
+    const n = at(M, P(1.7, 0))!; expect(deg(M, n.id)).toBe(4);
+    expect(M.edges.find(e => e.id === 's_v')!.pts!.length).toBe(1);   // siniq nuqta saqlanadi
+    expect(M.edges.every(e => e.st && e.preset === 'custom')).toBe(true);
+  });
+  it('bir nechta chorraha: panjara 2 × 2 — 4 tugun 4 tarmoqli', () => {
+    const M = buildMrDoc('p', 'G', [
+      { id: 'h1', axis: [P(-50, 0), P(150, 0)], profile: prof, name: '' }, { id: 'h2', axis: [P(-50, 100), P(150, 100)], profile: prof, name: '' },
+      { id: 'v1', axis: [P(0, -50), P(0, 150)], profile: prof, name: '' }, { id: 'v2', axis: [P(100, -50), P(100, 150)], profile: prof, name: '' }], none, nj);
+    expect(M.edges.length).toBe(12);
+    expect(M.nodes.filter(n => deg(M, n.id) === 4).length).toBe(4);
+  });
+  it('bitta OSM yoʻliga ikki koʻcha: ikkalasi ham ulanadi, yoʻl uch boʻlakka boʻlinadi', () => {
+    const M = buildMrDoc('p', 'O', [
+      { id: 'a', axis: [P(-40, -120), P(-40, -6)], profile: prof, name: 'A' },
+      { id: 'b', axis: [P(50, -120), P(50, -6)], profile: prof, name: 'B' }], e => (Math.abs(e[1] - lat0) < 20 * dLat ? els : null), (a, e, i) => joinNode(a, e, i));
+    expect(M.edges.filter(e => e.osm).length).toBe(3);
+    expect(deg(M, at(M, P(-40, 0))!.id)).toBe(3); expect(deg(M, at(M, P(50, 0))!.id)).toBe(3);
+  });
+  it('deyarli parallel va koʻprik: ulanmaydi', () => {
+    const a = { id: 'o1', line: [P(-100, 0), P(100, 0)], preset: 'r2', osm: true as const }, b = { id: 'o2', line: [P(0, -100), P(0, 100)], preset: 'r2', osm: true as const };
+    expect(weld([a, b]).edges.length).toBe(2);                 // OSM da umumiy tugun yoʻq — estakada
+    expect(weld([a, b], [P(0, 0)]).edges.length).toBe(4);      // umumiy tugun bor — chorraha
+    expect(weld([{ id: 's1', line: [P(-100, -2), P(100, 6)], preset: 'custom' }, { id: 's2', line: [P(-100, 1), P(100, 1)], preset: 'custom' }]).edges.length).toBe(2);
+  });
+  it('tugun id si koordinatadan: koʻcha qoʻshilsa ham avvalgi tugunlar id si oʻzgarmaydi', () => {
+    const s1 = { id: 'h', axis: [P(-100, 0), P(100, 0)], profile: prof, name: '' }, s2 = { id: 'v', axis: [P(0, -80), P(0, 90)], profile: prof, name: '' };
+    const A = buildMrDoc('p', '', [s1], none, nj), B = buildMrDoc('p', '', [s2, s1], none, nj);
+    for (const n of A.nodes) expect(B.nodes.some(m => m.id === n.id)).toBe(true);
+  });
+  it('koʻcha boshqa koʻchaning CHETIgacha chizilgan (oʻqdan 6 m): baribir ulanadi, oʻz yoʻnalishida oʻqqa yetkaziladi', () => {
+    // prof eni 15 m → yarim eni 7,5: uch oʻqdan 6 m narida, qiya (45°) keladi
+    const M = buildMrDoc('p', 'E', [
+      { id: 'b', axis: [P(-100, 0), P(120, 0)], profile: prof, name: 'B' },
+      { id: 'c', axis: [P(-40, -60), P(14, -6)], profile: prof, name: 'C' }], none, nj);
+    const n = at(M, P(20, 0))!; expect(n).toBeTruthy(); expect(deg(M, n.id)).toBe(3);   // (14,−6) dan 45° boʻylab → (20, 0)
+    expect(M.edges.length).toBe(3);
+  });
+  it('oʻqdan oshib ketgan uch (4 m): ortiqchasi kesiladi — soxta 4-tarmoq va «dum» yoʻq', () => {
+    const M = buildMrDoc('p', 'O', [
+      { id: 'b', axis: [P(-100, 0), P(120, 0)], profile: prof, name: 'B' },
+      { id: 'c', axis: [P(30, -80), P(30, 4)], profile: prof, name: 'C' }], none, nj);
+    expect(M.edges.length).toBe(3); expect(deg(M, at(M, P(30, 0))!.id)).toBe(3);
+  });
+  it('burchak: ikki koʻcha uchi bir-birining koridorida (5 m oraliq) — bitta tugun, dumsiz', () => {
+    const M = buildMrDoc('p', 'L', [
+      { id: 'a', axis: [P(0, -100), P(0, -5)], profile: prof, name: 'A' },
+      { id: 'b', axis: [P(4, 0), P(120, 0)], profile: prof, name: 'B' }], none, nj);
+    expect(M.edges.length).toBe(2); expect(M.nodes.length).toBe(3);
+    expect(M.nodes.filter(n => deg(M, n.id) === 2).length).toBe(1);
+  });
+  it('ichki uch: koridor ichidagi uch OSM ga ulanmaydi', () => {
+    const inn = innerEnds([{ id: 'b', axis: [P(-100, 0), P(120, 0)], half: 7.5 }, { id: 'c', axis: [P(30, -80), P(30, -6)], half: 7.5 }]);
+    expect(inn.has(P(30, -6).join(','))).toBe(true); expect(inn.size).toBe(1);
+    expect(innerEnds([{ id: 'b', axis: [P(-100, 0), P(120, 0)] }, { id: 'c', axis: [P(30, -80), P(30, -6)] }]).size).toBe(0);   // eni nomaʼlum — 3 m
+  });
+  it('zanjir: uchi surilgan koʻchaga tutashgan boshqa koʻcha ham oʻz joyida ulanadi', () => {
+    // a ning boshi b koridorida (oʻqqa 6 m yetmagan) → b oʻqigacha uzayadi; c esa a ning oʻrtasiga tutashgan
+    const M = buildMrDoc('p', 'Z', [
+      { id: 'c', axis: [P(-80, 60), P(-1, 60)], profile: prof, name: 'C' },
+      { id: 'a', axis: [P(0, 6), P(0, 150)], profile: prof, name: 'A' },
+      { id: 'b', axis: [P(-100, 0), P(120, 0)], profile: prof, name: 'B' }], none, nj);
+    expect(deg(M, at(M, P(0, 0))!.id)).toBe(3);
+    expect(deg(M, at(M, P(0, 60))!.id)).toBe(3);
+    expect(M.edges.length).toBe(5);
   });
 });

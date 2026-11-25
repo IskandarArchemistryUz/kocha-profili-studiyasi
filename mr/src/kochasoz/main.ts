@@ -8,7 +8,7 @@ import { scoped, svcHref, ctxProject, svcLinks } from '../core/projctx';
 import { setSvcThumb, shrink } from '../storage/svcthumb';
 import { svcWatch } from '../storage/cloud';
 // 3b-1: loyiha ichida — holat oʻzgarsa, loyiha bulutda boʻlsa bulutga yuboriladi
-{ const p = ctxProject(); if (p) svcWatch(p); }
+{ const p = ctxProject(); if (p) { svcWatch(p); setTimeout(() => { void import('./totarmoq').then(m => m.warmOsm(p)); }, 1500); } }
 import { langMenu } from '../ui/langmenu';
 import { sahnaBtn } from '../ui/sahna';
 import '../ui/ds2.css';

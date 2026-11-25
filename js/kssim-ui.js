@@ -22,6 +22,8 @@ const MCOL={L:'#4c5bd4',S:'#1c2628',R:'#c0643a'};
 const DIRS=['sharqdan','shimoli-sharqdan','shimoldan','shimoli-gʻarbdan','gʻarbdan','janubi-gʻarbdan','janubdan','janubi-sharqdan'];
 const dirName=e=>{const a=Math.atan2(e.out[1],e.out[0]),k=((Math.round(a/(Math.PI/4))%8)+8)%8;return DIRS[k];};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* 25.11: yigʻma jumlalar boʻlaklab tarjima qilinadi (js/i18n.js kpsT) — butun jumla lugʻatda boʻlmaydi */
+const T=s=>typeof window.kpsT==='function'?window.kpsT(s):s;
 const KT=J=>J.ring?'halqa':J.sig?'svetofor':'belgisiz';
 /* chorraha nomi — kesishgan koʻchalar ("Rustaveli × Qushbegi"); nomsiz boʻlsa tartib raqami */
 const KSN=s=>String(s).replace(/\s+(shoh\s+)?(koʻchasi|ko'chasi|ko‘chasi|yoʻli|yo'li|yo‘li|prospekti|shoh koʻchasi|улица|проспект)$/i,'').trim();
@@ -79,8 +81,8 @@ window.openSim=async function(nodeId){
   const nLanes=id=>{const a=probe.net.arms.find(x=>x.id===id);if(!a)return 1;const L=a.lanes.filter(l=>!l.bus);return Math.max(1,L.reduce((s,l)=>s+(!l.codes||l.codes.includes('S')?1:.5),0));};
   const rows=probe.bound.map(id=>`<tr><td>${esc(probe.names[id])} <span class="small" style="color:#777">· ${probe.net.arms.find(x=>x.id===id).lanes.filter(l=>!l.bus).length} boʻlak</span></td><td><input type="number" data-q="${id}" min="0" max="3000" step="50" value="${Math.round(nLanes(id)*LV[1][2]/50)*50}" style="width:72px"> <span class="small">avt/soat</span></td></tr>`).join('');
   const anySig=C.list.some(J=>J.sig&&!J.ring);
-  const title=multi?`${C.list.length} ta chorraha (${C.list.map(KT).join(', ')})`:(C.list[0].ring?'aylanma halqa':C.list[0].sig?'svetoforli chorraha':'tartibga solinmagan chorraha');
-  box.innerHTML=`<div style="display:flex;align-items:center;margin-bottom:6px"><b>Harakatni sinash · ${esc(title)}</b><span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em">BETA</span><span style="flex:1"></span><button data-x style="border:0;background:none;font-size:18px;cursor:pointer">×</button></div>
+  const title=multi?`${T(C.list.length+' ta chorraha')} (${C.list.map(J=>T(KT(J))).join(', ')})`:T(C.list[0].ring?'aylanma halqa':C.list[0].sig?'svetoforli chorraha':'tartibga solinmagan chorraha');
+  box.innerHTML=`<div style="display:flex;align-items:center;margin-bottom:6px"><b>${T('Harakatni sinash')} · ${esc(title)}</b><span style="display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#4c5bd4;color:#fff;font:600 10px/16px IBM Plex Mono,monospace;letter-spacing:.04em">BETA</span><span style="flex:1"></span><button data-x style="border:0;background:none;font-size:18px;cursor:pointer">×</button></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 8px"><span class="small">Vaqt:</span><select data-lv style="flex:1;min-width:150px">${LV.map((l,i)=>`<option value="${i}"${i===1?' selected':''}>${l[1]}</option>`).join('')}</select><button data-run class="btn" style="background:#141414;color:#fff;border-color:#141414">Hisoblash</button><button data-play class="btn">▶ Koʻrsatish</button></div>
     <div class="small" data-lvh style="color:#555;margin:-4px 0 6px"></div>
     <details style="margin-bottom:8px"><summary class="small" style="cursor:pointer;color:#555">Batafsil: har kirish talabi, burilish, avtobus, piyoda${anySig?', svetofor':''}</summary>
@@ -211,7 +213,7 @@ window.openSim=async function(nodeId){
       try{await kpsMatPut({id,kind:'png',name:SH.title,src,thumb:src,aspect:cv.width/cv.height,sub:'Harakat modeli',t:new Date().toISOString()});toast('Varaq Chizmadon albomiga yuborildi.',()=>window.open('app/#/chizmadon','_blank'),'Chizmadonni ochish');}catch(e){toast('Yuborilmadi: '+e.message);}});}
   function loop(){raf=requestAnimationFrame(loop);const now=performance.now(),dt=Math.min(.1,(now-st.last)/1000)*4;st.last=now;
     for(let k=0;k<Math.max(1,Math.round(dt/.1));k++)st.sim.step(Math.min(.1,dt));draw();
-    if(Math.floor(st.sim.t)%2===0){const r=st.sim.result(0),q=st.sim.queues();box.querySelector('[data-out]').innerHTML=`t = ${Math.floor(st.sim.t)} s · mashina: ${st.sim.V.length} · oʻtdi: ${r.total.n} · oʻrtacha kechikish: ${r.total.delay} s · navbat: ${Object.values(q).reduce((a,b)=>a+b,0)}`;}}
+    if(Math.floor(st.sim.t)%2===0){const r=st.sim.result(0),q=st.sim.queues();box.querySelector('[data-out]').innerHTML=`t = ${Math.floor(st.sim.t)} s · ${T('mashina')}: ${st.sim.V.length} · ${T('oʻtdi')}: ${r.total.n} · ${T('oʻrtacha kechikish')}: ${r.total.delay} s · ${T('navbat')}: ${Object.values(q).reduce((a,b)=>a+b,0)}`;}}
 };
 
 function draw(){if(!cv)return;const host=map.getContainer(),W=host.clientWidth,H=host.clientHeight,dpr=window.devicePixelRatio||1;
