@@ -96,6 +96,14 @@ em.soon{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap;pa
 .joy-legend{position:absolute;left:310px;top:calc(var(--top-y) + 46px);max-width:300px;padding:10px 12px;border-radius:var(--r-card);z-index:3;display:flex;flex-direction:column;gap:8px;font-size:11.5px}
 .joy-legend[hidden]{display:none}
 .joy-legend .lg{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+/* 24.11: faqat faol qatlam legendasi (.on); yigʻilgan — kichik tugma */
+.joy-legend .lg:not(.on),.joy-legend.min .lg{display:none}
+.joy-legend .lgbar{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.joy-legend.min{padding:4px}
+.joy-legend .lgb{border:0;background:var(--fill);color:var(--ink-2);font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--r-pill);cursor:pointer}
+.joy-legend .lgb:hover{color:var(--ink)}
+.joy-legend .lgb.x{width:22px;padding:3px 0;text-align:center}
+.joy-legend{max-height:calc(100% - var(--top-y) - 140px);overflow:auto}
 .joy-legend .lg b{width:100%;font-size:11px;font-weight:600;color:var(--muted)}
 .joy-legend span{display:inline-flex;align-items:center;gap:5px}
 .joy-legend i{width:12px;height:9px;border-radius:2px}.joy-legend i.dot{width:8px;height:8px;border-radius:50%}
@@ -476,7 +484,8 @@ i.lv{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
 .joy-pass .pp .t-small{font-size:10.5px;line-height:1.1}
 .joy-card.joy-pass .ttl{font-size:15px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
 .joy-pass .seg{flex:none;min-width:0;width:auto}
-.joy-pass .seg button{padding:0 9px}
+.joy-pass .seg button{padding:0 9px;flex:none;min-width:auto;overflow:visible;text-overflow:clip}   /* 25.11: «30… 50…» qirqilardi */
+@media (max-width:1440px){.joy-pass .chip.mono{display:none}.joy-pass .seg button{padding:0 7px}}
 .joy-pass .chip{flex:none}
 .joy-repw{position:relative;flex:none}
 .joy-repw>.btn{gap:6px;height:36px;padding:0 12px;border-radius:12px}
