@@ -135,6 +135,30 @@ test('24.11: kechikkan eski javob yangisini bosib yozmaydi (raqobatchilar toifas
   await expect(big).toHaveText('3 ta');
 });
 
+test('25.11: xizmat obyektlari yuklanmasa ham piyoda ishlaydi; Xizmatlar kartasida xato va qayta urinish', async ({ page }) => {
+  test.setTimeout(150_000);
+  const errs: string[] = [];
+  let fail = true;
+  await open(page, errs);
+  await page.evaluate(async () => { const dbs = await indexedDB.databases?.() ?? []; for (const d of dbs) if (d.name) indexedDB.deleteDatabase(d.name); });   // kesh
+  await page.route(/overpass|kumi\.systems|mail\.ru|private\.coffee/, async r => {
+    const body = decodeURIComponent(r.request().postData() || '');
+    if (fail && body.includes('out center') && !body.includes('out geom')) { await r.fulfill({ status: 504, body: 'busy' }); return; }   // faqat obyektlar soʻrovi
+    await r.fallback();
+  });
+  await page.reload();
+  await expect(page.locator('[data-card=xizmat]')).toContainText('Xizmat obyektlari yuklanmadi', { timeout: 60_000 });
+  await joyClick(page, 'piyoda', '.switch');
+  await expect(page.locator('[data-card=piyoda] .big')).toHaveText(/ga · 15 daqiqa/, { timeout: 30_000 });   // yoʻllar bor — tahlil ishlaydi
+  await expect(page.locator('[data-card=piyoda]')).toContainText('Xizmat obyektlari yuklanmadi');   // «topilmadi» deyilmaydi
+  await expect(page.locator('[data-card=piyoda]')).not.toContainText('topilmadi');
+  await joyClick(page, 'xizmat', '.lt');
+  fail = false;
+  await page.locator('[data-card=xizmat] button', { hasText: 'Qayta urinish' }).click();
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/, { timeout: 60_000 });
+  expect(errs.filter(e => !/504|Overpass|OSM/.test(e))).toEqual([]);
+});
+
 test('tungi rejim va til: panel qorongʻi, inglizcha matn', async ({ page }) => {
   const errs: string[] = [];
   await page.addInitScript(() => { localStorage.setItem('mr-theme', 'dark'); });

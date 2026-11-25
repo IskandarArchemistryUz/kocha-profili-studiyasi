@@ -1,1 +1,0 @@
-export{r as svgPdf}from"./pdf-xiv01v5c.js";

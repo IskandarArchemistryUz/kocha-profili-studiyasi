@@ -6,7 +6,12 @@ import type { LngLat } from '../core/doc';
 import { cacheGet, cachePut } from '../storage/db';
 import { cacheKey, liteKey, farKey, fetchContext, fetchFar, legacyKeys, refresh, type ContextBundle, type FarBundle, type Progress } from './load';
 import { PARSER_V } from './osm';
-import { fetchPoi, poiKey, type PoiBundle } from './poi';
+import { fetchPoi, poiKey, type PoiBundle, joyRoadR, joyObjR, joyRoadKey, joyObjKey, fetchPoiObjs, fetchRoadsOverpass, POI_R } from './poi';
+import { fetchOfmRoads } from './ofm';
+import { bboxAround } from './osm';
+
+/** Joyshunos: Overpass yoʻllarini shuncha kutib, keyin OpenFreeMap plitkalariga oʻtiladi */
+export const JOY_OVP_WAIT = 12_000;
 
 export class ContextManager {
   private w: Worker | null = null;
@@ -73,6 +78,28 @@ export class ContextManager {
     const k = poiKey(center);
     if (!force) try { const c = await cacheGet<PoiBundle>(k); if (c) return c; } catch { /* kesh */ }
     const b = await fetchPoi(center); void cachePut(k, b).catch(() => {}); return b;
+  }
+
+  /** 25.11 (Joyshunos): yoʻllar — ≤ 2 km da avval Overpass (JOY_OVP_WAIT), keyin — OpenFreeMap plitkalari (boʻlmasa Overpass), obyektlar — alohida yengil Overpass soʻrovi.
+   *  Har biri oʻz keshida: obyektlar yuklanmasa yoʻllar baribir qaytadi (pErr bilan), keyingi safar faqat obyektlar qayta soʻraladi. */
+  async loadJoyPoi(center: LngLat, r: number, force = false): Promise<PoiBundle & { pErr?: string; rSrc?: 'ofm' | 'overpass' }> {
+    const RR = joyRoadR(r), RO = joyObjR(r), kr = joyRoadKey(center, RR), ko = joyObjKey(center, RO);
+    const get = async <T,>(k: string): Promise<T | null> => { if (force) return null; try { return await cacheGet<T>(k); } catch { return null; } };
+    type Rd = { roads: PoiBundle['roads']; src: 'ofm' | 'overpass' }; type Ob = { pois: PoiBundle['pois']; attr: NonNullable<PoiBundle['attr']> };
+    const roadsP = (async (): Promise<Rd> => {
+      const c = await get<Rd>(kr); if (c) return c;
+      let v: Rd | null = null;
+      // ≤ 2 km tarmoq: avval Overpass (OSM tugunlari bilan toʻliq bogʻlangan, Toshkent markazida 99,7 %), JOY_OVP_WAIT ichida javob bermasa — plitkalar
+      if (RR <= POI_R) v = await Promise.race([fetchRoadsOverpass(center, RR).then(roads => (roads.length ? { roads, src: 'overpass' as const } : null)).catch(() => null), new Promise<null>(r => setTimeout(() => r(null), JOY_OVP_WAIT))]);
+      if (!v) try { const roads = await fetchOfmRoads(bboxAround(center, RR), fetch.bind(globalThis)); if (roads.length) v = { roads, src: 'ofm' }; } catch { /* plitkalar ochilmadi */ }
+      if (!v) { const b = await fetchPoi(center); v = { roads: b.roads, src: 'overpass' }; }   // oxirgi zaxira — avvalgi yoʻl (2 km)
+      void cachePut(kr, v).catch(() => {}); return v;
+    })();
+    const objP = (async (): Promise<Ob> => { const c = await get<Ob>(ko); if (c) return c; const v = await fetchPoiObjs(center, RO); void cachePut(ko, v).catch(() => {}); return v; })();
+    const [rd, ob] = await Promise.allSettled([roadsP, objP]);
+    if (rd.status === 'rejected') throw rd.reason;
+    const base = { center, radius: RR, fetched: new Date().toISOString(), roads: rd.value.roads, rSrc: rd.value.src };
+    return ob.status === 'fulfilled' ? { ...base, pois: ob.value.pois, attr: ob.value.attr } : { ...base, pois: [], attr: [], pErr: (ob.reason as Error)?.message || String(ob.reason) };
   }
 
   private fetch(id: number, center: LngLat, radius: number, progress: Progress): Promise<ContextBundle> {
