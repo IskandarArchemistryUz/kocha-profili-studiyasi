@@ -229,3 +229,33 @@ test('Yershunos (25.11): bosh sahifa va narxlar havolasi, sahifa ochiladi, 6 rej
   }
   for (const f of ['hududlar.json', 'iqlim.json', 'tiles/8/178/95.png', 'jala/P50_max.png', 'hudud/angren/meta.json']) expect((await page.request.get(`http://127.0.0.1:${PORT}/app/yershunos/${f}`)).status()).toBe(200);
 });
+
+test('Yershunos · istalgan hudud (25.11): global DEM, brauzerda relyef skriningi — chizish, natija paneli, qatlamlar', async ({ page }) => {
+  test.setTimeout(180_000);   // dasturiy GL da xarita sekin «idle» boʻladi
+  const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.route(/fonts\.g/, r => r.abort());
+  // tashqi manbalar testda mahalliy: xarita kutubxonasi — node_modules dan, global DEM — repodagi bitta plitka (takror mozaika)
+  await page.route(/unpkg\.com/, r => r.fulfill({ path: join(process.cwd(), 'node_modules/maplibre-gl/dist/maplibre-gl.js'), contentType: 'text/javascript' }));
+  let aws = 0;
+  await page.route(/elevation-tiles-prod/, r => { aws++; return r.fulfill({ path: join(ROOT, 'app/yershunos/tiles/11/1426/760.png'), contentType: 'image/png', headers: { 'access-control-allow-origin': '*' } }); });
+  await page.goto(`http://127.0.0.1:${PORT}/app/yershunos/`);
+  await page.waitForFunction(() => (window as any).map?.loaded?.() || document.querySelector('.maplibregl-canvas'));
+  await page.click('#rejim button[data-v=hudud]');
+  await expect(page.locator('#hlst button')).toHaveCount(3, { timeout: 40_000 });   // rejim xarita «idle» boʻlgach almashadi
+  await expect(page.locator('#hgoq')).toBeVisible();
+  // Chorvoqdan tashqarida (Olmaota yonida) — oldindan hisoblangan maʼlumot yoʻq joy
+  const r = await page.evaluate(() => (window as any).hbHisob(76.75, 43.0, 77.15, 43.3));
+  expect(aws).toBeGreaterThan(0);
+  expect(r.maydon).toBeGreaterThan(1000); expect(r.maydon).toBeLessThan(1200);
+  expect(r.zmax).toBeGreaterThan(r.zmin); expect(r.uz).toBeGreaterThan(0);
+  await expect(page.locator('#hdt')).toContainText('Yangi hudud');
+  await expect(page.locator('#hdb')).toContainText('Oqim tarmog'); await expect(page.locator('#hdb')).toContainText('BRAUZERDA SKRINING');
+  await expect(page.locator('#hdb .big')).toContainText('km²');
+  await expect(page.locator('#kpibar')).toContainText('Vodiy tubi');
+  // sichqoncha bilan chizish ham hisobni ishga tushiradi
+  await page.locator('#hnew').scrollIntoViewIfNeeded(); await page.click('#hnew');
+  await page.waitForTimeout(900);
+  await page.mouse.move(700, 300); await page.mouse.down(); await page.mouse.move(1000, 600, { steps: 6 }); await page.mouse.up();
+  await expect(page.locator('#hreqi')).toContainText(/tayyor|oralig/, { timeout: 30_000 });
+  expect(errs).toEqual([]);
+});

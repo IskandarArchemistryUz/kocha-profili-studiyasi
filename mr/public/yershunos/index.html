@@ -390,13 +390,16 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
       </details>
       <details class="acc" open><summary><span class="n">3</span>Yangi hudud</summary>
         <div class="ab">
+          <div class="k" style="margin-top:0">Istalgan joy: xaritani suring yoki joyni toping</div>
+          <form id="hgo" style="display:flex;gap:6px;margin:6px 0 8px"><input id="hgoq" type="text" autocomplete="off" placeholder="Joy nomi yoki 41.31, 69.28" aria-label="Joy nomi yoki koordinata" style="flex:1;min-width:0;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--grouped);color:var(--ink);font:12.5px var(--sans)"><button class="play ghost" type="submit">O'tish</button></form>
+          <div id="hgom" class="k" style="display:none;color:var(--mag)"></div>
           <button class="play wide" id="hnew">＋ Yangi hudud chizish</button>
           <div id="hreq" style="display:none">
-            <div class="k">Xaritada sichqoncha bilan to'rtburchak torting</div>
+            <div class="k">Xaritada to'rtburchak torting (sichqoncha yoki barmoq bilan)</div>
             <div id="hreqi" class="val" style="margin-top:6px"></div>
             <pre class="rq" id="hjson"></pre>
             <button class="play ghost" id="hcopy">Nusxa olish</button>
-            <div class="note">Server ulanganda so'rov navbatga qo'yiladi (bir vaqtda bitta hisob). Hozircha natijalar oldindan hisoblangan hududlar uchun ko'rsatiladi.</div>
+            <div class="note">Relyef, oqim tarmog'i va vodiy tubi shu brauzerda, ochiq global DEM'dan hisoblanadi — dunyoning istalgan joyida. Qurilish yillari, iqlim, jala va kasalxonagacha vaqt — server hisobi: yuqoridagi so'rov navbatga qo'yiladi (bir vaqtda bitta hisob).</div>
           </div>
         </div>
       </details>
@@ -416,20 +419,27 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
 <!-- ===== pastki ko'rsatkichlar ===== -->
 <div class="kpibar glass" id="kpibar"></div>
 
-<div class="src">Copernicus DEM GLO-30 © DLR e.V. 2010–2014, © Airbus Defence and Space GmbH 2014–2018, Copernicus / EU / ESA · HydroRIVERS © WWF (Lehner &amp; Grill 2013) · ESA WorldCover 2021 (CC-BY 4.0) · <span class="tq">NASA POWER · OpenStreetMap (ODbL) ·</span> <span class="iq">World Bank CCKP (CMIP6 0,25°) ·</span> <span class="kg">WSF Evolution / WSF2019 © DLR (CC-BY 4.0) ·</span> <span class="jl">OpenStreetMap (ODbL) ·</span> MapLibre</div>
+<div class="src"><span class="hdsrc">Terrain Tiles (Mapzen / AWS Open Data: SRTM, GMTED, ETOPO1 va b.) · </span>Copernicus DEM GLO-30 © DLR e.V. 2010–2014, © Airbus Defence and Space GmbH 2014–2018, Copernicus / EU / ESA · HydroRIVERS © WWF (Lehner &amp; Grill 2013) · ESA WorldCover 2021 (CC-BY 4.0) · <span class="tq">NASA POWER · OpenStreetMap (ODbL) ·</span> <span class="iq">World Bank CCKP (CMIP6 0,25°) ·</span> <span class="kg">WSF Evolution / WSF2019 © DLR (CC-BY 4.0) ·</span> <span class="jl">OpenStreetMap (ODbL) ·</span> MapLibre</div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
 const C={kiber:{bg:'#081019',sh:'#010306',hl:'#6fdcee',acc:'#14394d',ice:'#3ad1e8',line:'#3ad1e8',water:'#1b4d8f',hb:'#3b5368',mask:'#05080d'},
          stil:{bg:'#eef0ea',sh:'#5d6a74',hl:'#ffffff',acc:'#9aa69e',ice:'#0f8aa0',line:'#0f8aa0',water:'#7fb3d5',hb:'#7d8a82',mask:'#eef0ea'}};
 let fon='kiber', d3=true;
-const TL=new URL('tiles/',location.href).href+'{z}/{x}/{y}.png';
-const DEM={type:'raster-dem',tiles:[TL],tileSize:256,encoding:'terrarium',minzoom:8,maxzoom:11,bounds:[68.4,40.5,72.8,42.9]};
+// DEM: Chorvoq atrofida — sayt bilan birga kelgan plitkalar (Copernicus GLO-30), qolgan dunyoda — ochiq Terrarium plitkalari
+const AWS='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/', LB=[68.4,40.5,72.8,42.9], MB=[[68.4,40.5],[72.8,42.9]];
+const t2lon=(x,z)=>x/2**z*360-180, t2lat=(y,z)=>180/Math.PI*Math.atan(Math.sinh(Math.PI-2*Math.PI*y/2**z));
+async function demTile(z,x,y,signal){ const n=2**z; x=((x%n)+n)%n;
+  if(z>=8&&z<=11&&t2lon(x+1,z)>LB[0]&&t2lon(x,z)<LB[2]&&t2lat(y,z)>LB[1]&&t2lat(y+1,z)<LB[3]){
+    try{const r=await fetch(new URL('tiles/'+z+'/'+x+'/'+y+'.png',location.href),{signal}); if(r.ok) return await r.arrayBuffer();}catch(e){if(signal&&signal.aborted)throw e;}}
+  const r=await fetch(AWS+z+'/'+x+'/'+y+'.png',{signal}); if(!r.ok) throw new Error('DEM '+r.status); return await r.arrayBuffer();}
+maplibregl.addProtocol('ysdem',async(q,ac)=>{const m=q.url.match(/(\d+)\/(\d+)\/(\d+)$/); return {data:await demTile(+m[1],+m[2],+m[3],ac.signal)};});
+const DEM={type:'raster-dem',tiles:['ysdem://{z}/{x}/{y}'],tileSize:256,encoding:'terrarium',minzoom:0,maxzoom:11};
 const map=new maplibregl.Map({container:'map',
   style:{version:8,sources:{dem:DEM,dem2:{...DEM}},
     layers:[{id:'bg',type:'background',paint:{'background-color':C.kiber.bg}},
             {id:'hs',type:'hillshade',source:'dem2',paint:{'hillshade-shadow-color':C.kiber.sh,'hillshade-highlight-color':C.kiber.hl,'hillshade-accent-color':C.kiber.acc,'hillshade-exaggeration':0.7,'hillshade-illumination-direction':315}}]},
-  center:[70.85,41.80],zoom:8.4,pitch:0,bearing:0,maxBounds:[[68.4,40.5],[72.8,42.9]],minZoom:7.5,maxZoom:14.5,attributionControl:false});
+  center:[70.85,41.80],zoom:8.4,pitch:0,bearing:0,maxBounds:MB,minZoom:7.5,maxZoom:14.5,attributionControl:false});
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
 const gj=n=>({type:'geojson',data:new URL(n+'.geojson',location.href).href});
 map.on('load',()=>{
@@ -515,7 +525,7 @@ const tq=v==='toshqin', iq=v==='iqlim', kg=v==='keng', jl=v==='jala', hdm=v==='h
   ['vodiy','funksional','kichik'].forEach(l=>map.setLayoutProperty(l,'visibility',(on&&!(kg&&l==='vodiy'&&document.getElementById('kv').checked))?'none':kg&&l==='vodiy'?'visible':(document.querySelector('[data-l="'+l+'"]').checked?'visible':'none')));
   if(TQ){mk.forEach(m=>m.remove()); ['Q2','Q100','yomgir_qor'].forEach(k=>{map.setLayoutProperty('tq_h_'+k,'visibility','none');map.setLayoutProperty('tq_y_'+k,'visibility','none');}); map.setLayoutProperty('kop','visibility','none');}
     if(IQ){map.setLayoutProperty('iq','visibility','none');map.setLayoutProperty('iq-l','visibility','none'); iqMk.forEach(m=>m.remove()); iqStop();}
-  hdHide(); map.setLayoutProperty('tashqi','visibility',(iq||hdm)?'none':'visible'); if(hdm){hdLoad();}
+  hdHide(); map.setLayoutProperty('tashqi','visibility',(iq||hdm)?'none':'visible'); map.setMaxBounds(hdm?null:MB); map.setMinZoom(hdm?1.5:7.5); if(hdm){hdLoad();}
   if(JL){['jl','jl-b','jl-h'].forEach(l=>map.setLayoutProperty(l,'visibility','none')); jlStop();}
   if(KG){['kg1','kg2','kg3','kg4','kg5','kq'].forEach(l=>map.setLayoutProperty(l,'visibility','none')); kgStop();}
   if(jl){jlLoad().then(()=>{['jl','jl-b','jl-h'].forEach(l=>map.setLayoutProperty(l,'visibility','visible')); jlDraw(-1);});
@@ -643,7 +653,7 @@ function hdLoad(){ if(!HD){ fetch('hududlar.json').then(r=>r.json()).then(j=>{HD
   else if(hdCur) hdOpen(hdCur); }
 function hdHide(){hdLay.forEach(l=>{if(map.getLayer(l))map.setLayoutProperty(l,'visibility','none');}); if(map.getLayer('hbox'))map.setLayoutProperty('hbox','visibility','none'); if(map.getLayer('hdraw'))map.setLayoutProperty('hdraw','visibility','none');}
 function src(id,url,c){ if(map.getSource(id)) return; map.addSource(id,{type:'image',url:url,coordinates:c}); map.addLayer({id:id,type:'raster',source:id,paint:{'raster-opacity':0.95,'raster-fade-duration':0}},'havza-glow'); hdLay.push(id);}
-function hdOpen(nom){ hdCur=nom; fetch('hudud/'+nom+'/meta.json').then(r=>r.json()).then(M=>{
+function hdOpen(nom){ hdCur=nom; HK=null; fetch('hudud/'+nom+'/meta.json').then(r=>r.json()).then(M=>{
   hdHide(); const p='hudud/'+nom+'/';
   src('hv_'+nom,p+'vb.png',M.qatlam.vb); src('hy_'+nom,p+'yil.png',M.qatlam.yil); M.jala.forEach((j,i)=>src('hj_'+nom+'_'+i,p+'jala_'+i+'.png',j.burchak));
   const vis=(id,on)=>map.setLayoutProperty(id,'visibility',on?'visible':'none');
@@ -667,14 +677,93 @@ function hdOpen(nom){ hdCur=nom; fetch('hudud/'+nom+'/meta.json').then(r=>r.json
 document.getElementById('hnew').onclick=()=>{drawing=!drawing; document.getElementById('hreq').style.display='block'; document.getElementById('hnew').textContent=drawing?'■ chizishni bekor qilish':'＋ Yangi hudud chizish';
   if(drawing){map.dragPan.disable(); map.getCanvas().style.cursor='crosshair'; if(d3){map.easeTo({pitch:0,bearing:0,duration:600});}} else {map.dragPan.enable(); map.getCanvas().style.cursor='';}};
 function rectF(a,b){return {type:'Feature',geometry:{type:'Polygon',coordinates:[[[a.lng,a.lat],[b.lng,a.lat],[b.lng,b.lat],[a.lng,b.lat],[a.lng,a.lat]]]}}}
-map.on('mousedown',e=>{if(!drawing)return; d0=e.lngLat; if(!map.getSource('hdraw')){map.addSource('hdraw',{type:'geojson',data:rectF(d0,d0)}); map.addLayer({id:'hdraw',type:'line',source:'hdraw',paint:{'line-color':'#ff4fa3','line-width':2}});} map.setLayoutProperty('hdraw','visibility','visible');});
-map.on('mousemove',e=>{if(!drawing||!d0)return; map.getSource('hdraw').setData(rectF(d0,e.lngLat));});
-map.on('mouseup',e=>{if(!drawing||!d0)return; const a=d0,b=e.lngLat; d0=null; drawing=false; map.dragPan.enable(); map.getCanvas().style.cursor=''; document.getElementById('hnew').textContent='＋ Yangi hudud chizish';
+function dStart(e){if(!drawing)return; if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches.length>1)return; d0=e.lngLat; d1=e.lngLat; if(!map.getSource('hdraw')){map.addSource('hdraw',{type:'geojson',data:rectF(d0,d0)}); map.addLayer({id:'hdraw',type:'line',source:'hdraw',paint:{'line-color':'#ff4fa3','line-width':2}});} map.setLayoutProperty('hdraw','visibility','visible');}
+function dMove(e){if(!drawing||!d0)return; d1=e.lngLat; map.getSource('hdraw').setData(rectF(d0,d1));}
+function dEnd(e){if(!drawing||!d0)return; const a=d0,b=e.lngLat||d1; d0=null; drawing=false; map.dragPan.enable(); map.getCanvas().style.cursor=''; document.getElementById('hnew').textContent='＋ Yangi hudud chizish';
   const W=Math.min(a.lng,b.lng),E=Math.max(a.lng,b.lng),S=Math.min(a.lat,b.lat),N=Math.max(a.lat,b.lat);
-  const km2=(E-W)*111.32*Math.cos((S+N)/2*Math.PI/180)*(N-S)*110.57, t=Math.round(100+0.05*km2), ok=km2<=5000&&km2>=20;
-  document.getElementById('hreqi').innerHTML=Math.round(km2).toLocaleString('uz').replace(/,/g,' ')+' km² · taxminiy hisob '+(t<120?t+' s':Math.round(t/60)+' daq')+(ok?'':'<br><span style="color:var(--mag)">Skrining uchun 20–5 000 km² oralig\'ida tanlang</span>');
+  const km2=(E-W)*111.32*Math.cos((S+N)/2*Math.PI/180)*(N-S)*110.57, ok=km2<=5000&&km2>=20;
+  document.getElementById('hreqi').innerHTML=Math.round(km2).toLocaleString('uz').replace(/,/g,' ')+' km²'+(ok?' · relyef skriningi brauzerda hisoblanmoqda…':'<br><span style="color:var(--mag)">Skrining uchun 20–5 000 km² oralig\'ida tanlang</span>');
   const rq={bbox:[+W.toFixed(3),+S.toFixed(3),+E.toFixed(3),+N.toFixed(3)],nom:'hudud_'+Date.now().toString(36),tahlillar:['relyef','kengayish','iqlim','kirish','jala']};
-  document.getElementById('hjson').textContent=JSON.stringify(rq,null,1)+'\n\npython -m yershunos.ishga --bbox '+rq.bbox.join(' ')+' --nom '+rq.nom;});
+  document.getElementById('hjson').textContent=JSON.stringify(rq,null,1)+'\n\npython -m yershunos.ishga --bbox '+rq.bbox.join(' ')+' --nom '+rq.nom;
+  if(ok) hbHisob(W,S,E,N).then(()=>{document.getElementById('hreqi').textContent=Math.round(km2).toLocaleString('uz').replace(/,/g,' ')+' km² · relyef skriningi tayyor';},
+    err=>{document.getElementById('hreqi').innerHTML=Math.round(km2).toLocaleString('uz').replace(/,/g,' ')+' km²<br><span style="color:var(--mag)">Relyef ma\'lumotini yuklab bo\'lmadi ('+String(err&&err.message||err).slice(0,60)+') — internetni tekshirib, qayta chizing</span>';});}
+let d1=null;
+map.on('mousedown',dStart); map.on('mousemove',dMove); map.on('mouseup',dEnd);
+map.on('touchstart',dStart); map.on('touchmove',dMove); map.on('touchend',dEnd);
+
+// ---------- Istalgan hudud: brauzerda relyef skriningi (global DEM, serversiz) ----------
+// 1) DEM plitkalari → balandlik to'ri; 2) priority-flood (chuqurlar to'ldiriladi, har katak oqim yo'nalishi oladi);
+// 3) oqim to'planishi → oqim tarmog'i; 4) o'zandan balandlik (HAND) ≤ 5 m → vodiy tubi; 5) qiyalik statistikasi.
+let HK=null;
+async function hbHisob(W,S,E,N){
+  const t0=performance.now(), lat0=(S+N)/2, mx=l=>(l+180)/360, my=l=>{const q=Math.sin(l*Math.PI/180);return .5-Math.log((1+q)/(1-q))/(4*Math.PI)};
+  let z=12; for(;z>5;z--){const a=(mx(E)-mx(W))*256*2**z,b=(my(S)-my(N))*256*2**z; if(a*b<=1.1e6&&a<=1600&&b<=1600)break;}
+  const sc=256*2**z, px0=Math.floor(mx(W)*sc), py0=Math.floor(my(N)*sc), w=Math.max(8,Math.ceil(mx(E)*sc)-px0), h=Math.max(8,Math.ceil(my(S)*sc)-py0), n=w*h;
+  const tx0=Math.floor(px0/256), ty0=Math.floor(py0/256), tx1=Math.floor((px0+w-1)/256), ty1=Math.floor((py0+h-1)/256);
+  const cv=document.createElement('canvas'); cv.width=(tx1-tx0+1)*256; cv.height=(ty1-ty0+1)*256; const cx=cv.getContext('2d',{willReadFrequently:true});
+  const job=[]; for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++) job.push(demTile(z,tx,ty).then(buf=>createImageBitmap(new Blob([buf]),{premultiplyAlpha:'none',colorSpaceConversion:'none'})).then(bm=>cx.drawImage(bm,(tx-tx0)*256,(ty-ty0)*256)));
+  await Promise.all(job);
+  const im=cx.getImageData(px0-tx0*256,py0-ty0*256,w,h).data, zv=new Float32Array(n);
+  for(let i=0;i<n;i++) zv[i]=im[4*i]*256+im[4*i+1]+im[4*i+2]/256-32768;
+  await new Promise(r=>setTimeout(r,30));   // «hisoblanmoqda…» yozuvi ekranga chiqsin
+  const dx=40075016.686*Math.cos(lat0*Math.PI/180)/sc, ckm=dx*dx/1e6;   // katak tomoni (m) va maydoni (km²)
+  // priority-flood: chetdan ichkariga, eng past katakdan boshlab
+  const fl=new Float32Array(n), dir=new Int32Array(n).fill(-1), ord=new Int32Array(n), vis=new Uint8Array(n), heap=new Int32Array(n); let hs=0, oi=0;
+  const push=i=>{let k=hs++; const v=fl[i]; while(k>0){const q=(k-1)>>1; if(fl[heap[q]]<=v)break; heap[k]=heap[q]; k=q;} heap[k]=i;};
+  const pop=()=>{const top=heap[0], last=heap[--hs]; if(hs>0){let k=0; const v=fl[last]; for(;;){let c=2*k+1; if(c>=hs)break; if(c+1<hs&&fl[heap[c+1]]<fl[heap[c]])c++; if(fl[heap[c]]>=v)break; heap[k]=heap[c]; k=c;} heap[k]=last;} return top;};
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++) if(x===0||y===0||x===w-1||y===h-1){const i=y*w+x; fl[i]=zv[i]; vis[i]=1; push(i);}
+  while(hs>0){const c=pop(); ord[oi++]=c; const x=c%w, y=(c-x)/w;
+    for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){ if(!i&&!j)continue; const X=x+i,Y=y+j; if(X<0||Y<0||X>=w||Y>=h)continue; const q=Y*w+X; if(vis[q])continue; vis[q]=1; fl[q]=Math.max(zv[q],fl[c]); dir[q]=c; push(q);} }
+  const acc=new Float32Array(n).fill(1); for(let k=n-1;k>=0;k--){const c=ord[k]; if(dir[c]>=0) acc[dir[c]]+=acc[c];}
+  const maydon=n*ckm, thrKm=Math.min(10,Math.max(0.5,maydon/200)), thr=thrKm/ckm;
+  // HAND va oqim uzunligi
+  const base=new Float32Array(n); let vb=0, uz=0, amax=0;
+  for(let k=0;k<n;k++){const c=ord[k], st=acc[c]>=thr; base[c]=st?zv[c]:(dir[c]<0?NaN:base[dir[c]]);
+    if(st){ if(dir[c]>=0){const d=Math.abs(dir[c]-c); uz+=(d===1||d===w)?dx:dx*1.4142;} if(acc[c]>amax)amax=acc[c]; }
+    if(zv[c]-base[c]<=5) vb++; }
+  // qiyalik va balandlik statistikasi
+  const hg=new Uint32Array(181); let ns=0, f1c=0, s15=0, s30=0;
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x, g=Math.atan(Math.hypot(zv[i+1]-zv[i-1],zv[i+w]-zv[i-w])/(2*dx))*180/Math.PI; ns++; hg[Math.min(180,Math.round(g*2))]++; if(g<1)f1c++; if(g>15)s15++; if(g>30)s30++;}
+  let med=0; for(let k=0,a=0;k<181;k++){a+=hg[k]; if(a>=ns/2){med=k/2;break;}}
+  const so=Float32Array.from(zv).sort(), tekis=f1c/ns, tk=tekis>0.5;
+  // qatlamlar: vodiy tubi (magenta) va oqim tarmog'i (moviy)
+  const mk=(fn)=>{const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'), d=g.createImageData(w,h); fn(d.data); g.putImageData(d,0,0); return c.toDataURL('image/png');};
+  const uV=mk(D=>{ if(tk)return; for(let i=0;i<n;i++) if(zv[i]-base[i]<=5){D[4*i]=255;D[4*i+1]=79;D[4*i+2]=163;D[4*i+3]=120;} });
+  const uO=mk(D=>{ for(let i=0;i<n;i++) if(acc[i]>=thr){const r=acc[i]>=thr*40?2:(acc[i]>=thr*6?1:0), x=i%w, y=(i-x)/w;
+      for(let j=-r;j<=r;j++)for(let k=-r;k<=r;k++){const X=x+k,Y=y+j; if(X<0||Y<0||X>=w||Y>=h||(r===2&&Math.abs(j)+Math.abs(k)>3))continue; const q=4*(Y*w+X); D[q]=30;D[q+1]=150;D[q+2]=200;D[q+3]=255;}} });
+  const lo=x=>x/sc*360-180, la=y=>180/Math.PI*Math.atan(Math.sinh(Math.PI-2*Math.PI*y/sc)), co=[[lo(px0),la(py0)],[lo(px0+w),la(py0)],[lo(px0+w),la(py0+h)],[lo(px0),la(py0+h)]];
+  hdHide(); document.querySelectorAll('#hlst button').forEach(x=>x.classList.remove('on'));
+  [['hb_v',uV],['hb_o',uO]].forEach(([id,url])=>{ if(map.getSource(id)) map.getSource(id).updateImage({url:url,coordinates:co}); else {map.addSource(id,{type:'image',url:url,coordinates:co}); map.addLayer({id:id,type:'raster',source:id,paint:{'raster-opacity':0.95,'raster-fade-duration':0}},'havza-glow'); hdLay.push(id);} });
+  const upd=()=>{map.setLayoutProperty('hb_v','visibility',document.getElementById('hv').checked?'visible':'none'); map.setLayoutProperty('hb_o','visibility','visible');};
+  ['hv','hy','hj'].forEach(i=>document.getElementById(i).onchange=upd); upd();
+  const bx={type:'Feature',geometry:{type:'LineString',coordinates:[[W,S],[E,S],[E,N],[W,N],[W,S]]}};
+  if(map.getSource('hbox')) map.getSource('hbox').setData(bx); else {map.addSource('hbox',{type:'geojson',data:bx}); map.addLayer({id:'hbox',type:'line',source:'hbox',paint:{'line-color':'#3ad1e8','line-width':1.5,'line-dasharray':[3,2]}});}
+  map.setLayoutProperty('hbox','visibility','visible'); map.fitBounds([[W,S],[E,N]],{padding:PAD(),pitch:d3?40:0,duration:1600});
+  // panel
+  const sp=v=>Math.round(v).toLocaleString('uz').replace(/,/g,' '), pc=v=>Math.round(v*100)+' %', c1=v=>f1(Math.round(v*10)/10);
+  const zmin=Math.round(so[0]), zmax=Math.round(so[n-1]), zmed=Math.round(so[n>>1]);
+  hdCur=null; document.getElementById('hdt').firstChild.textContent='Yangi hudud · '+c1(lat0)+'°, '+c1((W+E)/2)+'° ';
+  let s='<div class="k" style="margin-top:0">Maydon · balandlik (min – median – maks)</div><div class="big" style="font-size:20px">'+sp(maydon)+' km²</div><div style="font-size:13px">'+sp(zmin)+' – '+sp(zmed)+' – '+sp(zmax)+' m</div>';
+  s+='<div class="k">Qiyalik: median · tekis (&lt;1°) · tik (&gt;15°) · juda tik (&gt;30°)</div><div style="font-size:12px">'+c1(med)+'° · '+pc(tekis)+' · '+pc(s15/ns)+' · '+pc(s30/ns)+'</div>';
+  s+='<div class="k">Oqim tarmog\'i (havzasi ≥ '+c1(thrKm)+' km²)</div><div style="font-size:12px">'+sp(uz/1000)+' km · zichligi '+c1(uz/1000/maydon)+' km/km² · eng katta ichki havza '+sp(amax*ckm)+' km²</div>';
+  s+='<div class="k">Vodiy tubi (o\'zandan ≤ 5 m baland)</div><div style="font-size:12px">'+(tk?'— tekis hududda hisoblanmaydi':c1(vb*ckm)+' km² · hududning '+c1(vb/n*100)+' %')+'</div>';
+  s+='<div class="k">Qurilish yillari · iqlim · jala · kasalxonagacha vaqt</div><div style="font-size:12px">— server hisobi kerak («Yangi hudud» bo\'limidagi so\'rov)</div>';
+  const B=['relyef: Global DEM (Terrain Tiles, ~'+Math.round(dx)+' m katak, z'+z+') — Copernicus GLO-30 dan dag\'alroq; binolar va o\'rmon balandligi relyefga qo\'shilgan bo\'lishi mumkin',
+    'relyef: Oqim faqat chizilgan to\'rtburchak ichida to\'planadi — tashqaridan kiradigan daryolar havzasi hisobga olinmaydi (yirik daryo tarmoqda ko\'rinmasligi mumkin)',
+    'relyef: Vodiy tubi — geometrik belgi (HAND ≤ 5 m), toshqin chegarasi emas; gidravlik model o\'rnini bosmaydi'];
+  if(tk) B.unshift('tekislik: '+pc(tekis)+' maydon qiyaligi < 1°: vodiy tubi hisoblanmadi, oqim tarmog\'i ishonchsiz — DEM shovqini va kanal/zovur tarmog\'isiz');
+  s+='<div class="k" style="color:var(--mag)">Ogohlantirishlar</div>'+B.map(b=>'<div class="bq">• '+b.replace(/^(\w+): /,'<b>$1:</b> ')+'</div>').join('');
+  s+='<div class="k">BRAUZERDA SKRINING · '+c1((performance.now()-t0)/1000)+' s · KO\'RGAZMALI</div>';
+  HK=[['Hudud',sp(maydon)+' km²'],['Balandlik',sp(zmin)+'–'+sp(zmax)+' m'],['Tik (>15°)',pc(s15/ns)],['Vodiy tubi',tk?'—':c1(vb*ckm)+' km²']];
+  document.getElementById('hdb').innerHTML=s;
+  return {z,w,h,maydon,zmin,zmax,tekis,uz,vb:vb*ckm};}
+window.hbHisob=hbHisob;
+// joyga o'tish: «41.31, 69.28» yoki joy nomi (OpenStreetMap Nominatim)
+document.getElementById('hgo').onsubmit=e=>{e.preventDefault(); const q=document.getElementById('hgoq').value.trim(), M=document.getElementById('hgom'); if(!q)return;
+  const m=q.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*[,; ]\s*(-?\d+(?:[.,]\d+)?)\s*$/), go=(lat,lon)=>{M.style.display='none'; map.flyTo({center:[lon,lat],zoom:Math.max(map.getZoom(),9.5),duration:1800});};
+  if(m){const lat=+m[1].replace(',','.'), lon=+m[2].replace(',','.'); if(Math.abs(lat)<=85&&Math.abs(lon)<=180){go(lat,lon);return;}}
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q)).then(r=>r.json()).then(j=>{ if(j&&j[0]) go(+j[0].lat,+j[0].lon); else {M.textContent='Topilmadi — koordinata kiriting (masalan: 41.31, 69.28)'; M.style.display='block';} },
+    ()=>{M.textContent='Qidiruv ishlamadi — koordinata kiriting (masalan: 41.31, 69.28)'; M.style.display='block';});};
 document.getElementById('hcopy').onclick=()=>{try{navigator.clipboard.writeText(document.getElementById('hjson').textContent).then(()=>{document.getElementById('hcopy').textContent='Nusxa olindi ✓';},()=>{document.getElementById('hcopy').textContent='Nusxa olinmadi';});}catch(e){document.getElementById('hcopy').textContent='Nusxa olinmadi';}};
 </script>
 
@@ -695,7 +784,7 @@ const K={
   jala:()=>[['Pik sarf',tx('jq')],['Suv yetgan bino',first(tx('jb'))],['Kadr',tx('jt')]],
   iqlim:()=>[[tx('iqt').replace(/^Iqlim · /,'')+' · Toshkent',tx('it1')],['Havza',tx('ih1')],['Davr',tx('ipl')]],
   keng:()=>[['Qurilgan maydon',tx('ka')],['Holat',tx('kyl')],['O\'zgarish',tx('ka2')]],
-  hudud:()=>{const b=$('hdb').querySelector('.big'); return [['Hudud',tx('hdt')],['Qurilgan, ga',b?b.textContent:'—']];}};
+  hudud:()=>{if(HK)return HK; const b=$('hdb').querySelector('.big'); return [['Hudud',tx('hdt')],['Qurilgan, ga',b?b.textContent:'—']];}};
 let kq=0; function kpi(){cancelAnimationFrame(kq); kq=requestAnimationFrame(()=>{
   $('kpibar').innerHTML=K[curMode]().map(([l,v,m])=>'<div class="kpi'+(m&&v!=='hech kim'?' mag':'')+'"><span>'+l+'</span><b>'+v+'</b></div>').join('');});}
 new MutationObserver(kpi).observe($('hudwrap'),{subtree:true,childList:true,characterData:true});
