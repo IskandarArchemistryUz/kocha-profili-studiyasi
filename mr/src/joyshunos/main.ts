@@ -32,7 +32,7 @@ import { bboxAround } from '../context/osm';
 import { loadTerrain, TERRAIN_URL, type TerrainGrid } from '../context/tiles';
 import { overpass } from '../context/load';
 import { ContextManager } from '../context/manager';
-import type { PoiBundle } from '../context/poi';
+import { joyRoadR, type PoiBundle } from '../context/poi';
 import { frame as geoFrame } from '../core/geo';
 import { distAt, snap as snapNet, type Net } from '../core/services';
 import { walkNet, strictNet, reach, sssp, flow, flowAt, flowClass, noiseGrid, noiseAt, noiseShare, NOISE_BINS, WALK, type Reach } from './models';
@@ -116,6 +116,8 @@ const inTash = (c: LngLat) => c[0] >= TASH_BBOX[0] && c[0] <= TASH_BBOX[2] && c[
 const here = (l: LayerDef) => l.ready && (!l.tash || inTash(S.c));
 const isOn = (id: LayerId) => S.on.includes(id) && here(LAYERS.find(l => l.id === id)!);   // yoqilgan, lekin qamrovdan tashqarida — oʻchiq hisoblanadi (holat saqlanadi)
 /** Faol qatlam: tanlangani yoqilgan boʻlsa — u, aks holda oxirgi yoqilgani */
+/** 25.11: xizmat obyektlari holati — yoʻllar keldi, obyektlar yuklanmagan boʻlsa xato (piyoda / oqim / shovqin baribir ishlaydi) */
+const poiLd = (): Ld<unknown> => (D.poi.st === 'ok' && D.poi.v?.pErr ? { st: 'err', err: tf('Xizmat obyektlari yuklanmadi (${e})', { e: D.poi.v.pErr }) } : D.poi);
 const actId = (): LayerId | undefined => (S.act && isOn(S.act) ? S.act : [...S.on].reverse().find(id => LAYERS.some(l => l.id === id && l.ready)));
 const FOCUS_DIM = 0.3;
 let viewOpen = (() => { try { return localStorage.getItem('joy-view-open') !== '0'; } catch { return true; } })();   // prototipdagidek sukut boʻyicha ochiq
@@ -134,7 +136,7 @@ let roseK = 1;
 
 /* ---------------- maʼlumot (har nuqta uchun) ---------------- */
 type Ld<T> = { st: 'idle' | 'load' | 'ok' | 'err'; v?: T; err?: string };
-const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: WindSrc; pending?: GlobalSrc }>; lst: Ld<LstGrid> } =
+const D: { narx: Ld<NarxData>; addr: Ld<string>; ter: Ld<{ g: TerrainGrid; s: TerrainStats }>; poi: Ld<PoiBundle & { pErr?: string; rSrc?: 'ofm' | 'overpass' }>; comp: Ld<Comp[]>; wind: Ld<{ w: WindSum; name: string; km: number; bins: number[]; far: boolean; src: WindSrc; pending?: GlobalSrc }>; lst: Ld<LstGrid> } =
   { narx: { st: 'idle' }, addr: { st: 'idle' }, ter: { st: 'idle' }, poi: { st: 'idle' }, comp: { st: 'idle' }, wind: { st: 'idle' }, lst: { st: 'idle' } };
 /** Kadastr 50 m toʻri (butun shahar uchun bitta fayl, nuqtaga bogʻliq emas) */
 let KAD: Ld<KadGrid> = { st: 'idle' };
@@ -224,7 +226,7 @@ function originW(fr: ReturnType<typeof geoFrame>): ((p: XY) => number) | undefin
 let SK: { key: string; res: SkResult; rings: LngLat[][]; area: number[]; h: number[] } | null = null, skBusy = false, skSel: number | null = null;
 function computeSk(): void {
   if (!isOn('skaner') || skBusy) return;
-  const pb = D.poi.v, b = axBundle?.b; if (!pb || !b) return;
+  const pb = D.poi.v, b = axBundle?.b; if (!pb || !b || pb.pErr) return;   // 25.11: obyektlarsiz skaner hamma binoga 0 berardi
   const m = netModels(); if (!m) return;
   const key = `${m.key}|${axBundle!.key}|${(S.added ?? []).filter(x => x.norm).map(x => x.id).join()}`;
   if (SK?.key === key) return;
@@ -737,7 +739,7 @@ function joyHost(): JoyHost {
     cards: () => collectCards(),
     services: () => {
       if (!isOn('xizmat')) return null;
-      const p = D.poi.v; if (D.poi.st !== 'ok' || !p) return 'load';
+      const p = D.poi.v; if (D.poi.st !== 'ok' || !p || p.pErr) return 'load';
       const cnt = countPoi(p.pois, S.c, S.r, SVC_KINDS), rows = svcRows(p.pois, S.added ?? [], S.c, SVC_KINDS, k => svcDef(k).r);
       return rows.map(x => ({ kind: x.kind, count_in_radius: cnt.find(c => c.kind === x.kind)?.n ?? 0, nearest_osm_m: x.osm, nearest_added_m: x.own, norm_radius_m: x.r, status: x.st }));
     },
@@ -1016,7 +1018,7 @@ function renderRightH(): void {
       null, D.wind));
   }
   if (isOn('xizmat')) {
-    const p = D.poi.v, cnt = p ? countPoi(p.pois, S.c, S.r, SVC_KINDS) : [];
+    const p = D.poi.v?.pErr ? undefined : D.poi.v, cnt = p ? countPoi(p.pois, S.c, S.r, SVC_KINDS) : [];
     const tot = cnt.reduce((a, c) => a + c.n, 0);
     // E2 (11.11): xulosa 3 holatda — «Topildi — N m (OSM / siz qoʻshgan)», «OSM maʼlumotida topilmadi — joyida tekshiring» + qoʻshish; «yoʻq» deyilmaydi
     const rows = p ? svcRows(p.pois, S.added ?? [], S.c, ['bekat', 'maktab', 'mtm', 'poliklinika', 'dorixona'], k => svcDef(k).r) : [];
@@ -1031,7 +1033,7 @@ function renderRightH(): void {
         h('ul', { class: 'joy-norm joy-svcs' }, ...rows.map(svcRow)),
         h('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'joyAddObj', onclick: () => startPlace(placing ? null : 'mtm') }, placing ? tr('Qoʻshishni bekor qilish') : `+ ${tr('Obyekt qoʻshish')}`),
         h('span', { class: 'src' }, tr('Eng yaqini (toʻgʻri chiziq) va meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band. OSM toʻliq emas: «kamida shuncha».'))] : [],
-      null, D.poi));
+      null, poiLd()));
   }
   if (isOn('raqobat')) {
     const cat = CATS.find(c => c.id === S.cat) ?? CATS[0], list = D.comp.v ?? [], inR = list.filter(c => c.d <= S.r);
@@ -1092,15 +1094,15 @@ function renderRightH(): void {
     cards.push(card(L('piyoda'), tr('OSM tarmoq'), r ? (all ? tf('${a} → ${b} ga · 10 daqiqa', { a: ha(r.area[0]), b: ha(r.area[r.area.length - 1]) }) : tf('${h} ga · 15 daqiqa', { h: ha(r.area[2]) })) : '—',
       r ? [all ? h('ul', { class: 'joy-norm' }, ...PERSONA_ALL.map((p, i) => h('li', {}, h('span', {}, h('i', { style: `display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${p.col}` }), tr(p.name)), h('b', {}, tf('${a} ga', { a: ha(r.area[i]) })), h('em', {}, `${fmt(p.v, 1)} km/soat`)))) : tf('5 daqiqa: ${a} ga · 10 daqiqa: ${b} ga · 15 daqiqa: ${c} ga (yoʻllardan 40 m)', { a: ha(r.area[0]), b: ha(r.area[1]), c: ha(r.area[2]) }), h('br'),
         r.directness != null ? tf('Tarmoq toʻgʻriligi: ${d} (1 — toʻgʻri chiziq; 0,7 dan past — aylanma yoʻllar)', { d: fmt(r.directness, 2) }) : '',
-        h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[pers()]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
-        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), pers() !== 'yosh' && PERSONA[pers()] ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[pers()].note) })}` : all ? ` ${tr('Har persona — 10 daqiqa, tezliklar taxminiy; aravacha uchun zinapoya va bordyur hali hisobga olinmagan.')}` : '')] : [],
+        D.poi.v?.pErr ? h('div', { class: 'sub' }, tr('Xizmat obyektlari yuklanmadi — ularga masofa keyin koʻrsatiladi (Xizmatlar kartasida «Qayta urinish»).')) : h('ul', { class: 'joy-norm' }, ...(['bekat', 'metro', 'maktab', 'mtm', 'dorixona'] as Svc[]).map(k => { const d = nr[k], def = svcDef(k); return h('li', { class: d != null && d <= def.r ? 'ok' : 'warn' }, h('span', {}, tr(def.name)), h('b', {}, d == null ? tr('topilmadi') : tf('${m} m · ${t} daq', { m: fmt(d), t: Math.round(d / (WALK * (PERSONA[pers()]?.v / 5 || 1))) })), h('em', {}, `≤ ${def.r} m`)); })),
+        h('span', { class: 'src' }, tr('Masofa — piyoda tarmogʻi boʻylab (Dijkstra, 5 km/soat). Meʼyor: ShNQ 2.07.01-23, 38-jadval; bekat — 382-band.'), pers() !== 'yosh' && PERSONA[pers()] ? ` ${tf('Vaqt — ${n} uchun (tezlik taxminiy).', { n: tr(PERSONA[pers()].note) })}` : all ? ` ${tr('Har persona — 10 daqiqa, tezliklar taxminiy; aravacha uchun zinapoya va bordyur hali hisobga olinmagan.')}` : '', D.poi.v?.rSrc === 'ofm' ? ` ${tr('Yoʻllar — OpenFreeMap plitkalaridan (soddalashtirilgan, tarmoqning bir qismi uzilgan boʻlishi mumkin).')}` : '')] : [],
       null, r ? undefined : busyOf('reach')));
   }
   if (isOn('skaner')) {
     const r = SK?.res, sel = r && skSel != null ? r.b[skSel] : null, R = (k: Svc) => svcDef(k).r;
     const dTxt = (b: NonNullable<typeof sel>, i: number) => { const d = Math.min(...SK_DIMS[i].kinds.map(k => b.d[k] ?? Infinity)); return Number.isFinite(d) ? `${fmt(d)} m` : tr('topilmadi'); };
     const norm = (i: number) => `≤ ${SK_DIMS[i].kinds.map(R).join(' / ')} m`;
-    const busySk: Ld<unknown> = D.poi.st === 'err' ? D.poi : axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
+    const busySk: Ld<unknown> = poiLd().st === 'err' ? poiLd() : axMsg && !axBusy && !axBundle ? { st: 'err', err: axMsg } : { st: 'load' };
     const low = r ? r.bins[0] + r.bins[1] : 0;
     cards.push(card(L('skaner'), 'OSM', sel ? `${sel.comp} / 100` : r ? tf('${n} bino · oʻrtacha ${c}', { n: fmt(r.b.length), c: r.comp }) : '—',
       r ? [
@@ -1248,7 +1250,7 @@ function renderBase(): void {
 }
 
 /* ---------------- maʼlumot yuklash ---------------- */
-function setRadius(r: number): void { S.r = r; save(); D.comp = { st: 'idle' }; D.ter = { st: 'idle' }; renderRight(); paint(); frame(600); ensure(); if (mode === 'axo') void enterAxo(); }
+function setRadius(r: number): void { S.r = r; save(); if (D.poi.v && (joyRoadR(r) > D.poi.v.radius || D.poi.v.pErr)) D.poi = { st: 'idle' }; D.comp = { st: 'idle' }; D.ter = { st: 'idle' }; renderRight(); paint(); frame(600); ensure(); if (mode === 'axo') void enterAxo(); }
 /** Doirani panellar orasidagi boʻsh joyga sigʻdirish */
 function frame(duration = 0): void {
   if (!map) return;
@@ -1296,7 +1298,7 @@ function ensure(): void {
     const R = Math.max(r, 500) + 100, g = await loadTerrain(c, R, bboxAround(c, R * 1.1), fetch.bind(globalThis), 10);
     if (!g) throw new Error(tr('relyef plitkalari ochilmadi')); return { g, s: terrainStats(g, r) };
   });
-  if ((isOn('xizmat') || isOn('piyoda') || isOn('skaner') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadPoi(c));
+  if ((isOn('xizmat') || isOn('piyoda') || isOn('skaner') || isOn('oqim') || isOn('shovqin')) && D.poi.st === 'idle') run('poi', () => ctx.loadJoyPoi(c, S.r));
   if ((isOn('skaner') || isOn('oqim') || isOn('izovist')) && axBundle?.key !== `${c.join()}|${r + 100}`) void needCtx();   // oqim: binolar — boshlangʻich nuqta vazni; izovist — toʻsiqlar
   loadPv();
   computeNet();
@@ -1624,7 +1626,7 @@ function paintH(): void {
     for (const id of ['joy-skan-f', 'joy-skan-s']) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
     m.setFilter('joy-skan-s', ['==', ['get', 'i'], on && skSel != null ? skSel : -1]); }
   paintIz(m);
-  const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];
+  const p = isOn('xizmat') ? D.poi.v?.pois ?? [] : [];   // pErr — boʻsh roʻyxat
   (m.getSource('joy-poi') as GeoJSONSource).setData(fc(p.filter(x => SVC_KINDS.includes(x.kind)).map(x => { const d = distM(S.c, x.at); return d > S.r * 2.2 ? null : pt(x.at, { col: SVC_COL[x.kind], in: d <= S.r, k: x.kind }); }).filter(Boolean)) as never);
   const cp = isOn('raqobat') ? D.comp.v ?? [] : [];
   (m.getSource('joy-comp') as GeoJSONSource).setData(fc(cp.map(x => pt(x.at, { in: x.d <= S.r }))) as never);
@@ -2551,7 +2553,7 @@ async function enterAxo(): Promise<void> {
     (window as unknown as { joyAxo: unknown }).joyAxo = axo;
   }
   // maʼlumot: kontekst (binolar, yoʻllar, relyef) + xizmatlar, raqobatchilar, shamol
-  if (D.poi.st === 'idle') run('poi', () => ctx.loadPoi(S.c));
+  if (D.poi.st === 'idle') run('poi', () => ctx.loadJoyPoi(S.c, S.r));
   if (D.comp.st === 'idle') ensureComp();
   if (D.wind.st === 'idle') ensureWind();
   await needCtx();

@@ -104,3 +104,38 @@ way["highway"]["area"!="yes"]["highway"!~"^(construction|proposed|raceway|bus_gu
   const j = await overpass(q, f, () => {}) as { elements?: El[] };
   return { center, radius: POI_R, fetched: new Date().toISOString(), pois: parsePoi(j), roads: parseRoads(j), attr: parseAttr(j) };
 }
+
+/* ===== 25.11: Joyshunos — yoʻllar OpenFreeMap plitkalaridan, xizmat obyektlari Overpass dan alohida =====
+   Avval bitta Overpass soʻrovi (obyektlar + 2 km dagi barcha yoʻllar geometriyasi, 4,6–5 MB) — ommaviy serverlar 17–26 s, koʻpincha 502.
+   Endi: yoʻllar plitkalardan (≈ 0,3 s / plitka; radius 3 km gacha), obyektlar — yengil soʻrov (faqat markaz nuqtalari).
+   Obyektlar yuklanmasa ham yoʻllar bor: piyoda, oqim, shovqin ishlaydi; xizmatlar kartasi xatoni koʻrsatadi (pErr). */
+/** Joyshunos yoʻl tarmogʻi radiusi: tahlil radiusidan kengroq (oqim R × 1,2, shovqin manbalari, chekka) */
+export const joyRoadR = (r: number): number => Math.max(POI_R, Math.ceil((r + 700) / 100) * 100);
+/** Xizmat obyektlari radiusi: tahlil radiusi + eng katta meʼyor radiusi (poliklinika 1 500 m) */
+export const joyObjR = (r: number): number => Math.max(POI_WIDE, Math.ceil((r + 1500) / 100) * 100);
+export const joyRoadKey = (c: LngLat, R: number) => `joyr1:${c[0].toFixed(3)},${c[1].toFixed(3)}:${R}`;
+export const joyObjKey = (c: LngLat, R: number) => `joyo1:${c[0].toFixed(3)},${c[1].toFixed(3)}:${R}`;
+export async function fetchPoiObjs(center: LngLat, R: number, f: typeof fetch = fetch.bind(globalThis)): Promise<{ pois: Poi[]; attr: { at: LngLat; w: number }[] }> {
+  const B = (r: number) => `(${bboxAround(center, r).map(v => v.toFixed(6)).join(',')})`, w = B(R), a = B(Math.max(POI_R, R - 1500));
+  const q = `[out:json][timeout:60];(
+  nwr["amenity"~"^(school|kindergarten|clinic|hospital|pharmacy|marketplace|community_centre|townhall)$"]${w};
+  nwr["healthcare"~"^(clinic|hospital|pharmacy)$"]${w};
+  nwr["shop"~"^(supermarket|convenience|greengrocer|bakery|butcher|general|grocery|department_store|mall)$"]${w};
+  nwr["leisure"~"^(sports_centre|fitness_centre|stadium|sports_hall)$"]${w};
+  way["building"~"^(school|kindergarten|hospital)$"]${w};
+  node["highway"="bus_stop"]${w};
+  node["railway"~"^(tram_stop|subway_entrance)$"]${w};
+  nwr["public_transport"="platform"]["bus"="yes"]${w};
+  nwr["public_transport"="platform"]["trolleybus"="yes"]${w};
+  nwr["railway"="station"]["station"="subway"]${w};
+  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court|university|college|cinema|theatre)$"]${a};
+);out center qt;`;
+  const j = await overpass(q, f, () => {}) as { elements?: El[] };
+  return { pois: parsePoi(j), attr: parseAttr(j) };
+}
+/** Faqat yoʻllar Overpass dan (toʻliq OSM teglari va tugunlari bilan) — kichik radiusda, javob tez kelsa */
+export async function fetchRoadsOverpass(center: LngLat, R: number, f: typeof fetch = fetch.bind(globalThis)): Promise<PoiBundle['roads']> {
+  const bb = bboxAround(center, R).map(v => v.toFixed(6)).join(',');
+  const j = await overpass(`[out:json][timeout:25][bbox:${bb}];way["highway"]["area"!="yes"]["highway"!~"^(construction|proposed|raceway|bus_guideway)$"];out geom qt;`, f, () => {}) as { elements?: El[] };
+  return parseRoads(j);
+}
