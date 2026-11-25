@@ -1,0 +1,17 @@
+/* MapLibre uchun minimal uslub (Yershunos sahifasi uchun o'zimiz yozgan) */
+.maplibregl-map{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.maplibregl-canvas{position:absolute;left:0;top:0}
+.maplibregl-canvas-container.maplibregl-interactive{cursor:grab}
+.maplibregl-canvas-container.maplibregl-interactive:active{cursor:grabbing}
+.maplibregl-marker{position:absolute;top:0;left:0;will-change:transform}
+.maplibregl-ctrl-top-left,.maplibregl-ctrl-top-right,.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{position:absolute;pointer-events:none;z-index:2}
+.maplibregl-ctrl-bottom-right{right:14px;bottom:34px}
+.maplibregl-ctrl{pointer-events:auto;clear:both}
+.maplibregl-ctrl-group{background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.maplibregl-ctrl-group button{display:block;width:30px;height:30px;border:0;background:transparent;cursor:pointer;padding:0;color:var(--txt)}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)}
+.maplibregl-ctrl-icon{display:block;width:100%;height:100%;background-repeat:no-repeat;background-position:center}
+.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon::before{content:"+"}
+.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon::before{content:"−"}
+.maplibregl-ctrl-compass .maplibregl-ctrl-icon::before{content:"◆";font-size:11px}
+.maplibregl-ctrl-icon::before{display:flex;align-items:center;justify-content:center;height:100%;font:500 16px "IBM Plex Mono",monospace;color:var(--txt)}
