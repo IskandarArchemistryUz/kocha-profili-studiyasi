@@ -1326,12 +1326,15 @@ function ensure(): void {
 /** Shamol — faqat yaqin stansiya boʻlsa (aks holda xaritada ham, aksonometriyada ham koʻrsatilmaydi) */
 const windV = () => (D.wind.v && !D.wind.v.far ? D.wind.v : undefined);
 const memo = new Map<string, Comp[]>();
+let revCity: { c: string; v: string } | null = null;
 async function reverse(c: LngLat): Promise<string> {
   const u = new URL('https://nominatim.openstreetmap.org/reverse');
   u.search = new URLSearchParams({ lat: String(c[1]), lon: String(c[0]), format: 'jsonv2', zoom: '18', 'accept-language': getLang() === 'uz' ? 'uz,en,ru' : `${getLang()},en` }   /* 22.11: interfeys tili; oʻzbekchada nom yoʻq boʻlsa — lotin (en), kirill emas */).toString();
   const r = await fetch(u.toString()); if (!r.ok) throw new Error(String(r.status));
   const j = await r.json() as { name?: string; address?: Record<string, string>; display_name?: string };
   const a = j.address ?? {}, road = a.road || a.pedestrian || a.neighbourhood || a.suburb;
+  // 25.11 (egasi: Gʻallaorol plakatida «TOSHKENT»): shahar nomi geokoderdan — avval vaqt mintaqasidan olinardi (butun Oʻzbekiston — Asia/Tashkent)
+  revCity = { c: c.join(), v: a.city || a.town || a.village || a.municipality || a.hamlet || a.county || a.state_district || '' };
   return road ? `${road}${a.house_number ? `, ${a.house_number}` : ''}` : (j.name || j.display_name?.split(',')[0] || `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`);
 }
 
@@ -1684,36 +1687,36 @@ function paintH(): void {
   paintWind(m);
   focusMap(m);
   // legenda: nishab va xizmatlar
-  const lg: Node[] = [];
-  if (lg0 && isOn('issiqlik')) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n)), heatNote()));
-  if (sm?.hours && isOn('quyosh')) lg.push(V('quyosh').st === 'soya'
+  const lg: HTMLElement[] = [], lgp = (id: LayerId, ...n: (Node | null)[]) => { for (const e of n) if (e instanceof HTMLElement) { e.dataset.l = id; lg.push(e); } };
+  if (lg0 && isOn('issiqlik')) lgp('issiqlik', h('div', { class: 'lg' }, h('b', {}, tf('Yer yuzasi harorati: 6 km oʻrtachasidan (${t} °C) farq', { t: fmt(lstMean(lg0), 1) })), ...LST_DEV_BINS.map(([d0, , n], i) => h('span', {}, h('i', { style: `background:${heatCol(i === 0 ? -4 : i === LST_DEV_BINS.length - 1 ? 4 : (d0 + LST_DEV_BINS[i + 1][0]) / 2)}` }), n)), heatNote()));
+  if (sm?.hours && isOn('quyosh')) lgp('quyosh', V('quyosh').st === 'soya'
     ? h('div', { class: 'lg' }, h('b', {}, tf('Soyada, soat · ${d}', { d: tr(sunDay()[2]) })), ...SHADE_BINS.map(([v, n]) => h('span', {}, h('i', { style: `background:${rampColor(SHADE_PAL, v / 10)}` }), n)))
     : h('div', { class: 'lg' }, h('b', {}, tf('Quyoshli soatlar · ${d}', { d: tr(sunDay()[2]) })), ...SUN_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))), h('span', {}, h('i', { style: 'background:#6b6965' }), tr('soya'))));
-  if (nm?.reach && isOn('piyoda')) lg.push(nm.pers === 'hammasi'
+  if (nm?.reach && isOn('piyoda')) lgp('piyoda', nm.pers === 'hammasi'
     ? h('div', { class: 'lg' }, h('b', {}, tr('10 daqiqada kim qayergacha yetadi')), ...PERSONA_ALL.map(p => h('span', {}, h('i', { style: `background:${p.col}` }), tr(p.name))))
     : walkMode() === 'daqiqa' ? h('div', { class: 'lg' }, h('b', {}, tr('Markazdan yurish, daqiqa')), h('span', {}, h('i', { style: `background:linear-gradient(90deg,${WALK_MIN_PAL.join(',')});width:90px` }), '0 · 5 · 10 · ≥ 15'))
     : h('div', { class: 'lg' }, h('b', {}, tr('Piyoda yetish')), ...([['#3f3a9e', '5 daq'], ['#7b74d6', '10 daq'], ['#b9b4ef', '15 daq']] as const).map(([c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
-  if (nm?.flow && isOn('oqim')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
-  if (nm?.noise && isOn('shovqin')) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
-  if (isOn('yuza') && yuzaNow()) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Yuza tasnifi (OSM, taxminiy)')), ...YUZA_K.filter(([k]) => k !== 'qolgan').map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
-  if (isOn('uylar') && !inTash(S.c) && POP.v) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (GHS-POP, 90 m)')), ...GHS_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === GHS_DENS.length - 1 ? `${t}+` : `${t}–${GHS_DENS[i + 1][0]}`))));
+  if (nm?.flow && isOn('oqim')) lgp('oqim', h('div', { class: 'lg' }, h('b', {}, tr('Odamlar oqimi (model)')), h('span', {}, h('i', { style: 'background:linear-gradient(90deg,#c9d4f5,#1f2f9e);width:60px' }), tr('past → yuqori'))));
+  if (nm?.noise && isOn('shovqin')) lgp('shovqin', h('div', { class: 'lg' }, h('b', {}, tr('Shovqin, Lden dB(A) (model)')), ...NOISE_BINS.map(([t0, , n], i) => (V('shovqin').st === '65' && t0 <= 65 ? null : h('span', {}, h('i', { style: `background:${noiseCol(i === 0 ? 45 : NOISE_BINS[i - 1][0] + 1)}` }), n)))));
+  if (isOn('yuza') && yuzaNow()) lgp('yuza', h('div', { class: 'lg' }, h('b', {}, tr('Yuza tasnifi (OSM, taxminiy)')), ...YUZA_K.filter(([k]) => k !== 'qolgan').map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
+  if (isOn('uylar') && !inTash(S.c) && POP.v) lgp('uylar', h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (GHS-POP, 90 m)')), ...GHS_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === GHS_DENS.length - 1 ? `${t}+` : `${t}–${GHS_DENS[i + 1][0]}`))));
   else if (isOn('uylar') && KAD.v) { const st = V('uylar').st;
-    lg.push(st === 'yosh' ? h('div', { class: 'lg' }, h('b', {}, tr('Uylar yoshi (koʻp kvartirali, median)')), ...KAD_ERA.map(([, , c, n], i) => h('span', {}, h('i', { style: `background:${V('uylar').p === 1 ? KAD_ERA_MONO[i] : c}` }), tr(n))))
+    lgp('uylar', st === 'yosh' ? h('div', { class: 'lg' }, h('b', {}, tr('Uylar yoshi (koʻp kvartirali, median)')), ...KAD_ERA.map(([, , c, n], i) => h('span', {}, h('i', { style: `background:${V('uylar').p === 1 ? KAD_ERA_MONO[i] : c}` }), tr(n))))
       : st === 'seysmik' ? h('div', { class: 'lg' }, h('b', {}, tr('Seysmik eʼtibor (saralash)')), ...KAD_SEI.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n))))
       : kadOwnerFeats() ? h('div', { class: 'lg' }, h('b', {}, tr('Uy aholisi, kishi (bino darajasi)')), ...([[0, '#fdd0a2'], [50, '#fd8d3c'], [150, '#d94801'], [300, '#a63603'], [600, '#7f2704']] as const).map(([t, c], i, A) => h('span', {}, h('i', { style: `background:${c}` }), i === A.length - 1 ? `${t}+` : `${t}–${A[i + 1][0]}`)))
       : h('div', { class: 'lg' }, h('b', {}, tr('Aholi zichligi, kishi/ga (50 m)')), ...KAD_DENS.map(([t, c], i) => h('span', {}, h('i', { style: `background:${c}` }), i === KAD_DENS.length - 1 ? `${t}+` : `${t}–${KAD_DENS[i + 1][0]}`)))); }
   if (isOn('narx') && D.narx.v) { const k = katOf(V('narx').st), b = narxBreaks(D.narx.v, k), pal = (V('narx').st.split('|')[3] === 'plakat' ? NIGHT_PAL : NARX_PAL).slice(NARX_PAL.length - b.length - 1), f0 = (x: number) => fmt(x, narxDp(k));
-    lg.push(h('div', { class: 'lg' }, h('b', {}, isIjara(k) ? tr('Ijara, $/m²·oy') : tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
+    lgp('narx', h('div', { class: 'lg' }, h('b', {}, isIjara(k) ? tr('Ijara, $/m²·oy') : tr('Uy narxi, $/m² (soʻralgan, median)')), ...pal.map((c, i) => h('span', {}, h('i', { style: `background:${c}` }), i === 0 ? `< ${f0(b[0])}` : i === b.length ? `≥ ${f0(b[b.length - 1])}` : `${f0(b[i - 1])}–${f0(b[i])}`)),
       h('span', {}, h('i', { style: 'background:#ffffff;box-shadow:inset 0 0 0 1px #b9b5ad' }), tr('maʼlumot yetarli emas')))); }
-  if (isOn('skaner') && SK) lg.push(V('skaner').st === 'zaif'
+  if (isOn('skaner') && SK) lgp('skaner', V('skaner').st === 'zaif'
     ? h('div', { class: 'lg' }, h('b', {}, tr('Eng zaif yoʻnalish')), ...SK_DIMS.map(d => h('span', {}, h('i', { style: `background:${SK_COL[d.id]}` }), tr(d.name))), h('span', {}, h('i', { style: 'background:#dedbd4' }), tr('hammasi meʼyorda')))
     : h('div', { class: 'lg' }, h('b', {}, tr('Ijtimoiy skaner: umumiy ball')), ...SK_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), n))));
-  if (isOn('izovist') && izCur()) lg.push(h('div', { class: 'lg' }, h('b', {}, tf('Koʻrinadigan joy · ${r} m', { r: izR() })), h('span', {}, h('i', { style: `background:${IZ_COL}` }), tr('hozir koʻrinadi')),
+  if (isOn('izovist') && izCur()) lgp('izovist', h('div', { class: 'lg' }, h('b', {}, tf('Koʻrinadigan joy · ${r} m', { r: izR() })), h('span', {}, h('i', { style: `background:${IZ_COL}` }), tr('hozir koʻrinadi')),
     izMode() === 'marshrut' && S.iz?.tr !== false ? h('span', {}, h('i', { style: 'background:#fde9c9' }), tr('oʻtilgan yoʻlda koʻringan')) : '', izMode() === 'marshrut' ? h('span', {}, h('i', { style: 'background:#e3242b;height:2px' }), tr('marshrut')) : ''));
-  if (isOn('nishab') && t) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
-  if (p.length) lg.push(h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
-  if (cp.length) lg.push(h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
-  legend.replaceChildren(...lg); legend.hidden = !lg.length;
+  if (isOn('nishab') && t) lgp('nishab', h('div', { class: 'lg' }, h('b', {}, tr('Nishab')), ...SLOPE_BINS.map(([, c, n]) => h('span', {}, h('i', { style: `background:${c}` }), tr(n)))));
+  if (p.length) lgp('xizmat', h('div', { class: 'lg' }, h('b', {}, tr('Xizmatlar')), ...SVC_KINDS.map(k => h('span', {}, h('i', { class: 'dot', style: `background:${SVC_COL[k]}` }), tr(SVC_SHORT[k])))));
+  if (cp.length) lgp('raqobat', h('div', { class: 'lg' }, h('span', {}, h('i', { class: 'dot', style: 'background:#7a5a3c' }), tr((CATS.find(c => c.id === S.cat) ?? CATS[0]).name))));
+  renderLegend(lg);
   // shamol guli — markazda
   const w = isOn('shamol') ? windV() : undefined;
   if (rose) { if (w) { rose.getElement().innerHTML = `<div style="opacity:${roseK}">${roseSvg(w.w.petals)}</div>`; rose.setLngLat(S.c as [number, number]).addTo(m); } else rose.remove(); }
@@ -1943,7 +1946,7 @@ function focusMap(m: MLMap): void {
 }
 /* ---------------- Albom, hisobot va plakat (26.10) ---------------- */
 type AlbKind = 'hisobot' | 'albom' | 'plakat';
-const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora'; /** 16.11 (egasi): har qatlam albomda qaysi koʻrinishda chiqadi */ st?: Record<string, string>; /** bir qatlamdan bir necha uslub — har biri alohida varaq */ ms?: Record<string, string[]>; /** albomga chiqmaydigan qatlamlar */ ex?: string[] } | null; } catch { return null; } })() ?? {};
+const ALB = (() => { try { return JSON.parse(localStorage.getItem('joy-albom') || 'null') as { k?: AlbKind; f?: 'doira' | 'kvadrat'; t?: 'oq' | 'qora'; /** 25.11: plakat — tik / yotiq */ o?: 'p' | 'l'; /** 16.11 (egasi): har qatlam albomda qaysi koʻrinishda chiqadi */ st?: Record<string, string>; /** bir qatlamdan bir necha uslub — har biri alohida varaq */ ms?: Record<string, string[]>; /** albomga chiqmaydigan qatlamlar */ ex?: string[] } | null; } catch { return null; } })() ?? {};
 /** Albomdagi koʻrinish: tanlangani, aks holda ekrandagisi (piyoda — sukut boʻyicha «Har koʻcha daqiqasi», uzoqqa qarab rang oʻzgaradi) */
 function albSt(id: LayerId): string {
   const cur = V(id).st, v = ALB.st?.[id], d = VIEW[id];
@@ -1963,17 +1966,17 @@ function albVariants(id: LayerId): string[] {
 const albStName = (id: LayerId, st: string): string => { const d = VIEW[id]; return d?.styles ? tr(d.styles.find(x => x[0] === st)?.[1] ?? st) : d?.axes ? st.split('|').map((v, i) => tr(d.axes![i][1].find(x => x[0] === v)?.[1] ?? v)).slice(-1)[0] : st; };
 const albSave = () => { try { localStorage.setItem('joy-albom', JSON.stringify(ALB)); } catch { /* */ } };
 function cityName(): string {
+  // 25.11: geokoder bergan shahar / tuman markazi (shu nuqta uchun); boʻlmasa — vaqt mintaqasi shahri faqat oʻsha shahar ichida (Toshkent), aks holda boʻsh (plakatda manzil chiqadi)
+  if (revCity?.c === S.c.join() && revCity.v) return revCity.v;
   const tz = placeOf(S.c[0], S.c[1]).tz ?? '', c = tz.split('/').pop()?.replace(/_/g, ' ') ?? '', lang = getLang();
-  const loc: Record<string, Partial<Record<string, string>>> = {
-    Tashkent: { uz: 'Toshkent', ru: 'Ташкент', uk: 'Ташкент', kk: 'Ташкент', es: 'Taskent', fr: 'Tachkent', az: 'Daşkənd', tr: 'Taşkent' },
-    Samarkand: { uz: 'Samarqand', ru: 'Самарканд', uk: 'Самарканд', kk: 'Самарқанд', es: 'Samarcanda', pt: 'Samarcanda', fr: 'Samarcande', az: 'Səmərqənd', tr: 'Semerkant' },
-  };
-  return loc[c]?.[lang] ?? c;
+  if (c !== 'Tashkent' || !inTash(S.c)) return '';
+  const loc: Partial<Record<string, string>> = { uz: 'Toshkent', ru: 'Ташкент', uk: 'Ташкент', kk: 'Ташкент', es: 'Taskent', fr: 'Tachkent', az: 'Daşkənd', tr: 'Taşkent' };
+  return loc[lang] ?? c;
 }
 function albomDialog(): void {
   document.getElementById('albDlg')?.remove();
   const back = h('div', { class: 'alb-back' });
-  const kinds: [AlbKind, string, string][] = [['hisobot', 'Qisqa hisobot', 'A4 · muqova, qisqa xulosa, har qatlamga sahifa'], ['albom', 'Albom varaqlari', 'A3 · Shveytsar toʻri, har qatlamga varaq'], ['plakat', 'Plakat · Galereya', '50 × 70 sm · faol qatlam']];
+  const kinds: [AlbKind, string, string][] = [['hisobot', 'Qisqa hisobot', 'A4 · muqova, qisqa xulosa, har qatlamga sahifa'], ['albom', 'Albom varaqlari', 'A3 · Shveytsar toʻri, har qatlamga varaq'], ['plakat', 'Plakat · Galereya', '50 × 70 sm · tik yoki yotiq · faol qatlam']];
   const draw = () => {
     const k = ALB.k ?? 'hisobot', f = ALB.f ?? 'kvadrat', th = ALB.t ?? 'oq';
     const nOn = collectCards().filter(c => LAYERS.some(l => l.id === c.id) && albVariants(c.id as LayerId).length).length;
@@ -1985,6 +1988,7 @@ function albomDialog(): void {
       h('div', { class: 'alb-kinds', role: 'radiogroup', 'aria-label': tr('Hujjat turi') }, ...kinds.map(([v, n, d]) => h('button', { type: 'button', role: 'radio', 'aria-checked': v === k, 'data-k': v, class: 'alb-k', onclick: () => { ALB.k = v; albSave(); draw(); } }, h('b', {}, tr(n)), h('span', {}, tr(d))))),
       seg('Xarita ramkasi', 'albFrame', [['kvadrat', 'Kvadrat'], ['doira', 'Doira']], f, v => { ALB.f = v as 'doira' | 'kvadrat'; }),
       seg('Fon', 'albTheme', [['oq', 'Oq'], ['qora', 'Qora']], th, v => { ALB.t = v as 'oq' | 'qora'; }),
+      k === 'plakat' ? seg('Varaq holati', 'albOrient', [['p', 'Tik (50 × 70)'], ['l', 'Yotiq (70 × 50)']], ALB.o ?? 'p', v => { ALB.o = v as 'p' | 'l'; }) : '',   // 25.11 (egasi): plakat faqat tik chiqardi
       stRows() ?? '',
       h('div', { class: 'alb-act' },
         h('button', { type: 'button', class: 'btn', onclick: close }, tr('Bekor qilish')),
@@ -2047,7 +2051,7 @@ async function albom(out: 'pdf' | 'chz'): Promise<void> {
       theme: ALB.t ?? 'oq', frame: ALB.f ?? 'kvadrat', spanM: base0.span,
       L: { kicker: tr('Hudud tahlili'), summary: tr('Qisqa xulosa'), summaryLead: tf('${r} m radiusdagi hudud — har qatlamning asosiy koʻrsatkichi va meʼyorlarga muvofiqligi.', { r: S.r }), layer: tr('Qatlam'), value: tr('Koʻrsatkich'), norm: tr('Meʼyor boʻyicha'), source: tr('Manba'), method: tr('Usul'), normsOk: tr('Meʼyorda'), north: tr('Sh'), author: tr('Muallif'), page: tr('Varaq'), layers: tr('qatlam'), org: 'Archemistry Lab', sources: '', note: tr('Avtomatik hisobot: ochiq maʼlumotlar va modellar; beta qatlamlar — taxminiy, joyida tekshiring.') },
     };
-    const pages = kind === 'hisobot' ? A.shortReport(I) : kind === 'albom' ? A.swissSheets(I) : [A.galleryPoster(I, layers[0] ?? null)];
+    const pages = kind === 'hisobot' ? A.shortReport(I) : kind === 'albom' ? A.swissSheets(I) : [A.galleryPoster(I, layers[0] ?? null, ALB.o === 'l')];
     { const w = window as unknown as { __joyAlb?: unknown }; if (w.__joyAlb) w.__joyAlb = pages; }   // e2e: varaqlarni tekshirish uchun (faqat test belgisi qoʻyilganda)
     const fname = `joy-${kind}-${S.c[1].toFixed(4)}-${S.c[0].toFixed(4)}`;
     if (out === 'pdf') { const { svgPdf } = await import('../ui/pdf'); await svgPdf(pages.map(p => ({ svg: p.svg, widthMm: p.w, heightMm: p.h })), `${fname}.pdf`, pages.length > 1 ? 'joy.passport.all' : 'joy.passport'); }   // E3
@@ -2299,6 +2303,20 @@ function collectCards(): import('./report').RepCard[] {
     const lc = el.style.getPropertyValue('--lc');
     return { id: el.dataset.card!, name: txt(el.querySelector('header .nm')), color: lc || ACC, chip: txt(chips[chips.length - 1]), beta: !!el.querySelector('header .chip.beta'), big: txt(el.querySelector('.big')), text, norms, src: [...(sub?.querySelectorAll('.src') ?? [])].map(txt).join(' ') };
   }).filter(c => c.big && (c.big !== '—' || (c.id === 'narx' && !!D.narx.v)));   // 16.11: narx — oʻz katagida eʼlon kam boʻlsa ham xarita foydali
+}
+/** 24.11 (egasi: kichik ekranda barcha qatlamlar legendasi bitta katta oynada xaritani yopardi): xaritada faqat faol qatlam legendasi;
+ *  «Hammasi» — barchasi, «—» — kichik tugmaga yigʻiladi (tanlov saqlanadi). Albom uchun DOM da hammasi qoladi (collectLegends). */
+let lgMode: '' | 'all' | 'min' = (() => { try { const v = localStorage.getItem('joy-lg'); return v === 'all' || v === 'min' ? v : ''; } catch { return ''; } })();
+function setLgMode(v: typeof lgMode): void { lgMode = v; try { localStorage.setItem('joy-lg', v); } catch { /* */ } paint(); }
+function renderLegend(lg: HTMLElement[]): void {
+  const act = actId(), shown = lgMode === 'all' ? lg : lg.filter(e => e.dataset.l === act), rest = lg.length - shown.length;
+  for (const e of lg) e.classList.toggle('on', shown.includes(e));
+  const bar = h('div', { class: 'lgbar' },
+    lgMode === 'min' ? h('button', { type: 'button', class: 'lgb', onclick: () => setLgMode(''), title: tr('Shartli belgilarni koʻrsatish') }, tr('Shartli belgilar'), ` · ${lg.length}`)
+      : [rest > 0 || lgMode === 'all' ? h('button', { type: 'button', class: 'lgb', onclick: () => setLgMode(lgMode === 'all' ? '' : 'all') }, lgMode === 'all' ? tr('Faqat faol qatlam') : tf('Hammasi (${n})', { n: lg.length })) : null,
+        h('button', { type: 'button', class: 'lgb x', onclick: () => setLgMode('min'), title: tr('Shartli belgilarni yigʻish'), 'aria-label': tr('Shartli belgilarni yigʻish') }, '–')]);
+  legend.classList.toggle('min', lgMode === 'min');
+  legend.replaceChildren(...lg, bar); legend.hidden = !lg.length || (!shown.length && lgMode !== 'min' && !rest);
 }
 function collectLegends(): import('./report').RepLegend[] {
   return [...legend.querySelectorAll('.lg')].map(lg => ({ title: lg.querySelector('b')?.textContent ?? '', items: [...lg.querySelectorAll('span')].map(sp => {

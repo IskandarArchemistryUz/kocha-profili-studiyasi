@@ -172,16 +172,18 @@ export function swissSheets(I: AlbumInput): Page[] {
   });
 }
 
-/* ============ Galereya plakati: 50 × 70 sm ============ */
-export function galleryPoster(I: AlbumInput, l: AlbumLayer | null): Page {
-  const W = 500, H = 700, p = PAL[I.theme], s = 380, x = (W - s) / 2, y = 80, b: string[] = [];
+/* ============ Galereya plakati: 50 × 70 sm (tik) yoki 70 × 50 sm (yotiq, 25.11) ============ */
+export function galleryPoster(I: AlbumInput, l: AlbumLayer | null, land = false): Page {
+  const W = land ? 700 : 500, H = land ? 500 : 700, p = PAL[I.theme], s = 380, b: string[] = [];
+  // tik: xarita tepada, matn ostida; yotiq: xarita chapda, matn oʻng ustunda (vertikal markazda)
+  const x = land ? 60 : (W - s) / 2, y = land ? (H - s) / 2 : 80, cx = land ? x + s + (W - x - s) / 2 : W / 2, ty = land ? H / 2 - 62 : y + s;
   b.push(mapBox(I, p, l?.map ?? I.overview, x, y, s, { north: false, scale: false, border: false, rose: l?.rose, ov: l?.ov }));
-  const city = (I.city || I.addr).toUpperCase(), sp = 9;
-  b.push(t(W / 2, y + s + 62, city, 30, p.ink, ` text-anchor="middle" letter-spacing="${sp}"`));
-  b.push(`<line x1="${W / 2 - 14}" x2="${W / 2 + 14}" y1="${y + s + 80}" y2="${y + s + 80}" stroke="${p.ink}" stroke-width="0.5"/>`);
-  b.push(t(W / 2, y + s + 96, I.addr, 8, p.ink, ' text-anchor="middle"'));
-  b.push(t(W / 2, y + s + 108, I.coords, 5, p.mut, ` text-anchor="middle" font-family="${MONO}" letter-spacing="1"`));
-  if (l) { const lab = `${l.name.toUpperCase()} · ${I.radius} M`, tw = lab.length * 4.6 * 0.62 + 10; b.push(icon(l.id, W / 2 - tw / 2 - 2, y + s + 126, 7, l.color, 1.7), t(W / 2 + 4, y + s + 131.5, lab, 4.6, l.color, ' text-anchor="middle" letter-spacing="2"')); }
-  b.push(t(W / 2, H - 26, I.L.org.toUpperCase(), 4, p.mut, ' text-anchor="middle" letter-spacing="3"'));
+  const city = (I.city || I.addr).toUpperCase(), sp = land ? 6 : 9, fs = land ? Math.min(30, 230 / Math.max(6, city.length) * 1.6) : 30;
+  b.push(t(cx, ty + 62, city, fs, p.ink, ` text-anchor="middle" letter-spacing="${sp}"`));
+  b.push(`<line x1="${cx - 14}" x2="${cx + 14}" y1="${ty + 80}" y2="${ty + 80}" stroke="${p.ink}" stroke-width="0.5"/>`);
+  b.push(t(cx, ty + 96, I.addr, 8, p.ink, ' text-anchor="middle"'));
+  b.push(t(cx, ty + 108, I.coords, 5, p.mut, ` text-anchor="middle" font-family="${MONO}" letter-spacing="1"`));
+  if (l) { const lab = `${l.name.toUpperCase()} · ${I.radius} M`, tw = lab.length * 4.6 * 0.62 + 10; b.push(icon(l.id, cx - tw / 2 - 2, ty + 126, 7, l.color, 1.7), t(cx + 4, ty + 131.5, lab, 4.6, l.color, ' text-anchor="middle" letter-spacing="2"')); }
+  b.push(t(cx, H - 26, I.L.org.toUpperCase(), 4, p.mut, ' text-anchor="middle" letter-spacing="3"'));
   return { svg: doc(W, H, p, b.join('')), w: W, h: H, name: l ? l.name : I.L.kicker };
 }

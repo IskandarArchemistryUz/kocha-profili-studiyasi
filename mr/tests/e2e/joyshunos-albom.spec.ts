@@ -92,3 +92,24 @@ test('albom → Chizmadonga: barcha varaqlar navbatda', async ({ page }) => {
   expect(more).toBeGreaterThan(1);
   expect(errs).toEqual([]);
 });
+/** 25.11 (egasi): plakat faqat tik chiqardi; Gʻallaorol tahlilida ham «TOSHKENT» yozilardi (shahar vaqt mintaqasidan olinardi) */
+test('plakat: yotiq varaq va shahar nomi geokoderdan', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errs: string[] = []; await open(page, errs);
+  await page.route(/nominatim\.openstreetmap\.org\/reverse/, r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ address: { road: 'Mustaqillik koʻchasi', house_number: '36', town: 'Gʻallaorol', county: 'Gʻallaorol tumani' } }) }));
+  await page.reload();   // yangi geokoder javobi bilan
+  await expect(page.locator('[data-card=xizmat] .big')).toHaveText(/\d+ obyekt/, { timeout: 30_000 });
+  await expect(page.locator('.joy-pass h1, .pp .ttl').first()).toContainText('Mustaqillik', { timeout: 30_000 });
+  await page.route('**/*', r => (r.request().isNavigationRequest() && !r.request().url().includes('joyshunos') ? r.fulfill({ contentType: 'text/html', body: '<html><body>chz</body></html>' }) : r.fallback()));
+  await joyRep(page, 'albOpen');
+  await page.locator('#albDlg [data-k=plakat]').click();
+  await expect(page.locator('#albOrient button')).toHaveCount(2);
+  await page.locator('#albOrient button').nth(1).click();
+  await page.locator('#albChz').click();
+  await page.waitForURL(/chizmadon/, { timeout: 120_000 });
+  const inbox = await page.evaluate(() => localStorage.getItem('ks-chz-inbox') ?? '');
+  expect(inbox).toContain('GʻALLAOROL');
+  expect(inbox).not.toContain('TOSHKENT');
+  expect(inbox).toContain('"w":700,"h":500');
+  expect(errs).toEqual([]);
+});
