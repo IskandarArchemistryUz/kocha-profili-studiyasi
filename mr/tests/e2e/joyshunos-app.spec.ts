@@ -83,8 +83,11 @@ test('joy pasporti: qatlamlar, kartalar, radius, raqobatchilar, saqlanish', asyn
   await expect(page.locator('.joy-cat')).toHaveText('Dorixona');
   await expect(page.locator('[data-card=raqobat] .big')).toHaveText(/^\d+ ta$/);
   // radius: 15 daqiqa (1250 m) ham bor
-  await expect(page.locator('.joy-card.head .seg button')).toHaveCount(4);
+  await expect(page.locator('.joy-card.head .seg button')).toHaveCount(6);
   await expect(page.locator('.joy-card.head .seg button', { hasText: '1250 m' })).toBeVisible();
+  // 25.11: 2 va 3 km; 3 km — haftalik bepul hisob yoki tanga (izoh)
+  await expect(page.locator('.joy-card.head .seg button', { hasText: '2 km' })).toBeVisible();
+  await expect(page.locator('.joy-card.head .seg button', { hasText: '3 km' })).toHaveAttribute('title', /tanga/);
   // xarita uslubi: 7 ta palitra
   await page.locator('#palBtn').click();
   await expect(page.locator('.joy-base .joy-pal button[data-pal]')).toHaveCount(10);   // +Qum, Oq maket, Koʻk chizma (27.10)

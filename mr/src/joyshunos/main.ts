@@ -53,7 +53,7 @@ import { nearestStation, type Climate } from '../core/wind';
 import { windAt, srcAttr, srcShort, type WindSrc, type GlobalSrc } from '../core/windsrc';
 import { CATS, catQuery, circleRing, countPoi, dir8, distM, parseComp, slopeColor, slopeGrid, SLOPE_BINS, terrainStats, walkMin, windSummary, type Comp, type TerrainStats, type WindSum } from './analyze';
 import { initStats } from '../core/stats';
-import { coinLabel, onPrices } from '../account/pay';   // + yuklash darvozasi
+import { coinLabel, onPrices, useHeavy, freeMode } from '../account/pay';   // + yuklash darvozasi
 import { layerIcon, GROUP_COL } from './layerIcons';
 import { svcRows, normPois, newId, type AddedObj, type Own } from './added';
 import { dropdown, sw as swc, seg } from '../ui/controls';
@@ -94,7 +94,15 @@ const GROUPS: [Group, string][] = [['yer', 'Yer'], ['iqlim', 'Iqlim'], ['muhit',
 const SVC_KINDS: Svc[] = ['maktab', 'mtm', 'poliklinika', 'dorixona', 'savdo', 'sport', 'bekat', 'metro'];
 const SVC_COL: Record<Svc, string> = { maktab: '#2f6da8', mtm: '#e08a3c', poliklinika: '#c2416b', dorixona: '#2b7449', savdo: '#8b4a9c', sport: '#0f8a7e', mahalla: '#6b6965', bekat: '#4c5bd4', metro: '#141414' };
 const SVC_SHORT: Record<Svc, string> = { maktab: 'maktab', mtm: 'bogʻcha', poliklinika: 'poliklinika', dorixona: 'dorixona', savdo: 'savdo', sport: 'sport', mahalla: 'mahalla', bekat: 'bekat', metro: 'metro' };
-const RADII = [300, 500, 800, 1250];   // 1250 m ≈ 15 daqiqa piyoda
+const RADII = [300, 500, 800, 1250, 2000, 3000];   // 1250 m ≈ 15 daqiqa piyoda; 25.11 (egasi): 2–3 km
+/** 25.11: shundan katta radius — haftalik bepul ogʻir hisob yoki tanga (server «area», 3 t.), har yangi nuqta uchun bir marta; 2 km gacha bepul */
+const R_FREE = 2000;
+const rLabel = (r: number) => (r >= 2000 ? `${r / 1000} km` : `${r} m`);
+const paidKey = (c: LngLat) => `${c[0].toFixed(3)},${c[1].toFixed(3)}`;
+const bigPaid = (c: LngLat): boolean => { try { return (JSON.parse(localStorage.getItem('joy-r3') || '[]') as string[]).includes(paidKey(c)); } catch { return false; } };
+function markPaid(c: LngLat): void { try { const a = (JSON.parse(localStorage.getItem('joy-r3') || '[]') as string[]).filter(x => x !== paidKey(c)); a.push(paidKey(c)); localStorage.setItem('joy-r3', JSON.stringify(a.slice(-300))); } catch { /* */ } }
+/** 3 km: shu nuqta uchun toʻlanganmi; yoʻq boʻlsa — haftalik bepul hisob yoki tanga (useHeavy oynasi). Bekor qilinsa — false */
+async function bigOk(c: LngLat): Promise<boolean> { if (bigPaid(c)) return true; const ok = await useHeavy('area', `joy3:${paidKey(c)}`); if (ok) markPaid(c); return ok; }
 const ACC = '#c0643a';   // --svc-joy
 
 /* ---------------- holat (brauzerda saqlanadi) ---------------- */
@@ -109,6 +117,8 @@ const S: State = (() => {
   return { ...DEF };
 })();
 const save = () => { try { localStorage.setItem(scoped('joy-state'), JSON.stringify(S)); } catch { /* */ } };
+// 25.11: saqlangan 3 km toʻlanmagan nuqtada — 2 km dan ochiladi (oyna yuklanishda chiqmaydi; egasi/bepul rejimda — oʻzgarmaydi)
+if (S.r > R_FREE && !bigPaid(S.c) && !freeMode()) S.r = R_FREE;
 /** Toshkent shahri (kadastr va uybor.uz qamrovi) */
 const TASH_BBOX = [69.12, 41.16, 69.48, 41.42] as const;
 const inTash = (c: LngLat) => c[0] >= TASH_BBOX[0] && c[0] <= TASH_BBOX[2] && c[1] >= TASH_BBOX[1] && c[1] <= TASH_BBOX[3];
@@ -1211,7 +1221,7 @@ function renderPass(addr: string): void {
   pass.replaceChildren(...[
     h('div', { class: 'pp' }, h('div', { class: 't-small' }, tr('Joy pasporti')), h('h1', { class: 'ttl', title: addr }, addr, h('span', { class: 'r' }, ` · ${S.r} m`))),
     h('span', { class: 'chip mono' }, `${S.c[1].toFixed(5)}, ${S.c[0].toFixed(5)}`),
-    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Radius'), title: tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) }) }, ...RADII.map(r => h('button', { type: 'button', 'aria-pressed': r === S.r, onclick: () => setRadius(r) }, `${r} m`))),
+    h('div', { class: 'seg sm', role: 'group', 'aria-label': tr('Radius'), title: tf('${r} m — taxminan ${m} daqiqa piyoda (toʻgʻri chiziqda). Xaritani bosib boshqa nuqtani tanlang.', { r: S.r, m: walkMin(S.r) }) }, ...RADII.map(r => h('button', { type: 'button', 'aria-pressed': r === S.r, onclick: () => void askRadius(r), ...(r > R_FREE ? { title: tr('3 km — haftalik bepul ogʻir hisob yoki 3 tanga (har yangi nuqta uchun bir marta)') } : {}) }, rLabel(r)))),
     S.site ? h('div', { class: 'chip site' }, tf('Uchastka: ${a} ga', { a: fmt(ringArea(S.site) / 10000, 2) })) : null,
     h('div', { class: 'joy-repw' },
       h('button', { type: 'button', class: 'btn btn-sm btn-primary', id: 'repBtn', 'aria-haspopup': 'menu', 'aria-expanded': repOpen, disabled: repBusy, onclick: () => { repOpen = !repOpen; renderRight(); } }, ic(ICON.doc), tr('Hisobot'), ic(ICON.chev)),
@@ -1250,6 +1260,8 @@ function renderBase(): void {
 }
 
 /* ---------------- maʼlumot yuklash ---------------- */
+/** Radius tugmasi: 3 km — avval ruxsat (bepul hisob / tanga) */
+async function askRadius(r: number): Promise<void> { if (r > R_FREE && !(await bigOk(S.c))) return; setRadius(r); }
 function setRadius(r: number): void { S.r = r; save(); if (D.poi.v && (joyRoadR(r) > D.poi.v.radius || D.poi.v.pErr)) D.poi = { st: 'idle' }; D.comp = { st: 'idle' }; D.ter = { st: 'idle' }; renderRight(); paint(); frame(600); ensure(); if (mode === 'axo') void enterAxo(); }
 /** Doirani panellar orasidagi boʻsh joyga sigʻdirish */
 function frame(duration = 0): void {
@@ -1259,6 +1271,9 @@ function frame(duration = 0): void {
   try { map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: pad, duration, maxZoom: 17 }); } catch { /* juda tor oyna */ }
 }
 function pick(c: LngLat, fly = false): void {
+  // 25.11: 3 km radiusda yangi nuqta — avval 2 km da ochiladi, toʻlov tasdiqlansa 3 km ga qaytadi
+  const want = S.r > R_FREE && !bigPaid(c) ? S.r : 0; if (want) S.r = R_FREE;
+  if (want) void bigOk(c).then(ok => { if (ok && S.c === c) setRadius(want); });
   S.c = c; save(); seq++;
   D.addr = { st: 'idle' }; D.ter = { st: 'idle' }; D.poi = { st: 'idle' }; D.comp = { st: 'idle' }; D.wind = { st: 'idle' }; D.lst = { st: 'idle' }; NM = null; SM = null;
   if (S.iz) S.iz = { ...S.iz, p: undefined, route: undefined }; WK = null; izD = 0; izStop();
