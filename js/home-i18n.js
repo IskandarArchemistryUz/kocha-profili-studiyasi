@@ -172,6 +172,7 @@ Object.assign(window.HOME_D,{
 "Joy pasporti: aholi, xizmatlar, relyef, issiqlik.":["Place passport: population, amenities, terrain, heat.","Паспорт места: население, сервисы, рельеф, жара."],
 "Oʻqlardan albomgacha: bino modeli, chizmalar, IFC. · beta":["From axes to album: building model, drawings, IFC. · beta","От осей до альбома: модель здания, чертежи, IFC. · beta"],
 "Landshaft master reja: daraxt, yoʻlak, maydon.":["Landscape master plan: trees, paths, plazas.","Ландшафтный мастер-план: деревья, дорожки, площади."],
+"Mintaqa skriningi: relyef, toshqin, jala, iqlim.":["Regional screening: terrain, floods, cloudbursts, climate.","Скрининг региона: рельеф, паводки, ливни, климат."],
 "Varaqdan taqdimot albomigacha.":["From sheet to presentation album.","От листа до презентационного альбома."],
 "Peshlavha va koʻcha qoidalari — Toshkent dizayn-kodi bilan.":["Shop signs and street rules — with the Tashkent design code.", "Вывески и правила улицы — по дизайн-коду Ташкента."],
 "Kadrni yuboring — tayyor tasvir. · beta":["Send a view — get a finished image. · beta","Отправьте кадр — получите готовое изображение. · beta"],

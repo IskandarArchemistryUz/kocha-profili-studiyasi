@@ -150,6 +150,12 @@ body{margin:0}
 .st .dots .bg:hover .pv .bg-t{animation:bkGrow .45s cubic-bezier(.2,1.4,.4,1) forwards}
 .st .dots .bg:hover .pv .bg-t:nth-of-type(1){animation-delay:.45s}.st .dots .bg:hover .pv .bg-t:nth-of-type(2){animation-delay:.57s}.st .dots .bg:hover .pv .bg-t:nth-of-type(3){animation-delay:.69s}.st .dots .bg:hover .pv .bg-t:nth-of-type(4){animation-delay:.81s}.st .dots .bg:hover .pv .bg-t:nth-of-type(5){animation-delay:.93s}.st .dots .bg:hover .pv .bg-t:nth-of-type(6){animation-delay:1.05s}.st .dots .bg:hover .pv .bg-t:nth-of-type(7){animation-delay:1.17s}
 
+/* Yershunos — relyef chiziqlari → daryo boʻylab moviy oqim → bitta magenta nuqta (~1,6 s); rang: tun #3ad1e8, kunduz #0f8aa0 */
+.st .dots .ys{--c:#0f8aa0}[data-theme=dark] .st .dots .ys{--c:#3ad1e8}
+.st .dots .ys:hover .pv svg .ys-r{animation:drw .8s .5s cubic-bezier(.4,0,.2,1) forwards}
+.st .dots .ys .pv svg .ys-d{stroke-dasharray:none;stroke-dashoffset:0;transform-box:fill-box;transform-origin:50% 50%;transform:scale(0)}
+.st .dots .ys:hover .pv svg .ys-d{animation:bkGrow .35s 1.25s cubic-bezier(.2,1.4,.4,1) forwards}
+@media (prefers-reduced-motion:reduce){.st .dots .ys .pv svg .ys-d{transform:none}}
 @keyframes bkUp{to{transform:scaleY(1)}}@keyframes bkIn{to{opacity:1}}@keyframes bkGrow{to{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.st .dots .bk .pv .bk-w1,.st .dots .bk .pv .bk-w2,.st .dots .bg .pv .bg-t{transform:none}.st .dots .bk .pv .bk-o{opacity:1}}
 

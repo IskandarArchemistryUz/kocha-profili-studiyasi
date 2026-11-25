@@ -89,7 +89,7 @@ test('bosh sahifa · minimal: xizmatlar, Boshlash, fikr, til, tungi rejim', asyn
   await expect(page.locator('h1')).toContainText('meʼyor bilan');
   await expect(page.locator('#ctaNew')).toHaveAttribute('href', 'app/#/')   // 23.11: «Boshlash» — «Loyihalarim» paneli (servis tanlanadi);
   const hrefs = await page.locator('nav.dots a.d').evaluateAll(a => a.map(x => x.getAttribute('href')));
-  expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/bogshunos.html', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);   // 23.11: Bogʻshunos ochildi
+  expect(hrefs).toEqual(['app/kochasoz.html', 'app/joyshunos.html', 'app/bogshunos.html', 'app/yershunos/', 'app/#/chizmadon', 'dizaynkod.html', 'app/render.html']);   // 23.11: Bogʻshunos; 25.11: Yershunos ochildi
   for (const a of await page.locator('a[href]').all()) expect(await a.getAttribute('href')).not.toBe('#');
   for (const h of ['haqida.html', 'narxlar.html', 'haqida.html#hammasi', 'app/']) await expect(page.locator(`footer a[href="${h}"]`)).toHaveCount(1);
   // suzuvchi «Fikr» tugmasi chiqmaydi — sahifaning oʻz «Fikr» tugmasi bor; beta davri qoldiqlari (sariq qator, qahva, kod) yoʻq
@@ -135,7 +135,7 @@ test('sukut tili — inglizcha; xizmat nomlari tarjima qilinadi; nuqtali fon', a
   await expect(page.locator('h1')).toContainText('with the norms');
   await expect(page.locator('html')).not.toHaveClass(/i18n/);
   const names = await page.locator('nav.dots a.d .nm').allTextContents();
-  expect(names).toEqual(['Street Designer', 'Site Explorer', 'Landscape Designer', 'Sheet Studio', 'Design code', 'Render']);
+  expect(names).toEqual(['Street Designer', 'Site Explorer', 'Landscape Designer', 'Yershunos' /* 25.11: nomi hozircha tarjimasiz */, 'Sheet Studio', 'Design code', 'Render']);
   await expect(page.locator('.st.dotbg canvas.dotcv')).toHaveCount(1);
   await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
   expect(await page.locator('nav.dots a.d .nm').first().textContent()).toBe('Конструктор улиц');
@@ -193,4 +193,39 @@ test('atamalar: «Istisnolar» boʻlimi — iqtiboslar, jadval, 3 til, 1024 px t
   await expect(sec.locator('h2')).toHaveText('¿Cuándo se puede reducir la distancia entre edificios?');
   await expect(sec.locator('blockquote').first()).toContainText('hasta dos veces');
   expect(errs).toEqual([]);
+});
+
+test('Yershunos (25.11): bosh sahifa va narxlar havolasi, sahifa ochiladi, 6 rejim tugmasi, Lab logotipi', async ({ page }) => {
+  await page.route(/fonts\.g|goatcounter|gc\.zgo/, r => r.abort());
+  for (const p of ['index.html', 'narxlar.html']) {
+    await page.goto(`http://127.0.0.1:${PORT}/${p}`);
+    const a = page.locator('nav.dots a.d.ys');
+    await expect(a).toHaveAttribute('href', 'app/yershunos/');
+    await expect(a.locator('.nm')).toHaveText('Yershunos');
+    await expect(a.locator('svg .ys-r')).toHaveCount(1); await expect(a.locator('svg .ys-d')).toHaveCount(1);   // moviy oqim va bitta magenta nuqta
+    // rang: kunduz #0f8aa0, tun #3ad1e8
+    const rang = (th: string) => page.evaluate(t => { document.documentElement.setAttribute('data-theme', t); return getComputedStyle(document.querySelector('nav.dots a.ys i')!).backgroundColor; }, th);
+    expect(await rang('light')).toBe('rgb(15, 138, 160)'); expect(await rang('dark')).toBe('rgb(58, 209, 232)');
+  }
+  // tarjima: ru (home-i18n.js) va tr (js/i18n/tr.json)
+  await page.goto(`http://127.0.0.1:${PORT}/index.html`);
+  await page.click('#langBtn'); await page.click('#langMenu [data-lang=ru]');
+  await expect(page.locator('nav.dots a.ys .mut')).toHaveText('Скрининг региона: рельеф, паводки, ливни, климат.');
+  // xizmat sahifasi (xarita kutubxonasi tashqi CDN dan — test uni kutmaydi)
+  await page.route(/unpkg\.com/, r => r.abort());
+  const r = await page.goto(`http://127.0.0.1:${PORT}/app/yershunos/`);
+  expect(r!.status()).toBe(200);
+  await expect(page).toHaveTitle(/Yershunos/);
+  await expect(page.locator('#rejim button[data-v]')).toHaveCount(6);
+  expect(await page.locator('#rejim button[data-v]').evaluateAll(b => b.map(x => (x as HTMLElement).dataset.v))).toEqual(['relyef', 'toshqin', 'jala', 'iqlim', 'keng', 'hudud']);
+  // sarlavha: faqat Lab logotipi (SVG) + «Yershunos», «Archemistry Lab» yozuvisiz; bosh sahifaga havola
+  const brand = page.locator('.top a.brand');
+  await expect(brand.locator('svg.logo path')).toHaveCount(1); await expect(brand).toHaveText('Yershunos');
+  await expect(brand).toHaveAttribute('href', '../../index.html');
+  await expect(page.locator('[data-lab-logo]')).toHaveCount(0);
+  // maʼlumot fayllari joyida va geojson ≤ 2 MB
+  for (const f of ['funksional.geojson', 'vodiy_tubi.geojson']) {
+    const p = join(ROOT, 'app/yershunos', f); expect(existsSync(p)).toBe(true); expect(statSync(p).size).toBeLessThanOrEqual(2 * 1024 * 1024);
+  }
+  for (const f of ['hududlar.json', 'iqlim.json', 'tiles/8/178/95.png', 'jala/P50_max.png', 'hudud/angren/meta.json']) expect((await page.request.get(`http://127.0.0.1:${PORT}/app/yershunos/${f}`)).status()).toBe(200);
 });
