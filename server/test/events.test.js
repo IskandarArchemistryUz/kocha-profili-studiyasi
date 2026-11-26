@@ -74,6 +74,7 @@ describe('foydalanish hodisalari', () => {
     expect(j.top.find((x) => x.name === 'pv')).toBeUndefined();
     const coh = j.cohorts.find((x) => x.size >= 1 && x.w[1 - 1] === 1);
     expect(coh).toBeTruthy();
+    expect(coh.w.slice(1)).toEqual([null, null, null]);   // 8 kun: 2–4-haftalar hali kelmagan
     expect(j.since).toBeTruthy();
   });
   it('egasi: manba (birinchi ochilish), kampaniya, qurilma, xatolar', async () => {
