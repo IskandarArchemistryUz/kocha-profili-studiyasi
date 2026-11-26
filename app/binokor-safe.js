@@ -36,10 +36,12 @@
     if (s.chz) { try { CHZ = JSON.parse(s.chz); CHCUR = 0; CHSEL = null; if (typeof chzSave === 'function') chzSave(); } catch (e) {} }
     rebuild(); if (typeof fit === 'function') fit();
   };
+  var START = ['grid x 6 6', 'grid y 6', 'levels 1 3.0'];
   var _undo = undo, _redo = redo;
   undo = function () {
     var t = BACK[BACK.length - 1];
     if (t && t.after === sig(CMDS)) { BACK.pop(); FWD.push({ cmds: CMDS.slice(), chz: chzStr(), after: sig(t.cmds) }); restore(t); toast('Oldingi model qaytarildi', 1); return; }
+    if (CMDS.length <= START.length && sig(CMDS) === sig(START.slice(0, CMDS.length))) return;   /* boshlangʻich oʻq toʻri va qavat — bekor qilinmaydi */
     _undo();
   };
   redo = function () {
@@ -75,6 +77,7 @@
     box.querySelector('[data-a="no"]').onclick = close; ok.onclick = function () { close(); onOk(); };
     document.body.appendChild(w); ok.focus();
   };
+  window.bkAsk = ask;   /* binokor-loyiha.js: loyihani oʻchirish tasdigʻi */
   var GUARD = '#bNew, #ghbake, #runAll, button[data-s]';
   document.addEventListener('click', function (ev) {
     var b = ev.target && ev.target.closest && ev.target.closest(GUARD); if (!b) return;
