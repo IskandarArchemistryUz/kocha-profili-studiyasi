@@ -259,7 +259,16 @@ window.BINOKOR_I18N = {
  "Modelda # ta element bor. Ular oʻrniga boʻsh loyiha qoʻyiladi. Ctrl+Z bilan qaytarish mumkin.": ["The model has # elements. They will be replaced by an empty project. You can undo with Ctrl+Z.", "В модели # элементов. Они будут заменены пустым проектом. Можно отменить через Ctrl+Z."],
  "Modelda # ta element bor. Ular oʻrniga yangi model qoʻyiladi. Ctrl+Z bilan qaytarish mumkin.": ["The model has # elements. They will be replaced by a new model. You can undo with Ctrl+Z.", "В модели # элементов. Они будут заменены новой моделью. Можно отменить через Ctrl+Z."],
  "Parametrik grafda natija yoʻq — tugunlarni «Binokor ⟶ model» ga ulang yoki namunani tanlang": ["The parametric graph has no result — connect nodes to “Binokor ⟶ model” or pick a sample", "В параметрическом графе нет результата — подключите узлы к «Binokor ⟶ model» или выберите пример"],
- "3D da surish: D tugmasi yoki «Surish» asbobi — tayanch nuqta, keyin yangi joy": ["Moving in 3D: press D or use the Move tool — base point, then the new position", "Перемещение в 3D: клавиша D или инструмент «Переместить» — базовая точка, затем новое место"]
+ "3D da surish: D tugmasi yoki «Surish» asbobi — tayanch nuqta, keyin yangi joy": ["Moving in 3D: press D or use the Move tool — base point, then the new position", "Перемещение в 3D: клавиша D или инструмент «Переместить» — базовая точка, затем новое место"],
+ // ——— loyihalar (26.11, binokor-loyiha.js)
+ "Loyihalar": ["Projects", "Проекты"], "loyihalar": ["projects", "проекты"],
+ "Bino modeli: har loyiha — oʻz modeli, chizmalari va albomi.": ["Building model: each project has its own model, drawings and sheet set.", "Модель здания: у каждого проекта своя модель, чертежи и альбом."],
+ "oʻzgargan": ["modified", "изменён"], "ochiq": ["open", "открыт"], "eski ish": ["earlier work", "прежняя работа"],
+ "Yopish": ["Close", "Закрыть"], "Oʻchirish": ["Delete", "Удалить"], "Nomini oʻzgartirish": ["Rename", "Переименовать"],
+ "Hali loyiha yoʻq. «Yangi loyiha» bilan boshlang.": ["No projects yet. Start with “New project”.", "Проектов пока нет. Начните с «Новый проект»."],
+ "Loyiha oʻchirilsinmi?": ["Delete the project?", "Удалить проект?"],
+ "model va albom brauzerdan oʻchadi. Buni qaytarib boʻlmaydi.": ["the model and sheet set will be removed from this browser. This cannot be undone.", "модель и альбом будут удалены из браузера. Это нельзя отменить."],
+ "Brauzer xotirasi toʻldi — loyihani faylga saqlang (Ctrl+S)": ["Browser storage is full — save the project to a file (Ctrl+S)", "Память браузера заполнена — сохраните проект в файл (Ctrl+S)"]
 };
 /* Oʻzbekcha atamalar (15.11 qarori): eski soʻz → yangi. Butun soʻz sifatida almashtiriladi. */
 window.BINOKOR_UZ_TERMS = [
