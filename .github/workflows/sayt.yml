@@ -1,0 +1,51 @@
+name: Sayt — chiqarish (archemistry.uz)
+# 26.11.2026: sayt GitHub ning oʻzida yigʻiladi va GitHub Pages ga chiqariladi («Source: GitHub Actions»).
+# Maqsad — yigʻilgan app/ ni repoga commit qilmaslik (parallel PR lar app/assets da toʻqnashardi). Reja: CLAUDE.md, 3-boʻlim.
+# Saytga repo ildizidagi statik fayllar + yangi yigʻilgan app/ chiqadi; manba papkalari (mr, server, tools, test…) chiqmaydi.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths: ['.github/workflows/sayt.yml']
+  workflow_dispatch:
+concurrency: { group: sayt-pages, cancel-in-progress: false }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: mr/package-lock.json }
+      - name: Yigʻish
+        working-directory: mr
+        run: npm ci && npm run build
+      - name: Sayt papkasi (_site)
+        run: |
+          mkdir _site
+          tar -cf - --exclude=./.git --exclude=./.github --exclude=./mr --exclude=./server --exclude=./tools \
+            --exclude=./test --exclude=./tests-e2e --exclude=./docs --exclude=./_site \
+            --exclude=./README.md --exclude=./CLAUDE.md --exclude=node_modules . | tar -xf - -C _site
+          test -f _site/CNAME && test -f _site/.nojekyll && test -f _site/index.html && test -f _site/app/index.html
+          du -sh _site; ls _site
+      - name: app/*.html murojaat qiladigan har bir asset bormi
+        run: |
+          miss=0
+          for h in _site/app/*.html; do
+            for f in $(grep -oE 'assets/[A-Za-z0-9_.-]+' "$h" | sort -u); do
+              [ -f "_site/app/$f" ] || { echo "::error title=Yetishmayotgan asset::$h -> app/$f"; miss=1; }
+            done
+          done
+          exit $miss
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages, url: '${{ steps.d.outputs.page_url }}' }
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
