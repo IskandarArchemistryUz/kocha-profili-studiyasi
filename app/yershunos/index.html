@@ -78,8 +78,8 @@ body.pclosed .panel{opacity:0;transform:translateX(-12px);pointer-events:none}
 .panel #sub{margin:3px 0 0;font-size:12.5px;color:var(--muted)}
 .pbody{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin}
 .mode{display:none;flex-direction:column;gap:8px}
-body:not(.tq-on):not(.iq-on):not(.kg-on):not(.jl-on):not(.hd-on) .m-rl,
-body.tq-on .m-tq,body.iq-on .m-iq,body.kg-on .m-kg,body.jl-on .m-jl,body.hd-on .m-hd{display:flex}
+body:not(.tq-on):not(.iq-on):not(.kg-on):not(.jl-on):not(.hd-on):not(.uz-on) .m-rl,
+body.tq-on .m-tq,body.iq-on .m-iq,body.kg-on .m-kg,body.jl-on .m-jl,body.hd-on .m-hd,body.uz-on .m-uz{display:flex}
 
 /* akkordeon */
 .acc{background:var(--grouped);border-radius:var(--r-card)}
@@ -126,6 +126,22 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radiu
 
 .leg{display:flex;gap:2px;margin-top:4px}.leg i{flex:1;height:8px}.leg i:first-child{border-radius:3px 0 0 3px}.leg i:last-child{border-radius:0 3px 3px 0}
 .grad{height:8px;border-radius:3px;margin-top:4px}
+.sel{flex:1;min-width:0;height:30px;border:0;border-radius:var(--r-ctl);background:var(--fill);color:var(--ink);padding:0 8px;font:inherit;font-size:12.5px}
+.uzx{font-size:12px;line-height:1.45;color:var(--ink-2);margin-top:6px}.uzx b{color:var(--ink);font-weight:600}
+.uzcmp{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.uzcmp .chip{height:22px;font-size:10.5px;letter-spacing:.02em}
+#uzw{position:fixed;z-index:30;left:440px;right:16px;top:76px;bottom:16px;background:var(--surface);border-radius:var(--r-card,18px);box-shadow:0 12px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden}
+#uzw[hidden]{display:none}
+#uzw .hd{display:flex;gap:8px;align-items:center;padding:12px 14px;flex-wrap:wrap}#uzw .hd b{font-size:15px;margin-right:auto}
+#uzw .hd input{height:30px;border:0;border-radius:var(--r-ctl);background:var(--fill);color:var(--ink);padding:0 10px;font:inherit;font-size:12.5px;width:180px}
+#uzw .bd{overflow:auto;flex:1;padding:0 6px 8px}
+#uzw table{border-collapse:collapse;width:100%;font-size:12.5px}
+#uzw th{position:sticky;top:0;background:var(--surface);text-align:right;padding:8px;color:var(--muted);font-weight:600;font-size:11px;cursor:pointer;white-space:nowrap;user-select:none}
+#uzw th:first-child,#uzw td:first-child,#uzw th:nth-child(2),#uzw td:nth-child(2){text-align:left}
+#uzw td{padding:7px 8px;text-align:right;border-top:1px solid var(--fill);font-family:var(--mono);white-space:nowrap}
+#uzw td:first-child,#uzw td:nth-child(2){font-family:inherit;white-space:normal}#uzw td:nth-child(2){color:var(--muted)}
+#uzw tbody tr{cursor:pointer}#uzw tbody tr:hover{background:var(--svc-soft)}#uzw tr.on td{background:var(--svc-soft)}
+#uzw td i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+@media(max-width:900px){#uzw{left:8px;right:8px;top:56px;bottom:84px}#uzw .hd input{width:120px}#uzw th:nth-child(2),#uzw td:nth-child(2){display:none}}
 .bar{display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0}.bar i{display:block;height:7px;border-radius:2px;flex:none}
 .bar span{color:var(--ink-2)}
 .lst{max-height:220px;overflow:auto;margin-top:2px;font-size:12px;font-family:var(--mono)}
@@ -185,9 +201,72 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
   .maplibregl-ctrl-top-right{top:116px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== Hisobot (A4 portret / albom, chop etish) ===== */
+#hb{position:fixed;inset:0;z-index:300;background:#59666e;overflow:auto}
+#hb[hidden]{display:none}
+#hb .hb-bar{position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--hairline);color:var(--ink)}
+#hb .hb-bar .seg button:disabled{opacity:.35;cursor:default}#hb .hb-bar .seg button[hidden]{display:none}
+#hbd{padding:22px 0 48px}
+.pg{width:210mm;height:297mm;margin:0 auto 18px;background:#fff;color:#16222a;position:relative;box-sizing:border-box;padding:12mm 14mm 0;overflow:hidden;font:9.2pt/1.42 var(--sans);box-shadow:0 4px 24px rgba(0,0,0,.35)}
+#hbd.al .pg{width:297mm;height:210mm;padding:11mm 14mm 0}
+.hb-body{height:269mm;overflow:hidden}#hbd.al .hb-body{height:184mm}
+.hb-blk{display:flow-root}
+.hb-cols{display:flex;gap:9mm;align-items:flex-start}.hb-cols>div{flex:1;min-width:0}
+.pg h1{font-size:21pt;line-height:1.1;margin:5mm 0 1.5mm;font-weight:700;letter-spacing:-.015em}
+.pg h2{font-size:10pt;margin:4.5mm 0 2.2mm;padding-top:2mm;border-top:1.2px solid #10222b;font-weight:700;letter-spacing:.005em}
+.pg .hb-sub{color:#55656e;font-size:10pt;margin-bottom:4mm}
+.hb-h{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:3mm;border-bottom:1px solid #d9e1e5}
+.hb-brand{display:flex;align-items:center;gap:7px}.hb-brand b{font-size:10pt}.hb-brand i{font-style:normal;color:#0f8aa0;font-weight:600;font-size:10pt}
+.hb-logo{width:22px;height:22px;border-radius:6px;background:#10222b;color:#fff;display:grid;place-items:center;font:700 11px var(--sans)}.hb-lsvg{color:#10222b;width:21px;height:20px}
+.hb-meta{text-align:right;font-size:8pt;color:#55656e;font-family:var(--mono)}
+.hb-kp{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5mm;margin:2mm 0 1mm}#hbd.al .hb-kp{grid-template-columns:repeat(6,1fr)}
+.hb-kp>div{border-top:2.4px solid #10222b;padding:2.2mm 0 1mm}
+.hb-kp span{display:block;font-size:7.4pt;color:#55656e;text-transform:uppercase;letter-spacing:.05em}
+.hb-kp b{display:block;font:500 15pt/1.2 var(--mono);margin:1mm 0 .5mm;white-space:nowrap;letter-spacing:-.02em}#hbd.al .hb-kp b{font-size:13pt}
+.hb-kp em{display:block;font-style:normal;font-size:7.6pt;color:#55656e}
+.hb-row{display:flex;gap:7mm}.hb-c6{flex:6;min-width:0}.hb-c4{flex:4;min-width:0}
+.hb-svg{width:100%;height:auto;display:block;font-family:var(--sans)}
+.hb-img{width:100%;height:auto;display:block;border:1px solid #d9e1e5}
+.hb-leg{display:flex;flex-wrap:wrap;gap:1.5mm 3.5mm;font-size:7.6pt;color:#55656e;margin-top:1.2mm}.hb-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.hb-mm{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm}#hbd.al .hb-mm{grid-template-columns:repeat(2,1fr);gap:2mm 6mm}
+.hb-mm b{display:block;font-size:8.4pt;font-weight:600;margin-bottom:.6mm}.hb-mm span{display:block;font-size:7.2pt;color:#6b7a83;margin-top:.6mm}
+.hb-ml{display:flex;gap:1px;margin-top:.8mm}.hb-ml i{flex:1;height:5px}
+.hb-stk{display:flex;height:16px;border-radius:3px;overflow:hidden;gap:1px}
+.hb-top{list-style:none;margin:0;padding:0;counter-reset:t}
+.hb-top li{counter-increment:t;display:grid;grid-template-columns:18px 1fr auto;column-gap:6px;align-items:baseline;padding:1.8mm 0;border-bottom:1px solid #e4eaed}
+.hb-top li::before{content:counter(t);grid-row:span 2;width:16px;height:16px;border-radius:50%;background:#10222b;color:#fff;font-size:8pt;font-weight:700;display:grid;place-items:center;align-self:center}
+.hb-top b{font-weight:600}.hb-top em{grid-column:2;font-style:normal;font-size:7.8pt;color:#55656e}.hb-top span{grid-row:1;grid-column:3;font:600 12pt var(--mono)}
+.hb-xl{margin:0;padding-left:4.5mm}.hb-xl li{margin:0 0 1.7mm}.hb-xl b{font-weight:700}
+.hb-note{font-size:7.6pt;color:#6b7a83;margin-top:1.5mm}
+.hb-t{width:100%;border-collapse:collapse;font-size:8.2pt}
+.hb-t th{text-align:right;font-weight:600;font-size:7.4pt;color:#55656e;padding:1.4mm 1.6mm;border-bottom:1.2px solid #10222b;vertical-align:bottom}
+.hb-t td{text-align:right;padding:1.15mm 1.6mm;border-bottom:1px solid #e4eaed;font-family:var(--mono);white-space:nowrap}
+.hb-t th:first-child,.hb-t td:first-child{text-align:left;font-family:var(--sans);white-space:normal}
+.hb-t td.hb-b{font-weight:600;background:#f1f5f6}
+.hb-r{display:inline-block;min-width:22px;text-align:center;border-radius:3px;padding:0 3px;font-weight:600}
+.hb-bc{display:flex;align-items:center;gap:5px}.hb-bc>div{position:relative;flex:1;height:9px;background:#eef3f5;border-radius:2px}
+.hb-bc i{position:absolute;left:0;top:0;bottom:0;border-radius:2px}.hb-bc b{position:absolute;top:-2px;bottom:-2px;width:1.6px;background:#10222b}
+.hb-bc>span{width:24px;text-align:right;font:600 8pt var(--mono)}
+.hb-inf td{width:26%}.hb-inf td:first-child{width:22%}
+.hb-om>div{margin:0 0 3mm}.hb-om>div>span{display:block;font-size:8.2pt;margin-bottom:1mm}.hb-om .hb-bc>div{height:12px}
+.hb-2c{columns:2;column-gap:8mm;font-size:8.6pt}#hbd.al .hb-2c{columns:3}.hb-2c p{margin:0 0 2.4mm;break-inside:avoid}
+.hb-src{margin-top:4mm;padding-top:2mm;border-top:1px solid #d9e1e5;font-size:7.8pt;color:#55656e}
+.hb-ft{position:absolute;left:14mm;right:14mm;bottom:7mm;display:flex;justify-content:space-between;font-size:7.4pt;color:#6b7a83;border-top:1px solid #e4eaed;padding-top:1.5mm}
+body.uz-on .lbl{display:none}
+@media screen and (max-width:900px){#hbd{zoom:.46}#hbd.al{zoom:.33}}
+@media print{
+  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+  body>*:not(#hb){display:none!important}
+  #hb{position:static;overflow:visible;background:#fff}
+  #hb .hb-bar{display:none}#hbd,#hbd.al{padding:0;zoom:1}
+  .pg{margin:0;box-shadow:none;break-after:page}.pg:last-child{break-after:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 </head>
-<body>
+<body class="uz-on">
+<div id="uzw" hidden><div class="hd"><b id="uzwt">Tuman va shaharlar</b><input id="uzwq" type="search" placeholder="Nom bo'yicha qidirish"><button class="play" id="uzwc">CSV</button><button class="play" id="uzwx" style="background:var(--fill);color:var(--ink)">Yopish</button></div><div class="bd"><table><thead id="uzwh"></thead><tbody id="uzwb"></tbody></table></div></div>
 <div id="map"></div>
 
 <!-- ===== yuqori panel ===== -->
@@ -195,16 +274,18 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
   <a class="ib" href="../../index.html" title="Archemistry Lab — bosh sahifa" aria-label="Orqaga"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></a>
   <a class="brand" href="../../index.html" aria-label="Archemistry Lab"><svg class="logo" viewBox="0 0 103.45 100" width="22.66" height="22" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M0.18 99.88C0.05 99.75 -0.00 99.62 0.02 99.50C0.04 99.41 9.94 83.09 22.02 63.24C34.11 43.39 44.08 27.00 44.19 26.82C44.29 26.63 44.36 26.42 44.34 26.33C44.31 26.25 40.81 20.46 36.56 13.47C32.30 6.48 28.80 0.68 28.78 0.58C28.76 0.46 28.81 0.33 28.95 0.20L29.15 0.00L46.81 0.00L64.48 -0.00L64.66 0.14C64.77 0.24 64.84 0.37 64.84 0.52C64.84 0.68 63.31 3.25 59.55 9.40C55.65 15.80 54.27 18.13 54.27 18.30C54.27 18.47 60.60 28.92 78.87 58.93C92.40 81.14 103.49 99.40 103.51 99.50C103.53 99.62 103.48 99.74 103.34 99.88L103.14 100.08L51.76 100.08L0.38 100.08L0.18 99.88ZM84.67 98.63C86.09 97.94 86.73 96.21 86.07 94.85C85.63 93.94 49.16 34.17 48.84 33.84C47.73 32.69 45.86 32.72 44.74 33.91C44.40 34.26 7.73 94.44 7.50 95.02C7.38 95.30 7.34 95.60 7.34 96.04L7.34 96.67L7.55 97.13C7.93 97.97 8.55 98.54 9.35 98.79L9.68 98.89L46.94 98.88L84.21 98.86L84.67 98.63ZM52.47 11.63C52.97 11.50 53.52 11.19 53.86 10.84C54.10 10.58 57.46 5.09 57.73 4.51C57.87 4.21 57.91 3.98 57.91 3.56L57.92 3.00L57.68 2.53C57.42 2.01 57.09 1.67 56.56 1.39L56.23 1.21L51.76 1.21L47.30 1.21L46.88 1.45C46.10 1.88 45.69 2.53 45.63 3.42C45.61 3.76 45.63 4.09 45.69 4.28C45.81 4.65 49.38 10.53 49.67 10.84C50.15 11.34 51.04 11.74 51.73 11.75C51.88 11.75 52.21 11.70 52.47 11.63Z"/></svg><span class="svcbadge"><i></i>Yershunos</span></a>
   <div class="vsep"></div>
-  <div class="place"><b id="ptitle">Chorvoq havzasi</b><span>Mintaqa xavfi va iqlim skriningi</span></div>
+  <div class="place"><b id="ptitle">O'zbekiston</b><span>Mintaqa xavfi va iqlim skriningi</span></div>
   <div class="sp"></div>
-  <span class="chip warn" title="Natijalar skrining darajasida: muhandislik gidravlik modeli o'rnini bosmaydi">KO'RGAZMALI</span>
+  <span class="chip warn" title="Natijalar skrining darajasida: muhandislik gidravlik modeli o'rnini bosmaydi">SKRINING</span>
   <div class="seg" id="dim" role="group" aria-label="Ko'rinish"><button data-v="2d">2D</button><button data-v="3d" class="on">3D</button></div>
   <div class="seg" id="fon" role="group" aria-label="Fon"><button data-v="kiber" class="on" title="Tungi kiber fon">Kiber</button><button data-v="stil" title="Kunduzgi stilistik fon">Stilistik</button></div>
 </div>
 
 <!-- ===== rels: rejimlar ===== -->
 <nav class="rail glass" id="rejim" aria-label="Rejimlar">
-  <button data-v="relyef" class="on" title="Relyef va havza"><svg class="ic" viewBox="0 0 24 24"><path d="M2 19l6-10 4 6 3-4 7 8z"/><path d="M8 9l1.6 2.6"/></svg><span>Relyef</span></button>
+  <button data-v="uz" class="on" title="O'zbekiston: tuman va shaharlar kesimi"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/></svg><span>Mamlakat</span></button>
+  <hr>
+  <button data-v="relyef" title="Relyef va havza · Chorvoq (namuna hudud)"><svg class="ic" viewBox="0 0 24 24"><path d="M2 19l6-10 4 6 3-4 7 8z"/><path d="M8 9l1.6 2.6"/></svg><span>Relyef</span></button>
   <hr>
   <button data-v="toshqin" title="Toshqin · Pskem"><svg class="ic" viewBox="0 0 24 24"><path d="M2 9c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 14c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><path d="M2 19c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/></svg><span>Toshqin</span></button>
   <button data-v="jala" title="Jala · Chimyon"><svg class="ic" viewBox="0 0 24 24"><path d="M7 15a4 4 0 0 1-.6-8 5.5 5.5 0 0 1 10.6 1.4A3.4 3.4 0 0 1 17 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/></svg><span>Jala</span></button>
@@ -217,7 +298,7 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
 <!-- ===== chap panel ===== -->
 <aside class="panel glass" id="panel">
   <header>
-    <div class="t"><h2 id="mtitle">Relyef va havza</h2><p id="sub">Chorvoq havzasi · relyef va koridorlar</p></div>
+    <div class="t"><h2 id="mtitle">O'zbekiston</h2><p id="sub">Tuman va shaharlar: o'sish, iqlim, suv, zaiflik</p></div>
     <button class="ib" id="pclose" title="Panelni yig'ish" aria-label="Panelni yig'ish"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
   </header>
   <div class="pbody" id="hudwrap">
@@ -347,6 +428,39 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
       </details>
     </div>
 
+    <!-- MAMLAKAT -->
+    <div class="mode m-uz">
+      <details class="acc" open><summary><span class="n">1</span>O'zbekiston: tumanlar kesimi</summary>
+        <div class="ab" id="uzp">
+          <label class="row" style="display:none"><input type="checkbox" id="uzc"><span class="sw" style="background:#f3c96b"></span>Tumanlar qatlami (butun mamlakat)</label>
+          <div id="uzb">
+            <div class="lbl-r" style="margin-top:6px"><select class="sel" id="uzv" aria-label="Viloyat"></select><button class="play" id="uzj">Jadval</button><button class="play" id="uzh" title="Tanlangan tuman, viloyat yoki respublika bo'yicha chop etishga tayyor hisobot">Hisobot</button></div>
+            <div class="k" style="margin-top:8px">Aholi</div>
+            <div class="seg full sm" id="uzs"><button data-u="o" class="on">O'sish</button><button data-u="z">Zichlik</button><button data-u="k">Model farqi</button></div>
+            <div class="k">Iqlim</div>
+            <div class="seg wr" id="uzs2"><button data-u="h">Issiq kunlar</button><button data-u="t">Tropik tunlar</button><button data-u="q">Qurg'oqchillik</button><button data-u="x">O'sish × jazirama</button></div>
+            <div class="k">Yer</div>
+            <div class="seg full sm" id="uzs4"><button data-u="ey">Ekin yeri yo'qolishi</button><button data-u="eg">Qurilgan yer / kishi</button></div>
+            <div class="k">Aholi zaifligi</div>
+            <div class="seg wr" id="uzs6"><button data-u="zi">Zaiflik indeksi</button><button data-u="zs">Ichimlik suvi</button><button data-u="zk">Kanalizatsiya</button><button data-u="zh">Ish haqi</button></div>
+            <div class="k">Suv</div>
+            <div class="seg full sm" id="uzs5"><button data-u="sv">Suv stressi</button><button data-u="sw">Suv stressi 2050</button></div>
+            <div class="k">Xulosa</div>
+            <div class="seg full sm" id="uzs3"><button data-u="r">Ustuvorlik reytingi</button></div>
+            <div id="uzscw" hidden><div class="seg full sm" id="uzsc" style="margin-top:6px"><button data-s="0">1995–2014</button><button data-s="1" class="on">2050 · SSP2-4.5</button><button data-s="2">2050 · SSP5-8.5</button></div></div>
+            <div class="k" id="uzi"></div>
+            <div id="uzl" style="margin-top:4px"></div>
+            <div id="uzd"><div class="k">Xaritadan tuman yoki shaharni tanlang.</div></div>
+            <div class="k" id="uzth">Eng yuqori</div><div class="hl" id="uzt"></div>
+            <div class="k">Aholi soni: Milliy statistika qo'mitasi, 2026-yil ro'yxati bo'yicha qayta hisoblangan qator. Chegaralar: OpenStreetMap. Model: GHS-POP R2023A; 2050-yil prognozi GHS-WUP o'sish sur'atidan, rasmiy prognoz bilan solishtirilmagan. Iqlim: World Bank CCKP, CMIP6 0,25° ansambl medianasi, 2050 = 2040–2059 o'rtachasi; qiymat aholi joylashuvi bo'yicha tortilgan. Katak ~25 km: tog'li tumanlarda jazirama past baholanadi, yog'in miqdori ishonchsiz. Yer: GHS-BUILT-S R2023A (1 km) va ESA WorldCover 2021. Shirin shahri qo'shni tuman tarkibida.</div>
+          </div>
+        </div>
+      </details>
+      <details class="acc"><summary><span class="n">?</span>Manba va cheklovlar</summary>
+        <div class="ab"><div class="note" style="margin:0">Aholi va ijtimoiy ko'rsatkichlar: stat.uz (SIAT). Iqlim: World Bank CCKP, CMIP6. Suv: WRI Aqueduct 4.0. Qurilgan maydon va aholi to'ri: GHSL (JRC). Ekin yeri: ESA WorldCover 2021. Chegaralar: © OpenStreetMap. Dastlabki baho: muhandislik izlanishlari o'rnini bosmaydi; toshqin va seysmik xavf respublika qatlamiga hali kirmagan. Aniq joy uchun relyef va suv yo'llari skriningi — «Hudud» rejimida.</div></div>
+      </details>
+    </div>
+
     <!-- KENGAYISH -->
     <div class="mode m-kg">
       <details class="acc" open><summary><span class="n">1</span>Davr va qatlamlar</summary>
@@ -439,7 +553,8 @@ const map=new maplibregl.Map({container:'map',
   style:{version:8,sources:{dem:DEM,dem2:{...DEM}},
     layers:[{id:'bg',type:'background',paint:{'background-color':C.kiber.bg}},
             {id:'hs',type:'hillshade',source:'dem2',paint:{'hillshade-shadow-color':C.kiber.sh,'hillshade-highlight-color':C.kiber.hl,'hillshade-accent-color':C.kiber.acc,'hillshade-exaggeration':0.7,'hillshade-illumination-direction':315}}]},
-  center:[70.85,41.80],zoom:8.4,pitch:0,bearing:0,maxBounds:MB,minZoom:7.5,maxZoom:14.5,attributionControl:false});
+  center:[64.6,41.4],zoom:4.9,pitch:0,bearing:0,minZoom:3,maxZoom:14.5,attributionControl:false});
+map.once('load',()=>rejim('uz'));   // kirishda — butun mamlakat; Chorvoq endi namuna hudud
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
 const gj=n=>({type:'geojson',data:new URL(n+'.geojson',location.href).href});
 map.on('load',()=>{
@@ -519,15 +634,18 @@ function tqDraw(){ if(!TQ) return; const c=zz+'m';
   rows.sort((a,b)=>(b[2]===null)-(a[2]===null)||((b[2]??0)-b[1])-((a[2]??0)-a[1])||b[1]-a[1]);
   document.getElementById('hl').innerHTML=rows.map(r=>'<div class="'+(r[2]===null?'uz':(r[2]>r[1]+0.5?'up':''))+'"><span>'+r[0]+'</span><span>'+Math.round(r[1])+' → '+(r[2]===null?'✕':Math.round(r[2]))+'</span></div>').join('');}
 function rejim(v){if(!map.getLayer('vodiy')){map.once('idle',()=>rejim(v));return;}
-const tq=v==='toshqin', iq=v==='iqlim', kg=v==='keng', jl=v==='jala', hdm=v==='hudud', on=tq||iq||kg||jl||hdm;
+const tq=v==='toshqin', iq=v==='iqlim', kg=v==='keng', jl=v==='jala', hdm=v==='hudud', uzm=v==='uz', on=tq||iq||kg||jl||hdm||uzm;
+  document.body.classList.toggle('uz-on',uzm);
   document.body.classList.toggle('hd-on',hdm); document.body.classList.toggle('jl-on',jl); document.body.classList.toggle('tq-on',tq); document.body.classList.toggle('iq-on',iq); document.body.classList.toggle('kg-on',kg);
-  document.getElementById('sub').textContent=tq?'Pskem vodiysi · toshqin, ko\'priklar, kasalxonagacha vaqt':(iq?'Chorvoq havzasi va Toshkent · iqlim 1995–2099':(kg?'Chorvoq bo\'yi · qurilish 1985–2019 va xavf':(jl?'Chimgansoy · 3 soatlik jala, rain-on-grid':(hdm?'Avtomat skrining · istalgan hudud':'Chorvoq havzasi · relyef va koridorlar'))));
+  document.getElementById('sub').textContent=uzm?'Tuman va shaharlar: o\'sish, iqlim, suv, zaiflik':tq?'Pskem vodiysi · toshqin, ko\'priklar, kasalxonagacha vaqt':(iq?'Chorvoq havzasi va Toshkent · iqlim 1995–2099':(kg?'Chorvoq bo\'yi · qurilish 1985–2019 va xavf':(jl?'Chimgansoy · 3 soatlik jala, rain-on-grid':(hdm?'Avtomat skrining · istalgan hudud':'Chorvoq havzasi · relyef va koridorlar'))));
   ['vodiy','funksional','kichik'].forEach(l=>map.setLayoutProperty(l,'visibility',(on&&!(kg&&l==='vodiy'&&document.getElementById('kv').checked))?'none':kg&&l==='vodiy'?'visible':(document.querySelector('[data-l="'+l+'"]').checked?'visible':'none')));
   if(TQ){mk.forEach(m=>m.remove()); ['Q2','Q100','yomgir_qor'].forEach(k=>{map.setLayoutProperty('tq_h_'+k,'visibility','none');map.setLayoutProperty('tq_y_'+k,'visibility','none');}); map.setLayoutProperty('kop','visibility','none');}
     if(IQ){map.setLayoutProperty('iq','visibility','none');map.setLayoutProperty('iq-l','visibility','none'); iqMk.forEach(m=>m.remove()); iqStop();}
-  hdHide(); map.setLayoutProperty('tashqi','visibility',(iq||hdm)?'none':'visible'); map.setMaxBounds(hdm?null:MB); map.setMinZoom(hdm?1.5:7.5); if(hdm){hdLoad();}
+  hdHide(); map.setLayoutProperty('tashqi','visibility',(iq||hdm||uzm)?'none':'visible'); map.setMaxBounds(hdm?null:MB); map.setMinZoom(hdm?1.5:7.5); if(hdm){hdLoad();}
   if(JL){['jl','jl-b','jl-h'].forEach(l=>map.setLayoutProperty(l,'visibility','none')); jlStop();}
   if(KG){['kg1','kg2','kg3','kg4','kg5','kq'].forEach(l=>map.setLayoutProperty(l,'visibility','none')); kgStop();}
+  if(UZ&&!uzm){uzVis(false);} document.getElementById('uzc').checked=uzm;
+  if(uzm){uzOch(); return;}
   if(jl){jlLoad().then(()=>{['jl','jl-b','jl-h'].forEach(l=>map.setLayoutProperty(l,'visibility','visible')); jlDraw(-1);});
     map.flyTo({center:[70.03,41.548],zoom:12.6,pitch:d3?50:0,bearing:d3?180:0,duration:1800});}
   else if(kg){kgLoad().then(()=>{map.setLayoutProperty('kq','visibility',document.getElementById('kq').checked?'visible':'none'); kgDraw();});
@@ -619,6 +737,152 @@ document.getElementById('kpb').onclick=()=>{if(kgT){kgStop();return;} ky=0;docum
 document.getElementById('kv').onchange=e=>map.setLayoutProperty('vodiy','visibility',e.target.checked?'visible':'none');
 document.getElementById('kq').onchange=e=>map.setLayoutProperty('kq','visibility',e.target.checked?'visible':'none');
 
+// ---------- O'zbekiston: tumanlar kesimi (rasmiy aholi × model) ----------
+let UZ=null, uzK='o', uzSel=null;
+const UZC=['#1b4d6b','#1f8fa3','#3ad1e8','#f3c96b','#ff8a3d'], UZD=['#2f6fd0','#8fb4e8','#cfd6da','#f3c96b','#ff8a3d'];
+const UZM={
+  o:{b:[15,25,35,45],c:UZC,l:['15 % gacha','15–25 %','25–35 %','35–45 %','45 % dan ko\'p'],t:'Eng tez o\'sganlar',
+     i:'Rasmiy aholi o\'sishi, 2010–2026. Chegarasi o\'zgargan tumanlar guruh bo\'yicha hisoblangan. Respublika: +33,6 %.'},
+  z:{b:[50,150,400,1500],c:UZC,l:['50 gacha','50–150','150–400','400–1 500','1 500 dan ko\'p'],t:'Eng zich',
+     i:'Aholi zichligi, 2026-yil boshi, kishi/km² (butun ma\'muriy hudud bo\'yicha).'},
+  k:{b:[0.67,0.9,1.1,1.5],c:UZD,l:['model ancha oshirgan (×0,67 dan past)','model oshirgan','mos (±10 %)','model kam ko\'rsatgan','model ancha kam ko\'rsatgan (×1,5 dan yuqori)'],t:'Model eng ko\'p kam ko\'rsatganlar',
+     i:'Rasmiy son (2020–2021) va sun\'iy yo\'ldosh modeli (GHS-POP, 2020) nisbati. 1 dan katta — model aholini kam ko\'rsatadi. Xavf ostidagi aholi hisobi shu nisbatga ko\'paytiriladi.'}};
+const UZH=['#1b4d6b','#1f8fa3','#f3c96b','#ff8a3d','#ff4fa3'];
+Object.assign(UZM,{
+  h:{b:[20,40,60,90],c:UZH,l:['20 kungacha','20–40 kun','40–60 kun','60–90 kun','90 kundan ko\'p'],t:'Eng ko\'p issiq kun',i:'Yiliga Tmax > 35 °C bo\'lgan kunlar soni.'},
+  t:{b:[20,40,60,90],c:UZH,l:['20 tungacha','20–40 tun','40–60 tun','60–90 tun','90 tundan ko\'p'],t:'Eng ko\'p tropik tun',i:'Yiliga Tmin > 20 °C bo\'lgan tunlar soni: tanaga tunda dam bermaydigan issiq, konditsionerga talab.'},
+  q:{b:[-1.5,-1,-0.5,-0.2],c:['#ff4fa3','#ff8a3d','#f3c96b','#8fb4e8','#3ad1e8'],l:['−1,5 dan past (o\'ta qurg\'oqchil)','−1,5 … −1','−1 … −0,5','−0,5 … −0,2','−0,2 dan yuqori'],t:'Eng qurg\'oqchil',asc:1,i:'SPEI-12: yog\'in va bug\'lanish muvozanati, 1995–2014 ga nisbatan. Manfiy = quruqroq. Bu iqlimiy qurg\'oqchillik; daryo va kanal suvi ta\'minotini ko\'rsatmaydi.'},
+  x:{b:[1,2,3],c:['#2a3a45','#3ad1e8','#f3c96b','#ff4fa3'],l:['ikkalasi ham yo\'q','faqat tez o\'sish','faqat jazirama (90+ kun)','tez o\'sish va jazirama'],t:'Tez o\'sayotgan va jazirama: eng ko\'p aholi',i:'Aholi respublika o\'rtachasidan tez o\'sgan (2010–2026) va yiliga 90 kundan ko\'p Tmax > 35 °C kutilayotgan tumanlar.'}});
+UZM.ey={b:[0.5,1,2,4],c:['#1b4d6b','#1f8fa3','#f3c96b','#ff8a3d','#ff4fa3'],l:['0,5 % gacha','0,5–1 %','1–2 %','2–4 %','4 % dan ko\'p'],t:'Ekin yerini eng ko\'p yo\'qotganlar',
+  i:'2000–2020 yillarda qurilishga o\'tgan ekin yeri, mavjud ekin yeriga nisbatan (baho). Faqat tom va qattiq qoplama maydoni hisoblangan: hovli va tomorqa bilan haqiqiy yer ajratish bir necha baravar katta. Respublika: 1,15 %.'};
+UZM.eg={b:[70,100,130,160],c:UZC,l:['70 m² gacha','70–100 m²','100–130 m²','130–160 m²','160 m² dan ko\'p'],t:'Kishi boshiga eng ko\'p qurilgan yer',
+  i:'Qurilgan maydon (tom va qattiq qoplama, 2020) kishi boshiga, m². Respublika o\'rtachasi 109 m². Yuqori qiymat — tarqoq, kam qavatli qurilish.'};
+UZM.sv={b:[1,2,3,4],c:['#1b4d6b','#1f8fa3','#f3c96b','#ff8a3d','#ff4fa3'],l:['past (10 % gacha)','past–o\'rta (10–20 %)','o\'rta–yuqori (20–40 %)','yuqori (40–80 %)','juda yuqori (80 % dan ko\'p)'],t:'Suv stressi eng yuqori',
+  i:'Havza bo\'yicha olinadigan suvning mavjud qayta tiklanadigan suvga nisbati (WRI Aqueduct 4.0, 1979–2019), 0–5 ball; tuman aholisi bo\'yicha tortilgan. Havza darajasidagi global model: kanal orqali boshqa havzadan keladigan suv va davlatlararo suv taqsimoti to\'liq aks etmaydi.'};
+UZM.sw={b:[1,2,3,4],c:UZM.sv.c,l:UZM.sv.l,t:'2050-yilda suv stressi eng yuqori',i:'Xuddi shu ko\'rsatkich 2050-yil uchun (Aqueduct 4.0, "odatdagidek" ssenariy: SSP3 RCP7.0). Suvga talab o\'sishi va oqim o\'zgarishini hisobga oladi.'};
+UZM.zi={b:[20,40,60,80],c:['#1b4d6b','#1f8fa3','#f3c96b','#ff8a3d','#ff4fa3'],l:['0–20 (past)','20–40','40–60','60–80','80–100 (eng zaif)'],t:'Eng zaif tumanlar',
+  i:'Olti rasmiy ko\'rsatkichning yig\'indisi, 0–100: ichimlik suvi va kanalizatsiya bilan ta\'minlanganlik, o\'rtacha ish haqi, ishsizlik, bolalar va keksalar ulushi, shifokorlar soni. Har biri 197 birlik ichidagi o\'rni bo\'yicha, teng vazn. Dastlabki baho: xavf yuz berganda kim og\'irroq zarar ko\'rishini taxminlaydi. Manba: stat.uz (SIAT), 2025.'};
+UZM.zs={b:[40,60,80,95],c:['#ff4fa3','#ff8a3d','#f3c96b','#1f8fa3','#1b4d6b'],l:['40 % gacha','40–60 %','60–80 %','80–95 %','95 % dan ko\'p'],t:'Ichimlik suvi bilan eng kam ta\'minlangan',asc:1,i:'Ichimlik suvi (vodoprovod) bilan ta\'minlangan kvartira va uylar ulushi, 2025-yil oxiri. Respublika: 79,4 %. Manba: stat.uz (SIAT).'};
+UZM.zk={b:[15,30,50,80],c:['#ff4fa3','#ff8a3d','#f3c96b','#1f8fa3','#1b4d6b'],l:['15 % gacha','15–30 %','30–50 %','50–80 %','80 % dan ko\'p'],t:'Kanalizatsiya bilan eng kam ta\'minlangan',asc:1,i:'Kanalizatsiya bilan ta\'minlangan kvartira va uylar ulushi, 2025-yil oxiri. Respublika: 51,5 %. Manba: stat.uz (SIAT).'};
+UZM.zh={b:[55,65,80,100],c:['#ff4fa3','#ff8a3d','#f3c96b','#1f8fa3','#1b4d6b'],l:['55 % gacha','55–65 %','65–80 %','80–100 %','respublikadan yuqori'],t:'Ish haqi eng past',asc:1,i:'O\'rtacha oylik hisoblangan ish haqi, respublika o\'rtachasiga nisbatan (2025; respublika 5,18 mln so\'m). Faqat rasmiy sektor: norasmiy daromad va pul o\'tkazmalari kirmaydi. Manba: stat.uz (SIAT).'};
+UZM.r={b:[20,40,60,80],c:['#1b4d6b','#1f8fa3','#f3c96b','#ff8a3d','#ff4fa3'],l:['0–20 (past)','20–40','40–60','60–80','80–100 (eng yuqori)'],t:'Eng yuqori ustuvorlik',
+  i:'Bosim × xavf × zaiflik, 0–100. Bosim: aholi o\'sishi sur\'ati (vazni 50 %). Xavf: issiq kunlar, qurg\'oqchillik va suv stressi o\'rtachasi (25 %). Zaiflik: rasmiy statistika bo\'yicha indeks (25 %). Har biri 197 birlik ichidagi o\'rni bo\'yicha; ko\'paytma bo\'lgani uchun yuqori ball uchala omil ham yuqori bo\'lishini talab qiladi. Dastlabki baho: toshqin va seysmik xavf hali kirmagan.'};
+let uzSc=1; const UZSN=['1995–2014','2040–2059, SSP2-4.5','2040–2059, SSP5-8.5'];
+function uzClim(){const q=UZ.vil["O'zbekiston"], gr=(q[16]/q[0]-1)*100; UZ.features.forEach(f=>{const p=f.properties,c=p.c; p.h=c.hd35[uzSc]; p.h0=c.hd35[0]; p.t=c.tr[uzSc]; p.q=c.spei12[uzSc]; p.x=(p.o>=gr?1:0)+(p.h>=90?2:0); p.yy=p.oz?p.oz.y:p.y; p.ey=p.e.yoqotish; p.eg=p.e.qur_kishi; p.sv=p.w.bws; p.sw=p.w.ws50; p.zi=p.j.z; p.zs=p.j.suv; p.zk=p.j.kan; p.zh=p.j.haq_n;});
+  const P=UZ.features.map(f=>f.properties), pc=(k,sg)=>{const a=P.map(p=>sg*p[k]).sort((x,y)=>x-y); return v=>{let lo=0,hi=a.length; while(lo<hi){const m=(lo+hi)>>1; if(a[m]<sg*v) lo=m+1; else hi=m;} return lo/(a.length-1)*100;};}, f1=pc('yy',1), f2=pc('h',1), f3=pc('q',-1); P.forEach(p=>{p.ws=uzSc?p.w.ws50:p.w.bws;}); const f4=pc('ws',1);
+  P.forEach(p=>{p.ro=Math.round(f1(p.yy)); p.rh=Math.round(f2(p.h)); p.rq=Math.round(f3(p.q)); p.rw=Math.round(f4(p.ws)); p.rx=Math.round((p.rh+p.rq+p.rw)/3); p.rz=p.j.z==null?50:p.j.z;
+    p.r=Math.round(Math.pow(Math.max(p.ro,1),.5)*Math.pow(Math.max(p.rx,1),.25)*Math.pow(Math.max(p.rz,1),.25));}); if(map.getSource('uz')) map.getSource('uz').setData(UZ);}
+const uzSvN=v=>v==null?'—':['past','past–o\'rta','o\'rta–yuqori','yuqori','juda yuqori'][Math.min(4,Math.floor(v))];
+const uzIq=k=>'htqxr'.includes(k);
+const uzN=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' '), uzF=(x,d)=>x.toFixed(d).replace('.',',');
+function uzExpr(){const m=UZM[uzK], e=['step',['coalesce',['get',uzK],-99],m.c[0]]; m.b.forEach((b,i)=>e.push(b,m.c[i+1])); return e;}
+function uzLoad(){ if(UZ) return Promise.resolve(UZ);
+  return fetch('uzb_birliklar.geojson').then(r=>r.json()).then(j=>{UZ=j;
+    uzClim();
+    j.features.forEach(f=>{let a=180,b=90,c=-180,d=-90; (function w(q){if(typeof q[0]==='number'){a=Math.min(a,q[0]);c=Math.max(c,q[0]);b=Math.min(b,q[1]);d=Math.max(d,q[1]);}else q.forEach(w);})(f.geometry.coordinates); f.bb=[[a,b],[c,d]];});
+    map.addSource('uz',{type:'geojson',data:j});
+    map.addLayer({id:'uz-f',type:'fill',source:'uz',layout:{visibility:'none'},paint:{'fill-color':uzExpr(),'fill-opacity':0.66}});
+    map.addLayer({id:'uz-l',type:'line',source:'uz',layout:{visibility:'none'},paint:{'line-color':'#0b1a22','line-opacity':0.45,'line-width':['interpolate',['linear'],['zoom'],5,0.3,9,1]}});
+    map.addLayer({id:'uz-s0',type:'line',source:'uz',layout:{visibility:'none'},filter:['==',['get','n'],''],paint:{'line-color':'#04222a','line-width':4.5}});
+    map.addLayer({id:'uz-s',type:'line',source:'uz',layout:{visibility:'none'},filter:['==',['get','n'],''],paint:{'line-color':'#ffffff','line-width':2}});
+    map.on('click','uz-f',e=>uzPick(e.features[0].properties.n,false));
+    map.on('mouseenter','uz-f',()=>map.getCanvas().style.cursor='pointer'); map.on('mouseleave','uz-f',()=>map.getCanvas().style.cursor='');
+    return j;});}
+let uzV='', uzSort=['o',-1], REP=null;
+const uzG=q=>(q[q.length-1]/q[0]-1)*100;
+function uzSet(){return UZ.features.map(f=>f.properties).filter(p=>!uzV||p.v===uzV);}
+function uzRank(p,k,arr){const a=arr.filter(x=>x[k]!=null).sort((x,y)=>y[k]-x[k]); return [a.findIndex(x=>x.n===p.n)+1,a.length];}
+function uzSpark(q,p50,lab,y0){ // q: y0–2026 yillik qator (ming kishi); p50: 2050 prognozi (kishi) yoki null
+  y0=y0||2010; const W=300,H=74,L=4,R=4,T=12,B=16, y1=p50?2050:2026, e=q[q.length-1], vals=q.concat(p50?[p50/1000]:[]), mn=Math.min(...vals)*0.96, mx=Math.max(...vals)*1.02;
+  const X=y=>L+(y-y0)/(y1-y0)*(W-L-R), Y=v=>T+(1-(v-mn)/(mx-mn||1))*(H-T-B);
+  const d=q.map((v,i)=>(i?'L':'M')+X(y0+i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  let o='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;margin-top:4px" role="img" aria-label="'+lab+'">'+
+    '<path d="'+d+'L'+X(2026).toFixed(1)+' '+(H-B)+'L'+X(y0)+' '+(H-B)+'Z" fill="var(--svc)" opacity=".12"/><path d="'+d+'" fill="none" stroke="var(--svc)" stroke-width="2"/>'+
+    '<circle cx="'+X(2026)+'" cy="'+Y(e)+'" r="3" fill="var(--svc)"/>';
+  if(p50) o+='<path d="M'+X(2026)+' '+Y(e)+'L'+X(2050)+' '+Y(p50/1000)+'" fill="none" stroke="var(--svc)" stroke-width="1.6" stroke-dasharray="3 4"/><circle cx="'+X(2050)+'" cy="'+Y(p50/1000)+'" r="3" fill="none" stroke="var(--svc)" stroke-width="1.6"/>';
+  const tx=(x,t,a)=>'<text x="'+x+'" y="'+(H-3)+'" font-size="10" fill="var(--muted)" text-anchor="'+a+'">'+t+'</text>';
+  o+=tx(L,y0,'start')+(p50?tx(X(2026),'2026','middle')+tx(W-R,'2050','end'):tx(W-R,'2026','end'));
+  return o+'</svg>';}
+function uzVis(on){ if(!UZ) return; if(on===(map.getLayoutProperty('uz-f','visibility')==='visible')) return;
+  ['uz-f','uz-l','uz-s0','uz-s'].forEach(l=>map.setLayoutProperty(l,'visibility',on?'visible':'none'));
+  document.getElementById('uzb').hidden=!on; if(!on) document.getElementById('uzw').hidden=true;
+  map.setMaxBounds(on?null:[[68.4,40.5],[72.8,42.9]]); map.setMinZoom(on?3:7.5);
+  if(on) map.setLayoutProperty('tashqi','visibility','none'); else if(document.body.classList.contains('kg-on')) map.setLayoutProperty('tashqi','visibility','visible');
+  if(typeof kpi==='function') kpi();}
+function uzInit(){ if(REP) return; REP=UZ.vil["O'zbekiston"];
+  const vs=[...new Set(UZ.features.map(f=>f.properties.v))].sort((a,b)=>a.localeCompare(b));
+  document.getElementById('uzv').innerHTML='<option value="">O\'zbekiston (hammasi)</option>'+vs.map(v=>'<option>'+v+'</option>').join('');}
+function uzDraw(){ if(!UZ) return; uzInit(); const m=UZM[uzK], set=uzSet();
+  map.setPaintProperty('uz-f','fill-color',uzExpr()); map.setPaintProperty('uz-f','fill-opacity',uzV?['case',['==',['get','v'],uzV],0.74,0.14]:0.66);
+  document.querySelectorAll('#uzs button,#uzs2 button,#uzs3 button,#uzs4 button,#uzs5 button,#uzs6 button').forEach(b=>b.classList.toggle('on',b.dataset.u===uzK)); document.getElementById('uzscw').hidden=!uzIq(uzK); document.querySelectorAll('#uzsc button').forEach(b=>b.classList.toggle('on',+b.dataset.s===uzSc));
+  document.getElementById('uzi').textContent=m.i+(uzIq(uzK)?' Davr: '+UZSN[uzSc]+'.':''); document.getElementById('uzth').textContent=m.t+(uzV?' · '+uzV:'');
+  const cnt=m.c.map(()=>0); set.forEach(p=>{if(p[uzK]==null) return; let c=0; m.b.forEach((b,i)=>{if(p[uzK]>=b) c=i+1;}); cnt[c]++;}); const cm=Math.max(...cnt,1);
+  document.getElementById('uzl').innerHTML=m.l.map((t,i)=>'<div class="bar"><i style="width:14px;background:'+m.c[i]+'"></i><span style="flex:1">'+t+'</span><i style="width:'+Math.round(cnt[i]/cm*46)+'px;background:'+m.c[i]+';opacity:.75"></i><span style="width:22px;text-align:right;font-family:var(--mono);color:var(--muted)">'+cnt[i]+'</span></div>').join('');
+  const top=(uzK==='x'?set.filter(p=>p.x===3).sort((a,b)=>b.r26-a.r26):set.filter(p=>p[uzK]!=null).sort((a,b)=>m.asc?a[uzK]-b[uzK]:b[uzK]-a[uzK])).slice(0,6);
+  document.getElementById('uzt').innerHTML=top.map(p=>'<button data-n="'+p.n.replace(/"/g,'&quot;')+'"'+(p.n===uzSel?' class="on"':'')+'>'+p.n+' <span style="float:right;font-family:var(--mono)">'+uzQ(p)+'</span></button>').join('');
+  document.querySelectorAll('#uzt button').forEach(b=>b.onclick=()=>uzPick(b.dataset.n,true));
+  if(!uzSel) uzVil(); if(!document.getElementById('uzw').hidden) uzTab();}
+function uzQ(p,k){k=k||uzK; return p[k]==null?'—':k==='h'?uzF(p.h,0)+' kun':k==='t'?uzF(p.t,0)+' tun':k==='q'?uzF(p.q,2).replace('-','−'):k==='x'?uzN(p.r26):k==='r'?String(p.r):k==='zi'?String(p.zi):k==='zs'||k==='zk'||k==='zh'?uzF(p[k],0)+' %':k==='sv'||k==='sw'?uzF(p[k],1)+' / 5 · '+uzSvN(p[k]):k==='ey'?uzF(p.ey,1)+' %':k==='eg'?uzN(p.eg)+' m²':k==='o'?(p.o>0?'+':'')+uzF(p.o,1)+' %':k==='z'?uzN(p.z):'×'+uzF(p.k,2);}
+function uzVil(){ // tuman tanlanmagan: mamlakat yoki viloyat xulosasi
+  const q=UZ.vil[uzV||"O'zbekiston"], g=uzG(q), gr=uzG(REP), set=uzSet(), fast=set.filter(p=>p.o>gr).length, p50=set.reduce((a,p)=>a+(p.p50||0),0);
+  document.getElementById('uzd').innerHTML='<div class="k">'+(uzV?'Viloyat':'Mamlakat')+'</div><div class="val"><b>'+(uzV||"O'zbekiston")+'</b></div>'+
+    '<div class="big">'+(g>0?'+':'')+uzF(g,1)+' %</div><div class="k" style="margin-top:0">2010–2026 · '+uzN(q[0]*1000)+' → '+uzN(q[16]*1000)+' kishi</div>'+
+    uzSpark(q,p50,'Aholi soni 2010–2026 va 2050 prognozi')+
+    '<div class="uzx">'+(uzV?'Respublika o\'rtachasi +'+uzF(gr,1)+' %: viloyat '+(g>gr+2?'<b>tezroq</b>':g<gr-2?'<b>sekinroq</b>':'<b>shunga yaqin</b>')+' o\'syapti. ':'')+
+    '<b>'+set.length+'</b> birlikdan <b>'+fast+'</b> tasi respublika o\'rtachasidan tez o\'sgan. Model prognozi: 2050-yilga <b>'+uzF(p50/1e6,1)+' mln</b> kishi.</div>'+
+    uzIqX(set)+'<div class="k">Xaritadan yoki jadvaldan tuman tanlang.</div>';}
+function uzIqX(set){const tot=set.reduce((a,p)=>a+p.r26,0), sh=i=>Math.round(set.filter(p=>p.c.hd35[i]>=60).reduce((a,p)=>a+p.r26,0)/tot*100), pw=(k,i)=>set.reduce((a,p)=>a+p.c[k][i]*p.r26,0)/tot, x=set.filter(p=>p.x===3);
+  return '<div class="uzx"><b>Jazirama.</b> O\'rtacha aholi uchun issiq kunlar (Tmax > 35 °C): <b>'+uzF(pw('hd35',0),0)+'</b> → <b>'+uzF(pw('hd35',1),0)+'</b> (2050, SSP2-4.5) → <b>'+uzF(pw('hd35',2),0)+'</b> (SSP5-8.5). Yiliga 60 kundan ko\'p issiq kun bo\'ladigan tumanlarda yashovchilar ulushi: <b>'+sh(0)+' %</b> → <b>'+sh(1)+' %</b> → <b>'+sh(2)+' %</b> (bugungi aholi bo\'yicha). Tez o\'sayotgan va 90+ issiq kunli tumanlar ('+UZSN[uzSc]+'): <b>'+x.length+'</b> ta, '+uzF(x.reduce((a,p)=>a+p.r26,0)/1e6,1)+' mln kishi.</div>';}
+function uzPick(n,uch){ const f=UZ.features.find(x=>x.properties.n===n); if(!f) return; uzSel=n; const p=f.properties, all=UZ.features.map(x=>x.properties), vs=all.filter(x=>x.v===p.v), gr=uzG(REP);
+  ['uz-s0','uz-s'].forEach(l=>map.setFilter(l,['==',['get','n'],n]));
+  if(uch) map.fitBounds(f.bb,{padding:innerWidth>900?{left:470,right:70,top:110,bottom:110}:{left:30,right:30,top:80,bottom:innerHeight*0.5},maxZoom:10.5,duration:1200});
+  const ro=uzRank(p,'o',all), rv=uzRank(p,'o',vs), rz=uzRank(p,'z',all), oz=p.oz, n0=oz?oz.s.length-1:16, og=oz?(oz.s[n0]/oz.s[0]-1)*100:p.o, oy=oz?oz.y:p.y, ry=(Math.pow(REP[16]/REP[16-n0],1/n0)-1)*100, nis=oy/ry, dv=(oz?oz.y0:2010)+'–2026';
+  const ish=p.k==null?['model yo\'q','warn']:(p.k>=0.8&&p.k<=1.25)?['model rasmiy songa mos','']:['model farqi katta','warn'];
+  const j1=nis>=1.3?'Aholi respublika o\'rtachasidan <b>'+uzF(nis,1)+' baravar tez</b> o\'syapti':nis<=0.7?'Aholi respublika o\'rtachasidan <b>sekin</b> o\'syapti ('+uzF(nis,1)+' baravar)':'Aholi o\'sishi respublika o\'rtachasiga <b>yaqin</b>';
+  const j2=p.z>=1500?'zich shahar hududi':p.z>=400?'zich joylashgan hudud':p.z>=50?'o\'rtacha zichlik':'siyrak joylashgan hudud';
+  const j3=p.k==null?'':p.k>1.25?' Sun\'iy yo\'ldosh modeli aholini <b>'+uzF(p.k,1)+' baravar kam</b> ko\'rsatadi: xavf ostidagi aholi hisobida tuzatish shart.':p.k<0.8?' Sun\'iy yo\'ldosh modeli aholini <b>'+uzF(1/p.k,1)+' baravar oshirib</b> ko\'rsatadi: xavf ostidagi aholi hisobida tuzatish shart.':' Model rasmiy songa mos, tuzatish kichik.';
+  const pr=p.p50?' Model prognozi: 2050-yilga <b>'+uzN(p.p50)+'</b> kishi ('+(p.p50>p.r26?'+':'')+uzF((p.p50/p.r26-1)*100,0)+' %).'+(((Math.pow(p.p50/p.r26,1/24)-1)*100<oy*0.5)?' Bu joriy sur\'atdan ancha past: model so\'nggi yillar o\'sishini to\'liq hisobga olmagan, ehtiyot bo\'lib ishlating.':''):'';
+  document.getElementById('uzd').innerHTML='<div class="k">'+p.v+'</div><div class="val"><b>'+p.n+'</b></div>'+
+    '<div class="big">'+(og>0?'+':'')+uzF(og,1)+' %</div><div class="k" style="margin-top:0">'+dv+' · yiliga '+uzF(oy,2)+' % · '+(oz?uzN(oz.s[0]*1000):uzN(p.r10))+' → '+uzN(p.r26)+' kishi</div>'+
+    (p.oz?uzSpark(p.oz.s,p.p50,'Aholi soni '+p.oz.y0+'–2026',p.oz.y0):uzSpark(p.s,p.p50,'Aholi soni 2010–2026'))+
+    '<div class="uzcmp"><span class="chip">respublikada '+ro[0]+'/'+ro[1]+'-o\'rin</span><span class="chip">viloyatda '+rv[0]+'/'+rv[1]+'</span><span class="chip">zichlik '+rz[0]+'/'+rz[1]+'</span><span class="chip '+ish[1]+'">'+ish[0]+'</span></div>'+
+    '<div class="uzx">'+j1+' (yiliga '+uzF(oy,2)+' %, respublika '+uzF(ry,2)+' %, '+dv+'). Zichlik <b>'+uzN(p.z)+'</b> kishi/km² ('+uzN(p.km)+' km²) — '+j2+'.'+j3+pr+'</div>'+
+    (oz?'<div class="uzx">Chegara '+(oz.y0-1)+'-yilda o\'zgargan, shuning uchun ko\'rsatkichlar '+oz.y0+'-yildan. Xaritadagi 2010–2026 o\'sishi (<b>+'+uzF(p.o,1)+' %</b>) guruh bo\'yicha: '+p.ob+'.</div>':'')+
+    '<div class="k">Ustuvorlik reytingi · '+UZSN[uzSc]+'</div><div class="val"><b>'+p.r+'</b> / 100 · respublikada '+uzRank(p,'r',all)[0]+'/'+all.length+'-o\'rin</div>'+[['ro','bosim: o\'sish','#3ad1e8'],['rx','xavf: iqlim va suv','#ff8a3d'],['rz','zaiflik','#ff4fa3']].map(([k,n,c])=>'<div class="bar"><span style="width:108px">'+n+'</span><i style="width:'+Math.round(p[k]*1.2)+'px;background:'+c+'"></i>'+p[k]+'</div>').join('')+
+    '<div class="k">Yer: qurilish va ekin maydoni</div><div class="uzx" style="margin-top:2px">Qurilgan maydon <b>'+uzF(p.e.b80,1)+' → '+uzF(p.e.b00,1)+' → '+uzF(p.e.b20,1)+' km²</b> (1980 · 2000 · 2020), kishi boshiga <b>'+uzN(p.e.qur_kishi)+' m²</b>. 2000–2020 da yangi qurilgan <b>'+uzF(p.e.yangi,1)+' km²</b>'+(p.e.olingan_ulush!=null?', shundan taxminan <b>'+uzF(p.e.olingan,1)+' km²</b> ('+p.e.olingan_ulush+' %) ekin yeri hisobiga':'')+'. Ekin yeri (2021) <b>'+uzN(p.e.ekin)+' km²</b>, kishi boshiga <b>'+uzN(p.e.ekin_kishi)+' m²</b>'+(p.e.yoqotish!=null?'; yo\'qotish <b>'+uzF(p.e.yoqotish,1)+' %</b>':'')+'. Faqat tom va qattiq qoplama: haqiqiy yer ajratish kattaroq.</div>'+
+    (j=>{const f=(v,n)=>v==null?'—':uzF(v,n); return '<div class="k">Aholi zaifligi · rasmiy statistika, 2025</div><div class="val"><b>'+(j.z==null?'—':j.z)+'</b> / 100'+(j.z==null?'':' · respublikada '+uzRank(p,'zi',all)[0]+'/'+all.length+'-o\'rin')+'</div><div class="uzx" style="margin-top:2px">Ichimlik suvi <b>'+f(j.suv,0)+' %</b> · kanalizatsiya <b>'+f(j.kan,0)+' %</b> · tabiiy gaz <b>'+f(j.gaz,0)+' %</b> · isitish tizimi <b>'+f(j.isq,0)+' %</b> (respublika: '+uzF(UZ.ij.suv,0)+' · '+uzF(UZ.ij.kan,0)+' · '+uzF(UZ.ij.gaz,0)+' · '+uzF(UZ.ij.isq,0)+' %)<br>O\'rtacha ish haqi <b>'+(j.haq==null?'—':uzF(j.haq/1e6,2)+' mln so\'m')+'</b> (respublikaning '+f(j.haq_n,0)+' %) · ishsizlik <b>'+f(j.ishs,1)+' %</b><br>0–15 yosh <b>'+f(j.bol,1)+' %</b> · 60+ yosh <b>'+f(j.kek,1)+' %</b> · shahar aholisi <b>'+f(j.shahar,0)+' %</b> · migratsiya qoldig\'i <b>'+(j.mig>0?'+':'')+f(j.mig,1).replace('-','−')+' / 1000</b> (2021–2025)<br>10 000 kishiga shifokor <b>'+f(j.shf,1)+'</b> · shifoxona o\'rni <b>'+f(j.orn,1)+'</b>'+(j.uy!=null?' · uy-joy <b>'+f(j.uy,1)+' m²/kishi</b> ('+j.uy_y+')':'')+'. Shifokor va o\'rinlar muassasa joylashgan tumanga yoziladi: viloyat markazlarida yuqori chiqadi.</div>';})(p.j)+
+    '<div class="k">Suv tanqisligi (havza bo\'yicha)</div><div class="uzx" style="margin-top:2px">Suv stressi <b>'+uzF(p.w.bws,1)+' / 5</b> ('+uzSvN(p.w.bws)+') → 2050: <b>'+uzF(p.w.ws50,1)+'</b>'+(p.w.juda_yuqori?' · aholining <b>'+p.w.juda_yuqori+' %</b> juda yuqori stressli havzada':'')+'<br>Suv zaxirasining sarflanishi <b>'+uzF(p.w.bwd,1)+' / 5</b> · yillararo o\'zgaruvchanlik <b>'+uzF(p.w.iav,1)+' / 5</b> · qurg\'oqchillik xavfi <b>'+uzF(p.w.drr,1)+' / 5</b>'+(p.w.gtd!=null?' · yer osti suvi sathi pasayishi <b>'+uzF(p.w.gtd,1)+' / 5</b>':'')+'. Havza darajasidagi global model (WRI Aqueduct 4.0): tumanga kanal orqali keladigan suvni ko\'rsatmaydi.</div>'+
+    '<div class="k">Iqlim: 1995–2014 → 2050 (SSP2-4.5 / SSP5-8.5)</div><div class="uzx" style="margin-top:2px">Issiq kunlar <b>'+uzF(p.c.hd35[0],0)+' → '+uzF(p.c.hd35[1],0)+' / '+uzF(p.c.hd35[2],0)+'</b> · tropik tunlar <b>'+uzF(p.c.tr[0],0)+' → '+uzF(p.c.tr[1],0)+' / '+uzF(p.c.tr[2],0)+'</b> · 40 °C dan issiq kunlar <b>'+uzF(p.c.hd40[0],0)+' → '+uzF(p.c.hd40[1],0)+' / '+uzF(p.c.hd40[2],0)+'</b><br>O\'rtacha harorat <b>+'+uzF(p.c.tas[1]-p.c.tas[0],1)+' / +'+uzF(p.c.tas[2]-p.c.tas[0],1)+' °C</b> · SPEI-12 <b>'+uzF(p.c.spei12[1],2).replace('-','−')+' / '+uzF(p.c.spei12[2],2).replace('-','−')+'</b> · 5 kunlik eng ko\'p yog\'in <b>'+(p.c.rx5day[1]>=p.c.rx5day[0]?'+':'')+uzF((p.c.rx5day[1]/p.c.rx5day[0]-1)*100,0)+' / '+(p.c.rx5day[2]>=p.c.rx5day[0]?'+':'')+uzF((p.c.rx5day[2]/p.c.rx5day[0]-1)*100,0)+' %</b>'+(p.c.tas[0]<11?'<br><span style="color:var(--warn)">Tog\'li katak: qiymatlar tuman markazidagi haqiqiy jaziramadan past bo\'lishi mumkin.</span>':'')+'</div>'+
+    '<div class="k">Model farqi</div><div class="val">'+(p.k==null?'—':'×'+uzF(p.k,2)+' — model '+uzN(p.g20)+', rasmiy '+uzN(p.r20)+' (2020)')+'</div>'+
+    (p.iz?'<div class="k">Izoh: '+p.iz+'</div>':'')+'<div class="k"><a href="#" id="uzr" style="color:var(--svc)">← '+(uzV||'O\'zbekiston')+' xulosasiga qaytish</a></div>';
+  document.getElementById('uzr').onclick=e=>{e.preventDefault(); uzSel=null; ['uz-s0','uz-s'].forEach(l=>map.setFilter(l,['==',['get','n'],''])); uzDraw(); if(typeof kpi==='function') kpi();};
+  uzDraw(); if(typeof kpi==='function') kpi();}
+// ---- jadval ----
+const UZT=[['n','Nom'],['v','Viloyat'],['r26','Aholi 2026'],['o','O\'sish 2010–26'],['y','Yiliga, %'],['z','Zichlik'],['k','Model farqi'],['p50','2050 prognoz'],['h0','Issiq kun, hozir'],['h','Issiq kun, davr'],['r','Reyting']];
+function uzRows(){const q=document.getElementById('uzwq').value.trim().toLowerCase().replace(/[‘’ʻʼ`']/g,''), [k,d]=uzSort;
+  return uzSet().filter(p=>!q||p.n.toLowerCase().replace(/[‘’ʻʼ`']/g,'').includes(q)).sort((a,b)=>typeof a[k]==='string'?d*a[k].localeCompare(b[k]):d*((a[k]??-1e18)-(b[k]??-1e18)));}
+function uzTab(){ const m=UZM[uzK], rows=uzRows();
+  document.getElementById('uzwt').textContent=(uzV||'O\'zbekiston')+' · '+rows.length+' birlik';
+  document.getElementById('uzwh').innerHTML='<tr>'+UZT.map(([k,t])=>'<th data-k="'+k+'">'+t+(uzSort[0]===k?(uzSort[1]<0?' ↓':' ↑'):'')+'</th>').join('')+'</tr>';
+  const col=p=>{if(p[uzK]==null) return '#888'; let c=0; m.b.forEach((b,i)=>{if(p[uzK]>=b) c=i+1;}); return m.c[c];};
+  document.getElementById('uzwb').innerHTML=rows.map(p=>'<tr data-n="'+p.n.replace(/"/g,'&quot;')+'"'+(p.n===uzSel?' class="on"':'')+'><td><i style="background:'+col(p)+'"></i>'+p.n+'</td><td>'+p.v+'</td><td>'+uzN(p.r26)+'</td><td>'+uzQ(p,'o')+'</td><td>'+uzF(p.y,2)+'</td><td>'+uzN(p.z)+'</td><td>'+uzQ(p,'k')+'</td><td>'+(p.p50?uzN(p.p50):'—')+'</td><td>'+uzF(p.h0,0)+'</td><td>'+uzF(p.h,0)+'</td><td>'+p.r+'</td></tr>').join('');
+  document.querySelectorAll('#uzwh th').forEach(h=>h.onclick=()=>{const k=h.dataset.k; uzSort=[k,uzSort[0]===k?-uzSort[1]:(k==='n'||k==='v'?1:-1)]; uzTab();});
+  document.querySelectorAll('#uzwb tr').forEach(r=>r.onclick=()=>{if(innerWidth<=900) document.getElementById('uzw').hidden=true; uzPick(r.dataset.n,true);});}
+document.getElementById('uzj').onclick=()=>{const w=document.getElementById('uzw'); w.hidden=!w.hidden; if(!w.hidden) uzTab();};
+document.getElementById('uzwx').onclick=()=>document.getElementById('uzw').hidden=true;
+document.getElementById('uzwq').oninput=uzTab;
+document.getElementById('uzwc').onclick=()=>{const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const t=['Nom;Viloyat;Aholi 2010;Aholi 2026;O\'sish 2010-2026, %;Yiliga, %;Zichlik 2026, kishi/km2;Maydon, km2;Model farqi (rasmiy/GHS-POP 2020);Prognoz 2050 (model);Issiq kunlar 1995-2014;Issiq kunlar 2040-2059 SSP2-4.5;Issiq kunlar 2040-2059 SSP5-8.5;Tropik tunlar 1995-2014;Tropik tunlar 2040-2059 SSP2-4.5;SPEI-12 2040-2059 SSP2-4.5;Ustuvorlik reytingi (tanlangan davr);Qurilgan maydon 2000, km2;Qurilgan maydon 2020, km2;Yangi qurilgan 2000-2020, km2;Shundan ekin yeridan (baho), km2;Ekin yeri 2021, km2;Ekin yeri yo\'qolishi, %;Qurilgan yer kishi boshiga, m2;Suv stressi (0-5);Suv stressi 2050 (0-5);Zaiflik indeksi;Ichimlik suvi, %;Kanalizatsiya, %;Tabiiy gaz, %;Ish haqi, so\'m;Ishsizlik, %;0-15 yosh, %;60+ yosh, %;Shifokor 10 000 kishiga;Izoh'].concat(uzRows().map(p=>[q(p.n),q(p.v),p.r10,p.r26,String(p.o).replace('.',','),String(p.y).replace('.',','),p.z,String(p.km).replace('.',','),p.k==null?'':String(p.k).replace('.',','),p.p50||'',...[p.c.hd35[0],p.c.hd35[1],p.c.hd35[2],p.c.tr[0],p.c.tr[1],p.c.spei12[1]].map(v=>String(v).replace('.',',')),p.r,...[p.e.b00,p.e.b20,p.e.yangi,p.e.olingan,p.e.ekin,p.e.yoqotish??'',p.e.qur_kishi??'',p.w.bws??'',p.w.ws50??'',p.j.z??'',p.j.suv??'',p.j.kan??'',p.j.gaz??'',p.j.haq??'',p.j.ishs??'',p.j.bol??'',p.j.kek??'',p.j.shf??''].map(v=>String(v).replace('.',',')),q([p.ob?'o\'sish guruh bo\'yicha: '+p.ob:'',p.iz].filter(Boolean).join('; '))].join(';'))).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+t],{type:'text/csv;charset=utf-8'})); a.download='yershunos_'+(uzV||'ozbekiston').toLowerCase().replace(/[^a-z]+/g,'_')+'.csv'; document.body.appendChild(a); a.click(); a.remove();};
+document.getElementById('uzv').onchange=e=>{uzV=e.target.value; uzSel=null; ['uz-s0','uz-s'].forEach(l=>map.setFilter(l,['==',['get','n'],'']));
+  const fs=UZ.features.filter(f=>!uzV||f.properties.v===uzV); let a=180,b=90,c=-180,d=-90; fs.forEach(f=>{a=Math.min(a,f.bb[0][0]);b=Math.min(b,f.bb[0][1]);c=Math.max(c,f.bb[1][0]);d=Math.max(d,f.bb[1][1]);});
+  map.fitBounds([[a,b],[c,d]],{padding:innerWidth>900?{left:460,right:50,top:100,bottom:110}:{left:16,right:16,top:70,bottom:innerHeight*0.45},duration:1300}); uzDraw(); if(typeof kpi==='function') kpi();};
+function uzOch(){ kgStop(); uzLoad().then(()=>{ if(!document.body.classList.contains('uz-on')) return; uzVis(true); uzDraw();
+  const fs=UZ.features.filter(f=>!uzV||f.properties.v===uzV); let x0=180,y0=90,x1=-180,y1=-90; fs.forEach(f=>{x0=Math.min(x0,f.bb[0][0]);y0=Math.min(y0,f.bb[0][1]);x1=Math.max(x1,f.bb[1][0]);y1=Math.max(y1,f.bb[1][1]);});
+  map.fitBounds([[x0,y0],[x1,y1]],{padding:innerWidth>900?{left:450,right:40,top:90,bottom:100}:{left:16,right:16,top:70,bottom:innerHeight*0.45},pitch:0,bearing:0,duration:1600}); if(typeof kpi==='function') kpi();});}
+document.querySelectorAll('#uzs button,#uzs2 button,#uzs3 button,#uzs4 button,#uzs5 button,#uzs6 button').forEach(b=>b.onclick=()=>{uzK=b.dataset.u; uzDraw(); if(typeof kpi==='function') kpi();});
+document.querySelectorAll('#uzsc button').forEach(b=>b.onclick=()=>{uzSc=+b.dataset.s; uzClim(); uzDraw(); if(uzSel) uzPick(uzSel,false);});
+
 // ---------- Jala · Chimyon (2.6) ----------
 let JL=null, js='80', jlT=null, jlF=-1;
 function jlLoad(){ if(JL) return Promise.resolve(JL);
@@ -671,7 +935,7 @@ function hdOpen(nom){ hdCur=nom; HK=null; fetch('hudud/'+nom+'/meta.json').then(
   if(h.kirish.median!=null) s+='<div class="k">Kasalxonagacha (oddiy kun)</div><div style="font-size:12px">median '+f1(h.kirish.median)+' daq · eng uzoq: '+h.kirish.uzoq.map(u=>u[0]+' '+Math.round(u[1])+'′').join(', ')+'</div>';
   s+='<div class="k">Jala 3 soat, 80 mm (soy havzalari)</div>'+(M.jala.length?'':'<div style="font-size:12px">— hisoblanmadi (ogohlantirishlarga qarang)</div>')+M.jala.map(j=>{const q=j.jala['80'];return '<div style="font-size:12px">'+j.nom+' ('+f1(j.havza_km2)+' km²): Q '+Math.round(q.Q_havza)+' m³/s · binolar '+q.bino_suvda+' (≥0,3 m: '+q.bino_03m+')</div>'}).join('');
   s+='<div class="k" style="color:var(--mag)">Ogohlantirishlar</div>'+M.bayroqlar.map(b=>'<div class="bq">• '+b.replace(/^\[(\w+)\] /,'<b>$1:</b> ')+'</div>').join('');
-  s+='<div class="k">AVTOMAT SKRINING · '+h.vaqt+' s · KO\'RGAZMALI</div>';
+  s+='<div class="k">AVTOMAT SKRINING · '+h.vaqt+' s · DASTLABKI BAHO</div>';
   document.getElementById('hdb').innerHTML=s; });}
 // yangi hudud chizish
 document.getElementById('hnew').onclick=()=>{drawing=!drawing; document.getElementById('hreq').style.display='block'; document.getElementById('hnew').textContent=drawing?'■ chizishni bekor qilish':'＋ Yangi hudud chizish';
@@ -753,9 +1017,22 @@ async function hbHisob(W,S,E,N){
     'relyef: Vodiy tubi — geometrik belgi (HAND ≤ 5 m), toshqin chegarasi emas; gidravlik model o\'rnini bosmaydi'];
   if(tk) B.unshift('tekislik: '+pc(tekis)+' maydon qiyaligi < 1°: vodiy tubi hisoblanmadi, oqim tarmog\'i ishonchsiz — DEM shovqini va kanal/zovur tarmog\'isiz');
   s+='<div class="k" style="color:var(--mag)">Ogohlantirishlar</div>'+B.map(b=>'<div class="bq">• '+b.replace(/^(\w+): /,'<b>$1:</b> ')+'</div>').join('');
-  s+='<div class="k">BRAUZERDA SKRINING · '+c1((performance.now()-t0)/1000)+' s · KO\'RGAZMALI</div>';
+  s+='<div class="k">BRAUZERDA SKRINING · '+c1((performance.now()-t0)/1000)+' s · DASTLABKI BAHO</div>';
   HK=[['Hudud',sp(maydon)+' km²'],['Balandlik',sp(zmin)+'–'+sp(zmax)+' m'],['Tik (>15°)',pc(s15/ns)],['Vodiy tubi',tk?'—':c1(vb*ckm)+' km²']];
+  s+='<button class="play wide" id="hbrep" style="margin-top:10px">Hisobot (PDF)</button>';
   document.getElementById('hdb').innerHTML=s;
+  { // hisobot uchun: sxema-xarita (relyef soyasi + soylar + vodiy tubi), balandlik kvantillari, qiyalik sinflari
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'), I=g.createImageData(w,h), D=I.data, zr=(so[n-1]-so[0])||1;
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x, xa=x>0?i-1:i, xb=x<w-1?i+1:i, ya=y>0?i-w:i, yb=y<h-1?i+w:i, gx=(zv[xb]-zv[xa])/(2*dx), gy=(zv[yb]-zv[ya])/(2*dx);
+      const sd=Math.min(1.18,Math.max(.5,(1+.75*(gx+gy))/Math.sqrt(1+gx*gx+gy*gy))), t=(zv[i]-so[0])/zr, u=t<.5?t*2:(t-.5)*2, A=t<.5?[244,241,230]:[185,195,166], Bc=t<.5?[185,195,166]:[141,143,124];
+      let r=(A[0]+(Bc[0]-A[0])*u)*sd, gg=(A[1]+(Bc[1]-A[1])*u)*sd, bl=(A[2]+(Bc[2]-A[2])*u)*sd;
+      if(!tk&&zv[i]-base[i]<=5){r=r*.5+255*.5; gg=gg*.5+79*.5; bl=bl*.5+163*.5;}
+      D[4*i]=Math.min(255,r); D[4*i+1]=Math.min(255,gg); D[4*i+2]=Math.min(255,bl); D[4*i+3]=255;}
+    for(let i=0;i<n;i++) if(acc[i]>=thr){const r=acc[i]>=thr*40?2:(acc[i]>=thr*6?1:0), x=i%w, y=(i-x)/w;
+      for(let j=-r;j<=r;j++)for(let k=-r;k<=r;k++){const X=x+k,Y=y+j; if(X<0||Y<0||X>=w||Y>=h||(r===2&&Math.abs(j)+Math.abs(k)>3))continue; const q=4*(Y*w+X); D[q]=30;D[q+1]=150;D[q+2]=200;}}
+    g.putImageData(I,0,0); const sh=[0,0,0,0,0]; for(let k=0;k<181;k++) sh[k<2?0:k<10?1:k<30?2:k<60?3:4]+=hg[k]/ns;
+    window.HBR={ar:w/h,W,S,E,N,lat:lat0,lon:(W+E)/2,maydon,zmin,zmed,zmax,med,tk,uz,thrKm,amax:amax*ckm,vb:vb*ckm,vbp:vb/n,dx,sh,q:Array.from({length:21},(_,k)=>so[Math.min(n-1,Math.round(k/20*(n-1)))]),img:c.toDataURL('image/jpeg',.88)};
+    document.getElementById('hbrep').onclick=()=>uzHisobot('h'); }
   return {z,w,h,maydon,zmin,zmax,tekis,uz,vb:vb*ckm};}
 window.hbHisob=hbHisob;
 // joyga o'tish: «41.31, 69.28» yoki joy nomi (OpenStreetMap Nominatim)
@@ -771,8 +1048,8 @@ document.getElementById('hcopy').onclick=()=>{try{navigator.clipboard.writeText(
 // ===== Lab qobig'i: panel, rels sarlavhasi, ko'rsatkichlar qatori =====
 const $=id=>document.getElementById(id), tx=id=>($(id)?.textContent||'—').trim();
 function PAD(){const m=innerWidth<=820; return m?{top:70,bottom:Math.round(innerHeight*.5),left:30,right:30}:{top:90,bottom:110,left:document.body.classList.contains('pclosed')?100:450,right:240};}
-const MT={relyef:['Relyef va havza','Chorvoq havzasi'],toshqin:['Toshqin','Pskem vodiysi'],jala:['Jala','Chimgansoy · Chimyon'],iqlim:['Iqlim','Chorvoq havzasi va Toshkent'],keng:['Shahar kengayishi','Chorvoq bo\'yi'],hudud:['Hudud tahlili','Avtomat skrining']};
-let curMode='relyef';
+const MT={uz:['O\'zbekiston','O\'zbekiston'],relyef:['Relyef va havza','Chorvoq havzasi'],toshqin:['Toshqin','Pskem vodiysi'],jala:['Jala','Chimgansoy · Chimyon'],iqlim:['Iqlim','Chorvoq havzasi va Toshkent'],keng:['Shahar kengayishi','Chorvoq bo\'yi'],hudud:['Hudud tahlili','Avtomat skrining']};
+let curMode='uz';
 document.querySelectorAll('#rejim button').forEach(b=>b.addEventListener('click',()=>{
   const v=b.dataset.v; if(v===curMode&&!document.body.classList.contains('pclosed')){document.body.classList.add('pclosed');return;}
   curMode=v; document.body.classList.remove('pclosed'); $('mtitle').textContent=MT[v][0]; $('ptitle').textContent=MT[v][1]; kpi();}));
@@ -783,12 +1060,342 @@ const K={
   toshqin:()=>[['Pik sarf',tx('hq')],['O\'zandan tashqari',first(tx('ha'))],['Yopiq ko\'priklar',first(tx('hk'))+' / 5'],['Uzilgan',first(tx('hu')),1]],
   jala:()=>[['Pik sarf',tx('jq')],['Suv yetgan bino',first(tx('jb'))],['Kadr',tx('jt')]],
   iqlim:()=>[[tx('iqt').replace(/^Iqlim · /,'')+' · Toshkent',tx('it1')],['Havza',tx('ih1')],['Davr',tx('ipl')]],
+  uz:()=>UZ?[['Ko\'rsatkich',{o:'O\'sish 2010–2026',z:'Zichlik 2026',k:'Model farqi',h:'Issiq kunlar',t:'Tropik tunlar',q:'Qurg\'oqchillik',x:'O\'sish × jazirama',r:'Ustuvorlik reytingi',ey:'Ekin yeri yo\'qolishi',eg:'Qurilgan yer / kishi',sv:'Suv stressi',sw:'Suv stressi 2050',zi:'Zaiflik indeksi',zs:'Ichimlik suvi',zk:'Kanalizatsiya',zh:'Ish haqi'}[uzK]],['Hudud',uzV||'O\'zbekiston'],['Tanlangan',uzSel||'—']]:[['Hudud','O\'zbekiston'],['Birliklar','197']],
   keng:()=>[['Qurilgan maydon',tx('ka')],['Holat',tx('kyl')],['O\'zgarish',tx('ka2')]],
   hudud:()=>{if(HK)return HK; const b=$('hdb').querySelector('.big'); return [['Hudud',tx('hdt')],['Qurilgan, ga',b?b.textContent:'—']];}};
 let kq=0; function kpi(){cancelAnimationFrame(kq); kq=requestAnimationFrame(()=>{
   $('kpibar').innerHTML=K[curMode]().map(([l,v,m])=>'<div class="kpi'+(m&&v!=='hech kim'?' mag':'')+'"><span>'+l+'</span><b>'+v+'</b></div>').join('');});}
 new MutationObserver(kpi).observe($('hudwrap'),{subtree:true,childList:true,characterData:true});
 kpi();
+// ===== Hisobot: chop etish / PDF uchun A4 sahifalar (tuman · viloyat · respublika) =====
+let HBS='v', HBF=null;
+const HBC=['#d6e6eb','#9cc7d3','#f2c75c','#ee8a3f','#d33a6c'], HBB=[20,40,60,80];
+const hbE=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const hbCl=(v,b)=>{let i=0; while(i<b.length&&v>=b[i]) i++; return i;};
+const hbF=(v,d)=>v==null||!isFinite(v)?'—':uzF(v,d);
+const hbN=v=>v==null||!isFinite(v)?'—':uzN(v);
+const hbQ=n=>{n=n.replace(/ tumani/g,' t.').replace(/ shahri/g,' sh.').replace(/ viloyati/g,' vil.').replace(' Respublikasi',' Resp.'); return n.length>34?n.slice(0,33)+'…':n;};
+const hbP=(v,s)=>(v>0&&s!==false?'+':'')+hbF(v,1).replace('-','−');
+function hbW(set,g){let s=0,w=0; set.forEach(p=>{const v=g(p); if(v!=null&&isFinite(v)){s+=v*p.r26;w+=p.r26;}}); return w?s/w:null;}
+function hbSh(set,f){const t=set.reduce((a,p)=>a+p.r26,0); return t?set.filter(f).reduce((a,p)=>a+p.r26,0)/t*100:0;}
+function hbSum(set,g){return set.reduce((a,p)=>a+(g(p)||0),0);}
+function hbSana(){const d=new Date(); return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();}
+function hbPl(u){if(!HBF) HBF=Object.fromEntries(UZ.features.map(f=>[f.properties.n,f])); const g=HBF[u.n].geometry; return g.type==='Polygon'?[g.coordinates]:g.coordinates;}
+function hbMarkaz(pl){let best=null,ba=0; pl.forEach(p=>{const r=p[0]; let a=0,cx=0,cy=0; for(let i=0,j=r.length-1;i<r.length;j=i++){const f=r[j][0]*r[i][1]-r[i][0]*r[j][1]; a+=f; cx+=(r[j][0]+r[i][0])*f; cy+=(r[j][1]+r[i][1])*f;} if(Math.abs(a)>ba){ba=Math.abs(a); best=[cx/(3*a),cy/(3*a)];}}); return best;}
+
+// --- xarita: birliklar reyting bo'yicha bo'yalgan, raqamli belgilar bilan ---
+function hbXarita(units,hl,lab,W,H,cf){
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  units.forEach(u=>hbPl(u).forEach(pl=>pl[0].forEach(([x,y])=>{if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;})));
+  const k=Math.cos((y0+y1)/2*Math.PI/180), sw=(x1-x0)*k, sh=y1-y0, s=Math.min((W-20)/sw,(H-20)/sh), ox=(W-sw*s)/2, oy=(H-sh*s)/2;
+  const P=([x,y])=>[ox+(x-x0)*k*s, oy+(y1-y)*s], ps=c=>{const q=P(c); return q[0].toFixed(1)+' '+q[1].toFixed(1);};
+  const path=u=>hbPl(u).map(pl=>pl.map(r=>'M'+r.map(ps).join('L')+'Z').join('')).join('');
+  let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  units.forEach(u=>{o+='<path d="'+path(u)+'" fill="'+(cf?cf(u):u.r==null?'#eef1f2':HBC[hbCl(u.r,HBB)])+'" stroke="#fff" stroke-width="'+(units.length>60?.4:.9)+'" fill-rule="evenodd"/>';});
+  if(hl){const u=units.find(x=>x.n===hl); if(u) o+='<path d="'+path(u)+'" fill="none" stroke="#10222b" stroke-width="2.4" stroke-linejoin="round"/>';}
+  (lab||[]).forEach((u,i)=>{const [x,y]=P(hbMarkaz(hbPl(u))); o+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="8.5" fill="#10222b" stroke="#fff" stroke-width="1.2"/><text x="'+x.toFixed(1)+'" y="'+(y+3.3).toFixed(1)+'" font-size="9.5" font-weight="700" fill="#fff" text-anchor="middle">'+(i+1)+'</text>';});
+  return o+'</svg>';}
+const hbLeg=()=>'<div class="hb-leg">'+UZM.r.l.map((t,i)=>'<span><i style="background:'+HBC[i]+'"></i>'+t+'</span>').join('')+'</div>';
+
+// --- reyting ustunlari ---
+function hbReyting(rows,W){
+  const rh=15, H=rows.length*rh+24, L=158, R=92, X=v=>L+v/100*(W-L-R);
+  let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  [0,20,40,60,80,100].forEach(t=>o+='<line x1="'+X(t)+'" x2="'+X(t)+'" y1="2" y2="'+(H-16)+'" stroke="#e4eaed"/><text x="'+X(t)+'" y="'+(H-5)+'" font-size="8" fill="#6b7a83" text-anchor="middle">'+t+'</text>');
+  o+='<text x="'+(W-2)+'" y="'+(H-5)+'" font-size="7.5" fill="#6b7a83" text-anchor="end">bosim · xavf · zaiflik</text>';
+  rows.forEach((p,i)=>{const y=4+i*rh; o+='<text x="'+(L-6)+'" y="'+(y+9.5)+'" font-size="8.6" text-anchor="end" fill="#16222a">'+hbE(hbQ(p.n))+'</text>'+
+    '<rect x="'+L+'" y="'+(y+1.5)+'" width="'+Math.max(1,X(p.r)-L).toFixed(1)+'" height="'+(rh-5)+'" rx="2" fill="'+HBC[hbCl(p.r,HBB)]+'"/>'+
+    '<text x="'+(X(p.r)+4).toFixed(1)+'" y="'+(y+9.5)+'" font-size="8.6" font-weight="600" fill="#16222a">'+p.r+'</text>'+
+    '<text x="'+(W-2)+'" y="'+(y+9.5)+'" font-size="7.8" fill="#55656e" text-anchor="end" font-family="IBM Plex Mono,monospace">'+p.ro+' · '+p.rx+' · '+p.rz+'</text>';});
+  return o+'</svg>';}
+
+// --- aholi dinamikasi ---
+function hbAholi(q,p50,W,H,y0){
+  y0=y0||2010; const y1=p50?2050:2026, L=46,R=14,T=14,B=22, e=q[q.length-1], vals=q.concat(p50?[p50/1000]:[]);
+  let mn=Math.min(...vals), mx=Math.max(...vals); const r0=(mx-mn)/4||mx*.05, e10=Math.pow(10,Math.floor(Math.log10(r0))), stp=[1,2,2.5,5,10].map(k=>k*e10).find(k=>k>=r0); mn=Math.max(0,Math.floor(mn/stp)*stp); mx=Math.ceil(mx/stp)*stp; if(mx-mn<stp*3) mx=mn+stp*4;
+  const X=y=>L+(y-y0)/(y1-y0)*(W-L-R), Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B), st=stp, nt=Math.round((mx-mn)/stp);
+  let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  for(let i=0;i<=nt;i++){const v=mn+st*i; o+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="#e4eaed"/><text x="'+(L-5)+'" y="'+(Y(v)+3).toFixed(1)+'" font-size="8" fill="#6b7a83" text-anchor="end">'+(mx>=1000?uzF(v/1000,stp>=1000?0:1)+' mln':uzN(v)+' ming')+'</text>';}
+  const yrs=p50?[y0,2015,2020,2026,2035,2050]:[y0,2014,2018,2022,2026]; yrs.filter((y,i,a)=>y>=y0&&a.indexOf(y)===i).forEach(y=>o+='<text x="'+X(y).toFixed(1)+'" y="'+(H-6)+'" font-size="8" fill="#6b7a83" text-anchor="middle">'+y+'</text>');
+  const d=q.map((v,i)=>(i?'L':'M')+X(y0+i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  o+='<path d="'+d+'L'+X(2026).toFixed(1)+' '+(H-B)+'L'+X(y0).toFixed(1)+' '+(H-B)+'Z" fill="#1f8fa3" opacity=".13"/><path d="'+d+'" fill="none" stroke="#1f8fa3" stroke-width="2.2"/>';
+  o+='<circle cx="'+X(2026).toFixed(1)+'" cy="'+Y(e).toFixed(1)+'" r="3.2" fill="#1f8fa3"/><text x="'+(X(2026)-5).toFixed(1)+'" y="'+(Y(e)-7).toFixed(1)+'" font-size="8.5" font-weight="600" fill="#16222a" text-anchor="end">'+(e>=1000?uzF(e/1000,2)+' mln':uzN(e)+' ming')+'</text>';
+  o+='<text x="'+(X(y0)+3)+'" y="'+(Y(q[0])-7).toFixed(1)+'" font-size="8.5" fill="#16222a">'+(q[0]>=1000?uzF(q[0]/1000,2)+' mln':uzN(q[0])+' ming')+'</text>';
+  if(p50){const v=p50/1000; o+='<path d="M'+X(2026).toFixed(1)+' '+Y(e).toFixed(1)+'L'+X(2050).toFixed(1)+' '+Y(v).toFixed(1)+'" fill="none" stroke="#1f8fa3" stroke-width="1.8" stroke-dasharray="4 4"/><circle cx="'+X(2050).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="3.2" fill="#fff" stroke="#1f8fa3" stroke-width="1.8"/><text x="'+(X(2050)-5).toFixed(1)+'" y="'+(Y(v)-7).toFixed(1)+'" font-size="8.5" font-weight="600" fill="#16222a" text-anchor="end">'+(v>=1000?uzF(v/1000,2)+' mln':uzN(v)+' ming')+' (model)</text>';}
+  return o+'</svg>';}
+
+// --- issiq kunlar: 1995–2014 → 2050 (ikki ssenariy) ---
+function hbIssiq(rows,W){
+  const rh=14, T=18, H=rows.length*rh+T+18, L=158, R=34, mx=Math.max(...rows.map(r=>r.c))*1.05||1, X=v=>L+v/mx*(W-L-R);
+  let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  o+='<circle cx="'+L+'" cy="7" r="3.5" fill="#9cc7d3"/><text x="'+(L+7)+'" y="10" font-size="8" fill="#55656e">1995–2014</text><circle cx="'+(L+70)+'" cy="7" r="3.5" fill="#ee8a3f"/><text x="'+(L+77)+'" y="10" font-size="8" fill="#55656e">2040–2059, SSP2-4.5</text><rect x="'+(L+172)+'" y="2" width="2" height="10" fill="#d33a6c"/><text x="'+(L+178)+'" y="10" font-size="8" fill="#55656e">SSP5-8.5</text>';
+  const tk=mx>120?[0,30,60,90,120]:mx>60?[0,20,40,60,80,100].filter(t=>t<=mx):[0,10,20,30,40,50].filter(t=>t<=mx);
+  tk.forEach(t=>o+='<line x1="'+X(t).toFixed(1)+'" x2="'+X(t).toFixed(1)+'" y1="'+T+'" y2="'+(H-16)+'" stroke="#e4eaed"/><text x="'+X(t).toFixed(1)+'" y="'+(H-5)+'" font-size="8" fill="#6b7a83" text-anchor="middle">'+t+'</text>');
+  rows.forEach((r,i)=>{const y=T+i*rh+7; o+='<text x="'+(L-6)+'" y="'+(y+3)+'" font-size="8.6" text-anchor="end" fill="#16222a">'+hbE(hbQ(r.n))+'</text>'+
+    '<line x1="'+X(r.a).toFixed(1)+'" x2="'+X(r.b).toFixed(1)+'" y1="'+y+'" y2="'+y+'" stroke="#c9d6dc" stroke-width="3"/>'+
+    '<rect x="'+(X(r.c)-1).toFixed(1)+'" y="'+(y-5)+'" width="2" height="10" fill="#d33a6c"/><circle cx="'+X(r.a).toFixed(1)+'" cy="'+y+'" r="3.5" fill="#9cc7d3"/><circle cx="'+X(r.b).toFixed(1)+'" cy="'+y+'" r="3.5" fill="#ee8a3f"/>'+
+    '<text x="'+(W-2)+'" y="'+(y+3)+'" font-size="8.2" font-weight="600" fill="#16222a" text-anchor="end" font-family="IBM Plex Mono,monospace">'+Math.round(r.b)+'</text>';});
+  return o+'</svg>';}
+
+// --- kommunal ta'minot matritsasi (respublika qiymati — qora chiziq) ---
+function hbInfra(rows,ref){
+  const c=(v,r,col)=>'<td><div class="hb-bc"><div><i style="width:'+Math.min(100,v||0)+'%;background:'+col+'"></i><b style="left:'+r+'%"></b></div><span>'+hbF(v,0)+'</span></div></td>';
+  return '<table class="hb-t hb-inf"><thead><tr><th>Hudud</th><th>Ichimlik suvi, %</th><th>Kanalizatsiya, %</th><th>Tabiiy gaz, %</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td>'+hbE(hbQ(r.n))+'</td>'+c(r.suv,ref.suv,'#1f8fa3')+c(r.kan,ref.kan,'#5aa9bd')+c(r.gaz,ref.gaz,'#9cc7d3')+'</tr>').join('')+'</tbody></table>'+
+    '<div class="hb-note">Qora chiziq — respublika o\'rtachasi: ichimlik suvi '+hbF(ref.suv,0)+' %, kanalizatsiya '+hbF(ref.kan,0)+' %, tabiiy gaz '+hbF(ref.gaz,0)+' %. Kvartira (uy)larning ulushi, 2025-yil oxiri.</div>';}
+
+// --- asosiy jadval ---
+function hbJadval(rows){
+  return '<table class="hb-t"><thead><tr><th>Hudud</th><th>Aholi 2026</th><th>O\'sish 2010–26, %</th><th>Issiq kun 2050</th><th>Suv stressi</th><th>Ichimlik suvi, %</th><th>Zaiflik</th><th>Reyting</th></tr></thead><tbody>'+
+    rows.map(p=>'<tr><td>'+hbE(hbQ(p.n))+'</td><td>'+hbN(p.r26)+'</td><td>'+hbP(p.o)+'</td><td>'+hbF(p.c&&p.c.hd35?p.c.hd35[1]:p.h1,0)+'</td><td>'+hbF(p.w?p.w.bws:p.bws,1)+'</td><td>'+hbF(p.j?p.j.suv:p.suv,0)+'</td><td>'+(p.j?(p.j.z==null?'—':p.j.z):hbF(p.zi,0))+'</td><td><span class="hb-r" style="background:'+HBC[hbCl(p.r,HBB)]+'">'+Math.round(p.r)+'</span></td></tr>').join('')+'</tbody></table>';}
+
+// --- yig'ma ko'rsatkichlar (viloyat / respublika) ---
+function hbAgg(set,q){
+  const a={n:set.length, pop:hbSum(set,p=>p.r26), g:q?uzG(q):null, h0:hbW(set,p=>p.c.hd35[0]), h1:hbW(set,p=>p.c.hd35[1]), h2:hbW(set,p=>p.c.hd35[2]),
+    t0:hbW(set,p=>p.c.tr[0]), t1:hbW(set,p=>p.c.tr[1]), s0:hbSh(set,p=>p.c.hd35[0]>=60), s1:hbSh(set,p=>p.c.hd35[1]>=60),
+    bws:hbW(set,p=>p.w.bws), ws50:hbW(set,p=>p.w.ws50), jy:hbW(set,p=>p.w.juda_yuqori),
+    suv:hbW(set,p=>p.j.suv), kan:hbW(set,p=>p.j.kan), gaz:hbW(set,p=>p.j.gaz), haq_n:hbW(set,p=>p.j.haq_n), zi:hbW(set,p=>p.j.z),
+    yangi:hbSum(set,p=>p.e.yangi), olingan:hbSum(set,p=>p.e.olingan), b20:hbSum(set,p=>p.e.b20), r:hbW(set,p=>p.r)};
+  a.p50=set.every(p=>p.p50)?hbSum(set,p=>p.p50):null; return a;}
+
+function hbKpi(t){return '<div class="hb-kp">'+t.map(([l,v,s])=>'<div><span>'+l+'</span><b>'+v+'</b><em>'+s+'</em></div>').join('')+'</div>';}
+function hbKpiAgg(a){return hbKpi([
+  ['Aholi, 2026',(a.pop>=1e6?uzF(a.pop/1e6,2)+' mln':uzN(a.pop)),a.g==null?'':hbP(a.g)+' % (2010–2026)'],
+  ['Issiq kunlar, Tmax > 35 °C',hbF(a.h0,0)+' → '+hbF(a.h1,0),'yiliga; 1995–2014 → 2050, SSP2-4.5'],
+  ['Suv stressi, 0–5',hbF(a.bws,1)+' → '+hbF(a.ws50,1),'aholining '+hbF(a.jy,0)+' % i juda yuqori stressda'],
+  ['Ichimlik suvi',hbF(a.suv,0)+' %','kanalizatsiya '+hbF(a.kan,0)+' %, gaz '+hbF(a.gaz,0)+' %'],
+  ['O\'rtacha ish haqi',hbF(a.haq_n,0)+' %','respublika o\'rtachasiga nisbatan, 2025'],
+  ['Yangi qurilgan maydon','+'+hbF(a.yangi,0)+' km²','2000–2020; ~'+hbF(a.olingan,0)+' km² ekin yeri hisobiga']]);}
+
+function hbXulosaAgg(set,a,nom,rep){
+  const R=hbAgg(UZ.features.map(f=>f.properties),REP), tez=set.filter(p=>p.yy!=null).sort((x,y)=>y.yy-x.yy).slice(0,3),
+    pastS=set.filter(p=>p.j.suv!=null).sort((x,y)=>x.j.suv-y.j.suv).slice(0,3), top=set.slice().sort((x,y)=>y.r-x.r).slice(0,3),
+    all=UZ.features.map(f=>f.properties), t30=all.slice().sort((x,y)=>y.r-x.r).slice(0,30), k30=set.filter(p=>t30.includes(p)).length,
+    omil=p=>{const m=Math.max(p.ro,p.rx,p.rz); return m===p.ro?'tez o\'sish':m===p.rx?'iqlim va suv xavfi':'xizmatlar bilan kam ta\'minlanganlik';};
+  const b=[];
+  b.push('<b>O\'sish.</b> Aholi 2010–2026 yillarda '+hbP(a.g)+' % o\'zgardi'+(rep?'':' (respublika: '+hbP(R.g)+' %)')+'. Eng tez o\'sayotganlar: '+tez.map(p=>hbE(hbQ(p.n))+' (yiliga '+hbF(p.yy,1)+' %)').join(', ')+'.'+(a.p50?' Model bo\'yicha 2050-yilga '+uzF(a.p50/1e6,2)+' mln kishi.':''));
+  b.push('<b>Jazirama.</b> Aholi yashaydigan joylarda yiliga Tmax > 35 °C bo\'lgan kunlar o\'rtacha '+hbF(a.h0,0)+' dan 2040–2059 yillarda '+hbF(a.h1,0)+' ga, keskin ssenariyda '+hbF(a.h2,0)+' ga yetadi. Yiliga 60 kundan ko\'p issiq kun bo\'ladigan hududlarda yashovchilar ulushi '+hbF(a.s0,0)+' % → '+hbF(a.s1,0)+' %.');
+  b.push('<b>Suv.</b> Havza bo\'yicha suv stressi '+hbF(a.bws,1)+' / 5 ('+uzSvN(a.bws)+'), 2050-yilda '+hbF(a.ws50,1)+'. Aholining '+hbF(a.jy,0)+' % i olinadigan suv mavjud suvning 80 % idan oshadigan havzada yashaydi.');
+  b.push('<b>Xizmatlar.</b> Ichimlik suvi bilan ta\'minlanganlik '+hbF(a.suv,0)+' %, kanalizatsiya '+hbF(a.kan,0)+' %'+(rep?'':' (respublika: '+hbF(UZ.ij.suv,0)+' va '+hbF(UZ.ij.kan,0)+' %)')+'. Ichimlik suvi eng past: '+pastS.map(p=>hbE(hbQ(p.n))+' '+hbF(p.j.suv,0)+' %').join(', ')+'.');
+  b.push('<b>Yer.</b> 2000–2020 yillarda qurilgan maydon '+hbF(a.yangi,0)+' km² ga kengaydi; taxminan '+hbF(a.olingan,0)+' km² i ekin yeri hisobiga (faqat tom va qattiq qoplama — pastki baho).');
+  b.push('<b>Ustuvorlik.</b> Eng yuqori ball: '+top.map(p=>hbE(hbQ(p.n))+' — '+p.r+' ('+omil(p)+')').join('; ')+'.'+(rep?'':' Respublikaning birinchi 30 taligida bu hududdan '+k30+' ta birlik bor.'));
+  if(nom==='Toshkent shahri') b.push('<b>Eslatma.</b> Toshkent shahri ichida suv stressi tumanlar bo\'yicha solishtirilmaydi: havza chegarasi shahar o\'rtasidan o\'tadi, shahar esa yagona tizimdan suv oladi.');
+  return '<ul class="hb-xl">'+b.map(x=>'<li>'+x+'</li>').join('')+'</ul>';}
+
+function hbXulosaT(p,vs,all){
+  const rk=(k,arr)=>uzRank(p,k,arr), v=p.v, Rv=hbAgg(vs,UZ.vil[v]), R=hbAgg(all,REP);
+  const om=[['tez o\'sish',p.ro],['iqlim va suv xavfi',p.rx],['xizmatlar bilan kam ta\'minlanganlik',p.rz]].sort((a,b)=>b[1]-a[1]);
+  const b=[];
+  b.push('<b>O\'sish.</b> Aholi 2010–2026 yillarda '+hbP(p.o)+' % o\'zgardi (yiliga '+hbF(p.yy,1)+' %)'+(p.ob?', chegara o\'zgargani uchun guruh bo\'yicha: '+hbE(p.ob):'')+'. Sur\'at bo\'yicha viloyatda '+rk('yy',vs)[0]+'/'+vs.length+', respublikada '+rk('yy',all)[0]+'/'+all.length+'-o\'rin.'+(p.p50?' Model bo\'yicha 2050-yilga '+uzN(p.p50)+' kishi.':''));
+  b.push('<b>Jazirama.</b> Yiliga Tmax > 35 °C bo\'lgan kunlar '+hbF(p.c.hd35[0],0)+' → '+hbF(p.c.hd35[1],0)+' (2050, SSP2-4.5) → '+hbF(p.c.hd35[2],0)+' (SSP5-8.5); tropik tunlar '+hbF(p.c.tr[0],0)+' → '+hbF(p.c.tr[1],0)+'. Viloyat o\'rtachasi 2050-yilda '+hbF(Rv.h1,0)+' kun.'+(p.c.tas[0]<11?' Tog\'li hudud: tuman markazidagi haqiqiy jazirama yuqoriroq bo\'lishi mumkin.':''));
+  b.push('<b>Suv.</b> Havza bo\'yicha suv stressi '+hbF(p.w.bws,1)+' / 5 ('+uzSvN(p.w.bws)+'), 2050-yilda '+hbF(p.w.ws50,1)+'. Qurg\'oqchillik xavfi '+hbF(p.w.drr,1)+' / 5.');
+  b.push('<b>Xizmatlar.</b> Ichimlik suvi '+hbF(p.j.suv,0)+' %, kanalizatsiya '+hbF(p.j.kan,0)+' %, tabiiy gaz '+hbF(p.j.gaz,0)+' % (respublika: '+hbF(UZ.ij.suv,0)+', '+hbF(UZ.ij.kan,0)+', '+hbF(UZ.ij.gaz,0)+' %). O\'rtacha ish haqi respublikaning '+hbF(p.j.haq_n,0)+' %. Aholining '+hbF(p.j.bol,0)+' % i 0–15 yoshda.');
+  b.push('<b>Yer.</b> Qurilgan maydon '+hbF(p.e.b00,1)+' → '+hbF(p.e.b20,1)+' km² (2000 → 2020)'+(p.e.olingan!=null?', yangi qurilishning taxminan '+hbF(p.e.olingan,1)+' km² i ekin yeri hisobiga':'')+'. Kishi boshiga qurilgan yer '+hbN(p.e.qur_kishi)+' m².');
+  b.push('<b>Ustuvorlik.</b> Reyting '+p.r+' / 100: viloyatda '+rk('r',vs)[0]+'/'+vs.length+', respublikada '+rk('r',all)[0]+'/'+all.length+'-o\'rin. Ballni eng ko\'p ko\'targan omil — '+om[0][0]+' ('+om[0][1]+'), eng past — '+om[2][0]+' ('+om[2][1]+').');
+  return '<ul class="hb-xl">'+b.map(x=>'<li>'+x+'</li>').join('')+'</ul>';}
+
+// --- tuman: solishtirma jadval ---
+function hbSol(p,vs,all){
+  const Rv=hbAgg(vs,UZ.vil[p.v]), R=hbAgg(all,REP), rk=(k,arr)=>{const r=uzRank(p,k,arr); return r[0]+'/'+r[1];};
+  const t=[['Aholi 2026',hbN(p.r26),hbN(Rv.pop),hbN(R.pop),'—'],
+    ['O\'sish sur\'ati, yiliga %',hbF(p.yy,2),hbF((Math.pow(UZ.vil[p.v][16]/UZ.vil[p.v][0],1/16)-1)*100,2),hbF((Math.pow(REP[16]/REP[0],1/16)-1)*100,2),rk('yy',vs)+' · '+rk('yy',all)],
+    ['Zichlik, kishi/km²',hbN(p.z),hbN(Rv.pop/hbSum(vs,x=>+x.km)),hbN(R.pop/hbSum(all,x=>+x.km)),rk('z',vs)+' · '+rk('z',all)],
+    ['Issiq kunlar, 2050',hbF(p.c.hd35[1],0),hbF(Rv.h1,0),hbF(R.h1,0),rk('h',vs)+' · '+rk('h',all)],
+    ['Tropik tunlar, 2050',hbF(p.c.tr[1],0),hbF(Rv.t1,0),hbF(R.t1,0),''],
+    ['Suv stressi, 0–5',hbF(p.w.bws,1),hbF(Rv.bws,1),hbF(R.bws,1),rk('sv',vs)+' · '+rk('sv',all)],
+    ['Ichimlik suvi, %',hbF(p.j.suv,0),hbF(Rv.suv,0),hbF(UZ.ij.suv,0),''],
+    ['Kanalizatsiya, %',hbF(p.j.kan,0),hbF(Rv.kan,0),hbF(UZ.ij.kan,0),''],
+    ['Ish haqi, respublikaga %',hbF(p.j.haq_n,0),hbF(Rv.haq_n,0),'100',''],
+    ['Zaiflik indeksi',p.j.z==null?'—':String(p.j.z),hbF(Rv.zi,0),hbF(R.zi,0),rk('zi',vs)+' · '+rk('zi',all)],
+    ['Ustuvorlik reytingi',String(p.r),hbF(Rv.r,0),hbF(R.r,0),rk('r',vs)+' · '+rk('r',all)]];
+  return '<table class="hb-t"><thead><tr><th>Ko\'rsatkich</th><th>'+hbE(hbQ(p.n))+'</th><th>Viloyat</th><th>Respublika</th><th>O\'rni: viloyat · resp.</th></tr></thead><tbody>'+
+    t.map(r=>'<tr>'+r.map((c,i)=>'<td'+(i===1?' class="hb-b"':'')+'>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table><div class="hb-note">Viloyat va respublika qiymatlari — aholi bo\'yicha tortilgan o\'rtacha. "O\'rni" — kattadan kichikka.</div>';}
+
+function hbOmil(p){
+  const r=[['Bosim: aholi o\'sishi','ro','#1f8fa3'],['Xavf: issiq, qurg\'oqchillik, suv','rx','#ee8a3f'],['Zaiflik: xizmatlar va daromad','rz','#d33a6c']];
+  return '<div class="hb-om">'+r.map(([n,k,c])=>'<div><span>'+n+'</span><div class="hb-bc"><div><i style="width:'+p[k]+'%;background:'+c+'"></i></div><span>'+p[k]+'</span></div></div>').join('')+'</div>';}
+
+function hbIqlimT(p){
+  const g=[['Issiq kunlar (Tmax > 35 °C)','hd35'],['Tropik tunlar (Tmin > 20 °C)','tr'],['O\'ta issiq kunlar (Tmax > 40 °C)','hd40']], mx=Math.max(...g.map(([,k])=>Math.max(...p.c[k])))||1;
+  const W=520, rh=12, H=g.length*(3*rh+14)+6; let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">', y=4, C=['#9cc7d3','#ee8a3f','#d33a6c'], N=['1995–2014','2050 · SSP2-4.5','2050 · SSP5-8.5'];
+  g.forEach(([n,k])=>{o+='<text x="0" y="'+(y+8)+'" font-size="8.8" font-weight="600" fill="#16222a">'+n+'</text>'; y+=12;
+    p.c[k].forEach((v,i)=>{const w=v/mx*(W-210); o+='<text x="106" y="'+(y+8)+'" font-size="8" fill="#55656e" text-anchor="end">'+N[i]+'</text><rect x="112" y="'+y+'" width="'+Math.max(1,w).toFixed(1)+'" height="'+(rh-3)+'" rx="2" fill="'+C[i]+'"/><text x="'+(116+w).toFixed(1)+'" y="'+(y+8)+'" font-size="8.4" font-weight="600" fill="#16222a" font-family="IBM Plex Mono,monospace">'+Math.round(v)+'</text>'; y+=rh;}); y+=4;});
+  return o+'</svg>';}
+
+const hbMetod=()=>'<h2>Metodika va manbalar</h2><div class="hb-2c">'+
+  '<p><b>Hududiy birliklar.</b> 197 birlik: tuman va shaharlar; chegarasi o\'zgargan yoki OSM da alohida chegarasi yo\'q birliklar birlashtirilgan (masalan, "Ko\'kdala + Chiroqchi"). Chegaralar: OpenStreetMap.</p>'+
+  '<p><b>Aholi.</b> Doimiy aholi soni 2010–2026, O\'zbekiston statistika qo\'mitasi (stat.uz, SIAT 246): 2026-yil aholini ro\'yxatga olish asosida qayta hisoblangan. 2050-yil — GHS-WUP prognozi kalibrlangan nisbat bilan (model, rasmiy prognoz emas).</p>'+
+  '<p><b>Iqlim.</b> World Bank Climate Change Knowledge Portal, CMIP6 ansambl medianasi, 0,25°. Bazaviy davr 1995–2014; kelajak 2040–2059, SSP2-4.5 va SSP5-8.5. Har birlik uchun aholi bo\'yicha tortilgan (GHS-POP 2020, 1 km). Tog\'li kataklarda tuman markazidagi jazirama kam ko\'rsatilishi mumkin.</p>'+
+  '<p><b>Suv.</b> WRI Aqueduct 4.0 (2023), HydroBASINS 6-daraja havzalari: olinadigan suvning mavjud qayta tiklanadigan suvga nisbati, 0–5 ball; 2050 — "odatdagidek" ssenariy (SSP3 RCP7.0). Havzalararo kanallar va davlatlararo suv taqsimoti to\'liq aks etmaydi.</p>'+
+  '<p><b>Yer.</b> GHS-BUILT-S (1980, 2000, 2020) qurilgan maydon; ESA WorldCover 2021 ekin yeri. Faqat tom va qattiq qoplama: hovli va tomorqa bilan haqiqiy yer ajratish kattaroq.</p>'+
+  '<p><b>Zaiflik.</b> stat.uz (SIAT), 2025: ichimlik suvi (2631), kanalizatsiya (1242), tabiiy gaz (1243), o\'rtacha ish haqi (500), ishsizlik (1875), yosh tarkibi (561, 2838, 589, 600, 1190, 1191), shifokorlar (2846). Indeks — olti tarkibning birliklar ichidagi o\'rni, teng vazn. Ish haqi faqat rasmiy sektor; kambag\'allik tuman kesimida e\'lon qilinmagan.</p>'+
+  '<p><b>Ustuvorlik reytingi.</b> R = bosim<sup>0,5</sup> × xavf<sup>0,25</sup> × zaiflik<sup>0,25</sup>, 0–100. Bosim — aholining yillik o\'sish sur\'ati; xavf — issiq kunlar, qurg\'oqchillik (SPEI-12) va suv stressi o\'rtachasi; zaiflik — yuqoridagi indeks. Har biri 197 birlik ichidagi o\'rni (foiz-rang). Ssenariy: '+UZSN[uzSc]+'.</p>'+
+  '<p><b>Cheklovlar.</b> Bu dastlabki baho (skrining): muhandislik izlanishlari, gidrologik va seysmik tadqiqotlar o\'rnini bosmaydi. Toshqin va seysmik xavf respublika reytingiga hali kirmagan. Ballar nisbiy: hudud boshqalarga nisbatan qayerda turganini ko\'rsatadi, mutlaq xavf darajasini emas.</p>'+
+  '</div><div class="hb-src">Manbalar: stat.uz (SIAT) · World Bank CCKP · WRI Aqueduct 4.0 · European Commission JRC, GHSL · ESA WorldCover 2021 · © OpenStreetMap hissadorlari. Hisob-kitob: Archemistry Lab, Yershunos.</div>';
+
+const hbLogo=()=>{const l=document.querySelector('.top a.brand .logo'); return l&&l.tagName.toLowerCase()==='svg'?l.outerHTML.replace('class="logo"','class="hb-lsvg"'):'<span class="hb-logo">A</span>';};
+function hbBosh(nom,sub){return '<div class="hb-h"><div class="hb-brand">'+hbLogo()+'<b>Archemistry Lab</b><i>Yershunos</i></div><div class="hb-meta">'+hbSana()+'<br>Dastlabki baho (skrining)</div></div><h1>'+hbE(nom)+'</h1><div class="hb-sub">'+sub+'</div>';}
+
+// --- kichik xaritalar: to'rt omil yonma-yon ---
+const HBM=[['yy','Aholi o\'sishi','yiliga, %',['#e6eef0','#b7d6dc','#7fb9c5','#3f97a8','#12697b'],1],
+  ['h1','Issiq kunlar, 2050','Tmax > 35 °C, kun',['#f6ebdc','#f3d2a4','#eeb06a','#e58a3c','#c4601d'],0],
+  ['bw','Suv stressi','0–5 ball',['#e8eef6','#bfd0e8','#8eabd6','#5b82bf','#2f5a9c'],1],
+  ['zv','Zaiflik indeksi','0–100',['#f6e6ec','#edc0d0','#e293b0','#d1608a','#b03265'],0]];
+function hbTay(all){all.forEach(p=>{p.h1=p.c.hd35[1]; p.bw=p.w.bws; p.zv=p.j.z;}); if(!HBF) hbPl(all[0]);
+  if(!HBM.q){HBM.q={}; HBM.forEach(([k])=>{const a=all.map(p=>p[k]).filter(v=>v!=null).sort((x,y)=>x-y); HBM.q[k]=[.2,.4,.6,.8].map(f=>a[Math.floor(f*(a.length-1))]);});}}
+function hbMini(units,hl){
+  return '<div class="hb-mm">'+HBM.map(([k,n,u,C,d])=>{const q=HBM.q[k], vs=units.map(p=>p[k]).filter(v=>v!=null), mn=Math.min(...vs), mx=Math.max(...vs);
+    return '<div><b>'+n+'</b>'+hbXarita(units,hl,null,200,150,p=>p[k]==null?'#eef1f2':C[hbCl(p[k],q)])+'<div class="hb-ml">'+C.map(c=>'<i style="background:'+c+'"></i>').join('')+'</div><span>'+hbF(mn,d)+' – '+hbF(mx,d)+' · '+u+'</span></div>';}).join('')+'</div>';}
+
+// --- nuqtali diagramma: o'sish × zaiflik, doira — aholi ---
+function hbNuqta(units,hl,lab,W,H){
+  const L=34,R=12,T=10,B=28, ps=units.filter(p=>p.yy!=null&&p.zv!=null), xs=ps.map(p=>p.yy), x0=Math.min(0,Math.floor(Math.min(...xs))), x1=Math.ceil(Math.max(...xs)*2)/2,
+    X=v=>L+(v-x0)/(x1-x0)*(W-L-R), Y=v=>T+(1-v/100)*(H-T-B), rm=Math.sqrt(Math.max(...ps.map(p=>p.r26))), rr=p=>Math.max(2.2,Math.sqrt(p.r26)/rm*(units.length>60?11:14));
+  let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  [0,25,50,75,100].forEach(t=>o+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(t)+'" y2="'+Y(t)+'" stroke="#e4eaed"/><text x="'+(L-5)+'" y="'+(Y(t)+3)+'" font-size="8" fill="#6b7a83" text-anchor="end">'+t+'</text>');
+  for(let t=Math.ceil(x0);t<=x1;t++) o+='<text x="'+X(t).toFixed(1)+'" y="'+(H-B+11)+'" font-size="8" fill="#6b7a83" text-anchor="middle">'+t+'</text>';
+  const all=UZ.features.map(f=>f.properties), mxv=hbW(all,p=>p.yy), myv=hbW(all,p=>p.zv);
+  o+='<line x1="'+X(mxv).toFixed(1)+'" x2="'+X(mxv).toFixed(1)+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#10222b" stroke-width=".7" stroke-dasharray="2 3"/><line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(myv).toFixed(1)+'" y2="'+Y(myv).toFixed(1)+'" stroke="#10222b" stroke-width=".7" stroke-dasharray="2 3"/>';
+  o+='<text x="'+(W-R)+'" y="'+(T+8)+'" font-size="7.6" fill="#55656e" text-anchor="end">tez o\'sadi va zaif</text><text x="'+(L+4)+'" y="'+(H-B-5)+'" font-size="7.6" fill="#55656e">sekin o\'sadi, ta\'minlangan</text>';
+  o+='<text x="'+((L+W-R)/2)+'" y="'+(H-4)+'" font-size="8" fill="#55656e" text-anchor="middle">Aholi o\'sishi, yiliga %</text><text transform="translate(9 '+((T+H-B)/2)+') rotate(-90)" font-size="8" fill="#55656e" text-anchor="middle">Zaiflik indeksi</text>';
+  ps.slice().sort((a,b)=>b.r26-a.r26).forEach(p=>{o+='<circle cx="'+X(p.yy).toFixed(1)+'" cy="'+Y(p.zv).toFixed(1)+'" r="'+rr(p).toFixed(1)+'" fill="'+HBC[hbCl(p.r,HBB)]+'" fill-opacity=".82" stroke="#fff" stroke-width=".6"/>';});
+  if(hl){const p=ps.find(x=>x.n===hl); if(p) o+='<circle cx="'+X(p.yy).toFixed(1)+'" cy="'+Y(p.zv).toFixed(1)+'" r="'+(rr(p)+2.5).toFixed(1)+'" fill="none" stroke="#10222b" stroke-width="1.8"/><text x="'+(X(p.yy)+rr(p)+6).toFixed(1)+'" y="'+(Y(p.zv)+3).toFixed(1)+'" font-size="8.6" font-weight="700" fill="#10222b"'+(X(p.yy)>W*.7?' text-anchor="end" dx="-'+(2*rr(p)+12).toFixed(0)+'"':'')+'>'+hbE(hbQ(p.n))+'</text>';}
+  (lab||[]).forEach((p,i)=>{if(p.yy==null||p.zv==null)return; const x=X(p.yy),y=Y(p.zv); o+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="6.5" fill="#10222b" stroke="#fff"/><text x="'+x.toFixed(1)+'" y="'+(y+2.8).toFixed(1)+'" font-size="8" font-weight="700" fill="#fff" text-anchor="middle">'+(i+1)+'</text>';});
+  return o+'</svg><div class="hb-note">Har doira — bitta tuman yoki shahar; kattaligi — aholi soni, rangi — ustuvorlik reytingi. Uzuq chiziqlar — respublika o\'rtachasi.</div>';}
+
+// --- taqsimot chizig'i: tumanning 197 birlik ichidagi o'rni ---
+function hbChiziq(p,vs,all){
+  const rows=[['Aholi o\'sishi, yiliga %','yy',2,1],['Issiq kunlar, 2050','h1',0,1],['Suv stressi, 0–5','bw',1,1],['Ichimlik suvi, %','zs',0,-1],['Ish haqi, respublikaga %','zh',0,-1],['Zaiflik indeksi','zv',0,1],['Ustuvorlik reytingi','r',0,1]];
+  const W=520, rh=24, L=150, R=44, H=rows.length*rh+16; let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  rows.forEach(([n,k,d,sg],i)=>{const y=6+i*rh+rh/2, a=all.map(x=>x[k]).filter(v=>v!=null), mn=Math.min(...a), mx=Math.max(...a), X=v=>L+(v-mn)/((mx-mn)||1)*(W-L-R);
+    o+='<text x="'+(L-8)+'" y="'+(y+3)+'" font-size="8.6" text-anchor="end" fill="#16222a">'+n+'</text><line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="#e4eaed"/>';
+    all.forEach(x=>{if(x[k]!=null) o+='<line x1="'+X(x[k]).toFixed(1)+'" x2="'+X(x[k]).toFixed(1)+'" y1="'+(y-4)+'" y2="'+(y+4)+'" stroke="#c3d0d6" stroke-width=".7"/>';});
+    vs.forEach(x=>{if(x[k]!=null&&x!==p) o+='<line x1="'+X(x[k]).toFixed(1)+'" x2="'+X(x[k]).toFixed(1)+'" y1="'+(y-6)+'" y2="'+(y+6)+'" stroke="#1f8fa3" stroke-width="1.3"/>';});
+    if(p[k]!=null) o+='<circle cx="'+X(p[k]).toFixed(1)+'" cy="'+y+'" r="5" fill="'+(sg>0?'#d33a6c':'#10222b')+'" stroke="#fff" stroke-width="1.4"/><text x="'+(W-2)+'" y="'+(y+3)+'" font-size="8.6" font-weight="700" fill="#16222a" text-anchor="end" font-family="IBM Plex Mono,monospace">'+hbF(p[k],d)+'</text>';});
+  return o+'</svg><div class="hb-note">Kulrang chiziqchalar — respublikaning 197 birligi (chapda eng past, o\'ngda eng yuqori qiymat), moviy — shu viloyat tumanlari, doira — '+hbE(hbQ(p.n))+'.</div>';}
+
+// --- ixtiyoriy hudud («Hudud» rejimi): relyef skriningi diagrammalari ---
+function hbGips(q,zmin,zmax,W,H){ // q: balandlik kvantillari (0..100 %, 21 nuqta)
+  const L=44,R=10,T=8,B=22, X=f=>L+f*(W-L-R), Y=v=>T+(1-(v-zmin)/((zmax-zmin)||1))*(H-T-B);
+  let o='<svg viewBox="0 0 '+W+' '+H+'" class="hb-svg">';
+  for(let i=0;i<=4;i++){const v=zmin+(zmax-zmin)*i/4; o+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="#e4eaed"/><text x="'+(L-5)+'" y="'+(Y(v)+3).toFixed(1)+'" font-size="8" fill="#6b7a83" text-anchor="end">'+uzN(v)+' m</text>';}
+  [0,25,50,75,100].forEach(t=>o+='<text x="'+X(t/100).toFixed(1)+'" y="'+(H-7)+'" font-size="8" fill="#6b7a83" text-anchor="middle">'+t+' %</text>');
+  const d=q.map((v,i)=>(i?'L':'M')+X(1-i/(q.length-1)).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  return o+'<path d="'+d+'L'+X(0)+' '+(H-B)+'L'+X(1)+' '+(H-B)+'Z" fill="#1f8fa3" opacity=".13"/><path d="'+d+'" fill="none" stroke="#1f8fa3" stroke-width="2"/></svg><div class="hb-note">Gipsometrik egri: hududning necha foizi shu balandlikdan yuqorida joylashgan.</div>';}
+function hbQiya(sh){ const N=['0–1° tekis','1–5° yotiq','5–15° qiya','15–30° tik','30° dan tik'], C=['#d6e6eb','#9cc7d3','#f2c75c','#ee8a3f','#d33a6c'];
+  return '<div class="hb-stk">'+sh.map((v,i)=>v>0.004?'<i style="flex:'+v+';background:'+C[i]+'"></i>':'').join('')+'</div><div class="hb-leg">'+N.map((n,i)=>'<span><i style="background:'+C[i]+'"></i>'+n+' — '+hbF(sh[i]*100,0)+' %</span>').join('')+'</div>';}
+
+function hbMetodH(R){return '<h2>Metodika va cheklovlar</h2><div class="hb-2c">'+
+  '<p><b>Relyef.</b> Global balandlik modeli (Terrain Tiles: SRTM, GMTED va b.), katak taxminan '+Math.round(R.dx)+' m. Binolar va o\'rmon balandligi relyefga qo\'shilgan bo\'lishi mumkin.</p>'+
+  '<p><b>Oqim tarmog\'i.</b> Chuqurliklar to\'ldirilib (priority-flood), har katakdan eng past qo\'shniga oqim yo\'naltiriladi; havzasi '+hbF(R.thrKm,1)+' km² dan katta kataklar soy deb olinadi. Oqim faqat chizilgan to\'rtburchak ichida to\'planadi: tashqaridan kiradigan daryolar havzasi hisobga olinmaydi.</p>'+
+  '<p><b>Vodiy tubi.</b> Eng yaqin o\'zandan 5 m gacha baland yerlar (HAND ≤ 5 m). Bu geometrik belgi: suv bosish chegarasi emas va gidravlik model o\'rnini bosmaydi. Tekis hududlarda hisoblanmaydi.</p>'+
+  '<p><b>Tuman ko\'rsatkichlari.</b> Hudud tushadigan tuman va shaharlarning rasmiy va model ko\'rsatkichlari (stat.uz, World Bank CCKP, WRI Aqueduct 4.0) — tuman bo\'yicha o\'rtacha; chizilgan hududning o\'ziga xos qiymati emas.</p>'+
+  '<p><b>Bu hisobotda yo\'q.</b> Toshqin chuqurligi va tezligi, jala oqimi, sel, ko\'chki va seysmik xavf, binolar va aholi soni — bular uchun joyning batafsil modeli kerak (Yershunosda hozircha namuna hududlar uchun bajarilgan).</p>'+
+  '</div><div class="hb-src">Manbalar: Terrain Tiles (Mapzen / AWS Open Data) · stat.uz (SIAT) · World Bank CCKP · WRI Aqueduct 4.0 · © OpenStreetMap hissadorlari. Hisob-kitob: Archemistry Lab, Yershunos.</div>';}
+
+function hbBloklarH(R,al){
+  const B=[], ns=R.lat>=0?'sh.k.':'j.k.', nom=R.nom||('Hudud · '+hbF(Math.abs(R.lat),2)+'° '+ns+', '+hbF(R.lon,2)+'° '+(R.lon>=0?'sh.u.':'g\'.u.'));
+  B.push({full:1,h:hbBosh(nom,'Relyef va suv yo\'llari skriningi · '+hbN(R.maydon)+' km²')+hbKpi([
+    ['Maydon',hbN(R.maydon)+' km²',hbF(R.E-R.W,2)+'° × '+hbF(R.N-R.S,2)+'°'],['Balandlik',hbN(R.zmin)+'–'+hbN(R.zmax)+' m','median '+hbN(R.zmed)+' m'],['Qiyalik, median',hbF(R.med,1)+'°','tik (15° dan ortiq) '+hbF(R.sh[3]*100+R.sh[4]*100,0)+' %'],
+    ['Oqim tarmog\'i',hbN(R.uz/1000)+' km','zichligi '+hbF(R.uz/1000/R.maydon,2)+' km/km²'],['Vodiy tubi',R.tk?'—':hbF(R.vb,1)+' km²',R.tk?'tekis hududda hisoblanmaydi':'hududning '+hbF(R.vbp*100,1)+' % i'],['Eng katta ichki havza',hbN(R.amax)+' km²','to\'rtburchak ichida']])});
+  const xar='<h2>Relyef, soylar va vodiy tubi</h2><img class="hb-img" style="aspect-ratio:'+R.ar.toFixed(3)+';'+(R.ar<1.25?'width:'+Math.round(Math.min(100,R.ar*(al?118:128)/(al?131:182)*100))+'%':'')+'" src="'+R.img+'" alt=""><div class="hb-leg"><span><i style="background:#1e96c8"></i>oqim tarmog\'i</span><span><i style="background:#ff4fa3"></i>vodiy tubi (o\'zandan 5 m gacha)</span><span><i style="background:linear-gradient(90deg,#f4f1e6,#b9c3a6,#8d8f7c)"></i>past → baland</span></div>';
+  const x=[]; const tik=R.sh[3]+R.sh[4];
+  x.push('<b>Relyef.</b> Balandlik '+hbN(R.zmin)+' dan '+hbN(R.zmax)+' m gacha (farq '+hbN(R.zmax-R.zmin)+' m). Hududning '+hbF(R.sh[0]*100,0)+' % i tekis (1° dan kam), '+hbF(tik*100,0)+' % i tik (15° dan ortiq).'+(tik>0.3?' Tik yonbag\'irlar ulushi katta: qurilish uchun yaroqli yer cheklangan, ko\'chki va sel xavfi alohida o\'rganilishi kerak.':tik<0.05?' Yonbag\'irlar asosan yotiq: relyef qurilishni cheklamaydi, lekin suv oqib ketishi sust.':''));
+  x.push('<b>Suv yo\'llari.</b> Havzasi '+hbF(R.thrKm,1)+' km² dan katta soylarning umumiy uzunligi '+hbN(R.uz/1000)+' km. '+(R.tk?'Hudud asosan tekis: relyefdan soy tarmog\'ini ishonchli ajratib bo\'lmaydi, suv yo\'llari kanal va zovurlar bilan belgilanadi.':'Vodiy tubi (o\'zandan 5 m gacha) '+hbF(R.vb,1)+' km² — hududning '+hbF(R.vbp*100,1)+' % i. Bu yerlar toshqin va sel uchun birinchi navbatda tekshiriladigan zona: qurilish taklif qilinsa, gidravlik hisob shart.'));
+  if(R.un&&R.un.length){const a=hbAgg(R.un,null);
+    x.push('<b>Iqlim va suv (tumanlar bo\'yicha).</b> Hudud '+R.un.length+' ta tuman yoki shahar hududiga tushadi. Ularda yiliga issiq kunlar (Tmax > 35 °C) '+hbF(a.h0,0)+' dan 2050-yilga '+hbF(a.h1,0)+' ga yetadi; havza bo\'yicha suv stressi '+hbF(a.bws,1)+' / 5 ('+uzSvN(a.bws)+').');
+    x.push('<b>Aholi va xizmatlar (tumanlar bo\'yicha).</b> Ichimlik suvi bilan ta\'minlanganlik '+hbF(a.suv,0)+' %, kanalizatsiya '+hbF(a.kan,0)+' %; zaiflik indeksi '+hbF(a.zi,0)+' / 100.');
+  } else x.push('<b>Tuman ko\'rsatkichlari.</b> Hudud O\'zbekiston tuman chegaralaridan tashqarida yoki ular bilan kesishmaydi: iqlim, suv va zaiflik ko\'rsatkichlari berilmadi.');
+  const xl='<h2>Asosiy xulosalar</h2><ul class="hb-xl">'+x.map(t=>'<li>'+t+'</li>').join('')+'</ul>';
+  if(al){B.push({h:xar}); B.push({h:xl});} else {B.push({full:1,h:xar}); B.push({full:1,h:xl});}
+  B.push({h:'<h2>Balandlik taqsimoti</h2>'+hbGips(R.q,R.zmin,R.zmax,520,170)});
+  B.push({h:'<h2>Qiyalik tarkibi</h2>'+hbQiya(R.sh)+'<div class="hb-note">Maydon ulushi, qiyalik sinflari bo\'yicha.</div>'});
+  if(R.un&&R.un.length){ B.push({h:'<h2>Hudud tushadigan tumanlar: to\'rt omil</h2>'+hbMini(R.un,null)});
+    B.push({full:1,h:'<h2>Tuman va shaharlar ko\'rsatkichlari</h2>'+hbJadval(R.un.slice().sort((p,q)=>q.r-p.r).slice(0,al?14:30))}); }
+  B.push({full:1,h:hbMetodH(R)});
+  return [B,nom];}
+
+function hbBloklar(al){
+  const all=UZ.features.map(f=>f.properties), sel=uzSel?all.find(p=>p.n===uzSel):null, vil=sel?sel.v:uzV; hbTay(all);
+  if(HBS==='h'&&!window.HBR) HBS='r';
+  if(HBS==='t'&&!sel) HBS=vil?'v':'r'; if(HBS==='v'&&!vil) HBS='r';
+  document.querySelectorAll('#hbs button').forEach(b=>{const k=b.dataset.s; b.hidden=k==='h'&&!window.HBR; b.disabled=k==='t'?!sel:k==='v'?!vil:false; b.classList.toggle('on',k===HBS);});
+  if(HBS==='h') return hbBloklarH(window.HBR,al);
+  const B=[];
+  if(HBS==='t'){
+    const p=sel, vs=all.filter(x=>x.v===p.v), q=p.oz&&p.oz.s?p.oz.s:p.s, y0=p.oz&&p.oz.s?p.oz.y0:2010;
+    B.push({full:1,h:hbBosh(p.n,hbE(p.v)+' · shahar o\'sishi, iqlim xavfi va aholi zaifligi')+
+      hbKpi([['Aholi, 2026',hbN(p.r26),hbP(p.o)+' % (2010–2026)'],['Issiq kunlar, Tmax > 35 °C',hbF(p.c.hd35[0],0)+' → '+hbF(p.c.hd35[1],0),'yiliga; 1995–2014 → 2050'],['Suv stressi, 0–5',hbF(p.w.bws,1)+' → '+hbF(p.w.ws50,1),uzSvN(p.w.bws)],
+        ['Ichimlik suvi',hbF(p.j.suv,0)+' %','kanalizatsiya '+hbF(p.j.kan,0)+' %'],['Zaiflik indeksi',p.j.z==null?'—':p.j.z+' / 100','respublikada '+uzRank(p,'zi',all)[0]+'/'+all.length],['Ustuvorlik reytingi',p.r+' / 100','respublikada '+uzRank(p,'r',all)[0]+'/'+all.length]])});
+    const xar='<h2>'+hbE(p.v)+': ustuvorlik reytingi va tumanning o\'rni</h2>'+hbXarita(vs,p.n,null,420,al?270:330)+hbLeg(), om='<h2>Bosim, xavf, zaiflik</h2>'+hbOmil(p)+(al?'':'<div class="hb-note">Har omil — 197 birlik ichidagi o\'rni, 0–100.</div>'), xl='<h2>Asosiy xulosalar</h2>'+hbXulosaT(p,vs,all);
+    if(al){B.push({h:xar}); B.push({h:om}); B.push({h:xl});} else {B.push({full:1,h:'<div class="hb-row"><div class="hb-c6">'+xar+'</div><div class="hb-c4">'+om+'</div></div>'}); B.push({full:1,h:xl});}
+    B.push({h:'<h2>To\'rt omil: viloyat tumanlari orasida</h2>'+hbMini(vs,p.n)});
+    B.push({h:'<h2>Tumanning respublikadagi o\'rni</h2>'+hbChiziq(p,vs,all)});
+    B.push({h:'<h2>Aholi soni, '+y0+'–2026'+(p.p50?' va 2050 prognozi':'')+'</h2>'+hbAholi(q,p.p50,520,al?200:180,y0)+'<div class="hb-note">Rasmiy doimiy aholi (stat.uz), yil boshiga. Uzuq chiziq — model prognozi.</div>'});
+    B.push({h:'<h2>O\'sish va zaiflik: viloyat tumanlari</h2>'+hbNuqta(vs,p.n,null,520,al?300:270)});
+    B.push({h:'<h2>Iqlim: hozir va 2050</h2>'+hbIqlimT(p)+'<div class="hb-note">5 kunlik eng ko\'p yog\'in: '+(p.c.rx5day[1]>=p.c.rx5day[0]?'+':'')+hbF((p.c.rx5day[1]/p.c.rx5day[0]-1)*100,0)+' % (SSP2-4.5), '+(p.c.rx5day[2]>=p.c.rx5day[0]?'+':'')+hbF((p.c.rx5day[2]/p.c.rx5day[0]-1)*100,0)+' % (SSP5-8.5). O\'rtacha harorat +'+hbF(p.c.tas[1]-p.c.tas[0],1)+' / +'+hbF(p.c.tas[2]-p.c.tas[0],1)+' °C.</div>'});
+    B.push({h:'<h2>Viloyat va respublika bilan solishtirish</h2>'+hbSol(p,vs,all)});
+    B.push({full:1,h:hbMetod()});
+    return [B,p.n];
+  }
+  const rep=HBS==='r', nom=rep?'O\'zbekiston Respublikasi':vil, set=rep?all:all.filter(p=>p.v===vil), q=rep?REP:UZ.vil[vil], a=hbAgg(set,q), srt=set.slice().sort((x,y)=>y.r-x.r), top5=srt.slice(0,5);
+  B.push({full:1,h:hbBosh(nom,(rep?'197 tuman va shahar':set.length+' tuman va shahar')+' kesimida: shahar o\'sishi, iqlim xavfi va aholi zaifligi')+hbKpiAgg(a)});
+  const xar='<h2>Ustuvorlik reytingi</h2>'+hbXarita(set,null,top5,420,al?270:rep?290:305)+hbLeg(), tp='<h2>Eng yuqori ball</h2><ol class="hb-top">'+top5.map(p=>'<li><b>'+hbE(hbQ(p.n))+'</b>'+(rep?'<em>'+hbE(p.v.replace(' viloyati',''))+'</em>':'')+'<span>'+p.r+'</span></li>').join('')+'</ol><div class="hb-note">Ball — bosim, xavf va zaiflikning ko\'paytmasi; yuqori ball uchala omil ham yuqori bo\'lishini talab qiladi.</div>', xl='<h2>Asosiy xulosalar</h2>'+hbXulosaAgg(set,a,nom,rep);
+  if(al){B.push({h:xar}); B.push({h:tp}); B.push({h:xl});} else {B.push({full:1,h:'<div class="hb-row"><div class="hb-c6">'+xar+'</div><div class="hb-c4">'+tp+'</div></div>'}); B.push({full:1,h:xl});}
+  B.push({h:'<h2>To\'rt omil xaritasi</h2>'+hbMini(set,null)});
+  B.push({h:'<h2>O\'sish va zaiflik</h2>'+hbNuqta(set,null,top5,520,al?300:280)});
+  B.push({h:'<h2>'+(rep?'Birinchi 25 birlik: reyting':'Ustuvorlik reytingi')+' va uning tarkibi</h2>'+hbReyting(rep?srt.slice(0,25):srt,520)});
+  B.push({h:'<h2>Aholi soni, 2010–2026'+(a.p50?' va 2050 prognozi':'')+'</h2>'+hbAholi(q,a.p50,520,al?200:170)+'<div class="hb-note">Rasmiy doimiy aholi (stat.uz), yil boshiga. Uzuq chiziq — model prognozi.</div>'});
+  if(rep){
+    const vl=[...new Set(all.map(p=>p.v))], vr=vl.map(v=>{const s=all.filter(p=>p.v===v), g=hbAgg(s,UZ.vil[v]); return {n:v,r26:g.pop,o:g.g,h1:g.h1,bws:g.bws,suv:g.suv,kan:g.kan,gaz:g.gaz,zi:g.zi,r:g.r,a:g.h0,b:g.h1,c:g.h2};}).sort((x,y)=>y.r-x.r);
+    B.push({h:'<h2>Jazirama: issiq kunlar soni, viloyatlar</h2>'+hbIssiq(vr.slice().sort((x,y)=>y.b-x.b),520)});
+    B.push({h:'<h2>Kommunal xizmatlar, viloyatlar</h2>'+hbInfra(vr.slice().sort((x,y)=>x.suv-y.suv),UZ.ij)});
+    B.push({full:1,h:'<h2>Viloyatlar: yig\'ma ko\'rsatkichlar</h2>'+hbJadval(vr)+'<div class="hb-note">Aholi bo\'yicha tortilgan o\'rtacha; reyting — viloyat tumanlari ballining o\'rtachasi.</div>'});
+  } else {
+    B.push({h:'<h2>Jazirama: yiliga issiq kunlar soni</h2>'+hbIssiq(set.map(p=>({n:p.n,a:p.c.hd35[0],b:p.c.hd35[1],c:p.c.hd35[2]})).sort((x,y)=>y.b-x.b),520)});
+    B.push({h:'<h2>Kommunal xizmatlar bilan ta\'minlanganlik</h2>'+hbInfra(set.map(p=>({n:p.n,suv:p.j.suv,kan:p.j.kan,gaz:p.j.gaz})).sort((x,y)=>(x.suv??0)-(y.suv??0)),UZ.ij)});
+  }
+  const N=al?19:35; for(let i=0;i<srt.length;i+=N) B.push({full:1,h:'<h2>Barcha birliklar'+(i?' (davomi)':'')+'</h2>'+hbJadval(srt.slice(i,i+N))});
+  B.push({full:1,h:hbMetod()});
+  return [B,rep?'O\'zbekiston':vil];}
+
+// --- sahifalash: bloklar balandligi o'lchanib, sahifa va ustunlarga joylanadi (albomda 2 ustun) ---
+function hbQur(){
+  const al=HBO==='al', host=document.getElementById('hbd'), [B,nm]=hbBloklar(al); host.innerHTML=''; host.className=al?'al':'pt';
+  document.querySelectorAll('#hbo button').forEach(b=>b.classList.toggle('on',b.dataset.o===HBO));
+  let st=document.getElementById('hbpg'); if(!st){st=document.createElement('style'); st.id='hbpg'; document.head.appendChild(st);} st.textContent='@media print{@page{size:A4 '+(al?'landscape':'portrait')+';margin:0}}';
+  let body,H,y,reg; const pages=[];
+  const yangi=()=>{const s=document.createElement('section'); s.className='pg'; body=document.createElement('div'); body.className='hb-body'; s.appendChild(body); const f=document.createElement('div'); f.className='hb-ft'; s.appendChild(f); host.appendChild(s); pages.push(f); H=body.clientHeight; y=0; reg=null;};
+  const yop=()=>{if(reg){y+=Math.max(reg.h[0],reg.h[1]); reg=null;}};
+  const el=h=>{const d=document.createElement('div'); d.className='hb-blk'; d.innerHTML=h; return d;};
+  yangi();
+  B.forEach(b=>{
+    if(b.full||!al){ yop(); let d=el(b.h); body.appendChild(d); let h=d.offsetHeight; if(y+h>H&&y>0){body.removeChild(d); yangi(); body.appendChild(d); h=d.offsetHeight;} y+=h; return; }
+    for(let t=0;t<3;t++){
+      if(!reg){ if(H-y<150) yangi(); const r=document.createElement('div'); r.className='hb-cols'; r.innerHTML='<div></div><div></div>'; body.appendChild(r); reg={el:r,h:[0,0],max:H-y}; }
+      const d=el(b.h); reg.el.children[0].appendChild(d); const h=d.offsetHeight, ci=reg.h[0]+h<=reg.max?0:reg.h[1]+h<=reg.max?1:(y===0&&reg.h[0]===0?0:-1);
+      if(ci>=0){ if(ci===1) reg.el.children[1].appendChild(d); reg.h[ci]+=h; return; }
+      reg.el.children[0].removeChild(d); if(reg.h[0]===0&&reg.h[1]===0) body.removeChild(reg.el); reg=null; yangi();
+    }});
+  pages.forEach((f,i)=>f.innerHTML='<span>Archemistry Lab · Yershunos — '+hbE(nm)+'</span><span>'+(i+1)+' / '+pages.length+'</span>');
+  document.title='Yershunos — '+nm+' — hisobot';}
+let HBO='pt';
+function uzHisobot(sc){
+  let w=document.getElementById('hb');
+  if(!w){w=document.createElement('div'); w.id='hb'; w.hidden=true;
+    w.innerHTML='<div class="hb-bar"><b>Hisobot</b><div class="seg sm" id="hbs"><button data-s="h" hidden>Chizilgan hudud</button><button data-s="t">Tuman</button><button data-s="v">Viloyat</button><button data-s="r">Respublika</button></div><div class="seg sm" id="hbo"><button data-o="pt">Portret</button><button data-o="al">Albom</button></div><span style="flex:1"></span><button class="play" id="hbp">Chop etish / PDF</button><button class="play" id="hbx" style="background:var(--fill);color:var(--ink)">Yopish</button></div><div id="hbd"></div>';
+    document.body.appendChild(w);
+    w.querySelectorAll('#hbs button').forEach(b=>b.onclick=()=>{HBS=b.dataset.s; hbQur(); w.scrollTop=0;});
+    w.querySelectorAll('#hbo button').forEach(b=>b.onclick=()=>{HBO=b.dataset.o; hbQur(); w.scrollTop=0;});
+    document.getElementById('hbx').onclick=()=>{w.hidden=true; document.title='Yershunos — Archemistry Lab';};
+    document.getElementById('hbp').onclick=()=>{try{window.print();}catch(e){}};}
+  return uzLoad().then(()=>{ uzInit(); uzClim(); HBS=sc||(uzSel?'t':uzV?'v':'r');
+    if(HBS==='h'&&window.HBR){const R=window.HBR, ich=(x,y,pl)=>{let k=false; pl.forEach(r=>{for(let i=0,j=r.length-1;i<r.length;j=i++){if((r[i][1]>y)!==(r[j][1]>y)&&x<(r[j][0]-r[i][0])*(y-r[i][1])/(r[j][1]-r[i][1])+r[i][0])k=!k;}}); return k;};
+      R.un=UZ.features.filter(f=>{ if(f.bb[1][0]<R.W||f.bb[0][0]>R.E||f.bb[1][1]<R.S||f.bb[0][1]>R.N) return false; const P=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+        return P.some(pl=>pl[0].some(([x,y])=>x>=R.W&&x<=R.E&&y>=R.S&&y<=R.N))||P.some(pl=>[[R.W,R.S],[R.E,R.S],[R.E,R.N],[R.W,R.N],[(R.W+R.E)/2,(R.S+R.N)/2]].some(([x,y])=>ich(x,y,pl)));}).map(f=>f.properties);}
+    w.hidden=false; hbQur(); w.scrollTop=0;});}
+document.getElementById('uzh').onclick=()=>uzHisobot();
+window.uzHisobot=uzHisobot;
 </script>
 </body>
 </html>

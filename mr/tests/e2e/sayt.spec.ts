@@ -216,8 +216,9 @@ test('Yershunos (25.11): bosh sahifa va narxlar havolasi, sahifa ochiladi, 6 rej
   const r = await page.goto(`http://127.0.0.1:${PORT}/app/yershunos/`);
   expect(r!.status()).toBe(200);
   await expect(page).toHaveTitle(/Yershunos/);
-  await expect(page.locator('#rejim button[data-v]')).toHaveCount(6);
-  expect(await page.locator('#rejim button[data-v]').evaluateAll(b => b.map(x => (x as HTMLElement).dataset.v))).toEqual(['relyef', 'toshqin', 'jala', 'iqlim', 'keng', 'hudud']);
+  await expect(page.locator('#rejim button[data-v]')).toHaveCount(7);   // 26.11: «Mamlakat» — kirishdagi rejim
+  expect(await page.locator('#rejim button[data-v]').evaluateAll(b => b.map(x => (x as HTMLElement).dataset.v))).toEqual(['uz', 'relyef', 'toshqin', 'jala', 'iqlim', 'keng', 'hudud']);
+  await expect(page.locator('#rejim button.on')).toHaveAttribute('data-v', 'uz'); await expect(page.locator('body')).toHaveClass(/uz-on/);
   // sarlavha: faqat Lab logotipi (SVG) + «Yershunos», «Archemistry Lab» yozuvisiz; bosh sahifaga havola
   const brand = page.locator('.top a.brand');
   await expect(brand.locator('svg.logo path')).toHaveCount(1); await expect(brand).toHaveText('Yershunos');
@@ -227,7 +228,7 @@ test('Yershunos (25.11): bosh sahifa va narxlar havolasi, sahifa ochiladi, 6 rej
   for (const f of ['funksional.geojson', 'vodiy_tubi.geojson']) {
     const p = join(ROOT, 'app/yershunos', f); expect(existsSync(p)).toBe(true); expect(statSync(p).size).toBeLessThanOrEqual(2 * 1024 * 1024);
   }
-  for (const f of ['hududlar.json', 'iqlim.json', 'tiles/8/178/95.png', 'jala/P50_max.png', 'hudud/angren/meta.json']) expect((await page.request.get(`http://127.0.0.1:${PORT}/app/yershunos/${f}`)).status()).toBe(200);
+  for (const f of ['uzb_birliklar.geojson', 'hududlar.json', 'iqlim.json', 'tiles/8/178/95.png', 'jala/P50_max.png', 'hudud/angren/meta.json']) expect((await page.request.get(`http://127.0.0.1:${PORT}/app/yershunos/${f}`)).status()).toBe(200);
 });
 
 test('Yershunos · istalgan hudud (25.11): global DEM, brauzerda relyef skriningi — chizish, natija paneli, qatlamlar', async ({ page }) => {
@@ -257,5 +258,17 @@ test('Yershunos · istalgan hudud (25.11): global DEM, brauzerda relyef skrining
   await page.waitForTimeout(900);
   await page.mouse.move(700, 300); await page.mouse.down(); await page.mouse.move(1000, 600, { steps: 6 }); await page.mouse.up();
   await expect(page.locator('#hreqi')).toContainText(/tayyor|oralig/, { timeout: 30_000 });
+  // 26.11: hisobot (A4 portret/albom) — chizilgan hudud, respublika va tuman; hech bir sahifa toshmaydi
+  const tosh = () => page.evaluate(() => [...document.querySelectorAll('#hbd .hb-body')].map(b => b.scrollHeight - b.clientHeight).filter(x => x > 1).length);
+  await page.evaluate(() => (window as any).hbHisob(76.75, 43.0, 77.15, 43.3));
+  await page.evaluate(() => (window as any).uzHisobot('h'));
+  await expect(page.locator('#hbd .pg').first()).toContainText('Relyef va suv yo'); expect(await tosh()).toBe(0);
+  for (const o of ['al', 'pt']) {
+    await page.click(`#hbo button[data-o=${o}]`); await page.click('#hbs button[data-s=r]');
+    await expect(page.locator('#hbd .pg').first()).toContainText('197 tuman va shahar');
+    expect(await page.locator('#hbd .pg').count()).toBeGreaterThan(8); expect(await tosh()).toBe(0);
+    expect(await page.locator('#hbd .pg').first().evaluate(e => Math.round(e.getBoundingClientRect().width / e.getBoundingClientRect().height * 100))).toBe(o === 'al' ? 141 : 71);
+  }
+  await page.click('#hbx');
   expect(errs).toEqual([]);
 });
