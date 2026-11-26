@@ -1125,7 +1125,7 @@ export class Editor {
     const cur = this.ctxMgr.current, C = cs.area ? areaFrame(cs.area).center : doc.origin;   // chegara boʻyicha — atrof markazi chegara qutisi markazida
     const covers = (b: ContextBundle | null) => !!b && b.radius >= cs.radius && dist(b.center, C) + cs.radius <= b.radius + 60;
     if (!force && covers(cur)) { this.showContext(cur); return; }
-    track('mr/calc/area');
+    track('mr/calc/area', true);   // sahifada bir marta — har yuklashda emas (oldin ~20 hodisa / brauzer)
     if (this.ctx.busy && !force) return;
     this.ctx = { busy: true, msg: 'Keshdan…', frac: 0.02, err: '' }; this.renderPanel(); this.renderBadge();
     try {
