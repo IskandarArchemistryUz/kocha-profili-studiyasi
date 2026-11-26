@@ -248,7 +248,18 @@ window.BINOKOR_I18N = {
  "Kirdingiz": ["Signed in", "Вы вошли"],
  "Xato yuz berdi": ["Something went wrong", "Произошла ошибка"],
  "Google bilan kirish — Master reja sahifasida; keyin bu yerga qayting.": ["Google sign-in is on the Master plan page; then come back here.", "Вход через Google — на странице Мастер-плана; затем вернитесь сюда."],
- "Egasi — bepul": ["Owner — free", "Владелец — бесплатно"]
+ "Egasi — bepul": ["Owner — free", "Владелец — бесплатно"],
+ // ——— xavfsizlik qatlami (26.11, binokor-safe.js)
+ "Oldingi model qaytarildi": ["Previous model restored", "Предыдущая модель восстановлена"],
+ "Bekor qilish": ["Cancel", "Отмена"],
+ "Almashtirish": ["Replace", "Заменить"],
+ "Joriy model almashtiriladi": ["The current model will be replaced", "Текущая модель будет заменена"],
+ "Yangi loyiha boshlansinmi?": ["Start a new project?", "Начать новый проект?"],
+ "Modelda # ta element bor. Ular oʻrniga parametrik natija qoʻyiladi. Ctrl+Z bilan qaytarish mumkin.": ["The model has # elements. They will be replaced by the parametric result. You can undo with Ctrl+Z.", "В модели # элементов. Они будут заменены параметрическим результатом. Можно отменить через Ctrl+Z."],
+ "Modelda # ta element bor. Ular oʻrniga boʻsh loyiha qoʻyiladi. Ctrl+Z bilan qaytarish mumkin.": ["The model has # elements. They will be replaced by an empty project. You can undo with Ctrl+Z.", "В модели # элементов. Они будут заменены пустым проектом. Можно отменить через Ctrl+Z."],
+ "Modelda # ta element bor. Ular oʻrniga yangi model qoʻyiladi. Ctrl+Z bilan qaytarish mumkin.": ["The model has # elements. They will be replaced by a new model. You can undo with Ctrl+Z.", "В модели # элементов. Они будут заменены новой моделью. Можно отменить через Ctrl+Z."],
+ "Parametrik grafda natija yoʻq — tugunlarni «Binokor ⟶ model» ga ulang yoki namunani tanlang": ["The parametric graph has no result — connect nodes to “Binokor ⟶ model” or pick a sample", "В параметрическом графе нет результата — подключите узлы к «Binokor ⟶ model» или выберите пример"],
+ "3D da surish: D tugmasi yoki «Surish» asbobi — tayanch nuqta, keyin yangi joy": ["Moving in 3D: press D or use the Move tool — base point, then the new position", "Перемещение в 3D: клавиша D или инструмент «Переместить» — базовая точка, затем новое место"]
 };
 /* Oʻzbekcha atamalar (15.11 qarori): eski soʻz → yangi. Butun soʻz sifatida almashtiriladi. */
 window.BINOKOR_UZ_TERMS = [
