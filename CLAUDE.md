@@ -9,7 +9,7 @@ R=repos/IskandarArchemistryUz/kocha-profili-studiyasi
 for n in $(gh api "$R/pulls?state=open" --jq '.[].number'); do echo "#$n $(gh api $R/pulls/$n --jq .title)"; gh api "$R/pulls/$n/files?per_page=100" --jq '.[].filename' | sed 's/^/   /'; done
 ```
 - Ochiq PR siz tegmoqchi boʻlgan faylni oʻzgartirayotgan boʻlsa — oʻsha fayllarga tegmang, egasiga ayting.
-- Oʻz xizmatingizning eng yangi holat hujjatini oʻqing (loyiha hujjatlari: `claude/<xizmat>-…-holat-<kun>-<oy>.md`). Ish tugaganda uni yangilang.
+- Oʻz xizmatingizning holat hujjatini oʻqing (`claude/<xizmat>-holat.md`; hali yoʻq boʻlsa — eng yangi `claude/<xizmat>-…-holat-<kun>-<oy>.md`). Ish tugaganda uni yangilang — 9-boʻlimga qarang.
 
 ## 2. Kim nimaga egalik qiladi
 | Xizmat | Fayllar |
@@ -60,7 +60,15 @@ Boshqa xizmatning sinovini oʻzingiz «tuzatmang» — holatini oʻsha xizmat hu
 ## 7. Xizmatga xos
 - **Binokor:** manba — `mr/public/binokor*` (repo). Artifaktdan qayta yigʻilmaydi (`site_variant.py` ishlatilmasin — ustidan yozib yuboradi). `binokor.html` dagi skriptlar tartibi muhim; `binokor_manba` sinovi buni tekshiradi.
 
-## 8. Hech qachon
+## 8. Loyiha hujjatlari (claude.ai «Archemistry Lab» loyihasi)
+Loyiha sigʻimi qatʼiy: ~2 MB matn. Shuning uchun:
+- **Bitta xizmat — bitta holat hujjati:** `claude/<xizmat>-holat.md`. Yangilaganda shu faylning ustidan yoziladi (`project_read` → oʻzgartirish → `project_write` xuddi shu yoʻlga). Har kuni yangi sanali fayl ochilmaydi.
+- Holat hujjati tarkibi: hozirgi holat (nima saytda, qaysi PR) · **ochiq qarorlar va qilinmaganlar** · navbat · saboqlar. Tugagan ish tafsiloti — PR tavsifida, hujjatda emas.
+- Alohida hujjat faqat mustaqil qiymatga ega boʻlsa (tadqiqot, meʼyor tahlili, dizayn qarori). Topshiriq va HANDOFF — ish tugagach ochiq qismi holat hujjatiga koʻchiriladi.
+- **Kod loyihaga yuklanmaydi.** Skript, prototip, maʼlumot fayli (`*.py`, `*.js`, `*.ts`, `*.csv`, `*.html`) — repoga PR (`tools/<xizmat>/` yoki xizmat papkasi). Loyiha hujjatida faqat yoʻl.
+- **Eski hujjatni oʻchirish:** faqat undagi ochiq qarorlar, raqamlar va manbalar holat hujjatiga yoki repoga koʻchirilganini tekshirgandan keyin va faqat oʻz xizmatingiz hujjatlarini. Kod (`*-src/`) — faqat repoda shu fayl borligi (mazmuni bilan) tekshirilgandan keyin.
+
+## 9. Hech qachon
 - Maxfiy qiymatlar (kalit, parol, token, `.env`) — repoga ham, chatga ham.
 - Egasi soʻramagan funksiyani olib tashlash.
 - Boshqa chat ochgan PR ni yopish, uning shoxini oʻchirish yoki unga push qilish.
