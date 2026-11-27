@@ -21,7 +21,7 @@ test.afterAll(() => { srv?.close(); });
 
 for (const lang of ['en', 'ru'] as const) {
   test(`Yershunos · til: ${lang} — barcha rejimlar, lugʻatda yoʻq matn qolmaydi`, async ({ page }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(360_000);
     const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
     await page.addInitScript(l => { try { localStorage.setItem('mr-lang', l); } catch { /* */ } }, lang);
     await page.route(/fonts\.g|nominatim/, r => r.abort());
@@ -57,10 +57,27 @@ for (const lang of ['en', 'ru'] as const) {
     await page.evaluate(() => (window as any).hbHisob(76.75, 43.0, 77.15, 43.3));
     await expect(page.locator('#hdb')).toContainText(lang === 'en' ? 'IN-BROWSER SCREENING' : 'СКРИНИНГ В БРАУЗЕРЕ');
     await expect(page.locator('#kpibar')).toContainText(lang === 'en' ? 'Valley floor' : 'Днище долины');
+    // hisobot (PDF): chizilgan hudud, respublika, viloyat, tuman — ikkala varaq yoʻnalishida, sahifa toshmaydi
+    const tosh = () => page.evaluate(() => [...document.querySelectorAll('#hbd .hb-body')].map(b => b.scrollHeight - b.clientHeight).filter(x => x > 1).length);
+    await page.evaluate(() => (window as any).uzHisobot('h'));
+    await expect(page.locator('#hbd .pg').first()).toContainText(lang === 'en' ? 'Terrain and drainage screening' : 'Скрининг рельефа и водотоков'); expect(await tosh()).toBe(0);
+    await expect(page.locator('#hb .hb-bar')).toContainText(lang === 'en' ? 'Print / PDF' : 'Печать / PDF');
+    await page.click('#hbs button[data-s=r]');
+    await expect(page.locator('#hbd .pg').first()).toContainText(lang === 'en' ? 'By 197 districts and cities' : 'В разрезе 197 районов и городов'); expect(await tosh()).toBe(0);
+    await page.click('#hbo button[data-o=al]'); expect(await tosh()).toBe(0);
+    await page.click('#hbx');
+    await page.click('#rejim button[data-v=uz]'); await page.selectOption('#uzv', 'Toshkent shahri'); await page.evaluate(() => (window as any).uzHisobot('v'));
+    await expect(page.locator('#hbd .pg').first()).toContainText(lang === 'en' ? 'Tashkent city' : 'город Ташкент'); expect(await tosh()).toBe(0);
+    await page.click('#hbo button[data-o=pt]'); expect(await tosh()).toBe(0); await page.click('#hbx');
+    await page.selectOption('#uzv', ''); await page.evaluate(() => (window as any).uzPick("Ko'kdala tumani + Chiroqchi tumani", false)); await page.evaluate(() => (window as any).uzHisobot('t'));
+    await expect(page.locator('#hbd .pg').first()).toContainText(lang === 'en' ? "Ko'kdala district + Chiroqchi district" : "район Ko'kdala + район Chiroqchi"); expect(await tosh()).toBe(0);
+    await page.click('#hbo button[data-o=al]'); expect(await tosh()).toBe(0);
+    await expect(page).toHaveTitle(lang === 'en' ? /— report$/ : /— отчёт$/);
+    await page.click('#hbx');
     // lugʻatda yoʻq matn qolmagan; panelda oʻzbekcha xizmatchi soʻzlar yoʻq
     expect(await page.evaluate(() => Object.keys((window as any).T.yoq))).toEqual([]);
     const qoldiq = await page.evaluate(() => { const re = /\b(bo'yicha|uchun|hisoblan|yillik|tumanlar|aholi|maydon|ko'rsat|bo'lgan|emas)\b/i, o: string[] = [];
-      document.querySelectorAll('.top, #rejim, #panel, #kpibar, .mapctl, #uzw').forEach(r => { const w = document.createTreeWalker(r, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const t = (n.nodeValue || '').trim(); if (t && re.test(t) && !(n.parentElement as HTMLElement).closest('pre,[data-noi18n]')) o.push(t.slice(0, 80)); } }); return o; });
+      document.querySelectorAll('.top, #rejim, #panel, #kpibar, .mapctl, #uzw, #hb').forEach(r => { const w = document.createTreeWalker(r, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const t = (n.nodeValue || '').trim(); if (t && re.test(t) && !(n.parentElement as HTMLElement).closest('pre,[data-noi18n]')) o.push(t.slice(0, 80)); } }); return o; });
     expect(qoldiq).toEqual([]);
     expect(errs).toEqual([]);
   });
