@@ -254,6 +254,7 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
 .hb-src{margin-top:4mm;padding-top:2mm;border-top:1px solid #d9e1e5;font-size:7.8pt;color:#55656e}
 .hb-ft{position:absolute;left:14mm;right:14mm;bottom:7mm;display:flex;justify-content:space-between;font-size:7.4pt;color:#6b7a83;border-top:1px solid #e4eaed;padding-top:1.5mm}
 body.uz-on .lbl{display:none}
+.jt{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}.jt th{font-weight:500;color:var(--muted);text-align:right;padding:2px 4px;font-size:10px}.jt td{text-align:right;padding:3px 4px;border-top:1px solid var(--hairline);font-family:var(--mono)}.jt th:first-child,.jt td:first-child{text-align:left}.jt tr[data-j]{cursor:pointer}.jt tr[data-j]:hover td{background:var(--fill)}
 @media screen{#hbd{zoom:var(--hz,1)}}
 @media print{
   html,body{height:auto!important;overflow:visible!important;background:#fff!important}
@@ -966,6 +967,7 @@ map.on('touchstart',dStart); map.on('touchmove',dMove); map.on('touchend',dEnd);
 // 1) DEM plitkalari → balandlik to'ri; 2) priority-flood (chuqurlar to'ldiriladi, har katak oqim yo'nalishi oladi);
 // 3) oqim to'planishi → oqim tarmog'i; 4) o'zandan balandlik (HAND) ≤ 5 m → vodiy tubi; 5) qiyalik statistikasi.
 let HK=null;
+function tekisOld(zv,w,h,dx){let f=0,m=0; for(let y=1;y<h-1;y+=2)for(let x=1;x<w-1;x+=2){const i=y*w+x; m++; if(Math.atan(Math.hypot(zv[i+1]-zv[i-1],zv[i+w]-zv[i-w])/(2*dx))*180/Math.PI<1)f++;} return m?f/m:0;}
 async function hbHisob(W,S,E,N){
   const t0=performance.now(), lat0=(S+N)/2, mx=l=>(l+180)/360, my=l=>{const q=Math.sin(l*Math.PI/180);return .5-Math.log((1+q)/(1-q))/(4*Math.PI)};
   let z=12; for(;z>5;z--){const a=(mx(E)-mx(W))*256*2**z,b=(my(S)-my(N))*256*2**z; if(a*b<=1.1e6&&a<=1600&&b<=1600)break;}
@@ -992,6 +994,19 @@ async function hbHisob(W,S,E,N){
   for(let k=0;k<n;k++){const c=ord[k], st=acc[c]>=thr; base[c]=st?zv[c]:(dir[c]<0?NaN:base[dir[c]]);
     if(st){ if(dir[c]>=0){const d=Math.abs(dir[c]-c); uz+=(d===1||d===w)?dx:dx*1.4142;} if(acc[c]>amax)amax=acc[c]; }
     if(zv[c]-base[c]<=5) vb++; }
+  // jala skriningi: eng uzun oqim yo'li → Kirpich Tc → SCS-CN (10 daq) × SCS birlik gidrografi; CN 79, tekis 3 soatlik jala (27.11 kalibrlash: Chimgansoy 2D ga nisbatan 80 mm da −13 %)
+  const Lp=new Float32Array(n), zt=Float32Array.from(zv), chet=new Float32Array(n);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++) if(x<2||y<2||x>w-3||y>h-3) chet[y*w+x]=1;
+  for(let k=n-1;k>=0;k--){const c=ord[k], q=dir[c]; if(q<0)continue; const d=Math.abs(q-c), st=(d===1||d===w)?dx:dx*1.4142; if(Lp[c]+st>Lp[q]){Lp[q]=Lp[c]+st; zt[q]=zt[c];} chet[q]+=chet[c];}
+  const jPe=(P,cn)=>{const S=25400/cn-254; return Math.pow(Math.max(P-0.2*S,0),2)/(P+0.8*S);};
+  const jQ=(A,tc,P,cn)=>{const dt=1/6, m=18, e=[]; for(let i=1;i<=m;i++) e.push(jPe(P*i/m,cn)); const tp=dt/2+0.6*tc, tb=2.67*tp, qp=0.208*A/tp, st=dt/4, nu=Math.ceil(tb/st)+1, Q=new Float32Array(nu+m*4+2); let mxq=0;
+    for(let i=0;i<m;i++){const de=e[i]-(i?e[i-1]:0); if(de<=0)continue; for(let u=0;u<nu;u++){const t=u*st, v=t<=tp?t/tp:Math.max(0,(tb-t)/(tb-tp)); Q[i*4+u]+=de*v*qp;}} for(let i=0;i<Q.length;i++) if(Q[i]>mxq)mxq=Q[i]; return mxq;};
+  const jal=[]; if(tekisOld(zv,w,h,dx)<=0.5){ const amin=Math.max(3,thrKm)/ckm, amaxj=150/ckm, nom=[];
+    for(let c=0;c<n;c++){ if(acc[c]<amin||acc[c]>amaxj)continue; const q=dir[c]; if(q>=0&&acc[q]<2.2*acc[c]&&acc[q]<=amaxj)continue; nom.push(c); }   // chiqish nuqtasi: chegara, yirik daryoga quyilish yoki 150 km² dan oshish
+    nom.sort((a,b)=>acc[b]-acc[a]); const tan=new Set();
+    for(const c of nom){ if(jal.length>=12)break; let q=c, ich=false; for(let g=0;g<n&&q>=0;g++){ if(q!==c&&tan.has(q)){ich=true;break;} q=dir[q]; } if(ich)continue;
+      const A=acc[c]*ckm, L=Math.max(Lp[c],dx), Sx=Math.max((zt[c]-zv[c])/L,0.002), tc=0.0195*Math.pow(L,0.77)*Math.pow(Sx,-0.385)/60, x=c%w, y=(c-x)/w;
+      tan.add(c); jal.push({x,y,A,L:L/1000,S:Sx*100,tc:tc*60,q50:jQ(A,tc,50,79),q80:jQ(A,tc,80,79),q80a:jQ(A,tc,80,70),q80b:jQ(A,tc,80,86),chet:chet[c]>Math.max(12,0.8*Math.sqrt(acc[c]))}); } }
   // qiyalik va balandlik statistikasi
   const hg=new Uint32Array(181); let ns=0, f1c=0, s15=0, s30=0;
   for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x, g=Math.atan(Math.hypot(zv[i+1]-zv[i-1],zv[i+w]-zv[i-w])/(2*dx))*180/Math.PI; ns++; hg[Math.min(180,Math.round(g*2))]++; if(g<1)f1c++; if(g>15)s15++; if(g>30)s30++;}
@@ -1018,16 +1033,24 @@ async function hbHisob(W,S,E,N){
   s+='<div class="k">Qiyalik: median · tekis (&lt;1°) · tik (&gt;15°) · juda tik (&gt;30°)</div><div style="font-size:12px">'+c1(med)+'° · '+pc(tekis)+' · '+pc(s15/ns)+' · '+pc(s30/ns)+'</div>';
   s+='<div class="k">Oqim tarmog\'i (havzasi ≥ '+c1(thrKm)+' km²)</div><div style="font-size:12px">'+sp(uz/1000)+' km · zichligi '+c1(uz/1000/maydon)+' km/km² · eng katta ichki havza '+sp(amax*ckm)+' km²</div>';
   s+='<div class="k">Vodiy tubi (o\'zandan ≤ 5 m baland)</div><div style="font-size:12px">'+(tk?'— tekis hududda hisoblanmaydi':c1(vb*ckm)+' km² · hududning '+c1(vb/n*100)+' %')+'</div>';
-  s+='<div class="k">Qurilish yillari · iqlim · jala · kasalxonagacha vaqt</div><div style="font-size:12px">— server hisobi kerak («Yangi hudud» bo\'limidagi so\'rov)</div>';
+  s+='<div class="k">Jala: asosiy soylarda eng katta sarf (3 soatlik jala)</div>'+(tk||!jal.length?'<div style="font-size:12px">— '+(tk?'tekis hududda hisoblanmaydi':'havzasi 3–150 km² bo\'lgan soy topilmadi')+'</div>':
+    '<table class="jt"><tr><th>№</th><th>havza, km²</th><th>suv yetadi</th><th>50 mm</th><th>80 mm, m³/s</th></tr>'+jal.map((j,i)=>'<tr data-j="'+i+'"><td>'+(i+1)+'</td><td>'+c1(j.A)+(j.chet?'*':'')+'</td><td>'+(j.tc<90?Math.round(j.tc)+' daq':c1(j.tc/60)+' soat')+'</td><td>'+sp(j.q50)+'</td><td><b>'+sp(j.q80)+'</b></td></tr>').join('')+'</table>'+
+    '<div class="bq">Aniqlik taxminan ±50 %; 50 mm dan kichik jalada ishonchsiz. '+(jal.some(j=>j.chet)?'* havza chizilgan chegaraga tegadi — sarf kam baholangan bo\'lishi mumkin. ':'')+'Raqam xaritadagi nuqtaga mos; qatorni bossangiz — o\'sha joyga.</div>');
+  s+='<div class="k">Qurilish yillari · iqlim · kasalxonagacha vaqt</div><div style="font-size:12px">— tuman bo\'yicha: «Hisobot (PDF)» da; aniq hisob — server so\'rovi</div>';
   const B=['relyef: Global DEM (Terrain Tiles, ~'+Math.round(dx)+' m katak, z'+z+') — Copernicus GLO-30 dan dag\'alroq; binolar va o\'rmon balandligi relyefga qo\'shilgan bo\'lishi mumkin',
     'relyef: Oqim faqat chizilgan to\'rtburchak ichida to\'planadi — tashqaridan kiradigan daryolar havzasi hisobga olinmaydi (yirik daryo tarmoqda ko\'rinmasligi mumkin)',
-    'relyef: Vodiy tubi — geometrik belgi (HAND ≤ 5 m), toshqin chegarasi emas; gidravlik model o\'rnini bosmaydi'];
+    'relyef: Vodiy tubi — geometrik belgi (HAND ≤ 5 m), toshqin chegarasi emas; gidravlik model o\'rnini bosmaydi',
+    'jala: Gidrologik baho (SCS-CN, CN 79; Kirpich; birlik gidrografi), 2D model emas — suv qayerga yoyilishini bermaydi; jala butun havzaga bir tekis; sel (loy-tosh) emas, toza suv'];
   if(tk) B.unshift('tekislik: '+pc(tekis)+' maydon qiyaligi < 1°: vodiy tubi hisoblanmadi, oqim tarmog\'i ishonchsiz — DEM shovqini va kanal/zovur tarmog\'isiz');
   s+='<div class="k" style="color:var(--mag)">Ogohlantirishlar</div>'+B.map(b=>'<div class="bq">• '+b.replace(/^(\w+): /,'<b>$1:</b> ')+'</div>').join('');
   s+='<div class="k">BRAUZERDA SKRINING · '+c1((performance.now()-t0)/1000)+' s · DASTLABKI BAHO</div>';
   HK=[['Hudud',sp(maydon)+' km²'],['Balandlik',sp(zmin)+'–'+sp(zmax)+' m'],['Tik (>15°)',pc(s15/ns)],['Vodiy tubi',tk?'—':c1(vb*ckm)+' km²']];
   s+='<button class="play wide" id="hbrep" style="margin-top:10px">Hisobot (PDF)</button>';
   document.getElementById('hdb').innerHTML=s;
+  { const gj={type:'FeatureCollection',features:jal.map((j,i)=>({type:'Feature',properties:{i:i+1},geometry:{type:'Point',coordinates:[lo(px0+j.x+.5),la(py0+j.y+.5)]}}))};
+    if(map.getSource('hb_j')) map.getSource('hb_j').setData(gj); else {map.addSource('hb_j',{type:'geojson',data:gj}); map.addLayer({id:'hb_j',type:'circle',source:'hb_j',paint:{'circle-radius':6,'circle-color':'#ff4fa3','circle-stroke-color':'#fff','circle-stroke-width':1.6}}); hdLay.push('hb_j');}
+    map.setLayoutProperty('hb_j','visibility','visible');
+    document.querySelectorAll('#hdb .jt tr[data-j]').forEach(r=>r.onclick=()=>{const f=gj.features[+r.dataset.j]; map.flyTo({center:f.geometry.coordinates,zoom:Math.max(map.getZoom(),12.5),duration:1200});}); }
   { // hisobot uchun: sxema-xarita (relyef soyasi + soylar + vodiy tubi), balandlik kvantillari, qiyalik sinflari
     const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'), I=g.createImageData(w,h), D=I.data, zr=(so[n-1]-so[0])||1;
     for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x, xa=x>0?i-1:i, xb=x<w-1?i+1:i, ya=y>0?i-w:i, yb=y<h-1?i+w:i, gx=(zv[xb]-zv[xa])/(2*dx), gy=(zv[yb]-zv[ya])/(2*dx);
@@ -1037,8 +1060,9 @@ async function hbHisob(W,S,E,N){
       D[4*i]=Math.min(255,r); D[4*i+1]=Math.min(255,gg); D[4*i+2]=Math.min(255,bl); D[4*i+3]=255;}
     for(let i=0;i<n;i++) if(acc[i]>=thr){const r=acc[i]>=thr*40?2:(acc[i]>=thr*6?1:0), x=i%w, y=(i-x)/w;
       for(let j=-r;j<=r;j++)for(let k=-r;k<=r;k++){const X=x+k,Y=y+j; if(X<0||Y<0||X>=w||Y>=h||(r===2&&Math.abs(j)+Math.abs(k)>3))continue; const q=4*(Y*w+X); D[q]=30;D[q+1]=150;D[q+2]=200;}}
-    g.putImageData(I,0,0); const sh=[0,0,0,0,0]; for(let k=0;k<181;k++) sh[k<2?0:k<10?1:k<30?2:k<60?3:4]+=hg[k]/ns;
-    window.HBR={ar:w/h,W,S,E,N,lat:lat0,lon:(W+E)/2,maydon,zmin,zmed,zmax,med,tk,uz,thrKm,amax:amax*ckm,vb:vb*ckm,vbp:vb/n,dx,sh,q:Array.from({length:21},(_,k)=>so[Math.min(n-1,Math.round(k/20*(n-1)))]),img:c.toDataURL('image/jpeg',.88)};
+    g.putImageData(I,0,0); { const r=Math.max(7,Math.round(Math.min(w,h)/70)); g.font='700 '+Math.round(r*1.25)+'px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; jal.forEach((j,i)=>{g.beginPath(); g.arc(j.x,j.y,r,0,7); g.fillStyle='#10222b'; g.fill(); g.lineWidth=Math.max(1.5,r/5); g.strokeStyle='#fff'; g.stroke(); g.fillStyle='#fff'; g.fillText(String(i+1),j.x,j.y+r*0.08);}); }
+    const sh=[0,0,0,0,0]; for(let k=0;k<181;k++) sh[k<2?0:k<10?1:k<30?2:k<60?3:4]+=hg[k]/ns;
+    window.HBR={jal,ar:w/h,W,S,E,N,lat:lat0,lon:(W+E)/2,maydon,zmin,zmed,zmax,med,tk,uz,thrKm,amax:amax*ckm,vb:vb*ckm,vbp:vb/n,dx,sh,q:Array.from({length:21},(_,k)=>so[Math.min(n-1,Math.round(k/20*(n-1)))]),img:c.toDataURL('image/jpeg',.88)};
     document.getElementById('hbrep').onclick=()=>uzHisobot('h'); }
   return {z,w,h,maydon,zmin,zmax,tekis,uz,vb:vb*ckm};}
 window.hbHisob=hbHisob;
@@ -1305,7 +1329,8 @@ function hbMetodH(R){return '<h2>Metodika va cheklovlar</h2><div class="hb-2c">'
   '<p><b>Oqim tarmog\'i.</b> Chuqurliklar to\'ldirilib (priority-flood), har katakdan eng past qo\'shniga oqim yo\'naltiriladi; havzasi '+hbF(R.thrKm,1)+' km² dan katta kataklar soy deb olinadi. Oqim faqat chizilgan to\'rtburchak ichida to\'planadi: tashqaridan kiradigan daryolar havzasi hisobga olinmaydi.</p>'+
   '<p><b>Vodiy tubi.</b> Eng yaqin o\'zandan 5 m gacha baland yerlar (HAND ≤ 5 m). Bu geometrik belgi: suv bosish chegarasi emas va gidravlik model o\'rnini bosmaydi. Tekis hududlarda hisoblanmaydi.</p>'+
   '<p><b>Tuman ko\'rsatkichlari.</b> Hudud tushadigan tuman va shaharlarning rasmiy va model ko\'rsatkichlari (stat.uz, World Bank CCKP, WRI Aqueduct 4.0) — tuman bo\'yicha o\'rtacha; chizilgan hududning o\'ziga xos qiymati emas.</p>'+
-  '<p><b>Bu hisobotda yo\'q.</b> Toshqin chuqurligi va tezligi, jala oqimi, sel, ko\'chki va seysmik xavf, binolar va aholi soni — bular uchun joyning batafsil modeli kerak (Yershunosda hozircha namuna hududlar uchun bajarilgan).</p>'+
+  '<p><b>Jala.</b> Har soy uchun: eng uzun oqim yo\'li va nishabdan suv yig\'ilish vaqti (Kirpich); oqim qatlami SCS-CN usulida (CN 79, 10 daqiqalik qadam); eng katta sarf — SCS uchburchak birlik gidrografi bilan. To\'liq 2D model bilan bitta tik havzada solishtirilgan (Chimgansoy, 15,5 km²): 80 mm jalada −13 %, 50 mm da +55 %; kichik jalada usul oshirib ko\'rsatadi. Sel (loy-tosh oqimi) emas, toza suv: selda hajm 1,5–3 baravar katta bo\'lishi mumkin.</p>'+
+  '<p><b>Bu hisobotda yo\'q.</b> Toshqin chuqurligi va tezligi, suvning yoyilishi, sel, ko\'chki va seysmik xavf, binolar va aholi soni — bular uchun joyning batafsil modeli kerak (Yershunosda hozircha namuna hududlar uchun bajarilgan).</p>'+
   '</div><div class="hb-src">Manbalar: Terrain Tiles (Mapzen / AWS Open Data) · stat.uz (SIAT) · World Bank CCKP · WRI Aqueduct 4.0 · © OpenStreetMap hissadorlari. Hisob-kitob: Archemistry Lab, Yershunos.</div>';}
 
 function hbBloklarH(R,al){
@@ -1317,12 +1342,14 @@ function hbBloklarH(R,al){
   const x=[]; const tik=R.sh[3]+R.sh[4];
   x.push('<b>Relyef.</b> Balandlik '+hbN(R.zmin)+' dan '+hbN(R.zmax)+' m gacha (farq '+hbN(R.zmax-R.zmin)+' m). Hududning '+hbF(R.sh[0]*100,0)+' % i tekis (1° dan kam), '+hbF(tik*100,0)+' % i tik (15° dan ortiq).'+(tik>0.3?' Tik yonbag\'irlar ulushi katta: qurilish uchun yaroqli yer cheklangan, ko\'chki va sel xavfi alohida o\'rganilishi kerak.':tik<0.05?' Yonbag\'irlar asosan yotiq: relyef qurilishni cheklamaydi, lekin suv oqib ketishi sust.':''));
   x.push('<b>Suv yo\'llari.</b> Havzasi '+hbF(R.thrKm,1)+' km² dan katta soylarning umumiy uzunligi '+hbN(R.uz/1000)+' km. '+(R.tk?'Hudud asosan tekis: relyefdan soy tarmog\'ini ishonchli ajratib bo\'lmaydi, suv yo\'llari kanal va zovurlar bilan belgilanadi.':'Vodiy tubi (o\'zandan 5 m gacha) '+hbF(R.vb,1)+' km² — hududning '+hbF(R.vbp*100,1)+' % i. Bu yerlar toshqin va sel uchun birinchi navbatda tekshiriladigan zona: qurilish taklif qilinsa, gidravlik hisob shart.'));
+  if(R.jal&&R.jal.length){const tz=R.jal.slice().sort((a,b)=>a.tc-b.tc)[0], kt=R.jal[0], t1=R.jal.filter(j=>j.tc<60).length; x.push('<b>Jala.</b> '+R.jal.length+' ta asosiy soy baholandi. Eng katta havza — '+hbF(kt.A,0)+' km²: 80 mm lik jalada eng katta sarf taxminan '+hbN(kt.q80)+' m³/s, suv '+(kt.tc<90?Math.round(kt.tc)+' daqiqada':hbF(kt.tc/60,1)+' soatda')+' yetib keladi. '+(t1?t1+' ta soyda suv bir soatdan tez keladi — ogohlantirishga vaqt deyarli yo\'q; bu soylar bo\'yida qurilish taklif qilinsa, o\'zan o\'tkazuvchanligi va ko\'priklar tekshirilishi shart.':'Barcha soylarda suv yetib kelishi bir soatdan ortiq.'));}
   if(R.un&&R.un.length){const a=hbAgg(R.un,null);
     x.push('<b>Iqlim va suv (tumanlar bo\'yicha).</b> Hudud '+R.un.length+' ta tuman yoki shahar hududiga tushadi. Ularda yiliga issiq kunlar (Tmax > 35 °C) '+hbF(a.h0,0)+' dan 2050-yilga '+hbF(a.h1,0)+' ga yetadi; havza bo\'yicha suv stressi '+hbF(a.bws,1)+' / 5 ('+uzSvN(a.bws)+').');
     x.push('<b>Aholi va xizmatlar (tumanlar bo\'yicha).</b> Ichimlik suvi bilan ta\'minlanganlik '+hbF(a.suv,0)+' %, kanalizatsiya '+hbF(a.kan,0)+' %; zaiflik indeksi '+hbF(a.zi,0)+' / 100.');
   } else x.push('<b>Tuman ko\'rsatkichlari.</b> Hudud O\'zbekiston tuman chegaralaridan tashqarida yoki ular bilan kesishmaydi: iqlim, suv va zaiflik ko\'rsatkichlari berilmadi.');
   const xl='<h2>Asosiy xulosalar</h2><ul class="hb-xl">'+x.map(t=>'<li>'+t+'</li>').join('')+'</ul>';
   if(al){B.push({h:xar}); B.push({h:xl});} else {B.push({full:1,h:xar}); B.push({full:1,h:xl});}
+  if(R.jal&&R.jal.length) B.push({h:'<h2>Jala: asosiy soylarda eng katta sarf</h2><table class="hb-t"><thead><tr><th>№</th><th>Havza, km²</th><th>Oqim yo\'li, km</th><th>Nishab, %</th><th>Suv yetib kelishi</th><th>50 mm, m³/s</th><th>80 mm, m³/s</th><th>80 mm oralig\'i</th></tr></thead><tbody>'+R.jal.map((j,i)=>'<tr><td>'+(i+1)+(j.chet?' *':'')+'</td><td>'+hbF(j.A,1)+'</td><td>'+hbF(j.L,1)+'</td><td>'+hbF(j.S,1)+'</td><td>'+(j.tc<90?Math.round(j.tc)+' daq':hbF(j.tc/60,1)+' soat')+'</td><td>'+hbN(j.q50)+'</td><td class="hb-b">'+hbN(j.q80)+'</td><td>'+hbN(j.q80a)+'–'+hbN(j.q80b)+'</td></tr>').join('')+'</tbody></table><div class="hb-note">3 soatlik jala butun havzaga bir tekis yog\'adi deb olingan. Raqamlar xaritadagi nuqtalarga mos (soyning hududdan chiqish yoki yirik daryoga quyilish joyi). Oraliq — tuproq va qoplam noaniqligi (CN 70–86). '+(R.jal.some(j=>j.chet)?'* havza chizilgan chegaraga tegadi: sarf kam baholangan bo\'lishi mumkin. ':'')+'Aniqlik taxminan ±50 %.</div>'});
   B.push({h:'<h2>Balandlik taqsimoti</h2>'+hbGips(R.q,R.zmin,R.zmax,520,170)});
   B.push({h:'<h2>Qiyalik tarkibi</h2>'+hbQiya(R.sh)+'<div class="hb-note">Maydon ulushi, qiyalik sinflari bo\'yicha.</div>'});
   if(R.un&&R.un.length){ B.push({h:'<h2>Hudud tushadigan tumanlar: to\'rt omil</h2>'+hbMini(R.un,null)});
