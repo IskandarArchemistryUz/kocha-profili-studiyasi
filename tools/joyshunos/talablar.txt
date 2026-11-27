@@ -1,0 +1,10 @@
+# landsat_yoz_harorat.py importlaridan tiklangan; versiyalar qadalmagan.
+# Egasining kompyuteridagi talablar_v2.txt bilan solishtirib, kerak bo'lsa yangilang.
+numpy
+xarray
+pystac-client
+planetary-computer
+odc-stac
+rioxarray
+rasterio
+dask
