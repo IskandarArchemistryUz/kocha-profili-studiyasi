@@ -9,7 +9,7 @@ R=repos/IskandarArchemistryUz/kocha-profili-studiyasi
 for n in $(gh api "$R/pulls?state=open" --jq '.[].number'); do echo "#$n $(gh api $R/pulls/$n --jq .title)"; gh api "$R/pulls/$n/files?per_page=100" --jq '.[].filename' | sed 's/^/   /'; done
 ```
 - Ochiq PR siz tegmoqchi boʻlgan faylni oʻzgartirayotgan boʻlsa — oʻsha fayllarga tegmang, egasiga ayting.
-- Oʻz xizmatingizning holat hujjatini oʻqing (`claude/<xizmat>-holat.md`; hali yoʻq boʻlsa — eng yangi `claude/<xizmat>-…-holat-<kun>-<oy>.md`). Ish tugaganda uni yangilang — 9-boʻlimga qarang.
+- Oʻz xizmatingizning holat hujjatini oʻqing (`claude/<xizmat>-holat.md`; hali yoʻq boʻlsa — eng yangi `claude/<xizmat>-…-holat-<kun>-<oy>.md`). Ish tugaganda uni yangilang — 8-boʻlimga qarang.
 
 ## 2. Kim nimaga egalik qiladi
 | Xizmat | Fayllar |
