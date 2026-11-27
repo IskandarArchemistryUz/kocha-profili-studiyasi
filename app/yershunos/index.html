@@ -254,12 +254,12 @@ body.tq-on .src .tq,body.iq-on .src .iq,body.kg-on .src .kg,body.jl-on .src .jl{
 .hb-src{margin-top:4mm;padding-top:2mm;border-top:1px solid #d9e1e5;font-size:7.8pt;color:#55656e}
 .hb-ft{position:absolute;left:14mm;right:14mm;bottom:7mm;display:flex;justify-content:space-between;font-size:7.4pt;color:#6b7a83;border-top:1px solid #e4eaed;padding-top:1.5mm}
 body.uz-on .lbl{display:none}
-@media screen and (max-width:900px){#hbd{zoom:.46}#hbd.al{zoom:.33}}
+@media screen{#hbd{zoom:var(--hz,1)}}
 @media print{
   html,body{height:auto!important;overflow:visible!important;background:#fff!important}
   body>*:not(#hb){display:none!important}
   #hb{position:static;overflow:visible;background:#fff}
-  #hb .hb-bar{display:none}#hbd,#hbd.al{padding:0;zoom:1}
+  #hb .hb-bar{display:none}#hbd,#hbd.al{padding:0;zoom:1!important}
   .pg{margin:0;box-shadow:none;break-after:page}.pg:last-child{break-after:auto}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
@@ -1298,7 +1298,7 @@ function hbBloklarH(R,al){
   B.push({full:1,h:hbBosh(nom,'Relyef va suv yo\'llari skriningi · '+hbN(R.maydon)+' km²')+hbKpi([
     ['Maydon',hbN(R.maydon)+' km²',hbF(R.E-R.W,2)+'° × '+hbF(R.N-R.S,2)+'°'],['Balandlik',hbN(R.zmin)+'–'+hbN(R.zmax)+' m','median '+hbN(R.zmed)+' m'],['Qiyalik, median',hbF(R.med,1)+'°','tik (15° dan ortiq) '+hbF(R.sh[3]*100+R.sh[4]*100,0)+' %'],
     ['Oqim tarmog\'i',hbN(R.uz/1000)+' km','zichligi '+hbF(R.uz/1000/R.maydon,2)+' km/km²'],['Vodiy tubi',R.tk?'—':hbF(R.vb,1)+' km²',R.tk?'tekis hududda hisoblanmaydi':'hududning '+hbF(R.vbp*100,1)+' % i'],['Eng katta ichki havza',hbN(R.amax)+' km²','to\'rtburchak ichida']])});
-  const xar='<h2>Relyef, soylar va vodiy tubi</h2><img class="hb-img" style="aspect-ratio:'+R.ar.toFixed(3)+';'+(R.ar<1.25?'width:'+Math.round(Math.min(100,R.ar*(al?118:128)/(al?131:182)*100))+'%':'')+'" src="'+R.img+'" alt=""><div class="hb-leg"><span><i style="background:#1e96c8"></i>oqim tarmog\'i</span><span><i style="background:#ff4fa3"></i>vodiy tubi (o\'zandan 5 m gacha)</span><span><i style="background:linear-gradient(90deg,#f4f1e6,#b9c3a6,#8d8f7c)"></i>past → baland</span></div>';
+  const xar='<h2>Relyef, soylar va vodiy tubi</h2><img class="hb-img" style="aspect-ratio:'+R.ar.toFixed(3)+';'+(R.ar<(al?1.4:1.25)?'width:'+Math.round(Math.min(100,R.ar*(al?96:128)/(al?131:182)*100))+'%':'')+'" src="'+R.img+'" alt=""><div class="hb-leg"><span><i style="background:#1e96c8"></i>oqim tarmog\'i</span><span><i style="background:#ff4fa3"></i>vodiy tubi (o\'zandan 5 m gacha)</span><span><i style="background:linear-gradient(90deg,#f4f1e6,#b9c3a6,#8d8f7c)"></i>past → baland</span></div>';
   const x=[]; const tik=R.sh[3]+R.sh[4];
   x.push('<b>Relyef.</b> Balandlik '+hbN(R.zmin)+' dan '+hbN(R.zmax)+' m gacha (farq '+hbN(R.zmax-R.zmin)+' m). Hududning '+hbF(R.sh[0]*100,0)+' % i tekis (1° dan kam), '+hbF(tik*100,0)+' % i tik (15° dan ortiq).'+(tik>0.3?' Tik yonbag\'irlar ulushi katta: qurilish uchun yaroqli yer cheklangan, ko\'chki va sel xavfi alohida o\'rganilishi kerak.':tik<0.05?' Yonbag\'irlar asosan yotiq: relyef qurilishni cheklamaydi, lekin suv oqib ketishi sust.':''));
   x.push('<b>Suv yo\'llari.</b> Havzasi '+hbF(R.thrKm,1)+' km² dan katta soylarning umumiy uzunligi '+hbN(R.uz/1000)+' km. '+(R.tk?'Hudud asosan tekis: relyefdan soy tarmog\'ini ishonchli ajratib bo\'lmaydi, suv yo\'llari kanal va zovurlar bilan belgilanadi.':'Vodiy tubi (o\'zandan 5 m gacha) '+hbF(R.vb,1)+' km² — hududning '+hbF(R.vbp*100,1)+' % i. Bu yerlar toshqin va sel uchun birinchi navbatda tekshiriladigan zona: qurilish taklif qilinsa, gidravlik hisob shart.'));
@@ -1378,6 +1378,7 @@ function hbQur(){
       reg.el.children[0].removeChild(d); if(reg.h[0]===0&&reg.h[1]===0) body.removeChild(reg.el); reg=null; yangi();
     }});
   pages.forEach((f,i)=>f.innerHTML='<span>Archemistry Lab · Yershunos — '+hbE(nm)+'</span><span>'+(i+1)+' / '+pages.length+'</span>');
+  host.style.setProperty('--hz',Math.min(1,(innerWidth-28)/((al?297:210)*96/25.4)).toFixed(3));
   document.title='Yershunos — '+nm+' — hisobot';}
 let HBO='pt';
 function uzHisobot(sc){
@@ -1395,6 +1396,7 @@ function uzHisobot(sc){
         return P.some(pl=>pl[0].some(([x,y])=>x>=R.W&&x<=R.E&&y>=R.S&&y<=R.N))||P.some(pl=>[[R.W,R.S],[R.E,R.S],[R.E,R.N],[R.W,R.N],[(R.W+R.E)/2,(R.S+R.N)/2]].some(([x,y])=>ich(x,y,pl)));}).map(f=>f.properties);}
     w.hidden=false; hbQur(); w.scrollTop=0;});}
 document.getElementById('uzh').onclick=()=>uzHisobot();
+addEventListener('resize',()=>{const w=document.getElementById('hb'), h=document.getElementById('hbd'); if(w&&!w.hidden&&h) h.style.setProperty('--hz',Math.min(1,(innerWidth-28)/((HBO==='al'?297:210)*96/25.4)).toFixed(3));});
 window.uzHisobot=uzHisobot;
 </script>
 </body>
