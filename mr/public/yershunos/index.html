@@ -1426,6 +1426,8 @@ function hbQur(){
       if(ci>=0){ if(ci===1) reg.el.children[1].appendChild(d); reg.h[ci]+=h; return; }
       reg.el.children[0].removeChild(d); if(reg.h[0]===0&&reg.h[1]===0) body.removeChild(reg.el); reg=null; yangi();
     }});
+  // ehtiyot: matn uzunroq chiqadigan til yoki boshqa shriftda sahifa biroz toshsa — oʻsha sahifa mazmuni sigʻguncha kichraytiriladi
+  host.querySelectorAll('.hb-body').forEach(b=>{const k=b.clientHeight/b.scrollHeight; if(k<0.999&&k>0.6) b.style.zoom=(k*0.99).toFixed(3);});
   pages.forEach((f,i)=>f.innerHTML='<span>Archemistry Lab · Yershunos — '+hbE(nm)+'</span><span>'+(i+1)+' / '+pages.length+'</span>');
   host.style.setProperty('--hz',Math.min(1,(innerWidth-28)/((al?297:210)*96/25.4)).toFixed(3));
   document.title=T('Yershunos — {0} — hisobot',nm);}
