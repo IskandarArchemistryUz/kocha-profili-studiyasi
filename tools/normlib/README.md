@@ -11,7 +11,7 @@ python3 tools/normlib/build_norms.py tools/normlib/src
 
 | Hujjat | Manba | Qamrov |
 |---|---|---|
-| ShNQ 2.07.01-23 (joriy tahrir) | loyiha hujjati `claude/normalar-txt` | 692 band, 57 jadval, 6 ilova |
+| ShNQ 2.07.01-23 (joriy tahrir) | loyiha hujjati `claude/normalar-txt` (endi `docs/normalar/README.md`) | 692 band, 57 jadval, 6 ilova |
 | SHNQ 2.05.07-24 (01/2-32 tahriri bilan) | `D:\Work\normalar` (lex.uz .doc) | 265 band (107 — kuchini yoʻqotgan), 2 ilova |
 | SanQvaN 0103-25 | lex.uz .doc | 17 band, 4 ilova (1-ilova — obyektlar xavflilik sinflari) |
 | ShNQ 2.07.06-24 | lex.uz .doc | 128 band, 13 ilova |
