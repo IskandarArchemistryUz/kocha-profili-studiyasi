@@ -234,6 +234,7 @@ test('Yershunos (25.11): bosh sahifa va narxlar havolasi, sahifa ochiladi, 6 rej
 test('Yershunos · istalgan hudud (25.11): global DEM, brauzerda relyef skriningi — chizish, natija paneli, qatlamlar', async ({ page }) => {
   test.setTimeout(180_000);   // dasturiy GL da xarita sekin «idle» boʻladi
   const errs: string[] = []; page.on('pageerror', e => errs.push(e.message));
+  await page.addInitScript(() => { try { localStorage.setItem('mr-lang', 'uz'); } catch { /* */ } });   // 27.11: sahifa tilga ulangan — bu sinov oʻzbekcha matnni tekshiradi (en/ru — yershunos_til.spec.ts)
   await page.route(/fonts\.g/, r => r.abort());
   // tashqi manbalar testda mahalliy: xarita kutubxonasi — node_modules dan, global DEM — repodagi bitta plitka (takror mozaika)
   await page.route(/unpkg\.com/, r => r.fulfill({ path: join(process.cwd(), 'node_modules/maplibre-gl/dist/maplibre-gl.js'), contentType: 'text/javascript' }));
