@@ -263,6 +263,8 @@ test('Yershunos · istalgan hudud (25.11): global DEM, brauzerda relyef skrining
   await page.evaluate(() => (window as any).hbHisob(76.75, 43.0, 77.15, 43.3));
   await page.evaluate(() => (window as any).uzHisobot('h'));
   await expect(page.locator('#hbd .pg').first()).toContainText('Relyef va suv yo'); expect(await tosh()).toBe(0);
+  await page.click('#hbo button[data-o=al]'); await expect(page.locator('#hbd .pg').first().locator('.hb-cols')).toHaveCount(1);   // 27.11: albomda 1-sahifa bo'sh qolmaydi (xarita sig'adi)
+  await page.click('#hbo button[data-o=pt]');
   for (const o of ['al', 'pt']) {
     await page.click(`#hbo button[data-o=${o}]`); await page.click('#hbs button[data-s=r]');
     await expect(page.locator('#hbd .pg').first()).toContainText('197 tuman va shahar');
