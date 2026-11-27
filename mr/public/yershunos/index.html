@@ -866,6 +866,7 @@ function uzPick(n,uch){ const f=UZ.features.find(x=>x.properties.n===n); if(!f) 
     '<div class="k">'+T('Suv tanqisligi (havza bo\'yicha)')+'</div><div class="uzx" style="margin-top:2px">'+T('Suv stressi <b>{0} / 5</b> ({1}) → 2050: <b>{2}</b>',uzF(p.w.bws,1),uzSvN(p.w.bws),uzF(p.w.ws50,1))+(p.w.juda_yuqori?T(' · aholining <b>{0} %</b> juda yuqori stressli havzada',p.w.juda_yuqori):'')+T('<br>Suv zaxirasining sarflanishi <b>{0} / 5</b> · yillararo o\'zgaruvchanlik <b>{1} / 5</b> · qurg\'oqchillik xavfi <b>{2} / 5</b>',uzF(p.w.bwd,1),uzF(p.w.iav,1),uzF(p.w.drr,1))+(p.w.gtd!=null?T(' · yer osti suvi sathi pasayishi <b>{0} / 5</b>',uzF(p.w.gtd,1)):'')+T('. Havza darajasidagi global model (WRI Aqueduct 4.0): tumanga kanal orqali keladigan suvni ko\'rsatmaydi.')+'</div>'+
     '<div class="k">'+T('Iqlim: 1995–2014 → 2050 (SSP2-4.5 / SSP5-8.5)')+'</div><div class="uzx" style="margin-top:2px">'+T('Issiq kunlar <b>{0} → {1} / {2}</b> · tropik tunlar <b>{3} → {4} / {5}</b> · 40 °C dan issiq kunlar <b>{6} → {7} / {8}</b><br>O\'rtacha harorat <b>+{9} / +{10} °C</b> · SPEI-12 <b>{11} / {12}</b> · 5 kunlik eng ko\'p yog\'in <b>{13} / {14} %</b>',uzF(p.c.hd35[0],0),uzF(p.c.hd35[1],0),uzF(p.c.hd35[2],0),uzF(p.c.tr[0],0),uzF(p.c.tr[1],0),uzF(p.c.tr[2],0),uzF(p.c.hd40[0],0),uzF(p.c.hd40[1],0),uzF(p.c.hd40[2],0),uzF(p.c.tas[1]-p.c.tas[0],1),uzF(p.c.tas[2]-p.c.tas[0],1),uzF(p.c.spei12[1],2).replace('-','−'),uzF(p.c.spei12[2],2).replace('-','−'),(p.c.rx5day[1]>=p.c.rx5day[0]?'+':'')+uzF((p.c.rx5day[1]/p.c.rx5day[0]-1)*100,0),(p.c.rx5day[2]>=p.c.rx5day[0]?'+':'')+uzF((p.c.rx5day[2]/p.c.rx5day[0]-1)*100,0))+(p.c.tas[0]<11?'<br><span style="color:var(--warn)">'+T('Tog\'li katak: qiymatlar tuman markazidagi haqiqiy jaziramadan past bo\'lishi mumkin.')+'</span>':'')+'</div>'+
     '<div class="k">'+T('Model farqi')+'</div><div class="val">'+(p.k==null?'—':T('×{0} — model {1}, rasmiy {2} (2020)',uzF(p.k,2),uzN(p.g20),uzN(p.r20)))+'</div>'+
+    (window.YSA?YSA.blok(p):'')+
     (window.YSK?YSK.blok(p):'')+
     (p.iz?'<div class="k">'+T('Izoh: {0}',T(p.iz))+'</div>':'')+'<div class="k"><a href="#" id="uzr" style="color:var(--svc)">'+T('← {0} xulosasiga qaytish',T.nom(uzV||'O\'zbekiston'))+'</a></div>';
   document.getElementById('uzr').onclick=e=>{e.preventDefault(); uzSel=null; ['uz-s0','uz-s'].forEach(l=>map.setFilter(l,['==',['get','n'],''])); uzDraw(); if(typeof kpi==='function') kpi();};
@@ -1097,7 +1098,7 @@ const K={
   toshqin:()=>[['Pik sarf',tx('hq')],['O\'zandan tashqari',first(tx('ha'))],['Yopiq ko\'priklar',first(tx('hk'))+' / 5'],['Uzilgan',first(tx('hu')),1]],
   jala:()=>[['Pik sarf',tx('jq')],['Suv yetgan bino',first(tx('jb'))],['Kadr',tx('jt')]],
   iqlim:()=>[[IM[iv].n+' · '+T('Toshkent'),tx('it1')],['Havza',tx('ih1')],['Davr',tx('ipl')]],
-  uz:()=>UZ?[['Ko\'rsatkich',{o:'O\'sish 2010–2026',z:'Zichlik 2026',k:'Model farqi',h:'Issiq kunlar',t:'Tropik tunlar',q:'Qurg\'oqchillik',x:'O\'sish × jazirama',r:'Ustuvorlik reytingi',ey:'Ekin yeri yo\'qolishi',eg:'Qurilgan yer / kishi',sv:'Suv stressi',sw:'Suv stressi 2050',zi:'Zaiflik indeksi',zs:'Ichimlik suvi',zk:'Kanalizatsiya',zh:'Ish haqi',ta:'Toshqin zonasida aholi',ts:'Soy bo\'yida aholi',tb:'Toshqin zonasida qurilish'}[uzK]],['Hudud',T.nom(uzV||'O\'zbekiston')],['Tanlangan',uzSel?T.nom(uzSel):'—']]:[['Hudud',T.nom('O\'zbekiston')],['Birliklar','197']],
+  uz:()=>UZ?[['Ko\'rsatkich',{o:'O\'sish 2010–2026',z:'Zichlik 2026',k:'Model farqi',h:'Issiq kunlar',t:'Tropik tunlar',q:'Qurg\'oqchillik',x:'O\'sish × jazirama',r:'Ustuvorlik reytingi',ey:'Ekin yeri yo\'qolishi',eg:'Qurilgan yer / kishi',sv:'Suv stressi',sw:'Suv stressi 2050',zi:'Zaiflik indeksi',zs:'Ichimlik suvi',zk:'Kanalizatsiya',zh:'Ish haqi',ta:'Toshqin zonasida aholi',ts:'Soy bo\'yida aholi',tb:'Toshqin zonasida qurilish',al:'Shahar tizimlari'}[uzK]],['Hudud',T.nom(uzV||'O\'zbekiston')],['Tanlangan',uzSel?T.nom(uzSel):'—']]:[['Hudud',T.nom('O\'zbekiston')],['Birliklar','197']],
   keng:()=>[['Qurilgan maydon',tx('ka')],['Holat',tx('kyl')],['O\'zgarish',tx('ka2')]],
   hudud:()=>{if(HK)return HK; const b=$('hdb').querySelector('.big'); return [['Hudud',tx('hdt')],['Qurilgan, ga',b?b.textContent:'—']];}};
 let kq=0; function kpi(){cancelAnimationFrame(kq); kq=requestAnimationFrame(()=>{
@@ -1452,6 +1453,7 @@ document.getElementById('uzh').onclick=()=>uzHisobot();
 addEventListener('resize',()=>{const w=document.getElementById('hb'), h=document.getElementById('hbd'); if(w&&!w.hidden&&h) h.style.setProperty('--hz',Math.min(1,(innerWidth-28)/((HBO==='al'?297:210)*96/25.4)).toFixed(3));});
 window.uzHisobot=uzHisobot;
 </script>
+<script src="aloqa.js?v=20261127"></script>
 <script src="kiritma.js?v=20261127"></script>
 </body>
 </html>
