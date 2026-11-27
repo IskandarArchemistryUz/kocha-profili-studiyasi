@@ -8,7 +8,7 @@
    R2 sozlanmagan boʻlsa — /projects/* → 503. */
 import { randomUUID } from 'node:crypto';
 
-export const PROJECT_TYPES = Object.freeze(['master', 'kochasoz', 'joyshunos', 'chizmadon', 'render', 'dizaynkod', 'binokor', 'bogshunos']);
+export const PROJECT_TYPES = Object.freeze(['master', 'kochasoz', 'joyshunos', 'chizmadon', 'render', 'dizaynkod', 'binokor', 'bogshunos', 'yershunos']);
 export const PROJECT_DEFAULTS = Object.freeze({
   maxDocBytes: 30 * 2 ** 20,   // bitta loyiha (siqilgan) ≤ 30 MB
   quotaBytes: 500 * 2 ** 20,   // bir hisob jami ≤ 500 MB (keyin obunaga bogʻlanadi)

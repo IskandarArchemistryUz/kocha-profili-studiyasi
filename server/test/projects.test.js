@@ -66,7 +66,7 @@ describe('loyihalar — sozlama va kirish', () => {
     expect((await req('POST', `/projects/${ID}/upload`, { type: 'master', bytes: 100 })).statusCode).toBe(401);
   });
   it('turlar roʻyxati: kelajakdagi Binokor va Bogʻshunos ham bor', () => {
-    expect(PROJECT_TYPES).toEqual(['master', 'kochasoz', 'joyshunos', 'chizmadon', 'render', 'dizaynkod', 'binokor', 'bogshunos']);
+    expect(PROJECT_TYPES).toEqual(['master', 'kochasoz', 'joyshunos', 'chizmadon', 'render', 'dizaynkod', 'binokor', 'bogshunos', 'yershunos']);
   });
 });
 

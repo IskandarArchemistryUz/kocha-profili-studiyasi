@@ -312,6 +312,46 @@ describe('agent — band matni', () => {
   });
 });
 
+describe('agent — Yershunos', () => {
+  beforeEach(async () => { await app.close(); app = await makeApp({ apiKey: 'sk-test', fetchImpl: fakeFetch, services: ['mr', 'ys'] }); });
+  it('narxlar: savol 1 (bepulga kiradi), maʼlumot kiritish 2 tanga', async () => {
+    const ck = await login();
+    const cfg = (await get('/agent/config', ck)).json();
+    expect(cfg.services).toContain('ys');
+    expect(cfg.scenarios['ys.ask'].coins).toBe(1);
+    expect(cfg.scenarios['ys.kirit'].coins).toBe(2);
+    await give('ali@mail.uz', 5);
+    expect((await post('/agent/run', { scenario: 'ys.kirit' }, ck)).json()).toMatchObject({ free: false, charged: 2, balance: 3 });
+    expect((await post('/agent/run', { scenario: 'ys.ask' }, ck)).json()).toMatchObject({ free: true, charged: 0 });
+  });
+  it('Yershunos yoʻriqnomasi va faqat oʻz buyruqlari', async () => {
+    const ck = await login('boss@mail.uz');
+    const { run } = (await post('/agent/run', { scenario: 'ys.kirit' }, ck)).json();
+    await ask(run, ck, 'Baxmal tumani: ichimlik suvi 71 %, 2026, manba hokimlik');
+    const b = calls[0].body;
+    expect(b.model).toBe('claude-sonnet-5-5');
+    expect(b.system[0].text).toContain('Yershunos');
+    expect(b.system[0].text).toContain('Never invent');
+    expect(b.system[1].text).toContain('Service: Yershunos');
+    expect(b.tools.map((t) => t.name)).toEqual(['ys_context', 'ys_find_units', 'ys_unit', 'ys_propose']);
+  });
+  it('boshqa xizmat buyrugʻi qabul qilinmaydi; oʻz buyrugʻi oʻtadi', async () => {
+    const ck = await login('boss@mail.uz');
+    const { run } = (await post('/agent/run', { scenario: 'ys.kirit' }, ck)).json();
+    const conv = (name) => [{ role: 'user', content: 'Baxmal: suv 71 %' }, { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name, input: {} }] }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: '{}' }] }];
+    expect((await post('/agent/step', { run, lang: 'uz', messages: conv('get_tep') }, ck)).statusCode).toBe(400);
+    expect((await post('/agent/step', { run, lang: 'uz', messages: conv('ys_context') }, ck)).statusCode).toBe(200);
+  });
+  it('manbasiz raqam: foydalanuvchi bermagan son belgilanadi', async () => {
+    const ck = await login('boss@mail.uz');
+    const { run } = (await post('/agent/run', { scenario: 'ys.kirit' }, ck)).json();
+    const bad = { status: 200, body: { content: [{ type: 'text', text: 'Ichimlik suvi 71 %, kanalizatsiya 38 % kiritishga tayyor.' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 10 } } };
+    upstream.push(bad, bad);
+    const r = (await ask(run, ck, 'Baxmal tumani: ichimlik suvi 71 %, 2026-yil, manba tuman hokimligi')).json();
+    expect(r.unsourced).toEqual(['38']);
+  });
+});
+
 describe('agent — yordamchilar', () => {
   it('Toshkent kuni boshi', () => {
     expect(dayStart(new Date('2026-11-13T20:30:00Z')).toISOString()).toBe('2026-11-13T19:00:00.000Z');
