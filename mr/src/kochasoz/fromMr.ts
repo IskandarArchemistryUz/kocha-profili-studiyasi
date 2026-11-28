@@ -8,7 +8,7 @@ import type { Profile, Cat, Part, PartKind } from '../core/profiles';
 export type KsEl = [string, number, Record<string, boolean>];
 export interface KsStreet { els: KsEl[]; rl: number; tplName: string; sk: string; uk: string; U: never[]; PL: never[]; sel: number; selU: number }
 
-/** ShNQ 2.07.01-23 toifasi → Koʻchasoz tugmasi (claude/kochasoz-qoidalar.md, «Toifalar mosligi») va Dizayn-kod turi */
+/** ShNQ 2.07.01-23 toifasi → Koʻchasoz tugmasi (claude/kochasoz-holat.md, 6-boʻlim «Toifalar mosligi») va Dizayn-kod turi */
 const SK: Record<Cat, string> = { mahalliy: 'mh', 'tuman-magistral': 'tm', 'shahar-magistral-3': 'sh3', otish: 'mh', piyoda: 'pd' };
 const UK: Record<Cat, string> = { mahalliy: 'M1', 'tuman-magistral': 'U3', 'shahar-magistral-3': 'U2', otish: 'M1', piyoda: 'U5' };
 

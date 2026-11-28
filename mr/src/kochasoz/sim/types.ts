@@ -1,5 +1,5 @@
 /* Koʻchasoz · Harakat modeli — umumiy turlar.
-   Birliklar: metr, soniya, m/s. Strategiya: claude/harakat-modeli-strategiya-12-11.md (loyiha hujjati). */
+   Birliklar: metr, soniya, m/s. Strategiya: claude/kochasoz-holat.md (loyiha hujjati). */
 
 export type XY = [number, number];
 

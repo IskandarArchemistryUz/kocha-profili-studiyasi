@@ -1,5 +1,5 @@
 /**
- * Koʻchasoz C (Chorraha) — haqiqiy tugun (C1, 26.10.2026; reja: claude/kochasoz-acd-reja.md).
+ * Koʻchasoz C (Chorraha) — haqiqiy tugun (C1, 26.10.2026; reja: claude/kochasoz-holat.md).
  * Nuqta (koordinata yoki xarita havolasi) → OSM (Overpass, ochiq maʼlumot, ODbL) dan atrofdagi yoʻllar → eng yaqin
  * chorraha tuguni → tarmoqlar (yoʻnalish, toifa, boʻlaklar, tezlik) → C maketi uchun ikki koʻcha (asosiy va kesishuvchi),
  * kesishish burchagi va hisobiy tezliklar.
@@ -16,7 +16,7 @@ export type Tpl = [string, null, [string, number, Record<string, boolean>][], st
 
 /** Avtomobil yoʻli toifalari (servis, piyoda va velo yoʻlaklari chorraha emas) */
 const DRIVE: Record<string, number> = { motorway: 7, trunk: 6, primary: 5, secondary: 4, tertiary: 3, unclassified: 2, residential: 2, living_street: 1 };
-/** OSM toifasi → Koʻchasoz tugmasi (ShNQ 2.07.01-23 toifalari) va Dizayn-kod turi (claude/kochasoz-qoidalar.md) */
+/** OSM toifasi → Koʻchasoz tugmasi (ShNQ 2.07.01-23 toifalari) va Dizayn-kod turi (claude/kochasoz-holat.md, 6-boʻlim) */
 const SK: Record<string, [string, string]> = {
   motorway: ['tz1', 'U2'], trunk: ['sh1', 'U2'], primary: ['sh2', 'U2'], secondary: ['sh3', 'U2'], tertiary: ['tm', 'U3'],
   unclassified: ['mh', 'M1'], residential: ['mh', 'M1'], living_street: ['mh', 'M1'],
