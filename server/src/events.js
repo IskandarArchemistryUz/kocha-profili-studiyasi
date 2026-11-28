@@ -91,7 +91,7 @@ export async function eventStats(db, at) {
       SELECT id, date_trunc('week', created_at) AS wk, created_at FROM users WHERE created_at > $1::timestamptz - interval '8 weeks'),
     act AS (SELECT DISTINCT e.user_id, floor(extract(epoch FROM (e.at - u.created_at)) / 604800)::int AS w
       FROM events e JOIN u ON u.id = e.user_id WHERE e.at >= u.created_at)
-    SELECT u.wk, count(DISTINCT u.id) AS size,
+    SELECT u.wk, count(DISTINCT u.id) AS size, min(u.created_at) AS first,
       count(DISTINCT act.user_id) FILTER (WHERE act.w = 1) AS w1,
       count(DISTINCT act.user_id) FILTER (WHERE act.w = 2) AS w2,
       count(DISTINCT act.user_id) FILTER (WHERE act.w = 3) AS w3,
@@ -133,6 +133,11 @@ export async function eventStats(db, at) {
     campaigns: camp.map((r) => ({ s: r.s, c: r.c, who: n(r.who) })),
     devices: ['desktop', 'tablet', 'phone'].map((k) => { const r = dev.find((x) => x.k === k); return { k, who: n(r?.who), touch: n(r?.touch) }; }),
     errors: errs.map((r) => ({ name: r.name, svc: r.svc, m: r.m, src: r.src, c: n(r.c), who: n(r.who), last: new Date(r.last).toISOString() })),
-    cohorts: cohorts.map((r) => ({ wk: new Date(r.wk).toISOString().slice(0, 10), size: n(r.size), w: [n(r.w1), n(r.w2), n(r.w3), n(r.w4)] })),
+    // guruhda hech kim hali yetib bormagan hafta — 0 emas, null (panelda «—»)
+    cohorts: cohorts.map((r) => {
+      const first = new Date(r.first).getTime(), now = new Date(t).getTime();
+      const w = [r.w1, r.w2, r.w3, r.w4].map((v, i) => (first + (i + 1) * 604800e3 > now ? null : n(v)));
+      return { wk: new Date(r.wk).toISOString().slice(0, 10), size: n(r.size), w };
+    }),
   };
 }
