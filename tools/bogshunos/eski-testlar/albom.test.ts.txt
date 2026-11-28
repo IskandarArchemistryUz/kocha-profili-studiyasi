@@ -1,0 +1,17 @@
+import { test, expect } from 'vitest';
+// @ts-ignore
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { context, analyze } from '../../../src/bogshunos/analyze';
+import { design, VARS, type DesignOut } from '../../../src/bogshunos/design';
+import { targets } from '../../../src/bogshunos/od';
+import { buildAlbom } from '../../../src/bogshunos/albom';
+const FIX = '/home/claude/bgtest/bobur.json';
+test.skipIf(!existsSync(FIX))('Bogʻshunos · Loyiha albomi (Bobur)', () => {
+  const F = JSON.parse(readFileSync(FIX, 'utf8'));
+  const C = context(F.site, F.data), { A, cls } = analyze(F.site, F.data, C), T = targets(C, F.data);
+  const D: Record<string, DesignOut> = {}; for (const vd of VARS) D[vd.id] = design(C, A, T.attr, T.inner, vd);
+  const sh = buildAlbom({ site: F.site, data: F.data, C, A, cls, D, chosen: 'C', date: '14.11.2026' });
+  sh.forEach((s, i) => { writeFileSync(`/home/claude/bgtest/al-${String(i + 1).padStart(2, '0')}.svg`, s.svg); console.log(i + 1, s.id, s.title); });
+  expect(sh.length).toBe(13);
+  for (const s of sh) expect(s.svg).not.toMatch(/NaN|undefined|Infinity/);
+}, 120000);

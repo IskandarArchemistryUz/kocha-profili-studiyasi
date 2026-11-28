@@ -22,3 +22,6 @@ Bu papka Bogʻshunos xizmatining loyiha hujjatlaridagi (claude.ai «Archemistry 
 | `kernel-v0.js` | Birinchi yadro prototipi (sintetik hudud): zonalarni oʻstirish, MST + halqa yoʻllar, Poisson-disk ekish, BAF, kanopi, tekshiruvlar. | Oʻzi yetarli (`node -e "require('./kernel-v0.js').generatePark()"`). «Taklif qil» uchun gʻoyalar manbai. |
 
 Belgilar (Bogʻshunos qoidasi): **N** — norma asl matndan, **P** — taxmin, tekshirilsin, **A** — xorijiy orientir, **T** — talqin (loyiha qoidasi).
+
+## eski-testlar/ — 14.11.2026 dagi Bobur testlari (ishga tushirilmaydi)
+`albom.test.ts.txt`, `run.test.ts.txt` — eskirgan, fixture talab qiladi; tafsilot — `eski-testlar/README.md`.
