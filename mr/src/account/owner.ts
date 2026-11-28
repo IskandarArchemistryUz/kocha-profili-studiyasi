@@ -174,7 +174,7 @@ function usage(x: OwnerUsage): HTMLElement {
       h('div', {}, h('h3', {}, tr('Xizmatlar — 30 kun')), table([tr('Xizmat'), tr('Brauzerlar'), tr('Soni')], x.services.map((r) => [SVC[r.svc] ?? r.svc, r.who, r.c]), tr('Hali maʼlumot yoʻq'))),
       h('div', {}, h('h3', {}, tr('Qaytish — roʻyxatdan oʻtgan haftasi boʻyicha')),
         table([tr('Hafta'), tr('Soni'), ...[1, 2, 3, 4].map((k) => tf('${n}-hafta', { n: k }))],
-          x.cohorts.map((r) => [r.wk, r.size, ...r.w.map((v) => `${v} (${pct(v, r.size)})`)]), tr('Hali maʼlumot yoʻq')))),
+          x.cohorts.map((r) => [r.wk, r.size, ...r.w.map((v) => (v == null ? '—' : `${v} (${pct(v, r.size)})`))]), tr('Hali maʼlumot yoʻq')))),
     sourcesDevices(x),
     h('h3', {}, tr('Eng koʻp harakatlar — 30 kun')),
     h('div', { class: 'own-scroll own-scroll-sm', id: 'ownTop' }, table([tr('Xizmat'), tr('Harakat'), tr('Soni'), tr('Brauzerlar')],

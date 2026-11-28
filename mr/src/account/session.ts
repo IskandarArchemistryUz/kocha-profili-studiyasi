@@ -96,7 +96,7 @@ export interface OwnerUsage {
   daily: { d: string; who: number }[];
   services: { svc: string; who: number; c: number }[];
   top: { svc: string; name: string; c: number; who: number }[];
-  cohorts: { wk: string; size: number; w: number[] }[];
+  cohorts: { wk: string; size: number; w: (number | null)[] }[];
   sources?: { s: string; who: number; login: number }[];
   campaigns?: { s: string; c: string; who: number }[];
   devices?: { k: 'desktop' | 'tablet' | 'phone'; who: number; touch: number }[];

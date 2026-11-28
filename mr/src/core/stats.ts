@@ -7,6 +7,7 @@
    Qoʻshimcha: tugma bosilishi (id yoki izoh kaliti boʻyicha), ekran kengligi, sensorli ekran, kelgan sayt (faqat domen) va UTM belgilari. */
 
 import { initOwner } from './wm';
+import { isForeignErr } from './foreign_err';
 import { apiBase } from '../account/config';
 
 const CODE = 'archemistry';
@@ -128,6 +129,7 @@ function onClick(e: MouseEvent): void {
 /* ---------- xatolar: brauzer xatosi, WebGL yoʻqolishi, taxminiy qulash ---------- */
 let errN = 0;
 function errEv(n: string, m = '', at = ''): void {
+  if (m && isForeignErr(m)) return;
   if (++errN > 10) return;   // bir sahifada koʻpi bilan 10 ta
   const p: Record<string, string> = {};
   if (m) p.m = m.replace(/\s+/g, ' ').slice(0, 80);
