@@ -1,0 +1,154 @@
+guruh,nom_ru,kattalik,namlik_talabi,shorga,yoruglik,sovuqqa,issiqqa,umr,osish,qollanish,II-A_Toshkent,lotincha,lotincha_izoh,POWO_qabul_nomi,POWO_status,OzR_holati_POWO,MO_tabiiy,MO_kiritilgan,Toshkent_reyestr_soni,Toshkent_ulush_%
+igna,Биота восточная,Д1,Т,С,СВ,М,У,Д,М,О-ГР,+,Platycladus orientalis,,Platycladus orientalis,Acce,kiritilgan,-,Tadzhikistan+Uzbekistan,59255,2.68
+igna,Ель колючая,Д1,Т,Н,СВ,М,У,Д,М,О-ГР,+,Picea pungens,,Picea pungens,Acce,introdutsent,-,-,,
+igna,Кипарис аризонский,Д1,Т,Н,СВ,Н,У,Д,С,О-ГР,+,Cupressus arizonica,,Hesperocyparis arizonica,Homo,introdutsent,-,-,29738,1.34
+igna,Кипарис болотный обыкновенный,Д1,Т,Н,СВ,М,У,Д,С,О-ГР,+,Taxodium distichum,,Taxodium distichum,Acce,introdutsent,-,-,,
+igna,Можжевельник виргинский,Д1,НТ,С,СВ,М,У,Д,С,О-ГР,+,Juniperus virginiana,,Juniperus virginiana,Acce,introdutsent,-,-,277437,12.54
+igna,Можжевельник зарафшанский,Д2,НТ,Н,СВ,М,У,Д,М,О-ГР,+,Juniperus seravschanica,,Juniperus seravschanica,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+igna,Можжевельник казацкий,Д4К,НТ,Н,СВ,М,У,Д,М,О-ГР,+,Juniperus sabina,,Juniperus sabina,Acce,MO da mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan,-,,
+igna,Можжевельник туркестанский,Д2К,НТ,Н,СВ,М,У,Д,М,О-ГР,+,Juniperus pseudosabina,?,Juniperus pseudosabina,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,-,,
+igna,Сосна крымская,Д1,НТ,С,СВ,М,У,Д,Б,Г-СП,+,Pinus nigra subsp. pallasiana,,Pinus nigra subsp. pallasiana,Acce,introdutsent,-,-,28066,1.27
+igna,Сосна эльдарская,Д1,НТ,С,СВ,С,У,Д,Б,ГР-СП,-,Pinus brutia var. eldarica,,Pinus brutia var. eldarica,Acce,introdutsent,-,-,279020,12.61
+igna,Сосна черная австрийская,Д1,НТ,Н,СВ,М,У,Д,С,Г-СП,+,Pinus nigra,,Pinus nigra,Acce,introdutsent,-,-,,
+igna,Туя западная,Д1К,Т,Н,ТВ,М,С,Д,М,ГР-ПД,+,Thuja occidentalis,,Thuja occidentalis,Acce,introdutsent,-,-,25888,1.17
+barg,Абрикос обыкновенный,Д3,НТ,С,СВ,М,У,Д,Б,Г-ГР-СП,+,Prunus armeniaca,,Prunus armeniaca,Acce,mahalliy,Kazakhstan+Kirgizstan+Uzbekistan,Tadzhikistan+Turkmenistan,144661,6.54
+barg,Айлант высочайший,Д1,НТ,С,СВ,М,У,Д,Б,Г-СП,+,Ailanthus altissima,,Ailanthus altissima,Acce,kiritilgan,-,Tadzhikistan+Turkmenistan+Uzbekistan,58307,2.64
+barg,Альбиция ленкоранская,Д3,Т,Н,СВ,С,У,М,С,О-ГР,+,Albizia julibrissin,,Albizia julibrissin,Acce,kiritilgan,-,Tadzhikistan+Turkmenistan+Uzbekistan,5766,0.26
+barg,Багряник канадский,Д3,НТ,Н,ТВ,М,У,М,М,О-ГР-ПД,+,Cercis canadensis,,Cercis canadensis,Acce,introdutsent,-,-,4237,0.19
+barg,Береза бородавчатая,Д1,Т,Н,СВ,М,С,Д,С,ГР-О-СП,+,Betula pendula,,Betula pendula,Acce,mahalliy,Kazakhstan+Kirgizstan+Uzbekistan,-,4756,0.21
+barg,Береза пушистая,Д1,Т,Н,СВ,М,С,Д,С,ГР-СП,+,Betula pubescens,,Betula pubescens,Acce,introdutsent,-,-,,
+barg,Боярышник гиссарский,Д4,НТ,Н,СТ,М,У,М,М,ГР-СП,+,Crataegus hissarica,,Crataegus hissarica,Acce,MO da mahalliy,Tadzhikistan,-,,
+barg,Боярышник крупноплодный,Д4,НТ,Н,СВ,М,У,С,С,ГР-СП,+,Crataegus pontica,?,Crataegus pontica,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+barg,Боярышник Максимовича,Д4,НТ,С,СТ,М,У,М,М,ГР-СП,+,Crataegus maximowiczii,,Crataegus maximowiczii,Acce,introdutsent,-,-,,
+barg,Боярышник однокосточковый,Д4,НТ,С,СТ,М,У,М,М,ГР-СП,+,Crataegus monogyna,,Crataegus monogyna,Acce,introdutsent,-,-,,
+barg,Боярышник петушья шпора,Д4,НТ,Н,СВ,М,У,С,С,ГР-СП,+,Crataegus crus-galli,,Crataegus crus-galli,Acce,kiritilgan,-,Uzbekistan,,
+barg,Боярышник туркестанский,Д4,НТ,Н,СТ,М,У,М,М,ГР-СП,+,Crataegus turkestanica,,Crataegus turkestanica,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+barg,Бундук канадский,Д1,НТ,Н,СВ,М,У,М,С,Г-СП-ГР,+,Gymnocladus dioicus,,Gymnocladus dioicus,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,,
+barg,"Вяз листоватый, карагач",Д1,НТ,С,ТВ,М,У,С,Б,Г-СП,+,Ulmus minor,,Ulmus minor,Acce,mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,23856,1.08
+barg,"Вяз густой, мелколистный",Д1,НТ,С,СВ,М,У,С,С,Г-О-ГР,+,Ulmus densa,?,Ulmus densa (sinonim),Hete,mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+barg,Вяз обыкновенный,Д1,НТ,С,СВ,М,У,С,С,Г-О-ГР,+,Ulmus laevis,,Ulmus laevis,Acce,kiritilgan,Kazakhstan,Tadzhikistan+Uzbekistan,,
+barg,Вяз перистоветвистый,Д2,НТ,С,СВ,М,У,С,С,Г-О-ГР,+,Ulmus pumila,? (U. pinnato-ramosa),Ulmus pumila,Acce,kiritilgan,Kazakhstan+Kirgizstan+Turkmenistan,Tadzhikistan+Uzbekistan,3509,0.16
+barg,Вяз шершавый,Д1,Т,Н,ТВ,М,У,С,С,Г-О-ГР,+,Ulmus glabra,,Ulmus glabra,Acce,kiritilgan,-,Kazakhstan+Tadzhikistan+Uzbekistan,,
+barg,Гледичия обыкновенная,Д1,НТ,С,СВ,М,У,С,Б,Г-СП-ГР,+,Gleditsia triacanthos,,Gleditsia triacanthos,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,11469,0.52
+barg,Дуб каштанолистный,Д1,Т,Н,СВ,С,С,Д,С,СП-ГР,+,Quercus castaneifolia,,Quercus castaneifolia,Acce,introdutsent,-,-,6326,0.29
+barg,Дуб обыкновенный,Д1,НТ,С,СВ,М,У,Д,Б,Г-О-ГР,+,Quercus robur,,Quercus robur,Acce,introdutsent,-,-,25055,1.13
+barg,Дуб пирамидальный,Д1,НТ,Н,СВ,М,У,Д,Б,О-ГР-СП,+,Quercus robur,f. fastigiata,Quercus robur,Acce,introdutsent,-,-,25055,1.13
+barg,Зизифус (унаби),Д4К,НТ,С,СВ,М,У,С,С,О-ГР,+,Ziziphus jujuba,,Ziziphus jujuba,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,868,0.04
+barg,Ива белая,Д2,Т,С,СВ,М,У,Д,Б,Г-СП-ГР,+,Salix alba,,Salix alba,Acce,mahalliy,Kazakhstan+Turkmenistan+Uzbekistan,Tadzhikistan,,
+barg,Ива белая плакучая,Д2,Т,С,СВ,М,У,Д,Б,О-ГР-Г,+,Salix alba,'Tristis',Salix alba,Acce,mahalliy,Kazakhstan+Turkmenistan+Uzbekistan,Tadzhikistan,,
+barg,Ива вавилонская,Д2,Т,Н,СВ,М,У,С,Б,О-ГР,+,Salix babylonica,,Salix babylonica,Acce,kiritilgan,-,Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,,
+barg,Кария пекан,Д1,Т,Н,ТВ,С,У,С,С,Г-СП-ГР,+,Carya illinoinensis,,Carya illinoinensis,Acce,introdutsent,-,Tadzhikistan,,
+barg,Каркас западный,Д1,НТ,С,ТВ,С,У,С,С,СП-ГР,+,Celtis occidentalis,,Celtis occidentalis,Acce,introdutsent,-,Tadzhikistan,,
+barg,Катальпа прекрасная,Д1,Т,С,ТВ,М,С,С,Б,О-ГР,+,Catalpa speciosa,,Catalpa speciosa,Acce,introdutsent,-,-,16509,0.75
+barg,Каштан конский,Д1,Т,Н,ТВ,М,С,С,С,О-ГР,+,Aesculus hippocastanum,,Aesculus hippocastanum,Acce,kiritilgan,Turkmenistan,Kazakhstan+Uzbekistan,30444,1.38
+barg,Клен остролистный,Д1,Т,Н,ТВ,М,У,С,С,Г-СП,+,Acer platanoides,,Acer platanoides,Acce,mahalliy,Kirgizstan+Tadzhikistan+Uzbekistan,Kazakhstan,,
+barg,Клен полевой,Д2,НТ,С,ТВ,М,У,С,С,Г-СП-О,+,Acer campestre,,Acer campestre,Acce,kiritilgan,-,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,12845,0.58
+barg,Клен Семенова,Д1К,НТ,С,ТВ,М,У,С,С,СП-ГР,+,Acer semenovii,,Acer tataricum subsp. semenovii,Homo,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,-,165,0.01
+barg,Клен серебристый,Д1,Т,Н,ТВ,М,У,Д,Б,Г-СП-ГР,+,Acer saccharinum,,Acer saccharinum,Acce,kiritilgan,-,Uzbekistan,,
+barg,Клен татарский,Д4,НТ,С,ТВ,М,У,С,С,СП-ГР,+,Acer tataricum,,Acer tataricum,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,-,,
+barg,Клен явор,Д1,Т,Н,СВ,М,У,С,С,Г-СП-ГР,+,Acer pseudoplatanus,,Acer pseudoplatanus,Acce,kiritilgan,-,Kazakhstan+Uzbekistan,,
+barg,Липа американская,Д1,Т,Н,ТВ,М,У,С,С,СП-О-ГР,+,Tilia americana,,Tilia americana,Acce,kiritilgan,-,Uzbekistan,,
+barg,Липа крупнолистная,Д1,Т,Н,ТВ,М,У,С,С,СП-О-ГР,+,Tilia platyphyllos,,Tilia platyphyllos,Acce,kiritilgan,-,Uzbekistan,,
+barg,Липа серебристая,Д2,НТ,Н,ТВ,М,У,С,М,СП-О-ГР,+,Tilia tomentosa,,Tilia tomentosa,Acce,kiritilgan,-,Uzbekistan,,
+barg,Маклюра апельсиновидная,Д2,НТ,С,ТВ,М,У,С,Б,Г-СП,+,Maclura pomifera,,Maclura pomifera,Acce,kiritilgan,-,Kazakhstan+Tadzhikistan+Uzbekistan,2787,0.13
+barg,Мыльное дерево (кельрейтерия),Д2,НТ,С,СВ,М,У,С,С,Г-СП-ГР,+,Koelreuteria paniculata,,Koelreuteria paniculata,Acce,kiritilgan,-,Turkmenistan+Uzbekistan,2361,0.11
+barg,Орех грецкий,Д1,Т,Н,СВ,М,У,Д,С,Г-О-ГР,+,Juglans regia,,Juglans regia,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,42244,1.91
+barg,Орех черный,Д1,Т,Н,СВ,М,У,С,С,СП-О-ГР,+,Juglans nigra,,Juglans nigra,Acce,introdutsent,-,Tadzhikistan,,
+barg,Платан восточный (чинар),Д1,Т,С,СВ,С,У,Д,Б,Г-О-ГР,+,Platanus orientalis,,Platanus orientalis,Acce,kiritilgan,-,Tadzhikistan+Turkmenistan+Uzbekistan,48708,2.2
+barg,Софора японская,Д1,НТ,С,СТ,М,У,С,С,Г-СП-О,+,Styphnolobium japonicum,,Styphnolobium japonicum,Acce,kiritilgan,-,Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,90597,4.1
+barg,Тополь евроамериканский серотина,Д1,Т,С,СВ,С,У,М,Б,Г-ГР,+,Populus × canadensis,'Serotina',Populus × canadensis,Arti,introdutsent,-,-,,
+barg,Тополь канадский,Д1,Т,С,СВ,М,У,С,Б,Г-ГР-СП,+,Populus × canadensis,,Populus × canadensis,Arti,introdutsent,-,-,,
+barg,Тополь туранга,Д3,Т,С,СВ,М,У,С,С,Г-СП-ГР,-,Populus euphratica,?,Populus euphratica,Acce,mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+barg,Тополь туркестанский,Д1,Т,С,СВ,М,У,С,Б,Г-ГР-СП,+,Populus alba,'Pyramidalis',Populus alba,Acce,mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,35695,1.61
+barg,Тюльпанное дерево,Д1,Т,Н,СВ,С,У,Д,С,О-ГР,+,Liriodendron tulipifera,,Liriodendron tulipifera,Acce,introdutsent,-,-,5716,0.26
+barg,Фисташка туполистная,Д2,НТ,Н,СВ,С,У,Д,М,СП-Г-О,+,Pistacia atlantica,,Pistacia atlantica,Acce,introdutsent,-,Tadzhikistan,,
+barg,Хурма виргинская,Д1,Т,С,СВ,С,У,Д,Б,Г-СП-ГР,+,Diospyros virginiana,,Diospyros virginiana,Acce,introdutsent,-,-,3090,0.14
+barg,Черемуха обыкновенная,Д3,Т,Н,ТВ,М,У,С,С,СП-ГР,+,Prunus padus,,Prunus padus,Acce,kiritilgan,Kazakhstan+Kirgizstan,Uzbekistan,,
+barg,Шелковица белая,Д1,НТ,С,ТВ,М,У,С,Б,Г-О-ГР,+,Morus alba,,Morus alba,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,113310,5.12
+barg,Шелковица черная,Д1,Т,С,ТВ,С,У,С,Б,О-ГР,+,Morus nigra,,Morus nigra,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,10214,0.46
+barg,Яблоня лесная,Д3,НТ,С,ТВ,М,У,С,С,СП-ГР,+,Malus sylvestris,,Malus sylvestris,Acce,introdutsent,-,-,,
+barg,Яблоня Недзвецкого,Д3,НТ,С,ТВ,М,У,С,М,СП-ГР,+,Malus niedzwetzkyana,,Malus domestica,Hete,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,Turkmenistan,,
+barg,Ясень американский,Д2,Т,Н,СТ,М,У,С,Б,Г-СП-ГР,+,Fraxinus americana,,Fraxinus americana,Acce,introdutsent,-,-,24055,1.09
+barg,Ясень бархатный,Д3,НТ,С,ТВ,С,У,С,С,СП-ГР,+,Fraxinus velutina,,Fraxinus velutina,Acce,introdutsent,-,-,,
+barg,Ясень зеленый,Д1,Т,С,СВ,М,У,С,Б,Г-СП-ГР,+,Fraxinus pennsylvanica,(var. lanceolata),Fraxinus pennsylvanica,Acce,introdutsent,-,-,54896,2.48
+barg,Ясень обыкновенный,Д1,НТ,С,ТВ,М,У,С,Б,Г-СП-ГР,+,Fraxinus excelsior,,Fraxinus excelsior,Acce,introdutsent,-,-,61890,2.8
+barg,Ясень пенсильванский,Д2,Т,С,ТВ,М,У,С,Б,Г-СП-ГР,+,Fraxinus pennsylvanica,,Fraxinus pennsylvanica,Acce,introdutsent,-,-,54896,2.48
+buta,Айва японская,Кс,НТ,С,ТВ,М,У,М,С,О-ГР,+,Chaenomeles japonica,,Chaenomeles japonica,Acce,kiritilgan,-,Turkmenistan+Uzbekistan,,
+buta,Аморфа кустарниковая,Кв,НТ,С,ТВ,М,У,М,Б,ПД-ГР,+,Amorpha fruticosa,,Amorpha fruticosa,Acce,kiritilgan,-,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,,
+buta,Акация желтая,Кв,НТ,С,ТВ,М,У,М,Б,ПД-ГР,+,Caragana arborescens,,Caragana arborescens,Acce,kiritilgan,Kazakhstan+Kirgizstan,Tadzhikistan+Uzbekistan,,
+buta,Арония черноплодная,Кс,НТ,Н,ТВ,М,У,М,С,ПД-ГР,+,Aronia melanocarpa,,Aronia melanocarpa,Acce,introdutsent,-,-,,
+buta,Барбарис Джемсона,Кс,НТ,Н,СВ,М,У,М,С,О-ГР,+,Berberis jamesiana,,Berberis jamesiana,Acce,introdutsent,-,-,,
+buta,Барбарис илийский,Кс,НТ,Н,СВ,М,У,М,С,О-ГР,+,Berberis iliensis,,Berberis integerrima,Hete,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Барбарис обыкновенный,Кв,НТ,Н,СВ,М,У,М,Б,ПД-ГР,+,Berberis vulgaris,,Berberis vulgaris,Acce,mahalliy,Uzbekistan,-,,
+buta,Барбарис туркменский,Кс,НТ,Н,СВ,М,У,М,С,ПД-ГР,+,Berberis turcomanica,,?,POWO da topilmadi,?,?,?,,
+buta,Бересклет японский мелколистный,Кн,Т,Н,ТВ,С,У,М,С,ГР,+,Euonymus japonicus,'Microphyllus',Euonymus japonicus,Acce,kiritilgan,-,Tadzhikistan+Turkmenistan+Uzbekistan,,
+buta,Бересклет японский крупнолистный,Кн,Т,Н,ТВ,Н,У,М,С,О-ГР,+,Euonymus japonicus,,Euonymus japonicus,Acce,kiritilgan,-,Tadzhikistan+Turkmenistan+Uzbekistan,,
+buta,Бирючина обыкновенная,Кв,НТ,С,ТВ,М,У,М,Б,ПД-ГР,+,Ligustrum vulgare,,Ligustrum vulgare,Acce,introdutsent,-,-,,
+buta,Бобовник,Кс,НТ,С,СВ,М,У,М,Б,ГР,+,Prunus tenella,,Prunus tenella,Acce,MO da mahalliy,Kazakhstan,-,,
+buta,Буддлея Давида,Кс,Т,Н,СВ,С,У,М,Б,О-ГР,+,Buddleja davidii,,Buddleja davidii,Acce,kiritilgan,-,Uzbekistan,,
+buta,Бузина красная,Кв,Т,Н,ТВ,М,У,М,Б,ПД-ГР,+,Sambucus racemosa,,Sambucus racemosa,Acce,introdutsent,-,Kazakhstan,,
+buta,Бузина черная,Кв,Т,Н,ТВ,М,У,М,Б,ПД-ГР,+,Sambucus nigra,,Sambucus nigra,Acce,kiritilgan,-,Uzbekistan,,
+buta,Гибискус сирийский,Кв,НТ,С,ТВ,М,У,М,Б,ПД-О-ГР,+,Hibiscus syriacus,,Hibiscus syriacus,Acce,kiritilgan,-,Tadzhikistan+Turkmenistan+Uzbekistan,,
+buta,Гранат обыкновенный,Кв,НТ,Н,СВ,С,У,М,С,О-ГР,+,Punica granatum,,Punica granatum,Acce,kiritilgan,Tadzhikistan+Turkmenistan,Uzbekistan,,
+buta,Дейция изящная,Кс,Т,Н,СВ,С,У,М,С,О-ГР,+,Deutzia gracilis,,Deutzia gracilis,Acce,introdutsent,-,-,,
+buta,Дейция крупноцветная,Кс,Т,Н,СВ,С,У,М,С,О-ГР,+,Deutzia grandiflora,,Deutzia grandiflora,Acce,introdutsent,-,-,,
+buta,Дейция розовая,Кн,Т,Н,СВ,С,У,М,С,О-ГР,+,Deutzia × rosea,,Deutzia × rosea,Arti,introdutsent,-,-,,
+buta,Дерен белый,Кв,Т,Н,ТВ,М,У,С,С,ПД-ГР,+,Cornus alba,,Cornus alba,Acce,introdutsent,-,-,,
+buta,"Дерен южный, свидина",Кв,НТ,С,ТВ,М,У,М,Б,ПД-ГР,+,Cornus australis,,Cornus sanguinea subsp. australis,Homo,introdutsent,-,-,,
+buta,Джузгун высокий,Кв,НТ,С,СВ,М,У,С,Б,ГР,+,Calligonum,? (tur aniqlanmagan),—,tekshirilmadi,—,—,—,,
+buta,Джузгун голова медузы,Кв,НТ,С,СВ,М,У,С,Б,ГР,+,Calligonum caput-medusae,,Calligonum caput-medusae,Acce,mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Дрок испанский,Кс,НТ,Н,СВ,С,У,С,Б,О-ГР,+,Spartium junceum,,Spartium junceum,Acce,introdutsent,-,Turkmenistan,,
+buta,Жасмин (чубушник) крупноцветковый,Кс,Т,Н,ТВ,М,У,С,Б,ПД-О-ГР,+,Philadelphus grandiflorus,?,Philadelphus coronarius,Hete,kiritilgan,-,Turkmenistan+Uzbekistan,,
+buta,Жасмин (чубушник) обыкновенный,Кс,Т,Н,ТВ,М,У,С,Б,ПД-О-ГР,+,Philadelphus coronarius,,Philadelphus coronarius,Acce,kiritilgan,-,Turkmenistan+Uzbekistan,,
+buta,Жимолость мелколистная,Кс,НТ,Н,ТВ,М,У,С,Б,ПД-ГР,+,Lonicera microphylla,,Lonicera microphylla,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,-,,
+buta,Жимолость обыкновенная,Кв,НТ,Н,ТВ,М,У,С,Б,ПД-ГР,+,Lonicera xylosteum,,Lonicera xylosteum,Unpl,introdutsent,-,-,,
+buta,Жимолость Рупрехта,Кв,НТ,Н,ТВ,М,У,С,Б,ПД-ГР,+,Lonicera ruprechtiana,,Lonicera ruprechtiana,Acce,mahalliy,Uzbekistan,-,,
+buta,Ива каспийская,Кс,НТ,С,СВ,М,У,М,Б,ГР,+,Salix caspica,,Salix caspica,Acce,MO da mahalliy,Kazakhstan+Turkmenistan,-,,
+buta,Ива пурпурная,Кв,НТ,С,СВ,М,У,М,Б,ГР,+,Salix purpurea,,Salix purpurea,Acce,introdutsent,-,Tadzhikistan,,
+buta,Ирга канадская,Кв,НТ,Н,ТВ,М,У,С,Б,ПД-ГР,+,Amelanchier canadensis,,Amelanchier canadensis,Acce,introdutsent,-,-,,
+buta,Ирга круглолистная,Кн,НТ,Н,ТВ,М,У,С,Б,ПД-ГР,+,Amelanchier ovalis,?,Amelanchier ovalis,Acce,introdutsent,-,-,,
+buta,Ирга обыкновенная,Кс,НТ,Н,ТВ,М,У,С,Б,ПД-ГР,+,Amelanchier ovalis,,Amelanchier ovalis,Acce,introdutsent,-,-,,
+buta,Калина гордовина,Кс,Т,Н,ТВ,М,У,С,Б,ПД-ГР,+,Viburnum lantana,,Viburnum lantana,Acce,introdutsent,-,-,,
+buta,Калина обыкновенная Бульденеж,Кв,Т,Н,ТВ,М,У,С,Б,ПД-ГР,+,Viburnum opulus,'Roseum',Viburnum opulus,Acce,kiritilgan,Kazakhstan,Uzbekistan,,
+buta,Кизил обыкновенный,Кс,НТ,Н,ТВ,М,У,С,С,ПД-ГР,+,Cornus mas,,Cornus mas,Acce,introdutsent,-,-,,
+buta,Кизильник блестящелистный,Кс,НТ,Н,ТВ,М,У,С,С,ПД-ГР,+,Cotoneaster lucidus,,Cotoneaster acutifolius,Hete,introdutsent,-,-,,
+buta,Кизильник кистецветковый,Кс,НТ,Н,ТВ,М,У,С,С,ПД-ГР,+,Cotoneaster racemiflorus,,Cotoneaster racemiflorus,Acce,mahalliy,Kazakhstan+Uzbekistan,-,,
+buta,Кизильник обыкновенный,Кс,НТ,Н,ТВ,М,У,С,С,ПД-ГР,+,Cotoneaster integerrimus,,Cotoneaster integerrimus,Acce,MO da mahalliy,Kirgizstan,-,,
+buta,Лох серебристый,Кв,НТ,С,СВ,М,У,С,Б,О-ГР,+,Elaeagnus commutata,,Elaeagnus commutata,Acce,introdutsent,-,-,,
+buta,Лох узколистный (джида),КвД,НТ,С,СВ,М,У,С,Б,О-ГР,+,Elaeagnus angustifolia,,Elaeagnus angustifolia,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,805,0.04
+buta,Магония падуболистная,Кс,Т,Н,ТВ,С,У,С,М,О-ГР,+,Mahonia aquifolium,,Berberis aquifolium,Homo,kiritilgan,-,Uzbekistan,,
+buta,Миндаль бухарский,Кс,НТ,Н,СВ,М,У,М,С,ГР,+,Prunus bucharica,,Prunus bucharica,Acce,mahalliy,Kirgizstan+Uzbekistan,Tadzhikistan+Turkmenistan,,
+buta,Миндаль колючий,Кс,НТ,Н,СВ,М,У,С,С,ГР,+,Prunus spinosissima,,Prunus spinosissima,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Миндаль Петунникова,Кс,НТ,Н,СВ,М,У,М,С,ГР,+,Prunus petunnikowii,,Prunus petunnikowii,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Uzbekistan,-,,
+buta,Мушмула кавказская,Кс,НТ,Н,СВ,С,У,М,С,ГР,-,Mespilus germanica,,Crataegus germanica,Homo,MO da mahalliy,Turkmenistan,-,,
+buta,Облепиха крушиноподобная,Кв,НТ,С,СВ,М,У,С,С,О-ГР,+,Hippophae rhamnoides,,Hippophae rhamnoides,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Пузырник восточный,Кс,НТ,С,СВ,М,У,С,С,ГР,+,Colutea orientalis,,Colutea orientalis,Acce,introdutsent,-,-,,
+buta,Ракитник Золотой дождь,Кв,НТ,Н,СВ,С,У,С,Б,ГР,+,Laburnum anagyroides,,Laburnum anagyroides,Acce,introdutsent,-,-,,
+buta,Роза краснолистная,Кс,НТ,С,СВ,М,У,С,Б,О-ГР,+,Rosa glauca,,Rosa glauca,Acce,introdutsent,-,-,,
+buta,Роза коричная,Кс,НТ,Н,СВ,М,У,С,Б,О-ГР,+,Rosa majalis,,Rosa cinnamomea,Hete,MO da mahalliy,Kazakhstan,-,,
+buta,Роза собачья,Кс,Т,С,ТВ,М,У,С,Б,ПД-ГР,+,Rosa canina,,Rosa canina,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Саксаул белый,Кв,НТ,С,СВ,М,У,С,Б,ГР,-,Haloxylon persicum,,Haloxylon persicum,Acce,mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Саксаул черный,Кв,НТ,С,СВ,М,У,С,Б,ГР,-,Haloxylon aphyllum,,Haloxylon ammodendron,Hete,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Самшит вечнозеленый,Кс,Т,Н,ТВ,С,У,Д,М,О-ГР,+,Buxus sempervirens,,Buxus sempervirens,Acce,kiritilgan,-,Turkmenistan+Uzbekistan,,
+buta,Сирень венгерская,Кс,Т,Н,ТВ,М,У,С,С,ПД-ГР,+,Syringa josikaea,,Syringa josikaea,Acce,introdutsent,-,-,,
+buta,Сирень обыкновенная,Кв,Т,Н,СТ,М,У,С,Б,О-ГР,+,Syringa vulgaris,,Syringa vulgaris,Acce,introdutsent,-,-,,
+buta,Сирень персидская,Кв,НТ,Н,СВ,М,У,С,Б,О-ГР,+,Syringa × persica,,Syringa persica,Acce,introdutsent,-,-,,
+buta,Скумпия,КвД,НТ,Н,СВ,М,У,Д,Б,О-ГР,+,Cotinus coggygria,,Cotinus coggygria,Acce,kiritilgan,Kazakhstan+Turkmenistan,Tadzhikistan+Uzbekistan,,
+buta,Смородина золотистая,Кс,Т,С,СТ,М,У,М,Б,ГР,+,Ribes aureum,,Ribes aureum,Acce,kiritilgan,-,Turkmenistan+Uzbekistan,,
+buta,Снежноягодник белый,Кн,Т,С,ТВ,С,У,М,М,О-ГР,+,Symphoricarpos albus,,Symphoricarpos albus,Acce,kiritilgan,-,Uzbekistan,,
+buta,Спирея Бумальда,Кн,НТ,Н,СТ,М,У,М,Б,ПД-ГР,+,Spiraea × bumalda,,Spiraea japonica var. japonica,Hete,kiritilgan,-,Uzbekistan,,
+buta,Спирея Вангутта,Кн,НТ,Н,СТ,М,У,М,Б,ПД-ГР,+,Spiraea × vanhouttei,,Spiraea × vanhouttei,Arti,introdutsent,-,-,,
+buta,Спирея иволистная,Кс,НТ,С,СТ,М,У,М,Б,ГР,+,Spiraea salicifolia,,Spiraea salicifolia,Acce,MO da mahalliy,Kazakhstan,-,,
+buta,Спирея ниппонская,Кс,НТ,Н,СТ,М,У,М,Б,ГР,+,Spiraea nipponica,,Spiraea nipponica,Acce,introdutsent,-,-,,
+buta,Спирея сливолистная,Кс,НТ,Н,СТ,М,У,М,Б,ГР,+,Spiraea prunifolia,,Spiraea prunifolia,Acce,introdutsent,-,-,,
+buta,Спирея средняя,Кс,НТ,Н,СТ,М,У,М,Б,ГР,+,Spiraea media,,Spiraea media,Acce,mahalliy,Kazakhstan+Uzbekistan,-,,
+buta,Спирея японская,Кн,НТ,Н,СТ,М,У,С,Б,ГР,+,Spiraea japonica,,Spiraea japonica,Acce,kiritilgan,-,Uzbekistan,,
+buta,Сумах ароматный,Кс,НТ,Н,ТВ,М,У,С,С,ПД-ГР,+,Rhus aromatica,,Rhus aromatica,Acce,kiritilgan,-,Tadzhikistan+Uzbekistan,,
+buta,Сумах дубильный,Кс,НТ,С,СВ,М,У,С,С,ГР,+,Rhus coriaria,,Rhus coriaria,Acce,mahalliy,Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Сумах иллинойский,Кс,НТ,Н,ТВ,М,У,С,С,ПД-ГР,+,Rhus aromatica,? (var. illinoensis),Rhus aromatica,Acce,kiritilgan,-,Tadzhikistan+Uzbekistan,,
+buta,Сумах уксусный,КвД,НТ,С,СВ,М,У,С,С,ГР,+,Rhus typhina,,Rhus typhina,Acce,introdutsent,-,Kazakhstan,,
+buta,Тамарикс ветвистый,Кв,НТ,С,СВ,М,У,С,С,О-ГР,+,Tamarix ramosissima,,Tamarix ramosissima,Acce,mahalliy,Kazakhstan+Kirgizstan+Tadzhikistan+Turkmenistan+Uzbekistan,-,,
+buta,Тамарикс изящный,Кс,НТ,С,СВ,М,У,С,С,ГР,+,Tamarix gracilis,,Tamarix gracilis,Acce,MO da mahalliy,Kazakhstan+Tadzhikistan+Turkmenistan,-,,
+buta,Тамарикс четырехтычиночный,Кв,НТ,С,СВ,М,У,С,Б,О-ГР,+,Tamarix tetrandra,,Tamarix tetrandra,Acce,introdutsent,-,-,,
+buta,Терн,Кс,Т,С,СТ,М,У,М,М,ГР,+,Prunus spinosa,,Prunus spinosa,Acce,MO da mahalliy,Kazakhstan,-,,
+buta,Форзиция зеленая,Кс,НТ,Н,СВ,М,У,С,Б,О-ГР,+,Forsythia viridissima,,Forsythia viridissima,Acce,introdutsent,-,-,,

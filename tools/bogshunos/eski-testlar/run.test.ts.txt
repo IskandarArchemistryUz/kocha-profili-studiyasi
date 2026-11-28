@@ -1,0 +1,30 @@
+import { test, expect } from 'vitest';
+// @ts-ignore
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { fromRaw } from '../../../src/bogshunos/raw';
+import { context, analyze } from '../../../src/bogshunos/analyze';
+const RAW = '/mnt/user-data/uploads/Downloads/';
+const FIX = '/home/claude/bgtest/bobur.json';
+test.skipIf(!existsSync(RAW + 'bogshunos_sinov_bobur.json') && !existsSync(FIX))('bobur: fixture + tahlil', () => {
+  let F: any;
+  if (existsSync(FIX)) F = JSON.parse(readFileSync(FIX, 'utf8'));
+  else { F = fromRaw(JSON.parse(readFileSync(RAW + 'bogshunos_sinov_bobur.json', 'utf8')), JSON.parse(readFileSync(RAW + 'bg_kol_rel.json', 'utf8')), JSON.parse(readFileSync(RAW + 'bg_pop_cells.json', 'utf8'))); writeFileSync(FIX, JSON.stringify(F)); }
+  console.log('origin', F.site.origin);
+  const C = context(F.site, F.data); const { A } = analyze(F.site, F.data, C);
+  console.log(JSON.stringify({ ha: A.areaHa, pop: A.pop, trees: A.trees.n, lake: A.water.lakeM2, N1: A.visitors.N1, Nday: A.visitors.Nday, slope: A.relief.slopeMed, over8: A.relief.over8, canopy: A.trees.canopy, island: C.island.length }));
+  expect(A.trees.n).toBeGreaterThan(1000);
+});
+
+import { design, VARS } from '../../../src/bogshunos/design';
+import { targets } from '../../../src/bogshunos/od';
+test.skipIf(!existsSync(FIX))('bobur: A/B/C variantlar', () => {
+  const F = JSON.parse(readFileSync(FIX, 'utf8'));
+  const C = context(F.site, F.data); const { A } = analyze(F.site, F.data, C);
+  const T = targets(C, F.data);
+  console.log('ATTR', JSON.stringify(T.attr.map(a => [a.name, a.p.map(Math.round), a.w])));
+  console.log('INNER', JSON.stringify(T.inner.map(a => [a.name, a.p.map(Math.round), a.w])));
+  const out: any = {};
+  for (const vd of VARS) { const t0 = Date.now(); const R = design(C, A, T.attr, T.inner, vd); out[vd.id] = { V: R.V }; console.log(vd.id, Date.now() - t0, 'ms', JSON.stringify(R.V.m), JSON.stringify(R.V.items.map(i => [i.name, i.rule])), 'br', R.V.bridges.length); }
+  writeFileSync('/home/claude/bgtest/design.json', JSON.stringify(out));
+  expect(out.C.V.m.gates).toBe(9);
+}, 120000);
